@@ -20,7 +20,9 @@ jobs:
         with: { node-version: "${{ matrix.node }}" }
       - name: Syntax aller JavaScript-Dateien
         run: |
-          for f in web/*.js extension/*.js scripts/*.mjs .github/scripts/*.mjs; do node --check "$f"; done
+          for f in shared/*.js web/*.js extension/*.js scripts/*.mjs .github/scripts/*.mjs; do node --check "$f"; done
+      - name: Kopien von shared/ sind aktuell
+        run: node scripts/sync-core.mjs --check
       - name: Manifest ist gültiges JSON mit Pflichtfeldern
         run: |
           node -e "const m=require('./extension/manifest.json'); if(m.manifest_version!==3||!m.version||!m.icons) throw new Error('manifest unvollständig')"
@@ -30,6 +32,8 @@ jobs:
         run: node .github/scripts/check-domains.mjs
       - name: Größengrenzen für web/*.js und index.html
         run: node .github/scripts/check-size.mjs
+      - name: jsdom für die DOM-Tests des Plugins
+        run: npm ci --prefix tests --no-audit --no-fund
       - name: Tests
         run: node --test tests/*.test.js
       - name: Plugin-ZIP lässt sich bauen

@@ -1,0 +1,23 @@
+# Lumina: Bild- und Videoplätze
+
+Platzhalter-Struktur. Die Landingpage hat im Hero einen Platz für ein Bild oder ein kurzes Video. **Solange keine Datei freigeschaltet ist, bleibt der Platz unsichtbar** und es gibt keine Anfrage und kein kaputtes Bild.
+
+## Freischalten
+1. Dateien in `web/media/` ablegen:
+   - `lumina-hero.webp` und `lumina-hero.jpg` (16:9, 1280×720, je unter 150 KB)
+   - optional `lumina-hero.mp4` (15–20 s, ohne Ton, unter 2 MB; wird bei „reduzierte Bewegung“ nicht abgespielt)
+2. In `web/index.html` `<meta name="sm-lumina" content="off">` auf `on` setzen.
+3. Lokal prüfen (`python3 -m http.server 8765 -d web`), hell und dunkel, Handy-Breite.
+
+Alles wird selbst gehostet (keine externe Quelle). Das Bild ist Schmuck (`alt=""`). Wird es ein echter Screenshot, mit „Beispiel“ kennzeichnen und eine Beschreibung ergänzen.
+
+## Regeln für alle Prompts
+- Kein Airbnb-Logo, keine Marken, keine erkennbaren Personen, keine Schrift im Bild.
+- Keine Zahlen, Zitate oder Nutzerstimmen im Bild.
+- Farben passend zur Seite: Rot `#e0475b`, Orange `#ff8a5c`, dunkler Grund `#0b0b0d`.
+
+## Prompts (Entwurf, vom Nutzer zu prüfen)
+| Platz | Datei | Prompt |
+|---|---|---|
+| Hero | `lumina-hero.webp/.jpg` | TODO Nutzer: Prompt eintragen. Vorschlag: „Abstrakte Stadtkarte von oben mit weichen farbigen Kreisen (Viertel), fünf kleine Punkte in drei Farben, dunkler Hintergrund, rot-oranger Schein, ohne Schrift, 16:9“ |
+| Hero-Video | `lumina-hero.mp4` | TODO Nutzer: Prompt eintragen. Vorschlag: „Langsamer Zoom auf eine abstrakte Stadtkarte, ein Kreis leuchtet auf, 15 Sekunden, ohne Schrift, nahtlose Schleife“ |

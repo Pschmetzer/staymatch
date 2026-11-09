@@ -1,11 +1,11 @@
-// Prüft, dass Manifest, bridge.js und APP_URL (popup.js) zusammenpassen und alle Dateien existieren.
+// Prüft, dass Manifest, bridge.js und APP_URL (extension/core.js, früher popup.js) zusammenpassen und alle Dateien existieren.
 import { readFileSync, existsSync } from 'node:fs';
 
 const errors = [];
 const manifest = JSON.parse(readFileSync('extension/manifest.json', 'utf8'));
-const popup = readFileSync('extension/popup.js', 'utf8');
-const appUrl = /const APP_URL\s*=\s*'([^']+)'/.exec(popup)?.[1];
-if (!appUrl) errors.push('APP_URL in extension/popup.js nicht gefunden');
+const src = ['extension/core.js', 'extension/popup.js'].filter(existsSync).map((f) => readFileSync(f, 'utf8')).join('\n');
+const appUrl = /const APP_URL\s*=\s*'([^']+)'/.exec(src)?.[1];
+if (!appUrl) errors.push('APP_URL in extension/core.js oder popup.js nicht gefunden');
 const appHost = appUrl ? new URL(appUrl).hostname : null;
 
 const scripts = manifest.content_scripts || [];

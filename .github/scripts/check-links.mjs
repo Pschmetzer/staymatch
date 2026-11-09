@@ -16,7 +16,13 @@ for (const f of files) {
   urls.push(...[...text.matchAll(/(?<![("<])\bhttps?:\/\/[^\s<>)\]]+/g)].map((m) => m[0].replace(/[.,;:]+$/, '')));
   for (const u of urls) {
     if (/^https?:\/\//.test(u)) {
-      if (!/^https?:\/\/(localhost|127\.0\.0\.1)/.test(u)) external.set(u, f);
+      // Eigene Website: gegen web/ prüfen (neue Seiten sind vor dem Deploy noch nicht live; cleanUrls: /x → web/x.html)
+      const own = /^https:\/\/staymatch-tau\.vercel\.app(\/[^?#]*)?/.exec(u);
+      if (own) {
+        const p = (own[1] || '/').replace(/\/$/, '') || '/index';
+        if (p.endsWith('.zip')) continue; // Zip entsteht erst beim Build (siehe .gitignore)
+        if (![`web${p}`, `web${p}.html`, `web${p}/index.html`].some((x) => existsSync(x))) errors.push(`${f}: Seite fehlt in web/: ${u}`);
+      } else if (!/^https?:\/\/(localhost|127\.0\.0\.1)/.test(u)) external.set(u, f);
     } else if (!/^(mailto:|tel:)/.test(u)) {
       const [path, hash] = u.split('#');
       const target = path ? resolve(dirname(f), decodeURIComponent(path)) : resolve(f);
