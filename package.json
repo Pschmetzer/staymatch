@@ -1,0 +1,21 @@
+{
+  "name": "staymatch",
+  "version": "0.3.0",
+  "private": true,
+  "description": "StayMatch: Viertel-Finder (web/) und Chrome-Erweiterung (extension/). Keine Abhängigkeiten.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/Pschmetzer/staymatch.git" },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "python3 -m http.server 8765 -d web",
+    "test": "node --test tests/*.test.js",
+    "build": "./scripts/build-plugin-zip.sh",
+    "check:js": "for f in web/*.js extension/*.js scripts/*.mjs .github/scripts/*.mjs; do node --check \"$f\" || exit 1; done",
+    "check:html": "node .github/scripts/check-html.mjs",
+    "check:domains": "node .github/scripts/check-domains.mjs",
+    "check:size": "node .github/scripts/check-size.mjs",
+    "check:links": "node .github/scripts/check-links.mjs",
+    "check:zip": "npm run build --silent && node .github/scripts/check-zip.mjs",
+    "check": "npm run check:js && npm run check:html && npm run check:domains && npm run check:size && npm run check:links && npm run check:zip"
+  }
+}
