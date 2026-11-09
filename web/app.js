@@ -35,7 +35,11 @@ function renderPeople() {
   });
   updateBudget();
 }
-function save() { store.set('sm_people', people); }
+function save() {
+  store.set('sm_people', people);
+  // Änderungen gelten ab jetzt: alten Teilen-Link aus der Adresszeile nehmen, sonst überschreibt ein Neuladen die Eingaben
+  if (location.hash.startsWith('#t=')) history.replaceState(null, '', location.pathname + location.search);
+}
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function budgetNums() {

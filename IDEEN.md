@@ -431,11 +431,11 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 
 ## A. Neue Fehler im Code von heute 🔴
 
-346. 🔴 `web/app.js:219` – **Enter startet die Suche auch während sie läuft.** Der Knopf ist dann gesperrt, `run()` prüft das aber nicht. Wer Enter drückt, schickt parallel weitere Overpass-Abfragen. Am Anfang von `run()` abbrechen, wenn `$('go').disabled`. (S)
-347. 🔴 `web/app.js:212` – Gibt es kein Viertel mit mindestens 10 Orten, ist `ranked` leer und `fitBounds` wirft „Bounds are not valid“. Die Nutzerin sieht eine kryptische Meldung. Leeren Zustand abfangen („Keine passenden Viertel, versuche einen größeren Ort“). (S)
-348. 🔴 `web/scoring.js:19` – **Ein Ort zählt nur in einer Kategorie.** Ein Park mit `tourism=attraction` (Park Güell!) zählt nur als „Chillen“, nie als Sehenswürdigkeit. Orte in mehreren Kategorien zählen lassen. (S)
-349. 🔴 `extension/rank.js:38` – **Sprung in der Preiswertung.** Bei 60 % des Budgets gibt es 0,85, bei 61 % plötzlich 0,995. Eine etwas teurere Wohnung schlägt eine günstigere. Kurve stetig machen. (S)
-350. 🔴 `extension/content.js:95` – Bleibt die Liste der Unterkünfte gleich, werden die Punkte-Plaketten nicht neu gesetzt. Rendert Airbnb eine Karte neu (React), ist die Plakette weg und kommt nicht wieder. Plaketten bei jedem Durchlauf prüfen, nur das Panel überspringen. (S)
+346. ✅ 🔴 `web/app.js:219` – **Enter startet die Suche auch während sie läuft.** Der Knopf ist dann gesperrt, `run()` prüft das aber nicht. Wer Enter drückt, schickt parallel weitere Overpass-Abfragen. Am Anfang von `run()` abbrechen, wenn `$('go').disabled`. (S)
+347. ✅ 🔴 `web/app.js:212` – Gibt es kein Viertel mit mindestens 10 Orten, ist `ranked` leer und `fitBounds` wirft „Bounds are not valid“. Die Nutzerin sieht eine kryptische Meldung. Leeren Zustand abfangen („Keine passenden Viertel, versuche einen größeren Ort“). (S)
+348. ✅ 🔴 `web/scoring.js:19` – **Ein Ort zählt nur in einer Kategorie.** Ein Park mit `tourism=attraction` (Park Güell!) zählt nur als „Chillen“, nie als Sehenswürdigkeit. Orte in mehreren Kategorien zählen lassen. (S)
+349. ✅ 🔴 `extension/rank.js:38` – **Sprung in der Preiswertung.** Bei 60 % des Budgets gibt es 0,85, bei 61 % plötzlich 0,995. Eine etwas teurere Wohnung schlägt eine günstigere. Kurve stetig machen. (S)
+350. ✅ 🔴 `extension/content.js:95` – Bleibt die Liste der Unterkünfte gleich, werden die Punkte-Plaketten nicht neu gesetzt. Rendert Airbnb eine Karte neu (React), ist die Plakette weg und kommt nicht wieder. Plaketten bei jedem Durchlauf prüfen, nur das Panel überspringen. (S)
 351. 🔴 `extension/content.js:227` – Klickt man 👍, während man noch in die Notiz tippt, wird das Panel neu gebaut. Der Text der letzten 400 ms ist weg. Vor dem Neubau Notiz speichern. (S)
 352. 🔴 `extension/content.js:227` – Ein gemeinsamer Timer `roomTimer` für alle Notizen: Wechselt man schnell die Unterkunft, wird die falsche Notiz gespeichert. Timer pro Unterkunft. (S)
 353. 🔴 `extension/parse.js:41` – Bei jeder Änderung auf der Seite wird das 370-KB-JSON von Airbnb neu geparst und 24-mal `innerText` gelesen (erzwingt Layout). Ergebnis nach Länge des Textes zwischenspeichern. (S)
@@ -447,10 +447,10 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 359. 🔴 `extension/manifest.json` – Kein `unlimitedStorage`. `chrome.storage.local` hat eine Grenze; bei vielen gemerkten Unterkünften schlägt `set` still fehl. Fehler abfangen und Hinweis zeigen. (S)
 360. 🔴 `extension/content.js:261` – Dauer-Timer, der jede Sekunde die Adresse prüft, auf jeder Airbnb-Seite, auch im Hintergrund-Tab. Besser `navigation`-Ereignis oder `popstate` + History-Patch. (S)
 361. 🔴 `web/app.js` – Cache-Schlüssel enthält die Bounding-Box auf 3 Stellen. Dieselbe Stadt aus „Berlin“ und „Berlin, Deutschland“ kann leicht abweichen und wird doppelt geladen und gespeichert (je ~1,5 MB). Nach Stadt-ID (OSM-ID) schlüsseln. (S)
-362. 🔴 `web/index.html` – Beispiel-Panel zeigt erfundene Unterkünfte und Werte ohne Kennzeichnung. Besucher könnten es für echte Ergebnisse halten. Beschriften: „Beispiel“. (S)
-363. 🔴 `web/index.html` – Sticky-Navigation verdeckt Überschriften beim Klick auf „So geht's“ & Co. `scroll-margin-top: 90px` für die Abschnitte. (S)
-364. 🔴 `web/index.html` – „Version 0.2 · ca. 18 KB“ steht fest im Text und veraltet beim nächsten Plugin-Update. Aus `manifest.json` beim Bauen einsetzen. (S)
-365. 🔴 `web/staymatch-plugin.zip` – Die ZIP liegt als Binärdatei im Repo und kann hinter dem Code zurückbleiben. Beim Deploy bauen (Vercel-Build-Schritt), nicht einchecken. (S)
+362. ✅ 🔴 `web/index.html` – Beispiel-Panel zeigt erfundene Unterkünfte und Werte ohne Kennzeichnung. Besucher könnten es für echte Ergebnisse halten. Beschriften: „Beispiel“. (S)
+363. ✅ 🔴 `web/index.html` – Sticky-Navigation verdeckt Überschriften beim Klick auf „So geht's“ & Co. `scroll-margin-top: 90px` für die Abschnitte. (S)
+364. ✅ 🔴 `web/index.html` – „Version 0.2 · ca. 18 KB“ steht fest im Text und veraltet beim nächsten Plugin-Update. Aus `manifest.json` beim Bauen einsetzen. (S)
+365. ✅ 🔴 `web/staymatch-plugin.zip` – Die ZIP liegt als Binärdatei im Repo und kann hinter dem Code zurückbleiben. Beim Deploy bauen (Vercel-Build-Schritt), nicht einchecken. (S)
 366. 🔴 `web/app.html` – App und Landingpage sehen verschieden aus (hell/System vs. dunkel, andere Schrift). Das wirkt wie zwei Produkte. Gemeinsames Design (CSS-Variablen, Schrift). (M)
 367. 🔴 `web/app.html` – Kein Hell/Dunkel-Schalter, anders als die Landingpage. Gewählte Einstellung wird nicht übernommen. (S)
 368. 🔴 `extension/bridge.js` – Läuft nur auf `staymatch-tau.vercel.app` und `localhost:8765`. Zieht die Seite auf eine eigene Domain um, funktioniert die Verbindung nicht mehr. Domain-Liste aus einer Stelle pflegen. (S)
@@ -461,17 +461,17 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 
 ## B. Rechtliches und Datenschutz 🔵
 
-373. 🔵 `web/index.html:11` – **Google Fonts wird von Google geladen.** Dabei geht die IP-Adresse der Besucherin an Google. In Deutschland gab es dafür Abmahnungen und ein Urteil des LG München (2022). Schrift selbst hosten. (S)
-374. 🔵 `web/index.html:315` – Die FAQ sagt „Nichts verlässt deinen Browser“. Das stimmt für Gruppe und Likes, aber der Stadtname geht an Nominatim und Overpass, Kartenkacheln kommen von OpenStreetMap, Leaflet von unpkg. Aussage präzisieren, sonst ist sie falsch. (S)
-375. 🔵 `web/app.html` – Leaflet von unpkg: noch eine Drittpartei mit IP-Weitergabe. Selbst hosten (11 KB gzip). (S)
-376. 🔵 Datenschutzerklärung fehlt. Nötig, sobald Besucherinnen aus der EU Drittanbieter-Anfragen auslösen. (S)
-377. 🔵 Impressum fehlt. Für eine öffentliche, deutschsprachige Seite meist Pflicht, auch bei nichtkommerziellen Projekten, die sich an die Öffentlichkeit richten. Adresse oder Impressumsdienst prüfen. (S)
-378. 🔵 **Commit-E-Mail öffentlich.** Alle Commits im öffentlichen Repo tragen `pschmetzer@proton.me`. Künftig die GitHub-noreply-Adresse (`git config user.email`). Alte Commits nur mit Neuschreiben der Historie zu ändern, das lohnt bei dem jungen Repo. (S)
+373. ✅ 🔵 `web/index.html:11` – **Google Fonts wird von Google geladen.** Dabei geht die IP-Adresse der Besucherin an Google. In Deutschland gab es dafür Abmahnungen und ein Urteil des LG München (2022). Schrift selbst hosten. (S)
+374. ✅ 🔵 `web/index.html:315` – Die FAQ sagt „Nichts verlässt deinen Browser“. Das stimmt für Gruppe und Likes, aber der Stadtname geht an Nominatim und Overpass, Kartenkacheln kommen von OpenStreetMap, Leaflet von unpkg. Aussage präzisieren, sonst ist sie falsch. (S)
+375. ✅ 🔵 `web/app.html` – Leaflet von unpkg: noch eine Drittpartei mit IP-Weitergabe. Selbst hosten (11 KB gzip). (S)
+376. 🟡 (teils: PRIVACY.md im Repo, Seite fehlt) 🔵 Datenschutzerklärung fehlt. Nötig, sobald Besucherinnen aus der EU Drittanbieter-Anfragen auslösen. (S)
+377. 🟡 (offen: braucht Name und Anschrift) 🔵 Impressum fehlt. Für eine öffentliche, deutschsprachige Seite meist Pflicht, auch bei nichtkommerziellen Projekten, die sich an die Öffentlichkeit richten. Adresse oder Impressumsdienst prüfen. (S)
+378. ✅ 🔵 **Commit-E-Mail öffentlich.** Alle Commits im öffentlichen Repo tragen `pschmetzer@proton.me`. Künftig die GitHub-noreply-Adresse (`git config user.email`). Alte Commits nur mit Neuschreiben der Historie zu ändern, das lohnt bei dem jungen Repo. (S)
 379. 🔵 Marken: „StayMatch“ vor dem Chrome-Web-Store-Start kurz auf Namenskollisionen prüfen (DPMA/EUIPO, App-Stores). (S)
 380. 🔵 Plugin-Name und Beschreibung dürfen Airbnb nicht als Herkunft nahelegen. „Für Airbnb“ im Store-Titel vermeiden, im Text „funktioniert auf airbnb.de“. (S)
 381. 🔵 Hinweistext „nicht mit Airbnb verbunden“ auch im Plugin-Panel und im Popup. (S)
 382. 🔵 Ehrlicher Hinweis in der FAQ zu Airbnbs Nutzungsbedingungen: Plugin liest nur die geöffnete Seite, Airbnb kann das trotzdem anders sehen. Wer das nicht möchte, lässt es sein. (S)
-383. 🔵 Lizenz-Hinweise Dritter in `LICENSE`/`NOTICE`: Leaflet (BSD-2), Inter (OFL), OpenStreetMap-Daten (ODbL). (S)
+383. ✅ 🔵 Lizenz-Hinweise Dritter in `LICENSE`/`NOTICE`: Leaflet (BSD-2), Inter (OFL), OpenStreetMap-Daten (ODbL). (S)
 384. 🔵 ODbL-Pflicht beim Teilen von Ergebnissen: Quelle nennen. Im Export und im Teilen-Link mitliefern. (S)
 385. 🔵 `SECURITY.md` mit Meldeweg für Sicherheitslücken, bevor jemand sie öffentlich als Issue meldet. (S)
 386. 🔵 Cookie-Banner nicht nötig, solange nur `localStorage` für eigene Funktionen genutzt wird. Dokumentieren, warum. (S)
@@ -480,7 +480,7 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 
 ## C. Plugin: Verteilung und Qualität 🧩
 
-389. 🟠 Chrome Web Store veröffentlichen (Icons, Screenshots, Datenschutz, Beschreibung). Einmalig 5 USD Entwicklergebühr. Danach entfällt der Entwicklermodus. (M)
+389. 🟡 (teils: STORE.md vorbereitet, Einreichen musst du selbst) 🟠 Chrome Web Store veröffentlichen (Icons, Screenshots, Datenschutz, Beschreibung). Einmalig 5 USD Entwicklergebühr. Danach entfällt der Entwicklermodus. (M)
 390. 🟠 Automatische Updates erst über den Store. Bis dahin: Plugin prüft einmal pro Woche eine `version.json` auf der Seite und zeigt „Neue Version“. (S)
 391. 🟠 Edge-Add-ons-Store (gleiche Datei, kostenlos). (S)
 392. 🟠 Firefox: `browser_specific_settings` ergänzen, AMO-Veröffentlichung. (M)
@@ -530,7 +530,7 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 433. 🟠 ÖPNV-Anbindung nach Linien und Takt (GTFS-Daten) statt nur Haltestellen zählen. (L)
 434. 🟠 Preisniveau je Viertel aus den Suchergebnissen lernen (Median der Preise, die das Plugin sieht) und im Viertel-Finder anzeigen. (M)
 435. 🟠 Sicherheitsgefühl-Datenquellen je Stadt prüfen (offene Kriminalitätsdaten). Mit klarem Hinweis, dass es grob ist. (L)
-436. 🟠 Daten vorab für 50 Städte als statische Dateien (komprimiert, ~150 KB statt 1,5 MB). Dann ist das Ergebnis sofort da und Overpass wird entlastet. (M)
+436. 🟡 (teils: Skript und App-Anbindung fertig, Daten noch nicht geladen (Overpass war zu langsam)) 🟠 Daten vorab für 50 Städte als statische Dateien (komprimiert, ~150 KB statt 1,5 MB). Dann ist das Ergebnis sofort da und Overpass wird entlastet. (M)
 437. 🟠 Nächtliche Aktualisierung dieser Städte per GitHub Action. (M)
 438. 🟠 Eigene kleine Server-Funktion mit Cache vor Overpass (Vercel Function + Blob). (M)
 439. 🟠 Alternativen zu Overpass bei Ausfall: Geofabrik-Auszüge, Overture Maps. (L)
@@ -539,7 +539,7 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 442. 🟠 Unsicherheit anzeigen: Viertel mit wenigen OSM-Daten bekommen den Hinweis „wenig Daten“. (S)
 443. 🟠 Sensitivität: „Wenn Tom auf Chill wechselt, gewinnt Gràcia statt Poblenou“. (S)
 444. 🟠 Erklärbarkeit pro Person: „Sara wäre unzufrieden, weil nur 2 Parks in 800 m“. (S)
-445. 🟠 Einheitentests für `personScore`, `groupScore`, `pickDiverse`, `priceScore`, `parseSearch`, `num`. (S)
+445. ✅ 🟠 Einheitentests für `personScore`, `groupScore`, `pickDiverse`, `priceScore`, `parseSearch`, `num`. (S)
 446. 🟠 Testdaten (Mini-Stadt) im Repo, damit Tests ohne Netz laufen. (S)
 447. 🟠 Gewichte in einer JSON-Datei, geteilt zwischen Web und Plugin. (S)
 448. 🟠 Währungen umrechnen (Gesamtbudget in €, Unterkunft in CHF/£). (S)
@@ -552,7 +552,7 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 452. 🟠 Kurzes Demo-Video (15–20 s) im Hero, erstellt mit dem vorhandenen OpenMontage. (M)
 453. 🟠 Animierte Bewertung: Beim Scrollen füllen sich die Balken im Abschnitt „Warum fair?“. (S)
 454. 🟠 Interaktive Mini-Demo auf der Seite: drei Personen anklicken, Ranking ändert sich live (ohne Netz, mit eingebauten Beispieldaten). (M)
-455. 🟠 `og:image` und Twitter-Karte für schöne Vorschau in WhatsApp und Instagram. Fehlt derzeit komplett. (S)
+455. ✅ 🟠 `og:image` und Twitter-Karte für schöne Vorschau in WhatsApp und Instagram. Fehlt derzeit komplett. (S)
 456. 🟠 `<link rel="canonical">`, `sitemap.xml`, `robots.txt`. (S)
 457. 🟠 Strukturierte Daten (`SoftwareApplication`) für Suchmaschinen. (S)
 458. 🟠 Englische Version (`/en`) mit `hreflang`. (M)
@@ -575,7 +575,7 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 
 ## F. Neue Features für die Nutzerinnen 💡
 
-475. 🟢 **Gruppen-Link ohne Konto:** Jede Person öffnet einen Link und wählt ihren Typ selbst. Daten wandern verschlüsselt in der URL (Fragment `#…`), kein Server nötig. (M)
+475. ✅ 🟢 **Gruppen-Link ohne Konto:** Jede Person öffnet einen Link und wählt ihren Typ selbst. Daten wandern verschlüsselt in der URL (Fragment `#…`), kein Server nötig. (M)
 476. 🟢 Abstimmung über die Top-Viertel mit Daumen und Rangliste, ebenfalls über Link. (M)
 477. 🟢 „Quiz statt Typ“: 5 Fragen („Freitag, 23 Uhr, du bist …“) erzeugen das Profil. (S)
 478. 🟢 Konflikt-Karte: Wo sind die Wünsche am weitesten auseinander, und welches Viertel vermittelt am besten. (M)
@@ -615,8 +615,8 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 ## G. Betrieb, Qualität, Wachstum 📦
 
 511. 🟠 `package.json` mit `dev`, `test`, `build`, `lint`. (S)
-512. 🟠 GitHub Actions: Syntaxprüfung, Tests, Manifest-Prüfung, ZIP bauen, bei Tag ein Release anhängen. (S)
-513. 🟠 Vercel-Build-Schritt erzeugt die ZIP, statt sie einzuchecken (siehe 365). (S)
+512. ✅ 🟠 GitHub Actions: Syntaxprüfung, Tests, Manifest-Prüfung, ZIP bauen, bei Tag ein Release anhängen. (S)
+513. ✅ 🟠 Vercel-Build-Schritt erzeugt die ZIP, statt sie einzuchecken (siehe 365). (S)
 514. 🟠 `vercel.ts` mit Sicherheits-Headern (CSP, `X-Content-Type-Options`, `Referrer-Policy`) und `cleanUrls`. (S)
 515. 🟠 CSP so festziehen, dass nur eigene Dateien und die OSM-Dienste erlaubt sind (nach dem Selbst-Hosten von Schrift und Leaflet). (S)
 516. 🟠 Preview-Deploys manuell per `deploys vercel deploy` vor Produktion testen (Auto-Deploy bleibt aus). (S)
@@ -624,7 +624,7 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 518. 🟠 Lighthouse in CI. (S)
 519. 🟠 Dependabot für die wenigen Abhängigkeiten (nach dem Selbst-Hosten ohnehin kaum welche). (S)
 520. 🟠 Issue-Vorlagen: „Plugin erkennt Seite nicht“ (mit Anleitung, was zu kopieren ist, ohne persönliche Daten). (S)
-521. 🟠 `CONTRIBUTING.md` mit „So testest du lokal“, `CODE_OF_CONDUCT.md`, `SECURITY.md`. (S)
+521. ✅ 🟠 `CONTRIBUTING.md` mit „So testest du lokal“, `CODE_OF_CONDUCT.md`, `SECURITY.md`. (S)
 522. 🟠 `CHANGELOG.md` und Versionsschema. (S)
 523. 🟠 GitHub-Topics, Beschreibung, Social-Preview-Bild für das Repo. (S)
 524. 🟠 README mit GIF der Demo und Live-Link ganz oben. (S)

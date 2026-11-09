@@ -10,12 +10,12 @@ Stand: 09.11.2026. StayMatch hat kein Konto, keinen eigenen Server mit Datenbank
 
 ## Viertel-Finder (Website)
 - Gruppe, Reisedaten und Budget bleiben im Browser (`localStorage`) und in einem Teilen-Link, den du selbst erzeugst. Der Teil nach `#` wird von Browsern nicht an Server gesendet.
-- **Beliebte, vorab geladene Städte** (siehe `web/data/`): keine Anfrage an Kartendienste.
-- **Andere Städte:** Der eingegebene Ortsname und deine IP-Adresse gehen an
+- Der eingegebene Ortsname und deine IP-Adresse gehen an
   - Nominatim (OpenStreetMap Foundation) für die Ortssuche,
   - einen der Overpass-Server (`overpass-api.de`, `overpass.kumi.systems`, `overpass.private.coffee`) für die Orte,
-  - die OpenStreetMap-Kartenkacheln (`tile.openstreetmap.org`) für die Karte.
+  - die OpenStreetMap-Kartenkacheln (`tile.openstreetmap.org`) für die Karte. Die Kacheln werden **immer** von dort geladen.
   Deren Datenschutzhinweise gelten dort.
+- Optional (noch nicht aktiv): Städte können vorab geladen werden (`web/data/`, Skript `scripts/prefetch-cities.mjs`). Für sie entfallen Nominatim und Overpass, die Kartenkacheln bleiben.
 - Schrift (Inter) und Karten-Bibliothek (Leaflet) werden von der eigenen Seite geladen, nicht von Google oder unpkg.
 - Hosting: Vercel. Dabei fallen die üblichen Server-Protokolle an (IP-Adresse, Zeitpunkt, abgerufene Datei).
 - Keine Cookies. `localStorage` wird nur für eigene Funktionen genutzt (Gruppe, Design, Zwischenspeicher der Stadtdaten).
