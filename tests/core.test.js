@@ -1,4 +1,4 @@
-// Läuft mit: node --test tests/
+// Läuft mit: node --test tests/*.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
 require('../web/scoring.js');

@@ -33,7 +33,7 @@ Lizenz: MIT
 
 ## Entwickeln
 ```bash
-node --test tests/          # Tests
+node --test tests/*.test.js          # Tests
 ./scripts/deploy.sh         # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
 node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/)
 ```
