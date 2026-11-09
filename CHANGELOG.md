@@ -4,6 +4,17 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/). Versionssc
 
 ## [Unveröffentlicht]
 
+## [0.5.0]
+
+### Geändert
+- Neue Ausrichtung: StayMatch ist zuerst ein Helfer für eine Person, die schneller ihr passendes Airbnb findet. Gruppen sind ein Zusatz.
+- Direkt-Modus: Das Plugin funktioniert auf jeder Airbnb-Suche mit Budget pro Nacht und Wunsch-Chips, der Viertel-Finder ist optional.
+- Viertel-Finder startet mit einer Person („Du“), Einzahl-Texte, kein „pro Person“.
+
+### Hinzugefügt
+- Wünsche an die Unterkunft: ganze Unterkunft, kein Gewerbe, Superhost/Favorit, ab 20 Bewertungen; ruhig, sauber, WLAN als Warnung auf der Unterkunftsseite.
+- Gemeinsamer Kern in `shared/`, Runde 4 im Viertel-Finder, vorab geladene Städtedaten.
+
 ### Hinzugefügt
 - CI: Node 22 und 24, HTML-Prüfung, Domain-Abgleich Manifest/`bridge.js`/`APP_URL`, Größengrenzen, ZIP-Inhaltsprüfung, Link-Prüfung.
 - Release-Workflow: Bei Tag `v*` wird das Plugin-ZIP gebaut und angehängt.
