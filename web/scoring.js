@@ -1,23 +1,8 @@
 // StayMatch – Bewertungslogik der Viertel (Web-App). Das Plugin bekommt die fertigen Werte über bridge.js.
 (function (root) {
-  const CATEGORIES = {
-    party: { label: 'Party', tags: [['amenity', 'bar'], ['amenity', 'pub'], ['amenity', 'nightclub'], ['amenity', 'biergarten']] },
-    chill: { label: 'Chillen', tags: [['leisure', 'park'], ['amenity', 'cafe'], ['leisure', 'garden'], ['natural', 'beach'], ['leisure', 'spa']] },
-    sights: { label: 'Sightseeing', tags: [['tourism', 'attraction'], ['tourism', 'museum'], ['tourism', 'viewpoint'], ['historic', 'monument'], ['tourism', 'gallery']] },
-    food: { label: 'Essen', tags: [['amenity', 'restaurant'], ['amenity', 'fast_food']] },
-    transit: { label: 'ÖPNV', tags: [['railway', 'station'], ['railway', 'subway_entrance'], ['public_transport', 'station']] },
-  };
-
-  // Gewichte je Typ: positiv = wichtig, negativ = stört. Jeder Typ will etwas Essen und ÖPNV.
-  const PRESETS = {
-    party: { label: '🎉 Party', w: { party: 1, chill: 0.1, sights: 0.1, food: 0.4, transit: 0.4 } },
-    chill: { label: '🌿 Chill', w: { party: -0.5, chill: 1, sights: 0.2, food: 0.5, transit: 0.2 } },
-    sights: { label: '🏛️ Sightseeing', w: { party: 0.1, chill: 0.2, sights: 1, food: 0.4, transit: 0.7 } },
-    foodie: { label: '🍝 Foodie', w: { party: 0.2, chill: 0.2, sights: 0.2, food: 1, transit: 0.3 } },
-    family: { label: '👨‍👩‍👧 Familie', w: { party: -0.8, chill: 1, sights: 0.6, food: 0.6, transit: 0.5 } },
-    nature: { label: '🌲 Natur', w: { party: -0.3, chill: 1, sights: 0.4, food: 0.3, transit: 0.2 } },
-    culture: { label: '🎭 Kultur', w: { party: -0.1, chill: 0.3, sights: 1, food: 0.5, transit: 0.6 } },
-  };
+  // Kern (Kategorien, Typen, Entfernung) aus core.js: im Browser vorher geladen, in Node per require
+  const C = root.StayMatchCore || (typeof require === 'function' ? require('./core.js') : null);
+  const { CATEGORIES, PRESETS, RADIUS, distM } = C;
 
   // Gewichte einer Person: eigene Schieberegler (custom) gehen vor dem Typ. Unbekanntes wird verworfen, Werte auf -1..1 begrenzt.
   function cleanWeights(raw) {
@@ -85,15 +70,8 @@
     return Object.entries(CATEGORIES).filter(([, cat]) => cat.tags.some(([k, v]) => tags[k] === v)).map(([key]) => key);
   }
 
-  function distM(a, b) {
-    const R = 6371000, toR = Math.PI / 180;
-    const dLat = (b.lat - a.lat) * toR, dLon = (b.lon - a.lon) * toR;
-    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLon / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(x));
-  }
-
   // areas: [{name, lat, lon}], pois: [{lat, lon, cat}] -> areas mit counts + normierten Werten (0..1)
-  function scoreAreas(areas, pois, radius = 800) {
+  function scoreAreas(areas, pois, radius = RADIUS.area) {
     const zero = () => Object.fromEntries(Object.keys(CATEGORIES).map(k => [k, 0]));
     for (const a of areas) {
       a.counts = zero(); a.sums = zero();
@@ -149,7 +127,7 @@
   }
 
   // Deep-Link in die Airbnb-Suche (Kartenbereich rund ums Viertel)
-  function airbnbUrl({ lat, lon, name, city, checkin, checkout, adults, priceMaxNight, radius = 800 }) {
+  function airbnbUrl({ lat, lon, name, city, checkin, checkout, adults, priceMaxNight, radius = RADIUS.area }) {
     const dLat = radius / 111320, dLon = radius / (111320 * Math.cos(lat * Math.PI / 180));
     const q = new URLSearchParams();
     if (checkin) q.set('checkin', checkin);
@@ -163,7 +141,7 @@
   }
 
   // Beste Viertel, aber keine zwei Nachbarn im Umkreis von minDist (sonst 5× dieselbe Gegend)
-  function pickDiverse(sorted, n = 8, minDist = 1200) {
+  function pickDiverse(sorted, n = 8, minDist = RADIUS.diverse) {
     const out = [];
     for (const a of sorted) {
       if (out.every(b => distM(a, b) >= minDist)) out.push(a);

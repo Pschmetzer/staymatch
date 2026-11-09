@@ -153,6 +153,8 @@ footer a { color:var(--muted); }
   <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden.</div>
 </footer>
 <script src="vendor/leaflet/leaflet.js"></script>
+<!-- Reihenfolge wichtig: core.js zuerst (klassische Skripte, gemeinsamer globaler Bereich) -->
+<script src="core.js"></script>
 <script src="scoring.js"></script>
 <script src="app.js"></script>
 <script>
