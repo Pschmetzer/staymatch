@@ -79,7 +79,8 @@ test('parseSearch: veralteter State liefert Koordinaten, aber nie den Preis', ()
   const card = { querySelector: s => s.includes('rooms') ? { getAttribute: () => '/rooms/11' } : s.includes('price') ? { innerText: '500 € gesamt' } : null, innerText: '4,8 (30)\n500 € gesamt' };
   const doc = fakeDoc(stateJson([row('11', '702 € Gesamtpreis', 41.4)]), [card]);
   const [l] = P.parseSearch(doc);
-  assert.equal(l.totalPrice, 500, 'DOM-Preis gewinnt');
+  assert.equal(l.totalPrice, 500, 'abweichender DOM-Preis gewinnt (State veraltet)');
+  assert.equal(l.isTotal, true);
   assert.equal(l.lat, 41.4);
   assert.equal(l.coordsMissing, false);
   const noCoord = fakeDoc(stateJson([{ ...row('11', '1 €', 0), demandStayListing: { id: row('11', '', 0).demandStayListing.id } }]), [card]);
@@ -140,4 +141,16 @@ test('Touristensteuer', () => {
   const t = P.touristTax('Zzgl. Touristensteuer von 2 € pro Nacht, vor Ort zu zahlen.');
   assert.equal(t.mentioned, true); assert.match(t.text, /Touristensteuer/);
   assert.equal(P.touristTax('Nichts').mentioned, false);
+});
+
+test('parseSearch: frischer State bleibt maßgeblich, "gesamt" geht nicht verloren', () => {
+  // Karte zeigt nur "702 €" (ohne Wort), State sagt Gesamtpreis → bleibt Gesamtpreis (ungeprüft live: was die Karte zeigt)
+  const mk = txt => ({ querySelector: s => s.includes('rooms') ? { getAttribute: () => '/rooms/11' } : s.includes('price') ? { innerText: txt } : null, innerText: txt });
+  const [l] = P.parseSearch(fakeDoc(stateJson([row('11', '702 € Gesamtpreis', 41.4)]), [mk('702 €')]));
+  assert.equal(l.totalPrice, 702); assert.equal(l.isTotal, true);
+  // veralteter State, Karte ohne Wort: Betrag vom DOM, Einheit vom State
+  const stale = P.parseSearch(fakeDoc(stateJson([row('11', '999 € Gesamtpreis', 41.4)]), [mk('702 €')]))[0];
+  assert.equal(stale.totalPrice, 702); assert.equal(stale.isTotal, true); assert.equal(stale.priceFromDom, true);
+  // Karte sagt ausdrücklich "pro Nacht": das gilt
+  assert.equal(P.parseSearch(fakeDoc(stateJson([row('11', '999 € Gesamtpreis', 41.4)]), [mk('90 € pro Nacht')]))[0].isTotal, false);
 });
