@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "StayMatch – Unterkunfts-Merkzettel",
-  "version": "0.3.0",
-  "description": "Bewertet Unterkünfte auf der Suchseite, die du öffnest, für deine Gruppe und zeigt die Top 3. Merkt sich Verlauf, Likes und Bewertungs-Stichworte. Alles lokal.",
+  "version": "0.5.0",
+  "description": "Bewertet jede Unterkunft auf der Suchseite nach Budget, Sternen und Wünschen und zeigt die Top 3. Alles lokal.",
   "permissions": [
     "storage"
   ],
@@ -46,6 +46,8 @@
         "core.js",
         "parse.js",
         "rank.js",
+        "hints.js",
+        "pool.js",
         "content-common.js",
         "content-search.js",
         "content-listing.js"

@@ -56,8 +56,8 @@ function render() {
   const items = Object.values(listings).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
   $('profile').replaceChildren(...profile(items));
   $('trip').replaceChildren(trip
-    ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} Personen · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
-    : 'Noch keine Reise verbunden. Öffne den Viertel-Finder und starte eine Suche.');
+    ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} ${trip.people?.length === 1 ? 'Person' : 'Personen'} · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
+    : 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Optional findet der Viertel-Finder vorher das passende Viertel, auch für Gruppen.');
   let rows;
   if (tab === 'top') {
     rows = lastSearch?.top?.length
@@ -90,13 +90,27 @@ $('file').onchange = async e => {
     const src = j.listings || j;
     const entries = Object.values(src).filter(v => v && v.id && /^\d+$/.test(String(v.id)));
     await chrome.storage.local.set(Object.fromEntries(entries.map(v => ['l:' + v.id, v])));
-    chrome.storage.local.get('settings').then(r => { $('optBadges').checked = (r.settings || {}).showBadges !== false; });
-$('optBadges').onchange = async e => {
-  const { settings = {} } = await chrome.storage.local.get('settings');
-  await chrome.storage.local.set({ settings: { ...settings, showBadges: e.target.checked } });
-};
-load();
+    load();
   } catch { alert('Datei konnte nicht gelesen werden.'); }
+};
+chrome.storage.local.get('settings').then(r => {
+  $('optBadges').checked = (r.settings || {}).showBadges !== false;
+  $('optTheme').value = (r.settings || {}).theme || 'auto';
+});
+async function setSetting(patch) {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  await chrome.storage.local.set({ settings: { ...settings, ...patch } });
+}
+$('optBadges').onchange = e => setSetting({ showBadges: e.target.checked });
+$('optTheme').onchange = e => setSetting({ theme: e.target.value });
+// Merkliste (👍) als Text zum Teilen (Preis pro Person nur, wenn mehrere reisen)
+$('share').onclick = async () => {
+  const liked = Object.values(listings).filter(i => i.vote === 1).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  if (!liked.length) { $('share').textContent = 'Erst 👍 vergeben'; return; }
+  const n = trip?.people?.length || 0;
+  const text = window.StayMatchRank.shareText(liked.map(i => ({ ...i, stay: null, ppnPerson: n > 1 && i.pricePerNight ? Math.round(i.pricePerNight / n) : null })), { title: n > 1 ? 'Unsere Merkliste (StayMatch)' : 'Meine Merkliste (StayMatch)' });
+  try { await navigator.clipboard.writeText(text); $('share').textContent = 'Kopiert ✓'; } catch { $('share').textContent = 'Nicht möglich'; }
+  setTimeout(() => { $('share').textContent = 'Merkliste kopieren'; }, 2500);
 };
 $('wipe').onclick = async () => {
   if (!confirm('Alle gespeicherten Unterkünfte, Likes, Notizen und die Reise löschen? Das kann nicht rückgängig gemacht werden.')) return;

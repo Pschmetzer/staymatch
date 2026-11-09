@@ -10,16 +10,22 @@
     sights: { label: 'Sightseeing', tags: [['tourism', 'attraction'], ['tourism', 'museum'], ['tourism', 'viewpoint'], ['historic', 'monument'], ['tourism', 'gallery']] },
     food: { label: 'Essen', tags: [['amenity', 'restaurant'], ['amenity', 'fast_food']] },
     transit: { label: 'ÖPNV', tags: [['railway', 'station'], ['railway', 'subway_entrance'], ['public_transport', 'station']] },
+    shop: { label: 'Einkaufen', tags: [['shop', 'mall'], ['shop', 'department_store'], ['amenity', 'marketplace']] },
+    sport: { label: 'Sport', tags: [['leisure', 'fitness_centre'], ['leisure', 'sports_centre']] },
+    kids: { label: 'Kinder', tags: [['leisure', 'playground'], ['tourism', 'zoo'], ['tourism', 'theme_park']] },
   };
 
   // Gewichte je Typ: positiv = wichtig, negativ = stört. Jeder Typ will etwas Essen und ÖPNV.
   const PRESETS = {
-    party: { label: '🎉 Party', w: { party: 1, chill: 0.1, sights: 0.1, food: 0.4, transit: 0.4 } },
-    chill: { label: '🌿 Chill', w: { party: -0.5, chill: 1, sights: 0.2, food: 0.5, transit: 0.2 } },
-    sights: { label: '🏛️ Sightseeing', w: { party: 0.1, chill: 0.2, sights: 1, food: 0.4, transit: 0.7 } },
-    foodie: { label: '🍝 Foodie', w: { party: 0.2, chill: 0.2, sights: 0.2, food: 1, transit: 0.3 } },
-    family: { label: '👨‍👩‍👧 Familie', w: { party: -0.8, chill: 1, sights: 0.6, food: 0.6, transit: 0.5 } },
-    nature: { label: '🌲 Natur', w: { party: -0.3, chill: 1, sights: 0.4, food: 0.3, transit: 0.2 } },
+    party: { label: '🎉 Party', w: { party: 1, chill: 0.1, sights: 0.1, food: 0.4, transit: 0.4, shop: 0, sport: 0, kids: 0 } },
+    chill: { label: '🌿 Chill', w: { party: -0.5, chill: 1, sights: 0.2, food: 0.5, transit: 0.2, shop: 0.1, sport: 0, kids: 0 } },
+    sights: { label: '🏛️ Sightseeing', w: { party: 0.1, chill: 0.2, sights: 1, food: 0.4, transit: 0.7, shop: 0.1, sport: 0, kids: 0 } },
+    foodie: { label: '🍝 Foodie', w: { party: 0.2, chill: 0.2, sights: 0.2, food: 1, transit: 0.3, shop: 0, sport: 0, kids: 0 } },
+    family: { label: '👨‍👩‍👧 Familie', w: { party: -0.8, chill: 1, sights: 0.6, food: 0.6, transit: 0.5, shop: 0.2, sport: 0.1, kids: 1 } },
+    nature: { label: '🌲 Natur', w: { party: -0.3, chill: 1, sights: 0.4, food: 0.3, transit: 0.2, shop: 0, sport: 0.2, kids: 0.2 } },
+    shopping: { label: '🛍️ Shopping', w: { party: 0, chill: 0.2, sights: 0.2, food: 0.4, transit: 0.4, shop: 1, sport: 0, kids: 0 } },
+    sport: { label: '🏃 Sport', w: { party: -0.2, chill: 0.5, sights: 0.1, food: 0.3, transit: 0.3, shop: 0, sport: 1, kids: 0 } },
+    culture: { label: '🎭 Kultur', w: { party: -0.1, chill: 0.3, sights: 1, food: 0.5, transit: 0.6, shop: 0.1, sport: 0, kids: 0 } },
   };
 
   // Radien in Metern
@@ -28,6 +34,7 @@
     diverse: 1200, // Mindestabstand zwischen zwei empfohlenen Vierteln
     match: 1500, // gleiches Viertel / Unterkunft gehört noch zum Viertel
   };
+  const MIN_HALF = 0.04; // Mindestgröße der Suchfläche (Grad, ca. 4,4 km vom Zentrum)
   const BBOX_HALF = 0.075; // Große Städte auf ca. 16 × 16 km um das Zentrum begrenzen (Overpass-Last)
   const VISIT_WINDOW_MS = 30 * 60 * 1000; // Reload innerhalb von 30 Min. ≠ neuer Besuch
 
@@ -40,7 +47,7 @@
 
   const OVERPASS_SERVERS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
   // OSM-Schlüssel der Abfrage in fester Reihenfolge, mit Elementtyp. Die Werte kommen aus CATEGORIES.
-  const OSM_KEYS = [['amenity', 'nwr'], ['leisure', 'nwr'], ['tourism', 'nwr'], ['historic', 'node'], ['natural', 'nwr'], ['railway', 'node'], ['public_transport', 'node']];
+  const OSM_KEYS = [['amenity', 'nwr'], ['leisure', 'nwr'], ['tourism', 'nwr'], ['historic', 'node'], ['natural', 'nwr'], ['railway', 'node'], ['public_transport', 'node'], ['shop', 'nwr']];
   const PLACE_TYPES = ['suburb', 'neighbourhood', 'quarter'];
   // Spalten der CSV-Antwort (und der vorab geladenen Dateien in web/data/)
   const FIELDS = ['lat', 'lon', 'place', 'name', ...OSM_KEYS.map(([k]) => k), 'wikidata'];
@@ -85,6 +92,9 @@
     const lat = +hit.lat, lon = +hit.lon, h = BBOX_HALF, hl = h / Math.cos(lat * Math.PI / 180);
     s = Math.max(s, lat - h); n = Math.min(n, lat + h);
     w = Math.max(w, lon - hl); e = Math.min(e, lon + hl);
+    // Winzige Treffer (ein Viertel statt einer Stadt) auf mindestens ca. 9 × 9 km aufweiten, sonst finden wir keine Nachbarviertel
+    const m = MIN_HALF, ml = m / Math.cos(lat * Math.PI / 180);
+    s = Math.min(s, lat - m); n = Math.max(n, lat + m); w = Math.min(w, lon - ml); e = Math.max(e, lon + ml);
     return { lat, lon, bbox: [s, w, n, e], name: hit.display_name.split(',')[0] };
   }
 
