@@ -5,10 +5,15 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 
-let people = store.get('sm_people', [
+const DEFAULT_PEOPLE = [
   { name: 'Lena', type: 'party' }, { name: 'Mia', type: 'party' },
   { name: 'Jonas', type: 'chill' }, { name: 'Sara', type: 'chill' }, { name: 'Tom', type: 'sights' },
-]).filter(p => p && typeof p.name === 'string').map(p => ({ ...p, type: SM.PRESETS[p.type] ? p.type : 'chill' }));
+];
+let people = (a => Array.isArray(a) ? a : DEFAULT_PEOPLE)(store.get('sm_people', DEFAULT_PEOPLE))
+  .filter(p => p && typeof p.name === 'string').map(p => ({ ...p, type: SM.PRESETS[p.type] ? p.type : 'chill' }));
+// Nächste freie Nummer, damit nach Löschen nicht zweimal "Person 3" entsteht
+const freeName = () => { let n = people.length + 1; while (people.some(p => p.name.trim() === `Person ${n}`)) n++; return `Person ${n}`; };
+const DOMAIN = SM.airbnbDomain(navigator.language), CUR = SM.currencyFor(DOMAIN);
 
 // Standard-Zeitraum: in 4 Wochen, 4 Nächte
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -17,10 +22,20 @@ $('checkin').value = ymd(d0);
 $('checkout').value = ymd(d1);
 // #38 keine Vergangenheit, Abreise nach Anreise
 $('checkin').min = ymd(new Date());
-const syncMin = () => { const c = new Date($('checkin').value); if (!isNaN(c)) { $('checkout').min = ymd(new Date(c.getTime() + 864e5)); if ($('checkout').value <= $('checkin').value) $('checkout').value = ymd(new Date(c.getTime() + 864e5)); } };
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const syncMin = () => { const c = SM.parseDay($('checkin').value); if (c) { $('checkout').min = ymd(addDays(c, 1)); if ($('checkout').value <= $('checkin').value) $('checkout').value = ymd(addDays(c, 1)); } };
 $('checkin').addEventListener('change', syncMin); syncMin();
+// Datum ungültig (Abreise vor Anreise per Hand getippt)? Dann nicht still ohne Preisgrenze suchen
+const dateError = () => {
+  const a = SM.parseDay($('checkin').value), b = SM.parseDay($('checkout').value);
+  if (!a || !b) return 'Bitte An- und Abreise wählen.';
+  if (b <= a) return 'Die Abreise muss nach der Anreise liegen.';
+  return null;
+};
+const checkDates = () => { const e = dateError(); $('checkout').setCustomValidity(e || ''); if (e) $('status').textContent = e; };
+['change', 'input'].forEach(ev => { $('checkout').addEventListener(ev, checkDates); $('checkin').addEventListener(ev, checkDates); });
 
-function renderPeople() {
+function renderPeople(focusIdx) {
   $('people').innerHTML = '';
   people.forEach((p, i) => {
     const row = document.createElement('div');
@@ -29,10 +44,14 @@ function renderPeople() {
       <select aria-label="Typ">${Object.entries(SM.PRESETS).map(([k, v]) => `<option value="${k}" ${k === p.type ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
       <button title="Entfernen" aria-label="Entfernen">✕</button>`;
     row.children[0].oninput = e => { p.name = e.target.value; save(); };
+    row.children[0].onblur = e => { if (!p.name.trim()) { p.name = freeName(); e.target.value = p.name; save(); } };
     row.children[1].onchange = e => { p.type = e.target.value; save(); };
-    row.children[2].onclick = () => { people.splice(i, 1); save(); renderPeople(); };
+    row.children[2].onclick = () => { people.splice(i, 1); save(); renderPeople(Math.min(i, people.length - 1)); };
+    row.children[2].setAttribute('aria-label', `${p.name || 'Person'} entfernen`);
     $('people').appendChild(row);
   });
+  // Fokus nach dem Neuaufbau nicht ins Nichts fallen lassen
+  if (focusIdx != null) ($('people').children[focusIdx]?.querySelector('input') || $('addPerson')).focus();
   updateBudget();
 }
 function save() {
@@ -51,18 +70,25 @@ function budgetNums() {
 function updateBudget() {
   const b = budgetNums();
   $('budgetInfo').textContent = b.n
-    ? `${b.n} Nächte · ${Math.round(b.perNight)} € pro Nacht · ${Math.round(b.perPerson)} € pro Person`
+    ? `${b.n} Nächte · ${Math.round(b.perNight)} ${CUR} pro Nacht · ${Math.round(b.perPerson)} ${CUR} pro Person`
     : 'Zeitraum wählen';
 }
 ['checkin', 'checkout', 'budget'].forEach(id => $(id).addEventListener('input', () => { updateBudget(); rescore(); }));
 $('radius').addEventListener('change', () => rescore());
-$('addPerson').onclick = () => { people.push({ name: `Person ${people.length + 1}`, type: 'chill' }); save(); renderPeople(); };
+$('addPerson').onclick = () => { people.push({ name: freeName(), type: 'chill' }); save(); renderPeople(people.length - 1); };
 $('example').onclick = () => {
   people = [{ name: 'Party 1', type: 'party' }, { name: 'Party 2', type: 'party' }, { name: 'Chill 1', type: 'chill' }, { name: 'Chill 2', type: 'chill' }, { name: 'Sights', type: 'sights' }];
   save(); renderPeople();
 };
 
 async function geocode(city) {
+  const gk = 'sm_geo_' + city.toLowerCase();
+  try { const c = JSON.parse(localStorage.getItem(gk)); if (c && Date.now() - c.t < 30 * 864e5) return c.v; } catch {}
+  const v = await geocodeFresh(city);
+  try { localStorage.setItem(gk, JSON.stringify({ t: Date.now(), v })); } catch {}
+  return v;
+}
+async function geocodeFresh(city) {
   const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(city)}`, { headers: { 'Accept-Language': 'de' } });
   if (!r.ok) throw new Error(`Ortssuche gerade nicht erreichbar (${r.status}) – bitte gleich nochmal versuchen.`);
   const j = await r.json();
@@ -74,6 +100,9 @@ async function geocode(city) {
   s = Math.max(s, lat - h); n = Math.min(n, lat + h);
   const hl = h / Math.cos(lat * Math.PI / 180);
   w = Math.max(w, lon - hl); e = Math.min(e, lon + hl);
+  // Ort statt Stadt ("Sagrada Família"): Box mindestens ca. 6 × 6 km, sonst gibt es kaum Viertel
+  const m = 0.027, ml = m / Math.cos(lat * Math.PI / 180);
+  s = Math.min(s, lat - m); n = Math.max(n, lat + m); w = Math.min(w, lon - ml); e = Math.max(e, lon + ml);
   return { lat, lon, bbox: [s, w, n, e], name: j[0].display_name.split(',')[0] };
 }
 
@@ -87,9 +116,9 @@ async function overpass(bbox) {
     nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${b});
     nwr["leisure"~"^(park|garden|spa)$"](${b});
     nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"](${b});
-    node["historic"="monument"](${b});
+    nwr["historic"~"^(monument|castle|memorial|ruins|church|cathedral)$"](${b});
     nwr["natural"="beach"](${b});
-    node["railway"~"^(station|subway_entrance)$"](${b});
+    node["railway"~"^(station|subway_entrance|tram_stop)$"](${b});
     node["public_transport"="station"](${b});
   );out center;`;
   // Fair zu den freiwilligen Servern: erst einer, der nächste erst nach 20 s ohne Antwort oder bei Fehler.
@@ -121,7 +150,11 @@ async function overpass(bbox) {
     }).filter(Boolean);
   } catch (e) {
     clearTimeout(timeout);
-    throw new Error('OpenStreetMap-Server gerade überlastet – bitte in einer Minute nochmal versuchen.');
+    if (!navigator.onLine) throw new Error('Du bist offline. Internet prüfen und nochmal versuchen.');
+    const errs = e.errors || [e];
+    if (errs.some(x => x.name === 'AbortError')) throw new Error('OpenStreetMap hat nicht rechtzeitig geantwortet. Kleinere Stadt oder später nochmal versuchen.');
+    if (errs.some(x => /: (429|504)/.test(x.message))) throw new Error('OpenStreetMap-Server gerade überlastet – bitte in einer Minute nochmal versuchen.');
+    throw new Error('OpenStreetMap-Daten konnten nicht geladen werden (' + errs.map(x => x.message).join(', ') + '). Bitte gleich nochmal versuchen.');
   }
 }
 
@@ -147,7 +180,10 @@ function cacheSet(k, rows) {
     try { localStorage.setItem(k, v); return; } catch {
       // älteste Stadt löschen (sm_trip bleibt), dann erneut versuchen
       let oldest = null, ot = Infinity;
-      try { for (const key of Object.keys(localStorage)) if (key.startsWith('sm_osm2_')) { const t = JSON.parse(localStorage.getItem(key)).t; if (t < ot) { ot = t; oldest = key; } } } catch {}
+      for (const key of Object.keys(localStorage)) if (key.startsWith('sm_osm2_')) {
+        let t = 0; try { t = JSON.parse(localStorage.getItem(key)).t || 0; } catch {} // kaputter Eintrag = ältester
+        if (t < ot) { ot = t; oldest = key; }
+      }
       if (!oldest) break;
       localStorage.removeItem(oldest);
     }
@@ -165,8 +201,10 @@ async function run() {
   if ($('go').disabled) return; // läuft schon (z. B. Enter während der Suche)
   const city = $('city').value.trim();
   if (!city || !people.length) { $('status').textContent = 'Bitte Stadt und mindestens eine Person angeben.'; return; }
+  const de = dateError();
+  if (de) { $('status').textContent = de; $('checkout').focus(); return; }
   $('go').disabled = true;
-  $('results').innerHTML = '';
+  $('results').setAttribute('aria-busy', 'true');
   try {
     $('status').textContent = 'Suche Stadt …';
     // 1) vorab geladene Stadt (sofort, ohne Anfrage an OpenStreetMap-Server)
@@ -179,7 +217,8 @@ async function run() {
       const cacheKey = 'sm_osm2_' + geo.bbox.map(x => x.toFixed(3)).join(',');
       rows = cacheGet(cacheKey);
       $('status').textContent = rows ? `Nutze gespeicherte Daten für ${geo.name} …` : `Lade Orte in ${geo.name} aus OpenStreetMap (kann bis zu 1 Minute dauern) …`;
-      if (!rows) { rows = await overpass(geo.bbox); cacheSet(cacheKey, rows); }
+      // Sehr wenige Zeilen deuten auf eine abgebrochene Antwort hin → nicht einen Tag lang merken
+      if (!rows) { rows = await overpass(geo.bbox); if (rows.length >= 50) cacheSet(cacheKey, rows); }
     }
 
     const areas = [], pois = [];
@@ -187,14 +226,16 @@ async function run() {
       const lat = +t.lat, lon = +t.lon;
       if (!lat) continue;
       if (t.place && t.name) { if (!areas.some(a => a.name === t.name && SM.distM(a, { lat, lon }) < 1500)) areas.push({ name: t.name, lat, lon }); continue; }
-      for (const cat of SM.categoriesOf(t)) pois.push({ lat, lon, cat, name: t.name, tags: t });
+      for (const cat of SM.categoriesOf(t)) pois.push({ lat, lon, cat, name: t.name, tags: t, w: t.amenity === 'fast_food' ? 0.3 : 1 });
     }
     if (areas.length < 2) throw new Error('Keine Viertel in OpenStreetMap gefunden – andere Stadt versuchen.');
-    lastData = { areas, pois, geo };
+    lastData = { areas, pois, geo, query: city };
     compute();
   } catch (e) {
-    $('status').textContent = 'Fehler: ' + (/fetch|network/i.test(e.message) ? 'Keine Verbindung zum Kartendienst. Internet prüfen und nochmal versuchen.' : e.message);
-  } finally { $('go').disabled = false; }
+    $('status').textContent = 'Fehler: ' + (/failed to fetch|networkerror|load failed/i.test(e.message) ? 'Keine Verbindung zum Kartendienst. Internet prüfen und nochmal versuchen.' : e.message);
+    // Alte Ergebnisse gehören zu einer anderen Suche: ausblenden statt als neue ausgeben
+    if (lastData && normCity(lastData.query || '') !== normCity(city)) { $('results').innerHTML = ''; $('map').hidden = true; }
+  } finally { $('go').disabled = false; $('results').removeAttribute('aria-busy'); }
 }
 
 // Wertung neu rechnen, wenn Gruppe, Umkreis, Budget oder Datum sich ändern (kein neuer Abruf nötig)
@@ -209,7 +250,7 @@ function compute() {
   const sorted = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10)
     .sort((a, b) => b.group.total - a.group.total);
   const ranked = SM.pickDiverse(sorted, 8, Math.max(1200, r * 1.5));
-  if (!ranked.length) { $('results').innerHTML = ''; $('status').textContent = 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis oder einen anderen Ortsnamen.'; return; }
+  if (!ranked.length) { $('results').innerHTML = ''; $('map').hidden = true; $('status').textContent = 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis oder einen anderen Ortsnamen.'; return; }
   $('status').textContent = `${sorted.length} Viertel und ${pois.length} Orte ausgewertet. Die besten für eure Gruppe:`;
   saveTrip(geo, sorted, ppl);
   renderResults(ranked, pois, ppl, geo, r);
@@ -223,7 +264,7 @@ function renderResults(ranked, pois, ppl, geo, r) {
   $('results').innerHTML = ranked.map((a, i) => {
     const highlights = [...new Set(pois.filter(p => p.name && p.cat !== 'transit' && p.cat !== 'food' && SM.distM(a, p) < r)
       .sort((x, y) => (y.tags.wikidata ? 1 : 0) - (x.tags.wikidata ? 1 : 0)).map(p => p.name))].slice(0, 5);
-    const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length, priceMaxNight: b.perNight, radius: r });
+    const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length, priceMaxNight: b.perNight, radius: r, lang: navigator.language });
     const chips = ppl.map((p, j) => {
       const s = a.group.scores[j];
       return `<span class="chip ${s < 40 ? 'low' : s >= 70 ? 'high' : ''}">${escapeHtml(p.name)}: ${s}</span>`;
@@ -240,7 +281,7 @@ function renderResults(ranked, pois, ppl, geo, r) {
       ${why}
       <div class="muted">🍸 ${c.party} Bars/Clubs · 🌿 ${c.chill} Parks/Cafés · 🏛️ ${c.sights} Sehenswürdigkeiten · 🍝 ${c.food} Restaurants · 🚇 ${c.transit} Stationen</div>
       ${highlights.length ? `<div class="muted">In der Nähe: ${highlights.map(escapeHtml).join(', ')}</div>` : ''}
-      <div><a class="btn" href="${url}" target="_blank" rel="noopener">Unterkünfte hier auf Airbnb ansehen →</a></div>
+      <div><a class="btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">Unterkünfte hier auf Airbnb ansehen →</a></div>
     </article>`;
   }).join('');
 }
@@ -317,7 +358,8 @@ function saveTrip(geo, areas, ppl) {
   window.dispatchEvent(new Event('staymatch:trip'));
 }
 // Hinweis, ob das Plugin installiert ist (setzt bridge.js)
-setTimeout(() => {
-  if (document.documentElement.dataset.staymatchExtension) $('extHint').textContent = '✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 für euch.';
-}, 800);
+const extOk = () => { if (document.documentElement.dataset.staymatchExtension) $('extHint').textContent = '✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 für euch.'; };
+window.addEventListener('staymatch:extension', extOk); // bridge.js meldet sich, auch wenn es später lädt
+extOk(); setTimeout(extOk, 800);
+document.querySelector('label[for="budget"]').textContent = `Budget gesamt für alle (${CUR})`;
 renderPeople();

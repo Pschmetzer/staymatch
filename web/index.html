@@ -164,7 +164,8 @@ footer a { color: var(--muted); }
 </style>
 <script>
   // Theme vor dem ersten Zeichnen setzen (Standard: dunkel wie in der Präsentation)
-  try { const t = localStorage.getItem('sm_theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+  // Gespeicherte Wahl, sonst die Einstellung des Systems
+  try { const t = localStorage.getItem('sm_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : ''); if (t) document.documentElement.dataset.theme = t; } catch {}
 </script>
 </head>
 <body>
@@ -203,7 +204,7 @@ footer a { color: var(--muted); }
         <div class="road" style="left:-10%;top:40%;width:130%;height:14px;transform:rotate(-14deg)"></div>
         <div class="road" style="left:55%;top:-10%;width:12px;height:130%;transform:rotate(18deg)"></div>
         <div class="road" style="left:-10%;top:76%;width:80%;height:9px;transform:rotate(8deg)"></div>
-        <div class="zone z1"><span>Gràcia · 78</span></div>
+        <div class="zone z1"><span>Gràcia · 76</span></div>
         <div class="zone z2"><span>Gòtic · 61</span></div>
         <div class="zone z3"><span>Poblenou · 54</span></div>
         <i class="dot d-p" style="left:46%;top:30%"></i><i class="dot d-p" style="left:52%;top:47%"></i><i class="dot d-p" style="left:18%;top:62%"></i><i class="dot d-p" style="left:24%;top:70%"></i>
@@ -252,7 +253,7 @@ footer a { color: var(--muted); }
     <h2>Alles, was eine Gruppenreise braucht.</h2>
     <p class="intro">Gebaut für Junggesellenabschiede, Städtetrips mit Freunden und alle Reisen, bei denen nicht alle dasselbe wollen.</p>
     <div class="grid">
-      <div class="f"><div class="ic">🗺️</div><h3>Viertel-Finder</h3><p>Jedes Viertel bekommt pro Person einen Wert von 0 bis 100. Nachbar-Viertel werden zusammengefasst, damit ihr echte Alternativen seht.</p></div>
+      <div class="f"><div class="ic">🗺️</div><h3>Viertel-Finder</h3><p>Jedes Viertel bekommt pro Person einen Wert von 0 bis 100. Direkte Nachbarn werden nicht doppelt vorgeschlagen, damit ihr echte Alternativen seht.</p></div>
       <div class="f"><div class="ic">⚖️</div><h3>Fairness-Wertung</h3><p>60 % zählt die Person, die am wenigsten zufrieden wäre. Partymeilen ziehen bei den Chill-Leuten Punkte ab.</p></div>
       <div class="f"><div class="ic">💶</div><h3>Budget & Zeitraum</h3><p>Gesamtbudget wird in pro Nacht und pro Person umgerechnet und direkt als Filter an die Suche übergeben.</p></div>
       <div class="f"><div class="ic">⭐</div><h3>Ehrliche Sterne</h3><p>5,0 bei drei Bewertungen zählt weniger als 4,9 bei 300. Dazu Betten-Check für eure Gruppengröße.</p></div>
@@ -271,13 +272,13 @@ footer a { color: var(--muted); }
     </div>
     <div class="vs">
       <div class="bars">
-        <h4>Altstadt</h4><div class="muted">nur Durchschnitt: 71</div>
+        <h4>Altstadt</h4><div class="muted">nur Durchschnitt: 72 · StayMatch: 52</div>
         <div class="row"><span>🎉 Party (2)</span><div class="bar"><i style="width:96%"></i></div><b>96</b></div>
         <div class="row"><span>🌿 Chill (2)</span><div class="bar"><i style="width:38%"></i></div><b>38</b></div>
         <div class="row"><span>🏛️ Sights</span><div class="bar"><i style="width:91%"></i></div><b>91</b></div>
       </div>
       <div class="bars">
-        <h4>Gràcia</h4><div class="muted">StayMatch-Wertung: 78</div>
+        <h4>Gràcia</h4><div class="muted">StayMatch-Wertung: 76</div>
         <div class="row"><span>🎉 Party (2)</span><div class="bar"><i class="g" style="width:82%"></i></div><b>82</b></div>
         <div class="row"><span>🌿 Chill (2)</span><div class="bar"><i class="g" style="width:74%"></i></div><b>74</b></div>
         <div class="row"><span>🏛️ Sights</span><div class="bar"><i class="g" style="width:80%"></i></div><b>80</b></div>
@@ -345,12 +346,16 @@ footer a { color: var(--muted); }
 </footer>
 
 <script>
-  document.getElementById('theme').onclick = () => {
+  const themeBtn = document.getElementById('theme');
+  const showTheme = () => { const light = document.documentElement.dataset.theme === 'light'; themeBtn.setAttribute('aria-pressed', String(light)); themeBtn.setAttribute('aria-label', light ? 'Helles Design aktiv, zu Dunkel wechseln' : 'Dunkles Design aktiv, zu Hell wechseln'); };
+  themeBtn.onclick = () => {
     const root = document.documentElement;
     const next = root.dataset.theme === 'light' ? 'dark' : 'light';
     root.dataset.theme = next;
     try { localStorage.setItem('sm_theme', next); } catch {}
+    showTheme();
   };
+  showTheme();
 </script>
 </body>
 </html>

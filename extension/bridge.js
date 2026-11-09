@@ -10,4 +10,5 @@
   sync();
   window.addEventListener('staymatch:trip', sync); // Web-App feuert das nach jeder Suche
   document.documentElement.dataset.staymatchExtension = '1'; // Web-App kann anzeigen: Plugin verbunden
+  window.dispatchEvent(new Event('staymatch:extension'));
 })();

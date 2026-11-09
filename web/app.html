@@ -81,13 +81,15 @@ footer a { color:var(--muted); }
       <div><label for="checkout">Abreise</label><input id="checkout" type="date"></div>
     </div>
     <label for="budget">Budget gesamt für alle (€)</label>
-    <input id="budget" type="number" min="0" step="50" value="2000">
+    <input id="budget" type="number" min="0" step="any" inputmode="numeric" value="2000">
     <div class="hint" id="budgetInfo"></div>
 
-    <label>Gruppe</label>
+    <fieldset style="border:0;padding:0;margin:0;min-width:0">
+    <legend style="padding:0">Gruppe</legend>
     <div id="people"></div>
     <button class="link" id="addPerson">+ Person hinzufügen</button>
     <button class="link" id="example" style="display:block">Beispiel: 2 Party, 2 Chill, 1 Sightseeing</button>
+    </fieldset>
 
     <label for="radius">Umkreis um das Viertel</label>
     <select id="radius">
@@ -116,10 +118,15 @@ footer a { color:var(--muted); }
 <script src="scoring.js"></script>
 <script src="app.js"></script>
 <script>
-  document.getElementById('theme').onclick = () => {
-    const root = document.documentElement, next = root.dataset.theme === 'light' ? 'dark' : 'light';
-    root.dataset.theme = next; try { localStorage.setItem('sm_theme', next); } catch {}
+  const themeBtn = document.getElementById('theme');
+  const isLight = () => document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'light' : !matchMedia('(prefers-color-scheme: dark)').matches;
+  const showTheme = () => { themeBtn.setAttribute('aria-pressed', String(isLight())); themeBtn.setAttribute('aria-label', isLight() ? 'Helles Design aktiv, zu Dunkel wechseln' : 'Dunkles Design aktiv, zu Hell wechseln'); };
+  themeBtn.onclick = () => {
+    const next = isLight() ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next; try { localStorage.setItem('sm_theme', next); } catch {}
+    showTheme();
   };
+  showTheme();
 </script>
 </body>
 </html>

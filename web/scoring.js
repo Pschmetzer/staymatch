@@ -3,9 +3,9 @@
   const CATEGORIES = {
     party: { label: 'Party', tags: [['amenity', 'bar'], ['amenity', 'pub'], ['amenity', 'nightclub'], ['amenity', 'biergarten']] },
     chill: { label: 'Chillen', tags: [['leisure', 'park'], ['amenity', 'cafe'], ['leisure', 'garden'], ['natural', 'beach'], ['leisure', 'spa']] },
-    sights: { label: 'Sightseeing', tags: [['tourism', 'attraction'], ['tourism', 'museum'], ['tourism', 'viewpoint'], ['historic', 'monument'], ['tourism', 'gallery']] },
+    sights: { label: 'Sightseeing', tags: [['tourism', 'attraction'], ['tourism', 'museum'], ['tourism', 'viewpoint'], ['historic', 'monument'], ['tourism', 'gallery'], ['historic', 'castle'], ['historic', 'memorial'], ['historic', 'ruins'], ['historic', 'church'], ['historic', 'cathedral']] },
     food: { label: 'Essen', tags: [['amenity', 'restaurant'], ['amenity', 'fast_food']] },
-    transit: { label: 'ÖPNV', tags: [['railway', 'station'], ['railway', 'subway_entrance'], ['public_transport', 'station']] },
+    transit: { label: 'ÖPNV', tags: [['railway', 'station'], ['railway', 'subway_entrance'], ['railway', 'tram_stop'], ['public_transport', 'station']] },
   };
 
   // Gewichte je Typ: positiv = wichtig, negativ = stört. Jeder Typ will etwas Essen und ÖPNV.
@@ -39,7 +39,8 @@
         const d = distM(a, p);
         if (d > radius) continue;
         a.counts[p.cat]++;
-        a.sums[p.cat] += 1 - 0.5 * (d / radius); // Entfernungsabfall: direkt vor der Tür zählt doppelt so viel wie am Rand
+        // Entfernungsabfall: direkt vor der Tür zählt doppelt so viel wie am Rand; p.w < 1 z. B. für Fast Food
+        a.sums[p.cat] += (p.w ?? 1) * (1 - 0.5 * (d / radius));
       }
     }
     const max = {};
@@ -79,12 +80,25 @@
   }
 
   function nights(checkin, checkout) {
-    if (!checkin || !checkout) return 0;
-    return Math.max(0, Math.round((new Date(checkout) - new Date(checkin)) / 86400000));
+    const a = parseDay(checkin), b = parseDay(checkout);
+    if (!a || !b) return 0;
+    return Math.max(0, Math.round((b - a) / 86400000));
   }
 
   // Deep-Link in die Airbnb-Suche (Kartenbereich rund ums Viertel)
-  function airbnbUrl({ lat, lon, name, city, checkin, checkout, adults, priceMaxNight, radius = 800 }) {
+  // Airbnb-Domain passend zur Browsersprache (Währung und Preisfilter in Landeswährung)
+  const DOMAINS = { 'de-CH': 'airbnb.ch', 'fr-CH': 'airbnb.ch', 'it-CH': 'airbnb.ch', 'de-AT': 'airbnb.at', 'en-GB': 'airbnb.co.uk', 'en-IE': 'airbnb.ie', 'en-US': 'airbnb.com',
+    'en-AU': 'airbnb.com.au', 'en-CA': 'airbnb.ca', 'fr-CA': 'airbnb.ca', 'en-NZ': 'airbnb.co.nz', 'pt-BR': 'airbnb.com.br', 'es-MX': 'airbnb.mx',
+    de: 'airbnb.de', fr: 'airbnb.fr', es: 'airbnb.es', it: 'airbnb.it', nl: 'airbnb.nl', pt: 'airbnb.pt', pl: 'airbnb.pl', da: 'airbnb.dk', sv: 'airbnb.se', nb: 'airbnb.no', fi: 'airbnb.fi', el: 'airbnb.gr', cs: 'airbnb.cz', en: 'airbnb.com' };
+  function airbnbDomain(lang) {
+    const l = String(lang || 'de');
+    return DOMAINS[l] || DOMAINS[l.split('-')[0]] || 'airbnb.de';
+  }
+  const CURRENCY = { 'airbnb.ch': 'CHF', 'airbnb.co.uk': '£', 'airbnb.com': '$', 'airbnb.com.au': 'A$', 'airbnb.ca': 'CA$', 'airbnb.co.nz': 'NZ$', 'airbnb.com.br': 'R$', 'airbnb.mx': 'MX$', 'airbnb.pl': 'zł', 'airbnb.dk': 'kr', 'airbnb.se': 'kr', 'airbnb.no': 'kr', 'airbnb.cz': 'Kč' };
+  const currencyFor = domain => CURRENCY[domain] || '€';
+
+  function airbnbUrl({ lat, lon, name, city, checkin, checkout, adults, priceMaxNight, radius = 800, lang }) {
+    radius = Math.max(1000, radius); // zu kleiner Ausschnitt → Airbnb zoomt selbst heraus und zeigt andere Viertel
     const dLat = radius / 111320, dLon = radius / (111320 * Math.cos(lat * Math.PI / 180));
     const q = new URLSearchParams();
     if (checkin) q.set('checkin', checkin);
@@ -94,7 +108,7 @@
     q.set('ne_lat', (lat + dLat).toFixed(5)); q.set('ne_lng', (lon + dLon).toFixed(5));
     q.set('sw_lat', (lat - dLat).toFixed(5)); q.set('sw_lng', (lon - dLon).toFixed(5));
     q.set('search_by_map', 'true');
-    return `https://www.airbnb.de/s/${encodeURIComponent(`${name}, ${city}`)}/homes?${q}`;
+    return `https://www.${airbnbDomain(lang)}/s/${encodeURIComponent(`${name}, ${city}`)}/homes?${q}`;
   }
 
   // Beste Viertel, aber keine zwei Nachbarn im Umkreis von minDist (sonst 5× dieselbe Gegend)
@@ -107,5 +121,11 @@
     return out;
   }
 
-  root.StayMatch = { weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
+  // Datum "JJJJ-MM-TT" als lokalen Tag lesen (new Date('2026-12-01') wäre UTC und in Amerika der Vortag)
+  function parseDay(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+    return m ? new Date(+m[1], m[2] - 1, +m[3]) : null;
+  }
+
+  root.StayMatch = { parseDay, airbnbDomain, currencyFor, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
 })(typeof window !== 'undefined' ? window : globalThis);

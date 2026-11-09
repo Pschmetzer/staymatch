@@ -35,9 +35,9 @@ function query(bbox) {
     nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${b});
     nwr["leisure"~"^(park|garden|spa)$"](${b});
     nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"](${b});
-    node["historic"="monument"](${b});
+    nwr["historic"~"^(monument|castle|memorial|ruins|church|cathedral)$"](${b});
     nwr["natural"="beach"](${b});
-    node["railway"~"^(station|subway_entrance)$"](${b});
+    node["railway"~"^(station|subway_entrance|tram_stop)$"](${b});
     node["public_transport"="station"](${b});
   );out center;`;
 }
