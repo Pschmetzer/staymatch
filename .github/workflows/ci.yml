@@ -2,20 +2,46 @@ name: CI
 on:
   push: { branches: [main] }
   pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ matrix.node }}" }
+      - name: Syntax aller JavaScript-Dateien
+        run: |
+          for f in web/*.js extension/*.js scripts/*.mjs .github/scripts/*.mjs; do node --check "$f"; done
+      - name: Manifest ist gültiges JSON mit Pflichtfeldern
+        run: |
+          node -e "const m=require('./extension/manifest.json'); if(m.manifest_version!==3||!m.version||!m.icons) throw new Error('manifest unvollständig')"
+      - name: HTML prüfen
+        run: node .github/scripts/check-html.mjs
+      - name: Manifest-Domains passen zu bridge.js und APP_URL
+        run: node .github/scripts/check-domains.mjs
+      - name: Größengrenzen für web/*.js und index.html
+        run: node .github/scripts/check-size.mjs
+      - name: Tests
+        run: node --test tests/*.test.js
+      - name: Plugin-ZIP lässt sich bauen
+        run: ./scripts/build-plugin-zip.sh
+      - name: ZIP-Inhalt (keine versteckten Dateien, keine Tests)
+        run: node .github/scripts/check-zip.mjs
+
+  links:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - name: Syntax aller JavaScript-Dateien
-        run: |
-          for f in web/*.js extension/*.js scripts/*.mjs; do node --check "$f"; done
-      - name: Manifest ist gültiges JSON mit Pflichtfeldern
-        run: |
-          node -e "const m=require('./extension/manifest.json'); if(m.manifest_version!==3||!m.version||!m.icons) throw new Error('manifest unvollständig')"
-      - name: Tests
-        run: node --test tests/*.test.js
-      - name: Plugin-ZIP lässt sich bauen
-        run: ./scripts/build-plugin-zip.sh
+      - name: Tote Links in Markdown-Dateien
+        run: node .github/scripts/check-links.mjs --online
