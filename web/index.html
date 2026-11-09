@@ -341,6 +341,20 @@ footer a { color: var(--muted); }
   </div>
 </section>
 
+<section class="block" id="fuer-wen" style="padding-top:0">
+  <div class="wrap">
+    <span class="eyebrow">Für wen?</span>
+    <h2>Immer dann, wenn nicht alle dasselbe wollen.</h2>
+    <p class="intro">Vier Beispiele, wie die Gruppe aussehen kann. Keine echten Nutzerstimmen, nur Szenarien.</p>
+    <div class="grid">
+      <div class="f"><h3>Junggesellenabschied</h3><p>Die Hälfte will Bars und Clubs, die Braut will morgens Ruhe. StayMatch sucht das Viertel dazwischen.</p></div>
+      <div class="f"><h3>Städtetrip mit Freunden</h3><p>Einer will Museen, einer gut essen, einer nur schlafen. Jede Person bekommt ihren Wert, die schwächste zählt am meisten.</p></div>
+      <div class="f"><h3>Familie</h3><p>Kinder, Eltern, Großeltern: Chill-Typen bekommen ruhige Viertel, ohne dass die Sehenswürdigkeiten zu weit weg sind.</p></div>
+      <div class="f"><h3>Team-Offsite</h3><p>Alle sollen sich wohlfühlen, auch wer abends früh ins Bett will. Mit Budget pro Nacht und pro Person.</p></div>
+    </div>
+  </div>
+</section>
+
 <section class="block" id="plugin" style="padding-top:0">
   <div class="wrap">
     <div class="plugin">
@@ -353,6 +367,7 @@ footer a { color: var(--muted); }
           <a class="btn ghost" href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">Code auf GitHub</a>
         </div>
         <p class="meta">Chrome, Edge, Brave · klein und ohne Konto · noch nicht im Chrome Web Store</p>
+        <p class="meta" id="browserhint" hidden>Dieser Browser kann das Plugin nicht nutzen: Es gibt es nur für Chrome, Edge und Brave am Computer. Den Viertel-Finder kannst du hier trotzdem nutzen.</p>
       </div>
       <ol>
         <li><span>ZIP herunterladen und entpacken.</span></li>
@@ -371,6 +386,8 @@ footer a { color: var(--muted); }
     <h2>Häufige Fragen</h2>
     <div class="faq">
       <details><summary>Kostet StayMatch etwas?</summary><p>Nein. Plugin und Viertel-Finder sind kostenlos und Open Source unter MIT-Lizenz.</p></details>
+      <details><summary>Warum nur Airbnb?</summary><p>Dort funktioniert die Suche per Link mit Datum und Gästen. Weitere Portale wie Booking.com sind eine Idee für später, nichts Zugesagtes.</p></details>
+      <details><summary>Ist das Plugin von Airbnb erlaubt?</summary><p>Es liest nur die Seite, die du selbst geöffnet hast, und stellt keine eigenen Anfragen. Airbnb kann das Auslesen durch Erweiterungen trotzdem anders sehen, die Nutzungsbedingungen sind ihre. Wer das nicht möchte, nutzt nur den Viertel-Finder.</p></details>
       <details><summary>Ist StayMatch von Airbnb?</summary><p>Nein. StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Die Links führen zur normalen Suche, gebucht wird dort wie gewohnt.</p></details>
       <details><summary>Was passiert mit meinen Daten?</summary><p>Wünsche, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a>.</p></details>
       <details><summary>Durchsucht das Plugin Airbnb im Hintergrund?</summary><p>Nein. Es liest nur die Seite, die du selbst geöffnet hast, und schickt keine eigenen Anfragen. Blätterst du weiter, werden die neuen Unterkünfte mitbewertet.</p></details>
@@ -381,6 +398,19 @@ footer a { color: var(--muted); }
       <details><summary>Funktioniert StayMatch auf dem Handy?</summary><p>Das Plugin nicht: Browser-Erweiterungen laufen nur in Chrome, Edge und Brave am Computer und nicht in der Airbnb-App. Den Viertel-Finder kannst du auf dem Handy nutzen und dir den Link für den Laptop schicken.</p></details>
       <details><summary>Welche Städte funktionieren?</summary><p>Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt kann bis zu einer Minute dauern. Danach merkt sich dein Browser die Daten einen Tag lang.</p></details>
       <details><summary>Wie genau ist die Empfehlung?</summary><p>Sie ist ein guter Startpunkt, kein Urteil. StayMatch zeigt immer, warum eine Unterkunft oben steht, und warnt bei Punkten wie zu wenigen Betten oder Preis über Budget.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="grenzen" style="padding-top:0">
+  <div class="wrap">
+    <span class="eyebrow">Grenzen</span>
+    <h2>Was StayMatch nicht kann.</h2>
+    <div class="faq">
+      <details><summary>Keine Airbnb-Schnittstelle, keine Buchung</summary><p>Airbnb hat keine öffentliche API. StayMatch sucht Viertel, die Unterkünfte siehst du auf Airbnb selbst, gebucht wird dort. Das Plugin liest nur die Seite, die du geöffnet hast.</p></details>
+      <details><summary>Suchlinks können sich ändern</summary><p>Die Parameter für Datum, Gäste und Preisgrenze sind nicht offiziell dokumentiert. Ob die Preisgrenze pro Nacht oder gesamt gilt, ist nicht bestätigt. Prüfe die Filter auf Airbnb.</p></details>
+      <details><summary>Die Seitenstruktur von Airbnb ändert sich</summary><p>Das Plugin nutzt zuerst die Adresse und strukturierte Daten und lässt fehlende Felder weg. Es kann also vorkommen, dass eine Karte keinen Wert bekommt.</p></details>
+      <details><summary>Die Kartenserver sind manchmal langsam</summary><p>Die öffentlichen OpenStreetMap-Server brauchen für eine neue Stadt bis zu etwa einer Minute. Ergebnisse bleiben einen Tag im Browser.</p></details>
     </div>
   </div>
 </section>
@@ -398,7 +428,7 @@ footer a { color: var(--muted); }
 
 <footer>
   <div class="wrap">
-    <span>© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a> · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a></span>
+    <span>© 2026 StayMatch · Open Source (MIT) · <a href="/datenschutz">Datenschutz</a> · <a href="/impressum">Impressum</a> · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/Pschmetzer/staymatch/blob/main/LICENSE" target="_blank" rel="noopener">Lizenzen</a></span>
     <span>Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden.</span>
   </div>
 </footer>
@@ -419,6 +449,13 @@ footer a { color: var(--muted); }
     if (ci) q.set('checkin', ci); if (co && (!ci || co > ci)) q.set('checkout', co); q.set('adults', ad);
     window.open(`https://www.airbnb.de/s/${encodeURIComponent(city)}/homes?${q}`, '_blank', 'noopener');
   };
+</script>
+<script>
+  // Hinweis für Browser ohne Chrome-Erweiterungen (Firefox, Safari, Handy)
+  (() => {
+    const ua = navigator.userAgent, ok = /Chrome|Chromium|Edg\//.test(ua) && !/Mobile|Android|iPhone|iPad|CriOS|FxiOS/.test(ua);
+    if (!ok) { const h = document.getElementById('browserhint'); if (h) h.hidden = false; }
+  })();
 </script>
 </body>
 </html>

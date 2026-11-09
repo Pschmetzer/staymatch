@@ -7,14 +7,14 @@ Dein Helfer, um schneller ein passendes Airbnb zu finden. Die Chrome-Erweiterung
 ## So funktioniert's
 1. **Direkt:** Airbnb-Suche öffnen, im StayMatch-Panel Budget pro Nacht und Wünsche wählen (ganze Unterkunft, kein Gewerbe, Superhost, ab 20 Bewertungen, ruhig/sauber/WLAN).
 2. **Optional vorher:** Im Viertel-Finder Stadt, Zeitraum, Budget, Interessen und Wünsche eingeben → passende Viertel. „Unterkünfte hier ansehen“ öffnet die Suche mit Datum, Gästen, Preisgrenze und Kartenausschnitt; Wünsche und Budget gehen ans Plugin.
-3. Das Plugin bewertet alle Unterkünfte auf der Seite (Sterne mit Bayes-Mittel, Preis vs. Budget, deine Wünsche, falls bekannt Viertel, bei Gruppen Betten) und zeigt die **Top 3 mit Begründung**. Auf der Unterkunftsseite warnt es, wenn Bewertungen deinen Wünschen widersprechen. Blättern bewertet neue Unterkünfte mit.
+3. Das Plugin bewertet alle Unterkünfte auf der Seite (Sterne mit Bayes-Mittel, Preis vs. Budget, deine Wünsche, falls bekannt Viertel, bei Gruppen Betten) und zeigt die **Top 3 mit Begründung**. Auf der Unterkunftsseite warnt es, wenn Bewertungen deinen Wünschen widersprechen. Blättern bewertet neue Unterkünfte mit. Beim Blättern wird jede neue Seite für sich bewertet; die Top 3 gelten je Seite (Sammeln über mehrere Seiten folgt). Das Plugin gibt es nur für Chrome-Browser am Computer, der Viertel-Finder läuft auch auf dem Handy.
 
 ## Web-App (`web/`)
 Statisch, ohne Backend und ohne API-Keys.
 ```bash
 python3 -m http.server 8765 -d web
 ```
-Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app.html (Viertel-Finder).
+Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app.html (Viertel-Finder). Seiten für Recht: `impressum.html` (Platzhalter, `TODO Nutzer`) und `datenschutz.html`. Hero-Bild oder -Video: siehe [LUMINA-PROMPTS.md](LUMINA-PROMPTS.md).
 
 ## Chrome-Erweiterung (`extension/`)
 Download als ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (wird beim Deploy gebaut, lokal mit `./scripts/build-plugin-zip.sh`).
@@ -38,4 +38,4 @@ node scripts/sync-core.mjs           # shared/ nach web/ und extension/ kopieren
 ./scripts/deploy.sh         # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
 node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/)
 ```
-Mitmachen: [CONTRIBUTING.md](CONTRIBUTING.md) · Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md)
+Mitmachen: [CONTRIBUTING.md](CONTRIBUTING.md) · Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md) · Sicherheit: [SECURITY.md](SECURITY.md)
