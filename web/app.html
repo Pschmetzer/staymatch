@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>StayMatch Viertel-Finder</title>
-<meta name="description" content="Findet das Stadtviertel, in dem die ganze Reisegruppe zufrieden ist.">
+<title>StayMatch – dein passendes Airbnb finden</title>
+<meta name="description" content="Sag, was dir wichtig ist. StayMatch findet das passende Viertel und bewertet die Airbnb-Unterkünfte dort für dich.">
 <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23e0475b%22/><path d=%22M50 25 78 52H68v23H32V52H22z%22 fill=%22white%22/></svg>">
@@ -14,6 +14,8 @@
 :root { --bg:#0b0b0d; --bg2:#121216; --card:#17171c; --line:#26262d; --text:#f4f4f6; --muted:#9a9aa4; --dim:#6c6c76; --accent:#e0475b; --accent2:#ff8a5c; --good:#2fbf85; --warn:#e6a23c; --btn:#f4f4f6; --btnText:#0b0b0d; }
 :root[data-theme="light"] { --bg:#fbfaf8; --bg2:#f3f1ed; --card:#fff; --line:#e6e3dd; --text:#141416; --muted:#5d5d66; --dim:#8a8a93; --btn:#141416; --btnText:#fff; }
 * { box-sizing:border-box; }
+[hidden] { display:none !important; }
+main > * { min-width:0; }
 @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
 body { margin:0; font:15px/1.55 Inter,system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
 :focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:6px; }
@@ -41,6 +43,12 @@ button.primary:disabled { opacity:.6; cursor:progress; }
 button.link { background:none; border:0; color:var(--accent); padding:4px 0; }
 .person { display:grid; grid-template-columns:1fr 1.3fr 36px; gap:6px; margin-bottom:6px; }
 .person button { padding:0; }
+.person.solo { grid-template-columns:1fr 36px; }
+.wishes { border:0; padding:0; margin:14px 0 0; display:grid; gap:6px; }
+.wishes legend { font-size:13px; color:var(--muted); padding:0; margin-bottom:4px; }
+.wishes label { display:flex; gap:8px; align-items:flex-start; margin:0; font-size:14px; color:var(--text); cursor:pointer; }
+.wishes input { width:auto; margin-top:4px; }
+.wishes small, .wishes .sep { color:var(--muted); font-size:12px; }
 .hint { font-size:13px; color:var(--dim); margin-top:10px; } .hint a { color:var(--muted); }
 #status { color:var(--muted); margin:6px 0 12px; }
 #map { height:340px; border-radius:20px; border:1px solid var(--line); margin-bottom:16px; }
@@ -53,10 +61,68 @@ button.link { background:none; border:0; color:var(--accent); padding:4px 0; }
 .chip.low { border-color:var(--warn); color:var(--warn); } .chip.high { border-color:var(--good); color:var(--good); }
 .muted { color:var(--muted); font-size:13px; }
 a.btn { display:inline-block; background:var(--btn); color:var(--btnText); text-decoration:none; padding:9px 14px; border-radius:12px; font-weight:600; font-size:14px; }
+
+.sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.pbox { margin-bottom:6px; } .pbox .person { margin-bottom:0; }
+.person { grid-template-columns:1fr 1.2fr 36px 36px; }
+.tune { margin:6px 0 10px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); }
+.tune p { margin:0 0 8px; } .trow { display:grid; grid-template-columns:86px 1fr 22px auto; gap:8px; align-items:center; }
+.trow label { margin:0; } .trow input[type=range] { padding:0; border:0; background:none; accent-color:var(--accent); }
+.trow output { font-size:12px; color:var(--muted); text-align:right; } .trow .veto { display:flex; gap:4px; align-items:center; font-size:12px; }
+.trow .veto input { width:auto; }
+input[type=range] { padding:0; border:0; background:none; accent-color:var(--accent); }
+.choices { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.mapbar { display:flex; gap:10px; align-items:center; margin-bottom:8px; } .mapbar label { margin:0; } .mapbar select { width:auto; } .mapbar .link { margin-left:auto; }
+.poitog { display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:8px; } .poitog label { display:flex; align-items:center; gap:5px; margin:0; font-size:12px; } .poitog input { width:auto; }
+.dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; } .cmp { display:flex; gap:6px; align-items:center; margin:0; } .cmp input { width:auto; }
+.result:focus-visible { outline-offset:2px; border-radius:20px; }
+.cmp-table { width:100%; border-collapse:collapse; font-size:14px; margin-bottom:6px; } .cmp-table caption { text-align:left; font-weight:600; margin-bottom:8px; }
+.cmp-table th, .cmp-table td { padding:6px 8px; border-bottom:1px solid var(--line); text-align:left; } .cmp-table td.win { color:var(--good); font-weight:600; }
+@media (max-width:900px) { input, select { font-size:16px; } button, a.btn { min-height:44px; } .trow { grid-template-columns:70px 1fr 20px auto; } #map { height:260px; } .mapbar { flex-wrap:wrap; } }
+@media (max-width:420px) { .person { grid-template-columns:1fr 1fr 40px 40px; } .wrap, main { padding-left:14px; padding-right:14px; } }
 footer { border-top:1px solid var(--line); padding:26px 0 36px; color:var(--dim); font-size:13px; }
 footer a { color:var(--muted); }
+.warn { color:var(--warn); } .ok { color:var(--good); }
+.stickybar { position:sticky; bottom:0; z-index:5; background:var(--card); padding:10px 0 8px; margin-top:12px; border-top:1px solid var(--line); }
+.stickybar button.primary { margin-top:0; }
+details { margin-top:10px; } summary { cursor:pointer; color:var(--muted); font-size:13px; padding:4px 0; }
+details .body { font-size:13px; color:var(--muted); padding:4px 0 2px; }
+details ul { margin:6px 0 0; padding-left:18px; } details li { margin-bottom:3px; }
+textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); font:inherit; color:inherit; resize:vertical; }
+.cities { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; } .cities button { font-size:12px; padding:3px 10px; border-radius:999px; }
+.tools { display:flex; flex-wrap:wrap; gap:4px 14px; align-items:center; }
+.undo { display:flex; gap:10px; align-items:center; font-size:13px; margin:8px 0; padding:8px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); }
+.undo[hidden] { display:none; }
+.stale { border:1px solid var(--warn); color:var(--warn); border-radius:12px; padding:8px 12px; margin-bottom:12px; font-size:13px; } .stale[hidden] { display:none; }
+.dim { opacity:.55; transition:opacity .2s; }
+.reshead { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin:0 0 12px; font-size:13px; color:var(--muted); }
+.reshead select { width:auto; padding:6px 10px; } .reshead label { margin:0; display:flex; gap:6px; align-items:center; } .reshead input[type=checkbox] { width:auto; }
+.reshead[hidden], #more[hidden], #intro[hidden], #extHint[hidden] { display:none; }
+.whatif { margin:0 0 14px; font-size:14px; } .whatif b { font-weight:600; }
+.badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:-4px; }
+.badge { font-size:12px; padding:2px 9px; border-radius:8px; background:color-mix(in srgb, var(--accent) 16%, transparent); color:var(--accent); font-weight:600; }
+.badge.tip { background:color-mix(in srgb, var(--good) 16%, transparent); color:var(--good); }
+.verdict { font-size:13px; color:var(--muted); font-weight:400; margin-left:6px; }
+.delta { font-size:12px; margin-left:6px; } .delta.up { color:var(--good); } .delta.down { color:var(--warn); }
+.chip.btn2 { cursor:pointer; color:inherit; } .chip.btn2[aria-expanded=true] { outline:2px solid var(--accent); }
+.breakdown { font-size:13px; color:var(--muted); padding:8px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); }
+.breakdown[hidden] { display:none; } .breakdown b.neg { color:var(--warn); } .breakdown b.pos { color:var(--good); }
+.mini { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px 14px; }
+.mini div { display:grid; grid-template-columns:76px 1fr; gap:6px; align-items:center; font-size:12px; color:var(--muted); }
+.mini .bar { height:5px; }
+.fav { background:none; border:0; font-size:18px; padding:0 4px; line-height:1; } .fav[aria-pressed=true] { color:var(--accent); }
+.rank-num { white-space:nowrap; }
+.result.hl { outline:2px solid var(--accent); }
+.result a.sub2 { color:var(--muted); font-size:13px; }
+.numpin { background:var(--accent); color:#fff; border:2px solid #fff; border-radius:50%; width:24px !important; height:24px !important; display:grid; place-items:center; font-size:12px; font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,.4); }
+.numpin.n { background:#666; }
+:root:not([data-theme="light"]) .leaflet-tile-pane { filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
+#intro ol { margin:8px 0 0; padding-left:20px; color:var(--muted); } #intro li { margin-bottom:6px; }
+#formToggle { display:none; width:100%; margin-bottom:10px; }
+@media (max-width:900px) { #formToggle.on { display:block; } #formBody.collapsed { display:none; } .stickybar { position:static; } }
 </style>
-<script>try { const t = localStorage.getItem('sm_theme'); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
+<script>try { const t = localStorage.getItem('sm_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : ''); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
 <body>
 <nav class="top" aria-label="Hauptnavigation">
@@ -69,50 +135,138 @@ footer a { color:var(--muted); }
   </div>
 </nav>
 <div class="wrap">
-  <h1>Viertel-Finder</h1>
-  <p class="sub">Das Viertel finden, in dem die ganze Gruppe glücklich ist, und dann direkt passende Unterkünfte öffnen.</p>
+  <h1>Dein passendes Airbnb</h1>
+  <p class="sub">Sag kurz, was dir wichtig ist. StayMatch sucht das Viertel, das zu dir passt, und öffnet dort die Airbnb-Suche. Mit dem Plugin siehst du direkt die drei besten Unterkünfte.</p>
 </div>
 <main>
-  <section class="card">
+  <form class="card" id="f" autocomplete="off" novalidate>
+    <button type="button" class="link" id="formToggle" aria-expanded="false" aria-controls="formBody">Wünsche und Einstellungen ändern</button>
+    <div id="formBody">
     <label for="city">Wohin?</label>
-    <input id="city" placeholder="z. B. Barcelona" value="Barcelona">
+    <input id="city" type="search" enterkeyhint="search" placeholder="z. B. Barcelona" value="Barcelona" autocomplete="off">
+    <div class="cities" id="cityChips" role="group" aria-label="Beliebte Ziele"></div>
     <div class="row">
       <div><label for="checkin">Anreise</label><input id="checkin" type="date"></div>
       <div><label for="checkout">Abreise</label><input id="checkout" type="date"></div>
     </div>
-    <label for="budget">Budget gesamt für alle (€)</label>
-    <input id="budget" type="number" min="0" step="50" value="2000">
+    <div class="hint" id="dateInfo" role="status" aria-live="polite"></div>
+    <div class="row">
+      <div><label for="budget">Budget (€)</label><input id="budget" type="number" inputmode="numeric" min="0" step="50" value="800"></div>
+      <div><label for="budgetMode">gilt</label><select id="budgetMode"><option value="total">gesamt</option><option value="pp">pro Person</option><option value="night">pro Nacht</option></select></div>
+    </div>
     <div class="hint" id="budgetInfo"></div>
 
-    <label>Gruppe</label>
+    <label id="peopleLabel">Was ist dir in der Gegend wichtig?</label>
     <div id="people"></div>
-    <button class="link" id="addPerson">+ Person hinzufügen</button>
-    <button class="link" id="example" style="display:block">Beispiel: 2 Party, 2 Chill, 1 Sightseeing</button>
+    <div class="tools">
+      <button type="button" class="link" id="addPerson">+ Person hinzufügen</button>
+      <button type="button" class="link" id="example">Beispielgruppe laden</button>
+    </div>
+    <fieldset id="wishes" class="wishes">
+      <legend>Was ist dir bei der Unterkunft wichtig?</legend>
+      <label><input type="checkbox" value="whole"> Ganze Unterkunft, kein Zimmer</label>
+      <label><input type="checkbox" value="private"> Kein gewerblicher Anbieter</label>
+      <label><input type="checkbox" value="trusted"> Superhost oder Gäste-Favorit</label>
+      <label><input type="checkbox" value="reviews"> Mindestens 20 Bewertungen</label>
+      <div class="sep">Prüft das Plugin auf der Unterkunftsseite anhand der Bewertungen:</div>
+      <label><input type="checkbox" value="quiet"> Ruhig <small>(warnt bei „laut“)</small></label>
+      <label><input type="checkbox" value="clean"> Sauber <small>(warnt bei „schmutzig“)</small></label>
+      <label><input type="checkbox" value="wifi"> Gutes WLAN <small>(warnt bei schlechtem WLAN)</small></label>
+    </fieldset>
+    <div class="undo" id="undo" role="status" hidden><span id="undoMsg"></span><button type="button" class="link" id="undoBtn">Rückgängig</button></div>
+    <details>
+      <summary>Gruppe aus Text einfügen</summary>
+      <div class="body"><textarea id="paste" aria-label="Gruppe als Text" placeholder="Lena Party, Mia Chill, Tom Sightseeing"></textarea><button type="button" class="link" id="pasteGo">Übernehmen</button></div>
+    </details>
+    <details>
+      <summary>Gespeicherte Gruppen</summary>
+      <div class="body"><select id="tpl" aria-label="Gespeicherte Gruppe laden"></select>
+        <div class="tools"><button type="button" class="link" id="tplSave">Aktuelle Gruppe speichern</button><button type="button" class="link" id="tplDel">Auswahl löschen</button></div></div>
+    </details>
+    <details>
+      <summary>Was bedeuten die Typen?</summary>
+      <div class="body" id="typeInfo"></div>
+    </details>
 
-    <label for="radius">Umkreis um das Viertel</label>
-    <select id="radius">
-      <option value="500">500 m (kurze Wege)</option>
-      <option value="800" selected>800 m (Standard)</option>
-      <option value="1200">1,2 km</option>
-      <option value="2000">2 km (mit Bahn)</option>
-    </select>
+    <div class="row">
+      <div><label for="kids">Kinder (2–12)</label><input id="kids" type="number" inputmode="numeric" min="0" max="10" value="0"></div>
+      <div><label for="babys">Babys (unter 2)</label><input id="babys" type="number" inputmode="numeric" min="0" max="5" value="0"></div>
+    </div>
+    <label class="cmp" style="margin-top:8px"><input type="checkbox" id="beds"> <span id="bedsLabel">Mindestens passende Schlafzimmer in die Airbnb-Suche übernehmen</span></label>
 
-    <button class="primary" id="go">Beste Viertel finden</button>
-    <button class="link" id="share" style="display:block;margin-top:6px">🔗 Link zum Teilen kopieren</button>
-    <div class="hint" id="shareMsg" role="status" aria-live="polite">Schick den Link in den Gruppenchat: Alle sehen dieselbe Reise, jede Person kann sich selbst eintragen und den Link zurückschicken. Die Daten stehen nur im Link, nicht auf einem Server.</div>
-    <div class="hint">Daten: OpenStreetMap (Bars, Parks, Cafés, Sehenswürdigkeiten, ÖPNV im gewählten Umkreis, nähere Orte zählen mehr). Für Ortsname und Orte werden die Kartendienste von OpenStreetMap angefragt, die Kartenkacheln kommen immer von dort. <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md">Datenschutz</a>. Wertung: 60 % zählt die am wenigsten zufriedene Person, 40 % der Schnitt, so gewinnt nicht einfach die Mehrheit. Ändert sich Gruppe oder Umkreis, wird sofort neu gerechnet.</div>
-  </section>
+    <details>
+      <summary>Weitere Einstellungen</summary>
+      <div class="body">
+        <label for="radius">Umkreis um das Viertel</label>
+        <select id="radius">
+          <option value="auto">Automatisch (1,2 km mit viel Bahn, sonst 800 m)</option>
+          <option value="500">500 m (kurze Wege)</option>
+          <option value="800" selected>800 m (Standard)</option>
+          <option value="1200">1,2 km</option>
+          <option value="2000">2 km (mit Bahn)</option>
+        </select>
+        <label for="maxcenter">Entfernung zum Zentrum</label>
+        <select id="maxcenter">
+          <option value="0">egal</option><option value="2">höchstens 2 km</option><option value="4">höchstens 4 km</option><option value="6">höchstens 6 km</option><option value="10">höchstens 10 km</option>
+        </select>
+        <label for="fair">Fairness</label>
+        <input type="range" id="fair" min="0" max="100" step="10" value="60" aria-describedby="fairOut">
+        <div class="hint" id="fairOut"></div>
+      </div>
+    </details>
+    </div>
+
+    <div class="stickybar">
+      <button type="submit" class="primary" id="go">Passende Viertel finden</button>
+      <button type="button" class="link" id="cancel" hidden style="margin-top:6px">✕ Suche abbrechen</button>
+    </div>
+    <button type="button" class="link" id="share" style="display:block;margin-top:6px">🔗 Link zum Teilen kopieren</button>
+    <div class="hint" id="shareMsg" role="status" aria-live="polite">Mit dem Link öffnest du deine Suche auf einem anderen Gerät oder teilst sie mit Mitreisenden. Die Daten stehen nur im Link.</div>
+    <div class="hint">Daten: OpenStreetMap (Orte im Umkreis, nähere zählen mehr). Für Ortssuche, Orte und Kartenkacheln werden OpenStreetMap-Dienste angefragt. <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md">Datenschutz</a>.</div>
+    <details>
+      <summary>Wie wird gewertet?</summary>
+      <div class="body">Standardmäßig zählt zu 60 % die am wenigsten zufriedene Person und zu 40 % der Schnitt, so gewinnt nicht einfach die Mehrheit. Mit dem Fairness-Regler änderst du das Verhältnis. Das Budget ändert die Wertung nicht, es filtert nur die Airbnb-Suche. Die Preislage je Viertel ist eine grobe Schätzung aus Lage und Sehenswürdigkeiten. Ändert sich Gruppe oder Umkreis, wird sofort neu gerechnet.</div>
+    </details>
+  </form>
   <section>
-    <p id="status" role="status" aria-live="polite">Stadt, Zeitraum, Budget und Gruppe eingeben.</p>
-    <p class="muted" id="extHint">Tipp: Mit dem StayMatch-Plugin für Chrome werden die Unterkünfte auf Airbnb automatisch für euch bewertet.</p>
-    <div id="map" hidden></div>
-    <div id="results"></div>
+    <p id="status" role="status" aria-live="polite">Stadt, Zeitraum, Budget und deine Wünsche eingeben.</p>
+    <div id="choices" class="choices" role="group" aria-label="Mehrere Orte gefunden" hidden></div>
+    <button class="link" id="retry" hidden>↻ Nochmal versuchen</button>
+    <div class="card" id="intro">
+      <b>So funktioniert's</b>
+      <ol><li>Stadt, Zeitraum und Budget eintragen.</li><li>Sagen, was dir in der Gegend und an der Unterkunft wichtig ist. Mit Mitreisenden: für jede Person einen Typ.</li><li>StayMatch bewertet die Viertel für dich und öffnet dort die Airbnb-Suche. Das Plugin zeigt dir die drei besten Unterkünfte.</li></ol>
+    </div>
+    <p class="muted" id="extHint" hidden>Tipp: Mit dem StayMatch-Plugin für Chrome werden die Unterkünfte auf Airbnb automatisch für dich bewertet.</p>
+    <div id="mapSection" hidden>
+      <div class="mapbar">
+        <label for="mapWho">Karte zeigt</label><select id="mapWho"></select>
+        <button type="button" class="link" id="mapToggle" aria-expanded="true" aria-controls="mapWrap">Karte ausblenden</button>
+      </div>
+      <div id="mapWrap">
+        <div class="poitog" id="poiToggles" role="group" aria-label="Orte auf der Karte zeigen"></div>
+        <div id="map" role="region" aria-label="Karte der besten Viertel. Dieselben Informationen stehen in der Liste darunter."></div>
+        <div class="hint">Nummern = beste Viertel, kleine Punkte = weitere bewertete Viertel (grün gut, rot schwach). Gestrichelt: ausgewertete Fläche.</div>
+      </div>
+    </div>
+    <div class="stale" id="stale" role="status" hidden></div>
+    <div class="reshead" id="reshead" hidden>
+      <span id="resSummary"></span>
+      <label for="sort">Sortieren <select id="sort" aria-label="Sortierung"></select></label>
+      <label><input type="checkbox" id="onlyFav"> Nur Favoriten (<span id="favCount">0</span>)</label>
+    </div>
+    <div class="whatif" id="whatif" aria-live="polite"></div>
+    <div id="compare" aria-live="polite"></div>
+    <h2 class="sr">Ergebnisse</h2>
+    <div id="results" aria-busy="false"></div>
+    <button type="button" class="link" id="more" hidden>Mehr Viertel anzeigen</button>
   </section>
 </main>
 <footer>
   <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden.</div>
 </footer>
 <script src="vendor/leaflet/leaflet.js"></script>
+<!-- Reihenfolge wichtig: core.js zuerst (klassische Skripte, gemeinsamer globaler Bereich) -->
+<script src="core.js"></script>
 <script src="scoring.js"></script>
 <script src="app.js"></script>
 <script>

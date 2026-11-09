@@ -1,1 +1,16 @@
-{}
+{
+ "barcelona": "barcelona.json",
+ "lissabon": "lissabon.json",
+ "lisboa": "lissabon.json",
+ "lisbon": "lissabon.json",
+ "berlin": "berlin.json",
+ "prag": "prag.json",
+ "praha": "prag.json",
+ "prague": "prag.json",
+ "amsterdam": "amsterdam.json",
+ "wien": "wien.json",
+ "vienna": "wien.json",
+ "paris": "paris.json",
+ "madrid": "madrid.json",
+ "budapest": "budapest.json"
+}
