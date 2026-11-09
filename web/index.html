@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StayMatch</title>
-<meta name="description" content="StayMatch findet das Stadtviertel, in dem eure ganze Reisegruppe glücklich ist, und empfiehlt direkt die passenden Unterkünfte.">
-<meta property="og:title" content="StayMatch – das Viertel, in dem alle glücklich sind">
-<meta property="og:description" content="Party, Chill, Sightseeing: StayMatch findet den Kompromiss für eure Gruppe und empfiehlt die Top 3 Unterkünfte.">
+<meta name="description" content="StayMatch bewertet jede Unterkunft auf deiner Airbnb-Suche nach Budget, Sternen und Wünschen und zeigt sofort die Top 3. Kostenlos, ohne Konto.">
+<meta property="og:title" content="StayMatch – das passende Airbnb in 2 Minuten">
+<meta property="og:description" content="Das Plugin bewertet jede Unterkunft auf der Suchseite und zeigt die Top 3 mit Begründung. Für Gruppen: der Viertel-Finder.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://staymatch-tau.vercel.app/og.png">
 <meta property="og:image:width" content="1200">
@@ -66,6 +66,12 @@ h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), va
 .lead { font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); max-width: 590px; margin: 0 0 36px; }
 .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
 .note { font-size: 14px; color: var(--dim); margin-top: 22px; }
+.quick { display: grid; grid-template-columns: 1.4fr 1fr 1fr .6fr auto; gap: 8px; margin-top: 22px; max-width: 640px; }
+.quick input { min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: var(--bg2); color: var(--fg); font: inherit; font-size: 15px; }
+.quick .btn { padding: 11px 16px; font-size: 15px; }
+@media (max-width: 640px) { .quick { grid-template-columns: 1fr 1fr; } .quick input[name=city], .quick .btn { grid-column: 1 / -1; } }
+.mobile-hint { display: none; font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 16px; }
+@media (hover: none) and (pointer: coarse) { .mobile-hint { display: block; } }
 
 /* Hero-Visual: Karte + Panel, nur CSS */
 .stage { position: relative; height: 520px; }
@@ -180,7 +186,7 @@ footer a { color: var(--muted); }
     </div>
     <div class="right">
       <button class="theme" id="theme" aria-label="Hell/Dunkel umschalten">◐</button>
-      <a class="btn primary small" href="/app">Viertel finden</a>
+      <a class="btn primary small" href="#plugin">Plugin holen</a>
     </div>
   </div>
 </nav>
@@ -188,14 +194,22 @@ footer a { color: var(--muted); }
 <header class="hero" id="top">
   <div class="wrap">
     <div>
-      <span class="pill"><b></b> Für Gruppenreisen mit Freunden</span>
-      <h1>Ein Viertel.<br>Fünf Wünsche.<br><em>Alle glücklich.</em></h1>
-      <p class="lead">Zwei wollen feiern, zwei wollen chillen, einer will alles sehen. StayMatch findet das Viertel, in dem eure ganze Gruppe zufrieden ist, und empfiehlt direkt die drei besten Unterkünfte dort.</p>
+      <span class="pill"><b></b> Für die Airbnb-Suche · allein, zu zweit oder als Gruppe</span>
+      <h1>Das passende Airbnb.<br><em>In 2 Minuten.</em></h1>
+      <p class="lead">StayMatch bewertet jede Unterkunft auf deiner Suchseite nach Budget, ehrlichen Sternen, Betten und deinen Wünschen und zeigt sofort die drei besten mit Begründung. Kein Durchklicken von 40 Inseraten mehr.</p>
       <div class="ctas">
-        <a class="btn primary" href="/app">Viertel finden <span aria-hidden="true">→</span></a>
-        <a class="btn ghost" href="#so-gehts">So funktioniert's</a>
+        <a class="btn primary" href="#plugin">Plugin holen <span aria-hidden="true">↓</span></a>
+        <a class="btn ghost" href="/app">Mit Gruppe: Viertel finden <span aria-hidden="true">→</span></a>
       </div>
-      <p class="note">Kostenlos · Open Source · ohne Anmeldung · Bild rechts: Beispiel mit erfundenen Werten</p>
+      <form class="quick" id="quick" aria-label="Schnellstart: direkt auf Airbnb suchen">
+        <input name="city" required placeholder="Stadt, z. B. Lissabon" aria-label="Stadt" autocomplete="off">
+        <input name="checkin" type="date" aria-label="Anreise">
+        <input name="checkout" type="date" aria-label="Abreise">
+        <input name="adults" type="number" min="1" max="16" value="2" aria-label="Gäste">
+        <button class="btn primary" type="submit">Suchen</button>
+      </form>
+      <p class="mobile-hint">📱 Das Plugin läuft in Chrome, Edge und Brave am Computer, nicht in der Airbnb-App. Merk dir die Seite für die Suche am Laptop.</p>
+      <p class="note">Kostenlos · Open Source · ohne Anmeldung · Schnellstart öffnet die normale Airbnb-Suche · Bild rechts: Beispiel mit erfundenen Werten</p>
     </div>
 
     <div class="stage" aria-label="Beispiel-Darstellung mit erfundenen Werten: Gràcia passt für alle fünf, Top 3 Unterkünfte werden empfohlen" role="img">
@@ -236,12 +250,12 @@ footer a { color: var(--muted); }
 <section class="block" id="so-gehts">
   <div class="wrap">
     <span class="eyebrow">So geht's</span>
-    <h2>Von „wohin?“ zur passenden Wohnung in drei Schritten.</h2>
-    <p class="intro">Keine endlosen Gruppenchats mehr mit 40 Links. Jeder sagt, worauf er Lust hat, StayMatch rechnet den Kompromiss.</p>
+    <h2>Von der Suche zur passenden Wohnung in drei Schritten.</h2>
+    <p class="intro">Statt jede Wohnung einzeln anzuklicken, siehst du auf einen Blick, welche passt und warum.</p>
     <div class="steps">
-      <div class="step"><h3>Gruppe anlegen</h3><p>Stadt, Zeitraum und Budget eingeben. Für jede Person einen Typ wählen: Party, Chill, Sightseeing oder Foodie.</p></div>
-      <div class="step"><h3>Viertel vergleichen</h3><p>StayMatch bewertet jedes Viertel der Stadt für jede Person und zeigt, wo alle zufrieden sind, mit Karte und Highlights.</p></div>
-      <div class="step"><h3>Top 3 Unterkünfte</h3><p>Ein Klick öffnet die Suche mit Datum, Gästen und Budget. Das Plugin bewertet alle Unterkünfte und empfiehlt die besten drei.</p></div>
+      <div class="step"><h3>Plugin installieren</h3><p>Einmal in Chrome, Edge oder Brave einrichten. Kein Konto, keine Anmeldung.</p></div>
+      <div class="step"><h3>Ganz normal suchen</h3><p>Stadt und Datum auf Airbnb eingeben. Im StayMatch-Panel Budget pro Nacht und Wünsche wählen, etwa ganze Unterkunft oder Superhost.</p></div>
+      <div class="step"><h3>Top 3 nehmen</h3><p>Jede Karte bekommt einen Punktwert, die drei besten stehen oben mit Begründung. Mit Gruppe? Der Viertel-Finder sucht vorher das Viertel, in dem alle zufrieden sind.</p></div>
     </div>
   </div>
 </section>
@@ -292,7 +306,7 @@ footer a { color: var(--muted); }
       <div>
         <span class="eyebrow">Chrome-Plugin</span>
         <h2>Die Top 3 erscheinen von selbst.</h2>
-        <p class="intro" style="margin-bottom:28px">Öffne die Suche aus dem Viertel-Finder. Das Plugin bewertet jede Unterkunft auf der Seite für eure Gruppe, setzt einen Punktwert an jede Karte und zeigt die drei besten mit Begründung. Du musst keine einzelne Wohnung mehr durchklicken.</p>
+        <p class="intro" style="margin-bottom:28px">Öffne eine beliebige Airbnb-Suche. Das Plugin bewertet jede Unterkunft auf der Seite nach deinem Budget und deinen Wünschen, setzt einen Punktwert an jede Karte und zeigt die drei besten mit Begründung. Du musst keine einzelne Wohnung mehr durchklicken.</p>
         <div class="ctas">
           <a class="btn primary" href="staymatch-plugin.zip" download>Plugin herunterladen <span aria-hidden="true">↓</span></a>
           <a class="btn ghost" href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">Code auf GitHub</a>
@@ -304,7 +318,7 @@ footer a { color: var(--muted); }
         <li><span>In Chrome <code>chrome://extensions</code> öffnen.</span></li>
         <li><span>Oben rechts den <b>Entwicklermodus</b> einschalten.</span></li>
         <li><span><b>Entpackte Erweiterung laden</b> und den entpackten Ordner wählen.</span></li>
-        <li><span>Im Viertel-Finder suchen, dann auf „Unterkünfte ansehen“ klicken. Fertig.</span></li>
+        <li><span>Airbnb-Suche öffnen, im Panel Budget und Wünsche wählen. Fertig.</span></li>
       </ol>
     </div>
   </div>
@@ -320,6 +334,8 @@ footer a { color: var(--muted); }
       <details><summary>Was passiert mit meinen Daten?</summary><p>Gruppe, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a>.</p></details>
       <details><summary>Durchsucht das Plugin Airbnb im Hintergrund?</summary><p>Nein. Es liest nur die Seite, die du selbst geöffnet hast, und schickt keine eigenen Anfragen. Blätterst du weiter, werden die neuen Unterkünfte mitbewertet.</p></details>
       <details><summary>Warum muss ich den Entwicklermodus einschalten?</summary><p>Das Plugin ist noch nicht im Chrome Web Store. Bis dahin lädst du es als entpackte Erweiterung. Den Code kannst du jederzeit auf GitHub ansehen.</p></details>
+      <details><summary>Geht das auch allein oder zu zweit?</summary><p>Ja. Das Plugin braucht den Viertel-Finder nicht: Airbnb-Suche öffnen, Budget pro Nacht und Wünsche im Panel einstellen, fertig. Der Viertel-Finder ist ein Zusatz für Gruppen mit unterschiedlichen Vorlieben.</p></details>
+      <details><summary>Funktioniert StayMatch auf dem Handy?</summary><p>Das Plugin nicht: Browser-Erweiterungen laufen nur in Chrome, Edge und Brave am Computer und nicht in der Airbnb-App. Den Viertel-Finder kannst du auf dem Handy nutzen und den Link mit deiner Gruppe teilen.</p></details>
       <details><summary>Welche Städte funktionieren?</summary><p>Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt dauert bis zu einer Minute, danach geht es sofort.</p></details>
       <details><summary>Wie genau ist die Empfehlung?</summary><p>Sie ist ein guter Startpunkt, kein Urteil. StayMatch zeigt immer, warum eine Unterkunft oben steht, und warnt bei Punkten wie zu wenigen Betten oder Preis über Budget.</p></details>
     </div>
@@ -328,11 +344,11 @@ footer a { color: var(--muted); }
 
 <section class="final">
   <div class="wrap">
-    <h2>Plant die Reise, nicht den Streit.</h2>
-    <p class="intro" style="margin:0 auto 34px">In zwei Minuten wisst ihr, wo ihr wohnen wollt.</p>
+    <h2>Weniger klicken, schneller buchen.</h2>
+    <p class="intro" style="margin:0 auto 34px">In zwei Minuten weißt du, welche Unterkunft passt.</p>
     <div class="ctas">
-      <a class="btn primary" href="/app">Viertel finden <span aria-hidden="true">→</span></a>
-      <a class="btn ghost" href="staymatch-plugin.zip" download>Plugin herunterladen</a>
+      <a class="btn primary" href="staymatch-plugin.zip" download>Plugin herunterladen <span aria-hidden="true">↓</span></a>
+      <a class="btn ghost" href="/app">Mit Gruppe: Viertel finden <span aria-hidden="true">→</span></a>
     </div>
   </div>
 </section>
@@ -350,6 +366,15 @@ footer a { color: var(--muted); }
     const next = root.dataset.theme === 'light' ? 'dark' : 'light';
     root.dataset.theme = next;
     try { localStorage.setItem('sm_theme', next); } catch {}
+  };
+  // Schnellstart: öffnet die normale Airbnb-Suche. Das URL-Format ist nicht offiziell dokumentiert.
+  document.getElementById('quick').onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target), q = new URLSearchParams();
+    const city = String(f.get('city') || '').trim(); if (!city) return;
+    const ci = f.get('checkin'), co = f.get('checkout'), ad = Math.max(1, Math.min(16, Number(f.get('adults')) || 1));
+    if (ci) q.set('checkin', ci); if (co && (!ci || co > ci)) q.set('checkout', co); q.set('adults', ad);
+    window.open(`https://www.airbnb.de/s/${encodeURIComponent(city)}/homes?${q}`, '_blank', 'noopener');
   };
 </script>
 </body>

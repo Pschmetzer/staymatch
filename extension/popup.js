@@ -56,8 +56,8 @@ function render() {
   const items = Object.values(listings).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
   $('profile').replaceChildren(...profile(items));
   $('trip').replaceChildren(trip
-    ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} Personen · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
-    : 'Noch keine Reise verbunden. Öffne den Viertel-Finder und starte eine Suche.');
+    ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} ${trip.people?.length === 1 ? 'Person' : 'Personen'} · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
+    : 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Für Gruppen: erst den Viertel-Finder nutzen.');
   let rows;
   if (tab === 'top') {
     rows = lastSearch?.top?.length

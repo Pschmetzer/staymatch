@@ -4,12 +4,12 @@
   const { getTrip, allListings, tasteFrom, h, panel } = window.StayMatchContent;
 
   const FILTERS = [['rating', '⭐ ab 4,7'], ['budget', '💶 im Budget'], ['beds', '🛏️ genug Betten'], ['fav', '🏅 Favorit/Superhost']];
-  let lastSig = '', lastView = null, filters = {}, settings = { showBadges: true };
+  let lastSig = '', lastView = null, filters = {}, settings = { showBadges: true }, quick = { budgetNight: null, wishes: [] };
 
   function passes(l) {
     if (filters.rating && !(l.rating >= 4.7)) return false;
     // ohne bekanntes Budget kann der Filter nichts aussortieren (sonst bliebe nach einer Suche ohne Reise alles leer)
-    if (filters.budget && lastView?.ctx?.budget && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
+    if (filters.budget && lastView?.ctx && R.effectiveBudget(lastView.ctx) && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
     if (filters.beds && l.rank.parts.beds != null && l.rank.parts.beds < 1) return false; // unbekannt zählt als ok
     if (filters.fav && !(l.badges || []).some(x => /favorit|superhost/i.test(x))) return false;
     return true;
@@ -32,7 +32,9 @@
     const disliked = new Set(items.filter(i => i.vote === -1).map(i => i.id));
     const people = trip?.people?.length || sp.adults || null;
     const nights = sp.nights || trip?.nights || null;
-    const ctx = { people, nights, budget: trip?.budget || null, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked };
+    // Direkt-Modus: ohne Viertel-Finder gelten Budget pro Nacht und Wünsche aus dem Panel
+    quick = { budgetNight: null, wishes: [], ...((await chrome.storage.local.get('quick')).quick || {}) };
+    const ctx = { people, nights, budget: trip?.budget || null, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked, wishes: quick.wishes };
     const ranked = R.rankListings(listings, ctx);
 
     const stored = await chrome.storage.local.get(['filters', 'settings', 'min:sm-search']);
@@ -52,14 +54,24 @@
     const old = document.getElementById('sm-search')?.shadowRoot?.querySelector('.box');
     const minimized = old ? old.classList.contains('min') : lastView.min;
     const top = ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 3);
-    const bd = l => [['Viertel', 'area'], ['Sterne', 'rating'], ['Preis', 'price'], ['Betten', 'beds']]
+    const bd = l => [['Viertel', 'area'], ['Sterne', 'rating'], ['Preis', 'price'], ['Wünsche', 'wishes'], ['Betten', 'beds']]
       .filter(([, k]) => l.rank.parts[k] != null).map(([n, k]) => `${n} ${Math.round(l.rank.parts[k] * 100)}`).join(' · ');
-    panel('sm-search', 'Top 3 für euch', [
-      !trip ? h('div', { class: 'muted' }, 'Tipp: Erst im Viertel-Finder suchen, dann kennt StayMatch eure Gruppe, das Budget und die Viertel.') : null,
-      h('div', { class: 'muted' }, `${count} Unterkünfte auf dieser Seite bewertet${ctx.people ? ` · ${ctx.people} Personen` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
+    const budgetKnown = !!R.effectiveBudget(ctx);
+    const setQuick = async patch => { quick = { ...quick, ...patch }; await chrome.storage.local.set({ quick }); lastSig = ''; handleSearch(); };
+    const budgetInput = h('input', { type: 'number', min: '0', step: '10', inputmode: 'numeric', placeholder: 'z. B. 120', 'aria-label': 'Budget pro Nacht in Euro',
+      style: 'width:90px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--bg);color:var(--fg);font:12px system-ui' });
+    budgetInput.value = quick.budgetNight || '';
+    budgetInput.onchange = () => { const v = Math.round(Number(budgetInput.value)); setQuick({ budgetNight: v > 0 ? v : null }); };
+    panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : 'Top 3 auf dieser Seite', [
+      h('div', { class: 'muted' }, `${count} Unterkünfte auf dieser Seite bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
+      !trip ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, 'Budget pro Nacht (€):'), budgetInput) : null,
+      h('div', { class: 'chips', role: 'group', 'aria-label': 'Deine Wünsche' }, Object.entries(R.WISHES).map(([k, w]) => h('button', {
+        class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
+        onclick: () => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] }),
+      }, w.label))),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter' }, FILTERS.map(([k, label]) => h('button', {
         class: filters[k] ? 'on' : '', 'aria-pressed': String(!!filters[k]),
-        ...(k === 'budget' && !ctx.budget ? { disabled: '', title: 'Kein Budget bekannt. Erst den Viertel-Finder nutzen.', style: 'opacity:.5;cursor:not-allowed' } : {}),
+        ...(k === 'budget' && !budgetKnown ? { disabled: '', title: 'Kein Budget bekannt. Oben ein Budget pro Nacht eintragen.', style: 'opacity:.5;cursor:not-allowed' } : {}),
         onclick: async () => { filters[k] = !filters[k]; await chrome.storage.local.set({ filters }); applyBadges(); renderSearch(); },
       }, label))),
       top.length ? top.map((l, i) => h('div', { class: 'item' },
@@ -70,6 +82,7 @@
         h('div', { class: 'muted' }, 'Zusammensetzung: ' + bd(l))))
         : h('div', { class: 'muted' }, 'Keine Unterkunft auf dieser Seite erfüllt alle Filter. Filter lockern oder weiterblättern.'),
       h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → neue Unterkünfte werden automatisch mitbewertet.'),
+      !trip ? h('div', { class: 'muted' }, 'Mit Freunden unterwegs? Im ', h('a', { href: window.StayMatchCore.APP_URL, target: '_blank', rel: 'noopener' }, 'Viertel-Finder'), ' das Viertel finden, in dem alle zufrieden sind.') : null,
     ], { minimized });
   }
 

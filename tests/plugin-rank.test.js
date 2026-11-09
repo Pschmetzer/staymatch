@@ -43,3 +43,20 @@ test('Viertel-Zuordnung: nah per Koordinate, sonst per Name', () => {
   assert.equal(R.areaFor({ lat: 41.5, lon: 2.3, locality: 'gracia' }, areas).dist, null);
   assert.equal(R.areaFor({ lat: 41.5, lon: 2.3 }, areas), null);
 });
+
+// Direkt-Modus: Wünsche und Solo-Texte
+test('Direkt-Modus: Wünsche heben passende Unterkünfte, Solo ohne Pro-Kopf', () => {
+  const room = { id: 'a', kind: 'Privatzimmer in Wohnung', rating: 4.9, reviewCount: 5, totalPrice: 100, currency: '€', badges: [] };
+  const flat = { id: 'b', kind: 'Wohnung', rating: 4.8, reviewCount: 80, totalPrice: 100, currency: '€', badges: ['Gäste-Favorit'] };
+  const ctx = { people: 1, nights: 2, budgetPerNight: 120, wishes: ['whole', 'trusted', 'reviews'] };
+  const [first, second] = R.rankListings([room, flat], ctx);
+  assert.equal(first.id, 'b');
+  assert.equal(first.rank.parts.wishes, 1);
+  assert.equal(second.rank.parts.wishes, 0);
+  assert.ok(second.rank.warn.some(w => w.includes('nur ein Zimmer')));
+  assert.ok(!first.rank.why.some(w => w.includes('pro Person')));
+  // ohne Wünsche kein Wunsch-Teil
+  assert.equal(R.scoreListing(flat, { people: 2, nights: 2 }).parts.wishes, null);
+  // unbekannte Wünsche werden ignoriert
+  assert.equal(R.wishScore(flat, ['gibtsnicht']).value, null);
+});
