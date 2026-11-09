@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StayMatch</title>
+<meta name="sm-lumina" content="off">
 <meta name="description" content="StayMatch findet das Stadtviertel, in dem eure ganze Reisegruppe glücklich ist, und empfiehlt direkt die passenden Unterkünfte.">
 <meta property="og:title" content="StayMatch – das Viertel, in dem alle glücklich sind">
 <meta property="og:description" content="Party, Chill, Sightseeing: StayMatch findet den Kompromiss für eure Gruppe und empfiehlt die Top 3 Unterkünfte.">
@@ -18,14 +19,23 @@
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 :root {
-  --bg: #0b0b0d; --bg2: #121216; --card: #17171c; --line: #26262d; --text: #f4f4f6; --muted: #9a9aa4; --dim: #6c6c76;
+  --bg: #0b0b0d; --bg2: #121216; --card: #17171c; --line: #26262d; --text: #f4f4f6; --muted: #a3a3ad; --dim: #8b8b96; --line2: #4a4a55;
   --accent: #e0475b; --accent2: #ff8a5c; --good: #2fbf85; --warn: #e6a23c; --btn: #f4f4f6; --btnText: #0b0b0d;
   --glow: rgba(224, 71, 91, .18);
 }
 :root[data-theme="light"] {
-  --bg: #fbfaf8; --bg2: #f3f1ed; --card: #fff; --line: #e6e3dd; --text: #141416; --muted: #5d5d66; --dim: #8a8a93;
+  --bg: #fbfaf8; --bg2: #f3f1ed; --card: #fff; --line: #e6e3dd; --text: #141416; --muted: #55555e; --dim: #6b6b74; --line2: #b9b5ac;
   --btn: #141416; --btnText: #fff; --glow: rgba(224, 71, 91, .12);
 }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #fbfaf8; --bg2: #f3f1ed; --card: #fff; --line: #e6e3dd; --text: #141416; --muted: #55555e; --dim: #6b6b74; --line2: #b9b5ac;
+    --btn: #141416; --btnText: #fff; --glow: rgba(224, 71, 91, .12);
+  }
+}
+:root { color-scheme: dark light; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
@@ -34,6 +44,15 @@ a { color: inherit; }
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
 @media (max-width: 600px) { .wrap { padding: 0 16px; } }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+.skip { position: absolute; left: 16px; top: -60px; z-index: 50; background: var(--btn); color: var(--btnText); padding: 10px 16px; border-radius: 10px; text-decoration: none; font-weight: 500; }
+.skip:focus { top: 12px; }
+
+/* Lumina-Platz im Hero: leer, solange keine Datei freigeschaltet ist (siehe LUMINA-PROMPTS.md) */
+.lumina { position: relative; display: none; margin: 0 0 22px; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: var(--card); aspect-ratio: 16 / 9; max-width: 590px; }
+.lumina.on { display: block; }
+.lumina img, .lumina video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.lumina video { position: absolute; inset: 0; }
 
 /* Nav */
 nav.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
@@ -45,30 +64,30 @@ nav.top .wrap { display: flex; align-items: center; gap: 28px; height: 68px; }
 .links a { color: var(--muted); text-decoration: none; font-size: 15px; }
 .links a:hover { color: var(--text); }
 .right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
-.theme { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 10px; width: 38px; height: 38px; cursor: pointer; font-size: 16px; }
+.theme { display: grid; place-items: center; padding: 0; background: none; border: 1px solid var(--line2); color: var(--muted); border-radius: 10px; width: 38px; height: 38px; cursor: pointer; font-size: 16px; }
 @media (max-width: 820px) { .links { display: none; } }
 
 .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 14px; padding: 13px 22px; font-weight: 500; font-size: 16px; text-decoration: none; border: 1px solid var(--line); transition: transform .15s, background .15s; white-space: nowrap; }
 .btn:hover { transform: translateY(-1px); }
 .btn.primary { background: var(--btn); color: var(--btnText); border-color: var(--btn); }
-.btn.ghost { background: var(--bg2); }
+.btn.ghost { background: var(--bg2); border-color: var(--line2); }
 .btn.small { padding: 9px 16px; font-size: 15px; border-radius: 12px; }
 
 /* Hero */
-.hero { position: relative; padding: 110px 0 90px; overflow-x: clip; }
+.hero { position: relative; padding: 48px 0 72px; overflow-x: clip; }
 .hero::before { content: ""; position: absolute; inset: -200px -20% auto auto; width: 820px; height: 820px; background: radial-gradient(circle, var(--glow), transparent 62%); pointer-events: none; }
 .hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; position: relative; }
-@media (max-width: 960px) { .hero { padding: 64px 0 56px; } .hero .wrap { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .hero { padding: 36px 0 48px; } .hero .wrap { grid-template-columns: 1fr; } }
 .pill { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); background: var(--bg2); border-radius: 999px; padding: 6px 14px; font-size: 14px; color: var(--muted); }
 .pill b { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; }
-h1 { font-size: clamp(42px, 6.4vw, 78px); line-height: 1.04; letter-spacing: -.035em; font-weight: 500; margin: 26px 0 26px; }
+h1 { font-size: clamp(40px, 5.2vw, 64px); line-height: 1.05; letter-spacing: -.035em; font-weight: 500; margin: 20px 0 20px; }
 h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.lead { font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); max-width: 590px; margin: 0 0 36px; }
+.lead { font-size: clamp(17px, 1.6vw, 19px); color: var(--muted); max-width: 590px; margin: 0 0 28px; }
 .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
 .note { font-size: 14px; color: var(--dim); margin-top: 22px; }
 
 /* Hero-Visual: Karte + Panel, nur CSS */
-.stage { position: relative; height: 520px; }
+.stage { position: relative; height: 480px; }
 @media (max-width: 960px) { .stage { height: 470px; max-width: 520px; margin: 0 auto; width: 100%; } }
 @media (max-width: 480px) { .stage { height: 430px; } }
 .mapcard { position: absolute; inset: 0 60px 70px 0; border-radius: 26px; border: 1px solid var(--line); overflow: hidden;
@@ -131,6 +150,8 @@ h2 { font-size: clamp(32px, 4.4vw, 52px); line-height: 1.08; letter-spacing: -.0
 @media (max-width: 420px) { .bars .row { grid-template-columns: 90px 1fr 34px; } }
 .bar { height: 10px; border-radius: 6px; background: var(--bg2); overflow: hidden; } .bar i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
 .bar i.g { background: var(--good); }
+.js .bars:not(.in) .bar i { transform: scaleX(0); }
+.bar i { transform-origin: left; transition: transform .9s cubic-bezier(.2,.7,.2,1); }
 .bars h4 { margin: 0 0 4px; font-weight: 500; } .bars .muted { color: var(--dim); font-size: 13px; }
 .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 520px) { .vs { grid-template-columns: 1fr; } }
@@ -163,11 +184,13 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 footer a { color: var(--muted); }
 </style>
 <script>
-  // Theme vor dem ersten Zeichnen setzen (Standard: dunkel wie in der Präsentation)
-  try { const t = localStorage.getItem('sm_theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+  // Theme vor dem ersten Zeichnen: eigene Wahl, sonst folgt die Seite dem System (CSS)
+  document.documentElement.classList.add('js');
+  try { const t = localStorage.getItem('sm_theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
 </script>
 </head>
 <body>
+<a class="skip" href="#inhalt">Zum Inhalt springen</a>
 
 <nav class="top" aria-label="Hauptnavigation">
   <div class="wrap">
@@ -179,18 +202,26 @@ footer a { color: var(--muted); }
       <a href="#faq">FAQ</a>
     </div>
     <div class="right">
-      <button class="theme" id="theme" aria-label="Hell/Dunkel umschalten">◐</button>
+      <button class="theme" id="theme" aria-label="Hell/Dunkel umschalten"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/></svg></button>
       <a class="btn primary small" href="/app">Viertel finden</a>
     </div>
   </div>
 </nav>
 
+<main id="inhalt">
 <header class="hero" id="top">
   <div class="wrap">
     <div>
       <span class="pill"><b></b> Für Gruppenreisen mit Freunden</span>
       <h1>Ein Viertel.<br>Fünf Wünsche.<br><em>Alle glücklich.</em></h1>
-      <p class="lead">Zwei wollen feiern, zwei wollen chillen, einer will alles sehen. StayMatch findet das Viertel, in dem eure ganze Gruppe zufrieden ist, und empfiehlt direkt die drei besten Unterkünfte dort.</p>
+      <p class="lead">Zwei wollen feiern, zwei wollen chillen, einer will alles sehen. StayMatch findet das Viertel, in dem eure ganze Gruppe zufrieden ist, und zeigt dort mit dem Chrome-Plugin (Computer) die drei besten Unterkünfte. Auf dem Handy gibt es den Viertel-Finder, das Plugin nicht.</p>
+      <div class="lumina" id="lumina" aria-hidden="true">
+        <picture>
+          <source type="image/webp" data-srcset="media/lumina-hero.webp">
+          <img alt="" width="1280" height="720" decoding="async" data-src="media/lumina-hero.jpg">
+        </picture>
+        <video muted loop playsinline preload="none" data-src="media/lumina-hero.mp4"></video>
+      </div>
       <div class="ctas">
         <a class="btn primary" href="/app">Viertel finden <span aria-hidden="true">→</span></a>
         <a class="btn ghost" href="#so-gehts">So funktioniert's</a>
@@ -198,12 +229,12 @@ footer a { color: var(--muted); }
       <p class="note">Kostenlos · Open Source · ohne Anmeldung · Bild rechts: Beispiel mit erfundenen Werten</p>
     </div>
 
-    <div class="stage" aria-label="Beispiel-Darstellung mit erfundenen Werten: Gràcia passt für alle fünf, Top 3 Unterkünfte werden empfohlen" role="img">
+    <div class="stage" aria-label="Beispiel-Darstellung mit erfundenen Werten: Gràcia (76) passt für alle fünf, Top 3 Unterkünfte werden empfohlen" role="img">
       <div class="mapcard">
         <div class="road" style="left:-10%;top:40%;width:130%;height:14px;transform:rotate(-14deg)"></div>
         <div class="road" style="left:55%;top:-10%;width:12px;height:130%;transform:rotate(18deg)"></div>
         <div class="road" style="left:-10%;top:76%;width:80%;height:9px;transform:rotate(8deg)"></div>
-        <div class="zone z1"><span>Gràcia · 78</span></div>
+        <div class="zone z1"><span>Gràcia · 76</span></div>
         <div class="zone z2"><span>Gòtic · 61</span></div>
         <div class="zone z3"><span>Poblenou · 54</span></div>
         <i class="dot d-p" style="left:46%;top:30%"></i><i class="dot d-p" style="left:52%;top:47%"></i><i class="dot d-p" style="left:18%;top:62%"></i><i class="dot d-p" style="left:24%;top:70%"></i>
@@ -211,14 +242,14 @@ footer a { color: var(--muted); }
         <i class="dot d-s" style="left:50%;top:26%"></i><i class="dot d-s" style="left:14%;top:56%"></i><i class="dot d-s" style="left:61%;top:42%"></i>
       </div>
       <div class="group">
-        <span class="chip ok">🎉 Lena 82</span><span class="chip ok">🎉 Mia 82</span><span class="chip ok">🌿 Jonas 74</span><span class="chip ok">🌿 Sara 74</span><span class="chip ok">🏛️ Tom 80</span>
+        <span class="chip ok"><span aria-hidden="true">🎉</span> Lena 82</span><span class="chip ok"><span aria-hidden="true">🎉</span> Mia 82</span><span class="chip ok"><span aria-hidden="true">🌿</span> Jonas 74</span><span class="chip ok"><span aria-hidden="true">🌿</span> Sara 74</span><span class="chip ok"><span aria-hidden="true">🏛️</span> Tom 80</span>
       </div>
       <div class="panel">
         <h4>Stay<span>Match</span> · Top 3 für euch</h4>
         <div class="sub"><b style="color:var(--accent)">BEISPIEL</b> · 24 Unterkünfte bewertet · 5 Personen · 4 Nächte</div>
-        <div class="li"><b>1. Wohnung in Gràcia</b><span class="sc">91</span><small>⭐ 4,77 · 5 Betten · 140 € p. P.</small></div>
-        <div class="li"><b>2. Loft nahe Plaça del Sol</b><span class="sc">86</span><small>⭐ 4,82 · 4 Schlafzimmer · 152 € p. P.</small></div>
-        <div class="li"><b>3. Altbau mit Balkon</b><span class="sc">83</span><small>⭐ 4,68 · Superhost · 131 € p. P.</small></div>
+        <div class="li"><b>1. Wohnung in Gràcia</b><span class="sc">91</span><small><span aria-hidden="true">⭐</span> 4,77 · 5 Betten · 140 € p. P.</small></div>
+        <div class="li"><b>2. Loft nahe Plaça del Sol</b><span class="sc">86</span><small><span aria-hidden="true">⭐</span> 4,82 · 4 Schlafzimmer · 152 € p. P.</small></div>
+        <div class="li"><b>3. Altbau mit Balkon</b><span class="sc">83</span><small><span aria-hidden="true">⭐</span> 4,68 · Superhost · 131 € p. P.</small></div>
       </div>
     </div>
   </div>
@@ -228,8 +259,8 @@ footer a { color: var(--muted); }
   <div class="wrap">
     <div><h3>Fair statt Mehrheit</h3><p>Die am wenigsten zufriedene Person zählt am meisten.</p></div>
     <div><h3>Echte Orte</h3><p>Bars, Parks, Museen und Bahn aus OpenStreetMap.</p></div>
-    <div><h3>Top 3 automatisch</h3><p>Das Plugin bewertet die ganze Suchseite für euch.</p></div>
-    <div><h3>Bleibt bei dir</h3><p>Kein Konto, kein Server. Alles lokal im Browser.</p></div>
+    <div><h3>Top 3 per Plugin</h3><p>Chrome am Computer: bewertet die geöffnete Suchseite für euch.</p></div>
+    <div><h3>Bleibt bei dir</h3><p>Kein Konto, kein eigener Server. Gruppe und Verlauf bleiben im Browser.</p></div>
   </div>
 </div>
 
@@ -241,7 +272,7 @@ footer a { color: var(--muted); }
     <div class="steps">
       <div class="step"><h3>Gruppe anlegen</h3><p>Stadt, Zeitraum und Budget eingeben. Für jede Person einen Typ wählen: Party, Chill, Sightseeing oder Foodie.</p></div>
       <div class="step"><h3>Viertel vergleichen</h3><p>StayMatch bewertet jedes Viertel der Stadt für jede Person und zeigt, wo alle zufrieden sind, mit Karte und Highlights.</p></div>
-      <div class="step"><h3>Top 3 Unterkünfte</h3><p>Ein Klick öffnet die Suche mit Datum, Gästen und Budget. Das Plugin bewertet alle Unterkünfte und empfiehlt die besten drei.</p></div>
+      <div class="step"><h3>Top 3 Unterkünfte</h3><p>Ein Klick öffnet die Suche mit Datum, Gästen und Budget. Das Plugin bewertet alle Unterkünfte auf der geöffneten Seite und empfiehlt die besten drei.</p></div>
     </div>
   </div>
 </section>
@@ -252,12 +283,12 @@ footer a { color: var(--muted); }
     <h2>Alles, was eine Gruppenreise braucht.</h2>
     <p class="intro">Gebaut für Junggesellenabschiede, Städtetrips mit Freunden und alle Reisen, bei denen nicht alle dasselbe wollen.</p>
     <div class="grid">
-      <div class="f"><div class="ic">🗺️</div><h3>Viertel-Finder</h3><p>Jedes Viertel bekommt pro Person einen Wert von 0 bis 100. Nachbar-Viertel werden zusammengefasst, damit ihr echte Alternativen seht.</p></div>
-      <div class="f"><div class="ic">⚖️</div><h3>Fairness-Wertung</h3><p>60 % zählt die Person, die am wenigsten zufrieden wäre. Partymeilen ziehen bei den Chill-Leuten Punkte ab.</p></div>
-      <div class="f"><div class="ic">💶</div><h3>Budget & Zeitraum</h3><p>Gesamtbudget wird in pro Nacht und pro Person umgerechnet und direkt als Filter an die Suche übergeben.</p></div>
-      <div class="f"><div class="ic">⭐</div><h3>Ehrliche Sterne</h3><p>5,0 bei drei Bewertungen zählt weniger als 4,9 bei 300. Dazu Betten-Check für eure Gruppengröße.</p></div>
-      <div class="f"><div class="ic">💬</div><h3>Bewertungen auf einen Blick</h3><p>Stichworte aus den Rezensionen: sauber, Lage, laut, WLAN. Auch „nicht sauber“ wird richtig erkannt.</p></div>
-      <div class="f"><div class="ic">🧠</div><h3>Lernt deinen Geschmack</h3><p>👍 und 👎 pro Unterkunft, Notizen, Verlauf und Preisverlauf. Daraus entsteht dein persönliches Profil.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">🗺️</div><h3>Viertel-Finder</h3><p>Jedes Viertel bekommt pro Person einen Wert von 0 bis 100. Nachbar-Viertel werden zusammengefasst, damit ihr echte Alternativen seht.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">⚖️</div><h3>Fairness-Wertung</h3><p>60 % zählt die Person, die am wenigsten zufrieden wäre. Partymeilen ziehen bei den Chill-Leuten Punkte ab.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">💶</div><h3>Budget & Zeitraum</h3><p>Gesamtbudget wird in pro Nacht und pro Person umgerechnet und direkt als Filter an die Suche übergeben.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">⭐</div><h3>Ehrliche Sterne</h3><p>5,0 bei drei Bewertungen zählt weniger als 4,9 bei 300. Dazu Betten-Check für eure Gruppengröße.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">💬</div><h3>Bewertungen auf einen Blick</h3><p>Stichworte aus den Rezensionen: sauber, Lage, laut, WLAN. Verneinungen wie „nicht sauber“ werden in den meisten Fällen erkannt.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">🧠</div><h3>Lernt deinen Geschmack</h3><p>👍 und 👎 pro Unterkunft, Notizen, Verlauf und Preisverlauf. Daraus entsteht ein Profil, das die Wertung nur leicht verschiebt (5 %).</p></div>
     </div>
   </div>
 </section>
@@ -271,16 +302,16 @@ footer a { color: var(--muted); }
     </div>
     <div class="vs">
       <div class="bars">
-        <h4>Altstadt</h4><div class="muted">nur Durchschnitt: 71</div>
-        <div class="row"><span>🎉 Party (2)</span><div class="bar"><i style="width:96%"></i></div><b>96</b></div>
-        <div class="row"><span>🌿 Chill (2)</span><div class="bar"><i style="width:38%"></i></div><b>38</b></div>
-        <div class="row"><span>🏛️ Sights</span><div class="bar"><i style="width:91%"></i></div><b>91</b></div>
+        <h4>Altstadt <span class="muted" style="font-size:13px;font-weight:400">(Beispiel, erfundene Werte)</span></h4><div class="muted">Durchschnitt 72 · StayMatch-Wertung 52</div>
+        <div class="row"><span><span aria-hidden="true">🎉</span> Party (2)</span><div class="bar"><i style="width:96%"></i></div><b>96</b></div>
+        <div class="row"><span><span aria-hidden="true">🌿</span> Chill (2)</span><div class="bar"><i style="width:38%"></i></div><b>38</b></div>
+        <div class="row"><span><span aria-hidden="true">🏛️</span> Sightseeing</span><div class="bar"><i style="width:91%"></i></div><b>91</b></div>
       </div>
       <div class="bars">
-        <h4>Gràcia</h4><div class="muted">StayMatch-Wertung: 78</div>
-        <div class="row"><span>🎉 Party (2)</span><div class="bar"><i class="g" style="width:82%"></i></div><b>82</b></div>
-        <div class="row"><span>🌿 Chill (2)</span><div class="bar"><i class="g" style="width:74%"></i></div><b>74</b></div>
-        <div class="row"><span>🏛️ Sights</span><div class="bar"><i class="g" style="width:80%"></i></div><b>80</b></div>
+        <h4>Gràcia <span class="muted" style="font-size:13px;font-weight:400">(Beispiel, erfundene Werte)</span></h4><div class="muted">Durchschnitt 78 · StayMatch-Wertung 76</div>
+        <div class="row"><span><span aria-hidden="true">🎉</span> Party (2)</span><div class="bar"><i class="g" style="width:82%"></i></div><b>82</b></div>
+        <div class="row"><span><span aria-hidden="true">🌿</span> Chill (2)</span><div class="bar"><i class="g" style="width:74%"></i></div><b>74</b></div>
+        <div class="row"><span><span aria-hidden="true">🏛️</span> Sightseeing</span><div class="bar"><i class="g" style="width:80%"></i></div><b>80</b></div>
       </div>
     </div>
   </div>
@@ -292,7 +323,7 @@ footer a { color: var(--muted); }
       <div>
         <span class="eyebrow">Chrome-Plugin</span>
         <h2>Die Top 3 erscheinen von selbst.</h2>
-        <p class="intro" style="margin-bottom:28px">Öffne die Suche aus dem Viertel-Finder. Das Plugin bewertet jede Unterkunft auf der Seite für eure Gruppe, setzt einen Punktwert an jede Karte und zeigt die drei besten mit Begründung. Du musst keine einzelne Wohnung mehr durchklicken.</p>
+        <p class="intro" style="margin-bottom:28px">Öffne die Suche aus dem Viertel-Finder. Das Plugin bewertet jede Unterkunft auf der geöffneten Seite für eure Gruppe, setzt einen Punktwert an jede Karte und zeigt die drei besten mit Begründung. Die Top 3 gelten je Seite: blätterst du weiter, bewertet es die dortigen Unterkünfte neu. Nur Chrome, Edge und Brave am Computer.</p>
         <div class="ctas">
           <a class="btn primary" href="staymatch-plugin.zip" download>Plugin herunterladen <span aria-hidden="true">↓</span></a>
           <a class="btn ghost" href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">Code auf GitHub</a>
@@ -318,7 +349,7 @@ footer a { color: var(--muted); }
       <details><summary>Kostet StayMatch etwas?</summary><p>Nein. Viertel-Finder und Plugin sind kostenlos und Open Source unter MIT-Lizenz.</p></details>
       <details><summary>Ist StayMatch von Airbnb?</summary><p>Nein. StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Die Links führen zur normalen Suche, gebucht wird dort wie gewohnt.</p></details>
       <details><summary>Was passiert mit meinen Daten?</summary><p>Gruppe, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a>.</p></details>
-      <details><summary>Durchsucht das Plugin Airbnb im Hintergrund?</summary><p>Nein. Es liest nur die Seite, die du selbst geöffnet hast, und schickt keine eigenen Anfragen. Blätterst du weiter, werden die neuen Unterkünfte mitbewertet.</p></details>
+      <details><summary>Durchsucht das Plugin Airbnb im Hintergrund?</summary><p>Nein. Es liest nur die Seite, die du selbst geöffnet hast, und schickt keine eigenen Anfragen. Blätterst du weiter, bewertet es die Unterkünfte der neuen Seite, die Top 3 gelten jeweils für die Seite, die du siehst.</p></details>
       <details><summary>Warum muss ich den Entwicklermodus einschalten?</summary><p>Das Plugin ist noch nicht im Chrome Web Store. Bis dahin lädst du es als entpackte Erweiterung. Den Code kannst du jederzeit auf GitHub ansehen.</p></details>
       <details><summary>Welche Städte funktionieren?</summary><p>Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt dauert bis zu einer Minute, danach geht es sofort.</p></details>
       <details><summary>Wie genau ist die Empfehlung?</summary><p>Sie ist ein guter Startpunkt, kein Urteil. StayMatch zeigt immer, warum eine Unterkunft oben steht, und warnt bei Punkten wie zu wenigen Betten oder Preis über Budget.</p></details>
@@ -337,6 +368,8 @@ footer a { color: var(--muted); }
   </div>
 </section>
 
+</main>
+
 <footer>
   <div class="wrap">
     <span>© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a> · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a></span>
@@ -347,10 +380,29 @@ footer a { color: var(--muted); }
 <script>
   document.getElementById('theme').onclick = () => {
     const root = document.documentElement;
-    const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+    const cur = root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    const next = cur === 'light' ? 'dark' : 'light';
     root.dataset.theme = next;
     try { localStorage.setItem('sm_theme', next); } catch {}
   };
+  // Balken füllen sich beim Scrollen
+  (() => {
+    const bars = document.querySelectorAll('.bars');
+    if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) { bars.forEach(b => b.classList.add('in')); return; }
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .35 });
+    bars.forEach(b => io.observe(b));
+  })();
+  // Lumina-Platz: nur freischalten, wenn <meta name="sm-lumina" content="on"> gesetzt ist (sonst keine Anfrage, kein kaputtes Bild)
+  (() => {
+    const m = document.querySelector('meta[name="sm-lumina"]'), slot = document.getElementById('lumina');
+    if (!slot || !m || m.content !== 'on') return;
+    slot.querySelectorAll('[data-srcset]').forEach(e => { e.srcset = e.dataset.srcset; });
+    slot.querySelectorAll('img[data-src]').forEach(e => { e.src = e.dataset.src; e.addEventListener('error', () => slot.classList.remove('on')); });
+    const v = slot.querySelector('video[data-src]');
+    if (v && !matchMedia('(prefers-reduced-motion: reduce)').matches) { v.src = v.dataset.src; v.autoplay = true; v.addEventListener('error', () => v.remove()); }
+    else if (v) v.remove();
+    slot.classList.add('on');
+  })();
 </script>
 </body>
 </html>
