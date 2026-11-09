@@ -35,8 +35,8 @@ main { max-width:1180px; margin:0 auto; padding:0 20px 56px; display:grid; gap:1
 .card { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:20px; }
 label { display:block; font-size:13px; color:var(--muted); margin:12px 0 5px; }
 input, select, button { font:inherit; color:inherit; }
-input, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); }
-.row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+input, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); min-width:0; }
+.row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
 button { cursor:pointer; border:0; border-radius:12px; padding:9px 12px; background:var(--bg2); border:1px solid var(--line); }
 button.primary { background:var(--btn); color:var(--btnText); width:100%; margin-top:16px; font-weight:600; padding:13px; border-color:var(--btn); }
 button.primary:disabled { opacity:.6; cursor:progress; }
