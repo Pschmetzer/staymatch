@@ -5,10 +5,8 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 
-let people = store.get('sm_people', [
-  { name: 'Lena', type: 'party' }, { name: 'Mia', type: 'party' },
-  { name: 'Jonas', type: 'chill' }, { name: 'Sara', type: 'chill' }, { name: 'Tom', type: 'sights' },
-]).filter(p => p && typeof p.name === 'string').map(p => ({ ...p, type: SM.PRESETS[p.type] ? p.type : 'chill' }));
+// Standard: eine Person (du). Gruppen sind optional über „+ Mitreisende“.
+let people = store.get('sm_people', [{ name: 'Du', type: 'sights' }]).filter(p => p && typeof p.name === 'string').map(p => ({ ...p, type: SM.PRESETS[p.type] ? p.type : 'chill' }));
 
 // Standard-Zeitraum: in 4 Wochen, 4 Nächte
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -20,8 +18,22 @@ $('checkin').min = ymd(new Date());
 const syncMin = () => { const c = new Date($('checkin').value); if (!isNaN(c)) { $('checkout').min = ymd(new Date(c.getTime() + 864e5)); if ($('checkout').value <= $('checkin').value) $('checkout').value = ymd(new Date(c.getTime() + 864e5)); } };
 $('checkin').addEventListener('change', syncMin); syncMin();
 
+// Wünsche an die Unterkunft (Schlüssel wie in extension/rank.js: WISHES und REVIEW_WISHES)
+const WISH_KEYS = ['whole', 'private', 'trusted', 'reviews', 'quiet', 'clean', 'wifi'];
+let wishes = store.get('sm_wishes', ['whole']).filter(k => WISH_KEYS.includes(k));
+function renderWishes() {
+  document.querySelectorAll('#wishes input[type=checkbox]').forEach(cb => {
+    cb.checked = wishes.includes(cb.value);
+    cb.onchange = () => { wishes = WISH_KEYS.filter(k => document.querySelector(`#wishes input[value="${k}"]`)?.checked); store.set('sm_wishes', wishes); rescore(); };
+  });
+}
+const solo = () => people.length === 1;
+
 function renderPeople() {
   $('people').innerHTML = '';
+  $('peopleLabel').textContent = solo() ? 'Was ist dir in der Gegend wichtig?' : `Wer reist mit? (${people.length} Personen)`;
+  $('addPerson').textContent = solo() ? '+ Mitreisende hinzufügen' : '+ Person hinzufügen';
+  $('budgetLabel').textContent = solo() ? 'Budget gesamt (€)' : 'Budget gesamt für alle (€)';
   people.forEach((p, i) => {
     const row = document.createElement('div');
     row.className = 'person';
@@ -31,6 +43,7 @@ function renderPeople() {
     row.children[0].oninput = e => { p.name = e.target.value; save(); };
     row.children[1].onchange = e => { p.type = e.target.value; save(); };
     row.children[2].onclick = () => { people.splice(i, 1); save(); renderPeople(); };
+    if (solo()) { row.classList.add('solo'); row.children[0].hidden = row.children[2].hidden = true; }
     $('people').appendChild(row);
   });
   updateBudget();
@@ -51,7 +64,7 @@ function budgetNums() {
 function updateBudget() {
   const b = budgetNums();
   $('budgetInfo').textContent = b.n
-    ? `${b.n} Nächte · ${Math.round(b.perNight)} € pro Nacht · ${Math.round(b.perPerson)} € pro Person`
+    ? `${b.n} ${b.n === 1 ? 'Nacht' : 'Nächte'} · ${Math.round(b.perNight)} € pro Nacht${solo() ? '' : ` · ${Math.round(b.perPerson)} € pro Person`}`
     : 'Zeitraum wählen';
 }
 ['checkin', 'checkout', 'budget'].forEach(id => $(id).addEventListener('input', () => { updateBudget(); rescore(); }));
@@ -59,7 +72,8 @@ $('radius').addEventListener('change', () => rescore());
 $('addPerson').onclick = () => { people.push({ name: `Person ${people.length + 1}`, type: 'chill' }); save(); renderPeople(); };
 $('example').onclick = () => {
   people = [{ name: 'Party 1', type: 'party' }, { name: 'Party 2', type: 'party' }, { name: 'Chill 1', type: 'chill' }, { name: 'Chill 2', type: 'chill' }, { name: 'Sights', type: 'sights' }];
-  save(); renderPeople();
+  save(); renderWishes();
+renderPeople();
 };
 
 async function geocode(city) {
@@ -210,7 +224,7 @@ function compute() {
     .sort((a, b) => b.group.total - a.group.total);
   const ranked = SM.pickDiverse(sorted, 8, Math.max(1200, r * 1.5));
   if (!ranked.length) { $('results').innerHTML = ''; $('status').textContent = 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis oder einen anderen Ortsnamen.'; return; }
-  $('status').textContent = `${sorted.length} Viertel und ${pois.length} Orte ausgewertet. Die besten für eure Gruppe:`;
+  $('status').textContent = `${sorted.length} Viertel und ${pois.length} Orte ausgewertet. Die besten ${solo() ? 'für dich' : 'für eure Gruppe'}:`;
   saveTrip(geo, sorted, ppl);
   renderResults(ranked, pois, ppl, geo, r);
   renderMap(ranked, geo, r);
@@ -269,7 +283,7 @@ const b64 = {
   dec: s => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)))),
 };
 function shareState() {
-  return { c: $('city').value.trim(), i: $('checkin').value, o: $('checkout').value, b: +$('budget').value || 0, p: people.map(p => [p.name, p.type]) };
+  return { c: $('city').value.trim(), i: $('checkin').value, o: $('checkout').value, b: +$('budget').value || 0, p: people.map(p => [p.name, p.type]), w: wishes };
 }
 function applyShared(h) {
   try {
@@ -282,13 +296,14 @@ function applyShared(h) {
     if (day(s.i)) $('checkin').value = s.i;
     if (day(s.o)) $('checkout').value = s.o;
     $('budget').value = Math.max(0, Math.min(1e6, +s.b || 0));
+    if (Array.isArray(s.w)) { wishes = WISH_KEYS.filter(k => s.w.includes(k)); store.set('sm_wishes', wishes); renderWishes(); } // alte Links ohne Wünsche bleiben gültig
     save(); renderPeople(); updateBudget();
     return true;
   } catch { return false; }
 }
 $('share').onclick = async () => {
   const url = location.origin + location.pathname + '#t=' + b64.enc(shareState());
-  try { await navigator.clipboard.writeText(url); $('shareMsg').textContent = '✅ Link kopiert. Schick ihn in den Gruppenchat.'; }
+  try { await navigator.clipboard.writeText(url); $('shareMsg').textContent = solo() ? '✅ Link kopiert. Damit öffnest du deine Suche auch auf einem anderen Gerät.' : '✅ Link kopiert. Schick ihn in den Gruppenchat.'; }
   catch { $('shareMsg').textContent = 'Kopieren nicht möglich. Kopiere den Link aus der Adresszeile.'; }
   history.replaceState(null, '', url);
 };
@@ -303,7 +318,7 @@ function saveTrip(geo, areas, ppl) {
   const b = budgetNums();
   const trip = {
     savedAt: Date.now(), city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value,
-    nights: b.n, budget: b.total, people: ppl.map(p => ({ name: p.name, type: p.type })),
+    nights: b.n, budget: b.total, people: ppl.map(p => ({ name: p.name, type: p.type })), wishes,
     areas: areas.map(a => {
       const j = a.group.scores.indexOf(a.group.min);
       return { name: a.name, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: ppl[j]?.name || null };
@@ -318,6 +333,7 @@ function saveTrip(geo, areas, ppl) {
 }
 // Hinweis, ob das Plugin installiert ist (setzt bridge.js)
 setTimeout(() => {
-  if (document.documentElement.dataset.staymatchExtension) $('extHint').textContent = '✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 für euch.';
+  if (document.documentElement.dataset.staymatchExtension) $('extHint').textContent = `✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 ${solo() ? 'für dich' : 'für euch'}.`;
 }, 800);
+renderWishes();
 renderPeople();

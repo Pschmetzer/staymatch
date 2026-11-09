@@ -56,7 +56,7 @@ function render() {
   const items = Object.values(listings).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
   $('profile').replaceChildren(...profile(items));
   $('trip').replaceChildren(trip
-    ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} Personen · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
+    ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} ${trip.people?.length === 1 ? 'Person' : 'Personen'} · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
     : 'Noch keine Reise verbunden. Öffne den Viertel-Finder und starte eine Suche.');
   let rows;
   if (tab === 'top') {

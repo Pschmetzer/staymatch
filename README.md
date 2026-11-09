@@ -1,13 +1,13 @@
 # StayMatch
 
-Findet das Stadtviertel, in dem eine ganze Reisegruppe zufrieden ist (z. B. 2× Party, 2× Chill, 1× Sightseeing), und öffnet dort direkt die Unterkunftssuche mit Zeitraum, Personenzahl und Budget. Dazu gibt es eine Chrome-Erweiterung als Merkzettel: Verlauf, 👍/👎, Notizen, Bewertungs-Stichworte und ein Geschmacksprofil.
+Dein Helfer, um schneller ein passendes Airbnb zu finden. Du sagst, was dir wichtig ist (Gegend, Budget, Art der Unterkunft), StayMatch findet das passende Viertel und öffnet dort die Suche. Die Chrome-Erweiterung bewertet jede Unterkunft auf der Suchseite nach deinen Wünschen und zeigt die **Top 3 mit Begründung**. Dazu kommen Verlauf, 👍/👎, Notizen und Bewertungs-Stichworte. Gruppen gehen auch: Dann zählt die am wenigsten zufriedene Person mit.
 
 **Live:** https://staymatch-tau.vercel.app · Konzept und Roadmap: [KONZEPT.md](KONZEPT.md)
 
 ## So funktioniert's
-1. Im Viertel-Finder Stadt, Zeitraum, Budget und Gruppe eingeben → beste Viertel.
+1. Stadt, Zeitraum, Budget, Interessen für die Gegend und Wünsche an die Unterkunft eingeben → passende Viertel. Optional Mitreisende hinzufügen.
 2. „Unterkünfte hier ansehen“ öffnet die Suche mit Datum, Personenzahl, Preisgrenze und Kartenausschnitt.
-3. Das Plugin bewertet alle Unterkünfte auf dieser Seite (Viertel-Wert für die Gruppe, Sterne mit Bayes-Mittel, Gesamtpreis vs. Budget, Betten) und zeigt die **Top 3 mit Begründung**. Jede Karte bekommt einen Punktwert. Blättern bewertet neue Unterkünfte mit.
+3. Das Plugin bewertet alle Unterkünfte auf dieser Seite (Viertel-Wert, Sterne mit Bayes-Mittel, Gesamtpreis vs. Budget, deine Wünsche, bei Gruppen die Betten) und zeigt die **Top 3 mit Begründung**. Jede Karte bekommt einen Punktwert. Blättern bewertet neue Unterkünfte mit.
 
 ## Web-App (`web/`)
 Statisch, ohne Backend und ohne API-Keys.

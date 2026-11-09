@@ -69,7 +69,7 @@
     .item { border-top: 1px solid var(--line); padding: 8px 0; }
     .item a { color: var(--fg); font-weight: 600; text-decoration: none; }
     .score { float: right; font-weight: 700; font-size: 16px; }
-    ul { margin: 4px 0 0; padding-left: 16px; } li.warn { color: var(--warn); }
+    ul { margin: 4px 0 0; padding-left: 16px; } li.warn, div.warn { color: var(--warn); }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; } .chips button { font-size: 12px; padding: 3px 8px; }
     textarea { width: 100%; box-sizing: border-box; height: 52px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; font: 12px system-ui; background: var(--bg); color: var(--fg); }
     .row { display: flex; gap: 6px; margin: 6px 0; } .row button { flex: 1; }
@@ -117,7 +117,7 @@
     const disliked = new Set(items.filter(i => i.vote === -1).map(i => i.id));
     const people = trip?.people?.length || sp.adults || null;
     const nights = sp.nights || trip?.nights || null;
-    const ctx = { people, nights, budget: trip?.budget || null, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked };
+    const ctx = { people, nights, budget: trip?.budget || null, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked, wishes: trip?.wishes || [] };
     const ranked = R.rankListings(listings, ctx);
 
     const stored = await chrome.storage.local.get(['filters', 'settings', 'min:sm-search']);
@@ -137,11 +137,12 @@
     const old = document.getElementById('sm-search')?.shadowRoot?.querySelector('.box');
     const minimized = old ? old.classList.contains('min') : lastView.min;
     const top = ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 3);
-    const bd = l => [['Viertel', 'area'], ['Sterne', 'rating'], ['Preis', 'price'], ['Betten', 'beds']]
+    const solo = ctx.people === 1;
+    const bd = l => [['Viertel', 'area'], ['Sterne', 'rating'], ['Preis', 'price'], ['Wünsche', 'wishes'], ['Betten', 'beds']]
       .filter(([, k]) => l.rank.parts[k] != null).map(([n, k]) => `${n} ${Math.round(l.rank.parts[k] * 100)}`).join(' · ');
-    panel('sm-search', 'Top 3 für euch', [
-      !trip ? h('div', { class: 'muted' }, 'Tipp: Erst im Viertel-Finder suchen, dann kennt StayMatch eure Gruppe, das Budget und die Viertel.') : null,
-      h('div', { class: 'muted' }, `${count} Unterkünfte auf dieser Seite bewertet${ctx.people ? ` · ${ctx.people} Personen` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
+    panel('sm-search', solo || !ctx.people ? 'Top 3 für dich' : 'Top 3 für euch', [
+      !trip ? h('div', { class: 'muted' }, 'Tipp: Erst im Viertel-Finder deine Wünsche eingeben, dann kennt StayMatch dein Budget, deine Wünsche und die passenden Viertel.') : null,
+      h('div', { class: 'muted' }, `${count} Unterkünfte auf dieser Seite bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter' }, FILTERS.map(([k, label]) => h('button', {
         class: filters[k] ? 'on' : '', 'aria-pressed': String(!!filters[k]),
         ...(k === 'budget' && !ctx.budget ? { disabled: '', title: 'Kein Budget bekannt. Erst den Viertel-Finder nutzen.', style: 'opacity:.5;cursor:not-allowed' } : {}),
@@ -250,11 +251,13 @@
     const item = await saveListing(id, { ...clean, priceHistory: priceHistory.slice(-30), visits: (old?.visits || 0) + (recent ? 0 : 1) });
     const trip = await getTrip();
     const area = trip?.areas?.length ? R.areaFor(item, trip.areas) : null;
-    roomPanel(item, area);
+    roomPanel(item, area, trip);
   }
 
-  function roomPanel(item, area) {
-    const vote = v => async () => roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v }), area); // 2. Klick hebt auf
+  function roomPanel(item, area, trip) {
+    const vote = v => async () => roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v }), area, trip);
+    const conflicts = R.reviewConflicts(item.hints, trip?.wishes);
+    const solo = trip?.people?.length === 1; // 2. Klick hebt auf
     const note = h('textarea', { placeholder: 'Notiz: was gefällt / stört?', 'aria-label': 'Notiz' });
     note.value = item.note || ''; // value statt innerHTML → kein Code-Einschleusen
     note.oninput = () => { clearTimeout(roomTimer); roomTimer = setTimeout(() => saveListing(item.id, { note: note.value }), 400); };
@@ -262,7 +265,8 @@
     const change = ph.length > 1 ? Math.round((ph.at(-1).p / ph[0].p - 1) * 100) : 0;
     panel('sm-room', item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier', [
       h('div', {}, item.rating ? `⭐ ${item.rating}${item.reviewCount ? ` (${item.reviewCount})` : ''}` : 'Noch keine Sterne gefunden'),
-      area ? h('div', {}, `Viertel ${area.name}: ${area.total}/100 für eure Gruppe`) : null,
+      area ? h('div', {}, `Viertel ${area.name}: ${area.total}/100 ${solo ? 'für dich' : 'für eure Gruppe'}`) : null,
+      ...conflicts.map(c => h('div', { class: 'warn' }, '⚠️ ' + c)),
       item.hints?.length ? h('div', { class: 'muted' }, 'Aus den Bewertungen: ' + item.hints.join(' · ')) : null,
       change ? h('div', { class: 'muted' }, `Preis seit dem ersten Besuch ${change > 0 ? '+' : ''}${change} %`) : null,
       h('div', { class: 'row' },

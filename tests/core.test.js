@@ -106,3 +106,44 @@ test('Namensabgleich: Artikel und Akzente egal, mehrere Teil-Viertel = Mittelwer
   assert.equal(e.total, 60); assert.equal(e.approx, true);
   assert.equal(R.areaFor({ locality: 'Sarrià' }, areas), null);
 });
+
+test('Wünsche: ganze Unterkunft, Superhost, Bewertungen', () => {
+  const room = { kind: 'Privatzimmer in Berlin', badges: ['Superhost'], reviewCount: 5 };
+  const flat = { kind: 'Wohnung in Berlin', badges: [], reviewCount: 120 };
+  const w = ['whole', 'trusted', 'reviews'];
+  assert.deepEqual(R.wishScore(room, w).hit, ['Superhost oder Gäste-Favorit']);
+  assert.equal(R.wishScore(room, w).miss.length, 2);
+  assert.equal(R.wishScore(flat, ['whole', 'reviews']).value, 1);
+  assert.equal(R.wishScore({ kind: '' }, ['whole']).value, null, 'unbekannt zählt nicht');
+  assert.equal(R.wishScore({ pro: false }, ['private']).value, null, 'privat ist nie sicher');
+  assert.equal(R.wishScore({ pro: true }, ['private']).value, 0);
+  assert.equal(R.wishScore(flat, []).value, null);
+  assert.equal(R.wishScore({ kind: 'Wohnung', title: '2 Schlafzimmer in Gràcia' }, ['whole']).value, 1, 'Schlafzimmer ist kein Zimmer-Angebot');
+  assert.equal(R.wishScore({ kind: 'Apartment', title: '1 bedroom in Soho' }, ['whole']).value, 1);
+  assert.equal(R.wishScore({ kind: 'Zimmer in Berlin' }, ['whole']).value, 0);
+});
+
+test('Wünsche heben passende Unterkünfte nach oben', () => {
+  const base = { rating: 4.8, reviewCount: 100, totalPrice: 500, isTotal: true };
+  const ctx = { people: 1, budget: 800, wishes: ['whole'] };
+  const a = R.scoreListing({ ...base, id: 1, kind: 'Wohnung' }, ctx).score;
+  const b = R.scoreListing({ ...base, id: 2, kind: 'Privatzimmer' }, ctx).score;
+  assert.ok(a > b);
+});
+
+test('Einzelperson: keine Gruppen-Texte, keine Betten, kein Preis pro Person', () => {
+  const areas = [{ name: 'Gràcia', lat: 41.40, lon: 2.156, total: 80, min: 30, minName: 'Du' }];
+  const r = R.scoreListing({ id: 1, lat: 41.401, lon: 2.157, totalPrice: 500, isTotal: true, beds: 1 }, { people: 1, budget: 800, areas });
+  const text = [...r.why, ...r.warn].join(' | ');
+  assert.match(text, /für dich/);
+  assert.doesNotMatch(text, /Gruppe|unzufrieden|pro Person|Betten/);
+  assert.equal(r.parts.beds, null);
+});
+
+test('Bewertungs-Stichworte gegen Wünsche', () => {
+  const hints = ['👍 sauber (3×)', '⚠️ laut (2×)', '⚠️ WLAN'];
+  assert.deepEqual(R.reviewConflicts(hints, ['quiet']), ['passt nicht zu deinem Wunsch „ruhig“: laut (2×)']);
+  assert.equal(R.reviewConflicts(hints, ['clean']).length, 0, '👍 sauber ist kein Konflikt');
+  assert.equal(R.reviewConflicts(hints, ['wifi']).length, 1);
+  assert.equal(R.reviewConflicts(hints, undefined).length, 0);
+});
