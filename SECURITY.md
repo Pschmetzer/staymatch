@@ -8,7 +8,7 @@ Bitte **nicht** als öffentliches Issue. Nutze stattdessen die vertrauliche Meld
 
 (Reiter „Security“ → „Report a vulnerability“, *Private Vulnerability Reporting*.)
 
-Hilfreich sind: betroffener Teil (Web-App oder Plugin), Schritte zum Nachstellen, mögliche Auswirkung. Ich antworte in der Regel innerhalb von 7 Tagen und nenne auf Wunsch die Melderin oder den Melder in den Release-Notizen.
+Hilfreich sind: betroffener Teil (Web-App oder Plugin), Schritte zum Nachstellen, mögliche Auswirkung. Es ist ein privates Projekt ohne feste Reaktionszeit. Meldungen werden nach bestem Wissen geprüft und bei Bedarf mit Nennung (auf Wunsch anonym) behoben.
 
 ## Was zählt
 
