@@ -1,6 +1,6 @@
 # Datenschutz bei StayMatch
 
-Stand: 09.11.2026. StayMatch hat kein Konto, keinen eigenen Server mit Datenbank und kein Tracking.
+Stand: 10.11.2026. StayMatch hat kein Konto, keine Nutzerdatenbank und kein Tracking. Es gibt nur einen Zwischenspeicher für OpenStreetMap-Daten (siehe unten).
 
 ## Plugin (Chrome-Erweiterung)
 - Liest nur Airbnb-Seiten, die du selbst öffnest. Es stellt keine eigenen Anfragen an Airbnb und fängt keine Netzwerkdaten ab.
@@ -12,7 +12,8 @@ Stand: 09.11.2026. StayMatch hat kein Konto, keinen eigenen Server mit Datenbank
 - Gruppe, Reisedaten und Budget bleiben im Browser (`localStorage`) und in einem Teilen-Link, den du selbst erzeugst. Der Teil nach `#` wird von Browsern nicht an Server gesendet.
 - Der eingegebene Ortsname und deine IP-Adresse gehen an
   - Nominatim (OpenStreetMap Foundation) für die Ortssuche,
-  - einen der Overpass-Server (`overpass-api.de`, `overpass.kumi.systems`, `overpass.private.coffee`) für die Orte,
+  - unsere Funktion `/api/city` (Vercel) für die Orte: Sie bekommt den Kartenausschnitt der Stadt und deine IP-Adresse (nur im Vercel-Protokoll). Sie speichert nur OpenStreetMap-Daten der Stadt, nichts über dich. Overpass sieht im Normalfall nur die Server-IP,
+  - falls diese Funktion ausfällt, direkt einen der Overpass-Server (`overpass-api.de`, `overpass.kumi.systems`, `overpass.private.coffee`),
   - die OpenStreetMap-Kartenkacheln (`tile.openstreetmap.org`) für die Karte. Die Kacheln werden **immer** von dort geladen.
   Deren Datenschutzhinweise gelten dort.
 - Optional (noch nicht aktiv): Städte können vorab geladen werden (`web/data/`, Skript `scripts/prefetch-cities.mjs`). Für sie entfallen Nominatim und Overpass, die Kartenkacheln bleiben.

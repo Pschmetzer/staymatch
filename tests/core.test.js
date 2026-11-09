@@ -106,3 +106,11 @@ test('Namensabgleich: Artikel und Akzente egal, mehrere Teil-Viertel = Mittelwer
   assert.equal(e.total, 60); assert.equal(e.approx, true);
   assert.equal(R.areaFor({ locality: 'Sarrià' }, areas), null);
 });
+
+test('api/city: bbox wird eingerastet, zu große oder ungültige Boxen abgelehnt', async () => {
+  const { parseBbox, parseCsv } = await import('../web/api/city.js');
+  assert.deepEqual(parseBbox('41.3123,2.0612,41.4623,2.2712'), [41.31, 2.06, 41.47, 2.28]);
+  assert.equal(parseBbox('0,0,50,50'), null);
+  assert.equal(parseBbox('abc'), null);
+  assert.equal(parseCsv('@lat|x\n1|2|||a|||||||\n1|2|3').length, 1);
+});

@@ -125,6 +125,17 @@ async function overpass(bbox) {
   }
 }
 
+// Gemeinsamer Zwischenspeicher (web/api/city.js). Bei jedem Fehler → null, dann fragt die App die Mirrors direkt.
+async function sharedCache(bbox) {
+  try {
+    const r = await fetch('/api/city?bbox=' + bbox.map(x => x.toFixed(4)).join(','), { signal: AbortSignal.timeout(100000) });
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (!Array.isArray(d.rows) || !Array.isArray(d.fields)) return null;
+    return d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
+  } catch { return null; }
+}
+
 // Vorab geladene Städte (scripts/prefetch-cities.mjs → web/data/)
 const normCity = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 async function prefetched(city) {
@@ -179,7 +190,7 @@ async function run() {
       const cacheKey = 'sm_osm2_' + geo.bbox.map(x => x.toFixed(3)).join(',');
       rows = cacheGet(cacheKey);
       $('status').textContent = rows ? `Nutze gespeicherte Daten für ${geo.name} …` : `Lade Orte in ${geo.name} aus OpenStreetMap (kann bis zu 1 Minute dauern) …`;
-      if (!rows) { rows = await overpass(geo.bbox); cacheSet(cacheKey, rows); }
+      if (!rows) { rows = (await sharedCache(geo.bbox)) || await overpass(geo.bbox); cacheSet(cacheKey, rows); }
     }
 
     const areas = [], pois = [];
