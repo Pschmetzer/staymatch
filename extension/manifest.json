@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "StayMatch – Unterkunfts-Merkzettel",
+  "version": "0.1.0",
+  "description": "Merkt sich angesehene Unterkünfte, was dir gefallen hat, und fasst Bewertungen zusammen. Alles bleibt lokal in deinem Browser.",
+  "permissions": ["storage"],
+  "action": { "default_popup": "popup.html", "default_title": "StayMatch" },
+  "content_scripts": [{
+    "matches": ["https://www.airbnb.de/rooms/*", "https://www.airbnb.com/rooms/*", "https://www.airbnb.at/rooms/*", "https://www.airbnb.ch/rooms/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }]
+}

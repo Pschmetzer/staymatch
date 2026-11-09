@@ -1,0 +1,182 @@
+const SM = window.StayMatch;
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+let people = store.get('sm_people', [
+  { name: 'Lena', type: 'party' }, { name: 'Mia', type: 'party' },
+  { name: 'Jonas', type: 'chill' }, { name: 'Sara', type: 'chill' }, { name: 'Tom', type: 'sights' },
+]);
+
+// Standard-Zeitraum: in 4 Wochen, 4 Nächte
+const d0 = new Date(Date.now() + 28 * 864e5), d1 = new Date(d0.getTime() + 4 * 864e5);
+$('checkin').value = d0.toISOString().slice(0, 10);
+$('checkout').value = d1.toISOString().slice(0, 10);
+
+function renderPeople() {
+  $('people').innerHTML = '';
+  people.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'person';
+    row.innerHTML = `<input value="${escapeHtml(p.name)}" aria-label="Name">
+      <select aria-label="Typ">${Object.entries(SM.PRESETS).map(([k, v]) => `<option value="${k}" ${k === p.type ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
+      <button title="Entfernen" aria-label="Entfernen">✕</button>`;
+    row.children[0].oninput = e => { p.name = e.target.value; save(); };
+    row.children[1].onchange = e => { p.type = e.target.value; save(); };
+    row.children[2].onclick = () => { people.splice(i, 1); save(); renderPeople(); };
+    $('people').appendChild(row);
+  });
+  updateBudget();
+}
+function save() { store.set('sm_people', people); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+function budgetNums() {
+  const n = SM.nights($('checkin').value, $('checkout').value);
+  const total = +$('budget').value || 0;
+  return { n, total, perNight: n ? total / n : 0, perPerson: people.length ? total / people.length : 0 };
+}
+function updateBudget() {
+  const b = budgetNums();
+  $('budgetInfo').textContent = b.n
+    ? `${b.n} Nächte · ${Math.round(b.perNight)} € pro Nacht · ${Math.round(b.perPerson)} € pro Person`
+    : 'Zeitraum wählen';
+}
+['checkin', 'checkout', 'budget'].forEach(id => $(id).addEventListener('input', updateBudget));
+$('addPerson').onclick = () => { people.push({ name: `Person ${people.length + 1}`, type: 'chill' }); save(); renderPeople(); };
+$('example').onclick = () => {
+  people = [{ name: 'Party 1', type: 'party' }, { name: 'Party 2', type: 'party' }, { name: 'Chill 1', type: 'chill' }, { name: 'Chill 2', type: 'chill' }, { name: 'Sights', type: 'sights' }];
+  save(); renderPeople();
+};
+
+async function geocode(city) {
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(city)}`, { headers: { 'Accept-Language': 'de' } });
+  const j = await r.json();
+  if (!j.length) throw new Error('Stadt nicht gefunden');
+  let [s, n, w, e] = j[0].boundingbox.map(Number);
+  const lat = +j[0].lat, lon = +j[0].lon;
+  // Große Städte auf ca. 16 × 16 km um das Zentrum begrenzen (Overpass-Last)
+  const h = 0.075;
+  s = Math.max(s, lat - h); n = Math.min(n, lat + h);
+  w = Math.max(w, lon - h * 1.4); e = Math.min(e, lon + h * 1.4);
+  return { lat, lon, bbox: [s, w, n, e], name: j[0].display_name.split(',')[0] };
+}
+
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+const FIELDS = ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'wikidata'];
+// CSV statt JSON: ca. 6x kleiner. Alle Server parallel, der schnellste gewinnt.
+async function overpass(bbox) {
+  const b = bbox.map(x => x.toFixed(4)).join(',');
+  const q = `[out:csv(::lat,::lon,${FIELDS.slice(2).join(',')};true;"|")][timeout:90];(
+    node["place"~"^(suburb|neighbourhood|quarter)$"](${b});
+    node["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${b});
+    nwr["leisure"~"^(park|garden|spa)$"](${b});
+    nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"](${b});
+    node["historic"="monument"](${b});
+    nwr["natural"="beach"](${b});
+    node["railway"~"^(station|subway_entrance)$"](${b});
+  );out center;`;
+  const ctrl = new AbortController();
+  const tries = OVERPASS.map(async url => {
+    const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
+    const text = await r.text();
+    if (!r.ok || !text.startsWith('@lat')) throw new Error(`${new URL(url).host}: ${r.status}`);
+    return text;
+  });
+  try {
+    const text = await Promise.any(tries);
+    ctrl.abort();
+    return text.split('\n').slice(1).filter(Boolean).map(line => {
+      const v = line.split('|'), t = {};
+      FIELDS.forEach((f, i) => { if (v[i]) t[f] = v[i]; });
+      return t;
+    });
+  } catch (e) {
+    throw new Error('OpenStreetMap-Server gerade überlastet – bitte in einer Minute nochmal versuchen.');
+  }
+}
+
+// Ergebnis pro Stadt einen Tag lang im Browser merken (spart die langsame Abfrage)
+function cacheGet(k) { try { const c = JSON.parse(sessionStorage.getItem(k) || localStorage.getItem(k)); return c && Date.now() - c.t < 864e5 ? c.rows : null; } catch { return null; } }
+function cacheSet(k, rows) { const v = JSON.stringify({ t: Date.now(), rows }); try { localStorage.setItem(k, v); } catch { try { sessionStorage.setItem(k, v); } catch {} } }
+
+let map, layer;
+async function run() {
+  const city = $('city').value.trim();
+  if (!city || !people.length) { $('status').textContent = 'Bitte Stadt und mindestens eine Person angeben.'; return; }
+  $('go').disabled = true;
+  $('results').innerHTML = '';
+  try {
+    $('status').textContent = 'Suche Stadt …';
+    const geo = await geocode(city);
+    $('status').textContent = `Lade Orte in ${geo.name} aus OpenStreetMap (kann bis zu 1 Minute dauern) …`;
+    const cacheKey = 'sm_osm_' + geo.bbox.map(x => x.toFixed(3)).join(',');
+    let rows = cacheGet(cacheKey);
+    if (!rows) { rows = await overpass(geo.bbox); cacheSet(cacheKey, rows); }
+
+    const areas = [], pois = [];
+    for (const t of rows) {
+      const lat = +t.lat, lon = +t.lon;
+      if (!lat) continue;
+      if (t.place && t.name) { areas.push({ name: t.name, lat, lon }); continue; }
+      const cat = SM.categoryOf(t);
+      if (cat) pois.push({ lat, lon, cat, name: t.name, tags: t });
+    }
+    if (areas.length < 2) throw new Error('Keine Viertel in OpenStreetMap gefunden – andere Stadt versuchen.');
+
+    SM.scoreAreas(areas, pois);
+    const ppl = people.map(p => ({ ...p, w: SM.PRESETS[p.type].w }));
+    for (const a of areas) a.group = SM.groupScore(a.norm, ppl);
+    // Viertel ohne nennenswerte Infrastruktur ausblenden
+    const sorted = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10)
+      .sort((a, b) => b.group.total - a.group.total);
+    const ranked = SM.pickDiverse(sorted);
+
+    $('status').textContent = `${areas.length} Viertel und ${pois.length} Orte ausgewertet. Die besten für eure Gruppe:`;
+    renderResults(ranked, pois, ppl, geo);
+    renderMap(ranked, geo);
+  } catch (e) {
+    $('status').textContent = 'Fehler: ' + e.message;
+  } finally { $('go').disabled = false; }
+}
+
+function renderResults(ranked, pois, ppl, geo) {
+  const b = budgetNums();
+  $('results').innerHTML = ranked.map((a, i) => {
+    const highlights = pois.filter(p => p.name && p.cat !== 'transit' && p.cat !== 'food' && SM.distM(a, p) < 600)
+      .sort((x, y) => (y.tags.wikidata ? 1 : 0) - (x.tags.wikidata ? 1 : 0)).slice(0, 5).map(p => p.name);
+    const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length, priceMaxNight: b.perNight });
+    const chips = ppl.map((p, j) => {
+      const s = a.group.scores[j];
+      return `<span class="chip ${s < 40 ? 'low' : s >= 70 ? 'high' : ''}">${escapeHtml(p.name)}: ${s}</span>`;
+    }).join('');
+    const c = a.counts;
+    return `<article class="card result">
+      <h3><span>${i + 1}. ${escapeHtml(a.name)}</span><span class="score">${a.group.total}</span></h3>
+      <div class="bar"><i style="width:${a.group.total}%"></i></div>
+      <div class="chips">${chips}</div>
+      <div class="muted">🍸 ${c.party} Bars/Clubs · 🌿 ${c.chill} Parks/Cafés · 🏛️ ${c.sights} Sehenswürdigkeiten · 🍝 ${c.food} Restaurants · 🚇 ${c.transit} Stationen</div>
+      ${highlights.length ? `<div class="muted">In der Nähe: ${highlights.map(escapeHtml).join(', ')}</div>` : ''}
+      <div><a class="btn" href="${url}" target="_blank" rel="noopener">Unterkünfte hier auf Airbnb ansehen →</a></div>
+    </article>`;
+  }).join('');
+}
+
+function renderMap(ranked, geo) {
+  if (!window.L) return;
+  $('map').hidden = false;
+  if (!map) {
+    map = L.map('map');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+  }
+  map.invalidateSize();
+  map.fitBounds(L.latLngBounds(ranked.map(a => [a.lat, a.lon])).pad(0.3));
+  if (layer) layer.remove();
+  layer = L.layerGroup(ranked.map((a, i) => L.circle([a.lat, a.lon], { radius: 800, color: i === 0 ? '#e0475b' : '#888', weight: 2, fillOpacity: 0.12 })
+    .bindTooltip(`${i + 1}. ${a.name} (${a.group.total})`, { permanent: i < 3 }))).addTo(map);
+}
+
+$('go').onclick = run;
+renderPeople();
