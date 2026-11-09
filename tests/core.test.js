@@ -65,3 +65,44 @@ test('Airbnb-Link enthält Datum, Gäste und Kartenausschnitt', () => {
   const u = new URL(SM.airbnbUrl({ lat: 41.4, lon: 2.16, name: 'Gràcia', city: 'Barcelona', checkin: '2026-12-07', checkout: '2026-12-11', adults: 5, priceMaxNight: 500 }));
   for (const k of ['checkin', 'checkout', 'adults', 'price_max', 'ne_lat', 'sw_lng']) assert.ok(u.searchParams.has(k), k);
 });
+
+test('Entfernungsabfall: nahe Orte zählen mehr als ferne', () => {
+  const near = { name: 'A', lat: 41.40, lon: 2.16 }, far = { name: 'B', lat: 41.40, lon: 2.16 };
+  const pois = [{ lat: 41.40, lon: 2.16, cat: 'party' }];
+  const areas = SM.scoreAreas([near, far], [{ lat: 41.4003, lon: 2.16, cat: 'party' }, { lat: 41.4, lon: 2.1695, cat: 'party' }], 800);
+  // beide Gebiete identisch → gleiche Werte; ein weiter entfernter Ort zählt weniger als ein naher
+  const a = SM.scoreAreas([{ lat: 41.40, lon: 2.16 }], [{ lat: 41.4003, lon: 2.16, cat: 'party' }], 800)[0];
+  const b = SM.scoreAreas([{ lat: 41.40, lon: 2.16 }], [{ lat: 41.4065, lon: 2.16, cat: 'party' }], 800)[0];
+  assert.ok(a.sums.party > b.sums.party);
+  assert.equal(a.counts.party, 1);
+  assert.equal(b.counts.party, 1, 'rohe Anzahl bleibt gleich');
+  assert.equal(areas.length, 2); assert.ok(pois.length);
+});
+
+test('Erklärung: was fehlt oder stört', () => {
+  const norm = { party: 0.9, chill: 0.1, sights: 0.5, food: 0.5, transit: 0.5 };
+  const counts = { party: 90, chill: 2, sights: 10, food: 20, transit: 5 };
+  const missing = SM.weakness(norm, counts, SM.PRESETS.nature.w);
+  assert.equal(missing.kind, 'missing'); assert.match(missing.label, /Chillen/);
+  const toomuch = SM.weakness({ ...norm, chill: 1 }, counts, { party: -1, chill: 0.2 });
+  assert.equal(toomuch.kind, 'toomuch'); assert.match(toomuch.label, /Party/);
+});
+
+test('Neue Typen existieren und haben alle Kategorien', () => {
+  for (const k of ['party', 'chill', 'sights', 'foodie', 'family', 'nature']) {
+    assert.ok(SM.PRESETS[k], k);
+    for (const c of Object.keys(SM.CATEGORIES)) assert.equal(typeof SM.PRESETS[k].w[c], 'number', `${k}.${c}`);
+  }
+});
+
+test('Namensabgleich: Artikel und Akzente egal, mehrere Teil-Viertel = Mittelwert', () => {
+  const areas = [
+    { name: 'Gràcia', lat: 1, lon: 1, total: 60, min: 50 },
+    { name: "la Dreta de l'Eixample", lat: 2, lon: 2, total: 70, min: 60 },
+    { name: "la Nova Esquerra de l'Eixample", lat: 3, lon: 3, total: 50, min: 40 },
+  ];
+  assert.equal(R.areaFor({ locality: 'Vila de Gracia' }, areas).total, 60);
+  const e = R.areaFor({ locality: "l'Eixample" }, areas);
+  assert.equal(e.total, 60); assert.equal(e.approx, true);
+  assert.equal(R.areaFor({ locality: 'Sarrià' }, areas), null);
+});

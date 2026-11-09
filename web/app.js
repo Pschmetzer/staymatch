@@ -37,6 +37,7 @@ function renderPeople() {
 }
 function save() {
   store.set('sm_people', people);
+  rescore();
   // Änderungen gelten ab jetzt: alten Teilen-Link aus der Adresszeile nehmen, sonst überschreibt ein Neuladen die Eingaben
   if (location.hash.startsWith('#t=')) history.replaceState(null, '', location.pathname + location.search);
 }
@@ -53,7 +54,8 @@ function updateBudget() {
     ? `${b.n} Nächte · ${Math.round(b.perNight)} € pro Nacht · ${Math.round(b.perPerson)} € pro Person`
     : 'Zeitraum wählen';
 }
-['checkin', 'checkout', 'budget'].forEach(id => $(id).addEventListener('input', updateBudget));
+['checkin', 'checkout', 'budget'].forEach(id => $(id).addEventListener('input', () => { updateBudget(); rescore(); }));
+$('radius').addEventListener('change', () => rescore());
 $('addPerson').onclick = () => { people.push({ name: `Person ${people.length + 1}`, type: 'chill' }); save(); renderPeople(); };
 $('example').onclick = () => {
   people = [{ name: 'Party 1', type: 'party' }, { name: 'Party 2', type: 'party' }, { name: 'Chill 1', type: 'chill' }, { name: 'Chill 2', type: 'chill' }, { name: 'Sights', type: 'sights' }];
@@ -156,7 +158,9 @@ function cacheSet(k, rows) {
 // alte Cache-Version (vor CSV/nwr) entfernen
 try { Object.keys(localStorage).filter(k => k.startsWith('sm_osm_')).forEach(k => localStorage.removeItem(k)); } catch {}
 
-let map, layer;
+let map, layer, lastData = null; // lastData: geladene Viertel + Orte → Neuberechnung ohne Netz
+const radius = () => +$('radius').value || 800;
+
 async function run() {
   if ($('go').disabled) return; // läuft schon (z. B. Enter während der Suche)
   const city = $('city').value.trim();
@@ -186,40 +190,54 @@ async function run() {
       for (const cat of SM.categoriesOf(t)) pois.push({ lat, lon, cat, name: t.name, tags: t });
     }
     if (areas.length < 2) throw new Error('Keine Viertel in OpenStreetMap gefunden – andere Stadt versuchen.');
-
-    SM.scoreAreas(areas, pois);
-    const ppl = people.map(p => ({ ...p, w: SM.PRESETS[p.type].w }));
-    for (const a of areas) a.group = SM.groupScore(a.norm, ppl);
-    // Viertel ohne nennenswerte Infrastruktur ausblenden
-    const sorted = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10)
-      .sort((a, b) => b.group.total - a.group.total);
-    const ranked = SM.pickDiverse(sorted);
-    if (!ranked.length) throw new Error('Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt oder einen anderen Ortsnamen.');
-
-    $('status').textContent = `${sorted.length} Viertel und ${pois.length} Orte ausgewertet. Die besten für eure Gruppe:`;
-    saveTrip(geo, sorted, ppl);
-    renderResults(ranked, pois, ppl, geo);
-    renderMap(ranked, geo);
+    lastData = { areas, pois, geo };
+    compute();
   } catch (e) {
     $('status').textContent = 'Fehler: ' + (/fetch|network/i.test(e.message) ? 'Keine Verbindung zum Kartendienst. Internet prüfen und nochmal versuchen.' : e.message);
   } finally { $('go').disabled = false; }
 }
 
-function renderResults(ranked, pois, ppl, geo) {
+// Wertung neu rechnen, wenn Gruppe, Umkreis, Budget oder Datum sich ändern (kein neuer Abruf nötig)
+function compute() {
+  if (!lastData) return;
+  const { areas, pois, geo } = lastData;
+  const r = radius();
+  SM.scoreAreas(areas, pois, r);
+  const ppl = people.map(p => ({ ...p, w: SM.PRESETS[p.type].w }));
+  for (const a of areas) a.group = SM.groupScore(a.norm, ppl);
+  // Viertel ohne nennenswerte Infrastruktur ausblenden
+  const sorted = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10)
+    .sort((a, b) => b.group.total - a.group.total);
+  const ranked = SM.pickDiverse(sorted, 8, Math.max(1200, r * 1.5));
+  if (!ranked.length) { $('results').innerHTML = ''; $('status').textContent = 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis oder einen anderen Ortsnamen.'; return; }
+  $('status').textContent = `${sorted.length} Viertel und ${pois.length} Orte ausgewertet. Die besten für eure Gruppe:`;
+  saveTrip(geo, sorted, ppl);
+  renderResults(ranked, pois, ppl, geo, r);
+  renderMap(ranked, geo, r);
+}
+let rescoreTimer = null;
+const rescore = () => { clearTimeout(rescoreTimer); rescoreTimer = setTimeout(() => { try { compute(); } catch (e) { console.debug(e); } }, 250); };
+
+function renderResults(ranked, pois, ppl, geo, r) {
   const b = budgetNums();
   $('results').innerHTML = ranked.map((a, i) => {
-    const highlights = [...new Set(pois.filter(p => p.name && p.cat !== 'transit' && p.cat !== 'food' && SM.distM(a, p) < 800)
+    const highlights = [...new Set(pois.filter(p => p.name && p.cat !== 'transit' && p.cat !== 'food' && SM.distM(a, p) < r)
       .sort((x, y) => (y.tags.wikidata ? 1 : 0) - (x.tags.wikidata ? 1 : 0)).map(p => p.name))].slice(0, 5);
-    const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length, priceMaxNight: b.perNight });
+    const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length, priceMaxNight: b.perNight, radius: r });
     const chips = ppl.map((p, j) => {
       const s = a.group.scores[j];
       return `<span class="chip ${s < 40 ? 'low' : s >= 70 ? 'high' : ''}">${escapeHtml(p.name)}: ${s}</span>`;
     }).join('');
     const c = a.counts;
+    // Wer ist am wenigsten zufrieden und warum?
+    const lowIdx = a.group.scores.indexOf(a.group.min), low = ppl[lowIdx];
+    const weak = low && a.group.min < 60 ? SM.weakness(a.norm, a.counts, low.w) : null;
+    const why = weak ? `<div class="muted">⚠️ ${escapeHtml(low.name)} (${a.group.min}) ${weak.kind === 'missing' ? `vermisst hier: ${weak.label} (nur ${weak.count} im Umkreis)` : `stört: viel ${weak.label} (${weak.count} im Umkreis)`}</div>` : '';
     return `<article class="card result">
       <h3><span>${i + 1}. ${escapeHtml(a.name)}</span><span class="score">${a.group.total}</span></h3>
       <div class="bar"><i style="width:${a.group.total}%"></i></div>
       <div class="chips">${chips}</div>
+      ${why}
       <div class="muted">🍸 ${c.party} Bars/Clubs · 🌿 ${c.chill} Parks/Cafés · 🏛️ ${c.sights} Sehenswürdigkeiten · 🍝 ${c.food} Restaurants · 🚇 ${c.transit} Stationen</div>
       ${highlights.length ? `<div class="muted">In der Nähe: ${highlights.map(escapeHtml).join(', ')}</div>` : ''}
       <div><a class="btn" href="${url}" target="_blank" rel="noopener">Unterkünfte hier auf Airbnb ansehen →</a></div>
@@ -227,7 +245,7 @@ function renderResults(ranked, pois, ppl, geo) {
   }).join('');
 }
 
-function renderMap(ranked, geo) {
+function renderMap(ranked, geo, r = 800) {
   if (!window.L) return;
   $('map').hidden = false;
   if (!map) {
@@ -237,7 +255,7 @@ function renderMap(ranked, geo) {
   map.invalidateSize();
   map.fitBounds(L.latLngBounds(ranked.map(a => [a.lat, a.lon])).pad(0.3));
   if (layer) layer.remove();
-  layer = L.layerGroup(ranked.map((a, i) => L.circle([a.lat, a.lon], { radius: 600, color: i === 0 ? '#e0475b' : '#888', weight: 2, fillOpacity: 0.12 })
+  layer = L.layerGroup(ranked.map((a, i) => L.circle([a.lat, a.lon], { radius: Math.round(r * 0.75), color: i === 0 ? '#e0475b' : '#888', weight: 2, fillOpacity: 0.12 })
     .bindTooltip(`${i + 1}. ${a.name} (${a.group.total})`, { permanent: i < 3 }))).addTo(map);
 }
 

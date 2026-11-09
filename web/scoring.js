@@ -14,6 +14,8 @@
     chill: { label: '🌿 Chill', w: { party: -0.5, chill: 1, sights: 0.2, food: 0.5, transit: 0.2 } },
     sights: { label: '🏛️ Sightseeing', w: { party: 0.1, chill: 0.2, sights: 1, food: 0.4, transit: 0.7 } },
     foodie: { label: '🍝 Foodie', w: { party: 0.2, chill: 0.2, sights: 0.2, food: 1, transit: 0.3 } },
+    family: { label: '👨‍👩‍👧 Familie', w: { party: -0.8, chill: 1, sights: 0.6, food: 0.6, transit: 0.5 } },
+    nature: { label: '🌲 Natur', w: { party: -0.3, chill: 1, sights: 0.4, food: 0.3, transit: 0.2 } },
   };
 
   // Ein Ort kann in mehreren Kategorien zählen (Park mit Sehenswürdigkeit = Chillen UND Sightseeing)
@@ -30,17 +32,33 @@
 
   // areas: [{name, lat, lon}], pois: [{lat, lon, cat}] -> areas mit counts + normierten Werten (0..1)
   function scoreAreas(areas, pois, radius = 800) {
+    const zero = () => Object.fromEntries(Object.keys(CATEGORIES).map(k => [k, 0]));
     for (const a of areas) {
-      a.counts = Object.fromEntries(Object.keys(CATEGORIES).map(k => [k, 0]));
-      for (const p of pois) if (distM(a, p) <= radius) a.counts[p.cat]++;
+      a.counts = zero(); a.sums = zero();
+      for (const p of pois) {
+        const d = distM(a, p);
+        if (d > radius) continue;
+        a.counts[p.cat]++;
+        a.sums[p.cat] += 1 - 0.5 * (d / radius); // Entfernungsabfall: direkt vor der Tür zählt doppelt so viel wie am Rand
+      }
     }
     const max = {};
-    for (const k of Object.keys(CATEGORIES)) max[k] = Math.max(1, ...areas.map(a => a.counts[k]));
+    for (const k of Object.keys(CATEGORIES)) max[k] = Math.max(1, ...areas.map(a => a.sums[k]));
     for (const a of areas) {
       // Wurzel, damit ein Viertel mit 200 Bars nicht alles andere erschlägt
-      a.norm = Object.fromEntries(Object.keys(CATEGORIES).map(k => [k, Math.sqrt(a.counts[k] / max[k])]));
+      a.norm = Object.fromEntries(Object.keys(CATEGORIES).map(k => [k, Math.sqrt(a.sums[k] / max[k])]));
     }
     return areas;
+  }
+
+  // Woran liegt es, dass eine Person unzufrieden ist? Größte Lücke bei Wichtigem oder größter Störfaktor.
+  function weakness(norm, counts, weights) {
+    let best = null;
+    for (const [k, w] of Object.entries(weights)) {
+      const gap = w > 0 ? w * (1 - (norm[k] || 0)) : -w * (norm[k] || 0);
+      if (gap > 0 && (!best || gap > best.gap)) best = { gap, kind: w > 0 ? 'missing' : 'toomuch', label: CATEGORIES[k].label, count: counts[k] };
+    }
+    return best;
   }
 
   // Zufriedenheit einer Person (0..100)
@@ -89,5 +107,5 @@
     return out;
   }
 
-  root.StayMatch = { pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
+  root.StayMatch = { weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
 })(typeof window !== 'undefined' ? window : globalThis);

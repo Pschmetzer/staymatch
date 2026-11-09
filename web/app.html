@@ -4,49 +4,74 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StayMatch Viertel-Finder</title>
-<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <meta name="description" content="Findet das Stadtviertel, in dem die ganze Reisegruppe zufrieden ist.">
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23e0475b%22/><path d=%22M50 25 78 52H68v23H32V52H22z%22 fill=%22white%22/></svg>">
 <style>
-:root { --bg:#f7f6f3; --card:#fff; --text:#1d1d1f; --muted:#6b6b70; --line:#e4e2dc; --accent:#e0475b; --good:#1f9d6b; --warn:#d68a00; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#141416; --card:#1e1e22; --text:#f2f2f4; --muted:#a0a0a8; --line:#2e2e34; } }
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+:root { --bg:#0b0b0d; --bg2:#121216; --card:#17171c; --line:#26262d; --text:#f4f4f6; --muted:#9a9aa4; --dim:#6c6c76; --accent:#e0475b; --accent2:#ff8a5c; --good:#2fbf85; --warn:#e6a23c; --btn:#f4f4f6; --btnText:#0b0b0d; }
+:root[data-theme="light"] { --bg:#fbfaf8; --bg2:#f3f1ed; --card:#fff; --line:#e6e3dd; --text:#141416; --muted:#5d5d66; --dim:#8a8a93; --btn:#141416; --btnText:#fff; }
 * { box-sizing:border-box; }
-body { margin:0; font:15px/1.5 system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); }
-header { padding:24px 16px 8px; max-width:1100px; margin:auto; }
-h1 { margin:0; font-size:28px; } h1 span { color:var(--accent); }
-header p { margin:4px 0 0; color:var(--muted); }
-main { max-width:1100px; margin:auto; padding:8px 16px 48px; display:grid; gap:16px; grid-template-columns:360px 1fr; }
-@media (max-width:860px) { main { grid-template-columns:1fr; } }
-.card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
-label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+@media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
+body { margin:0; font:15px/1.55 Inter,system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:6px; }
+nav.top { position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+nav.top .wrap { display:flex; align-items:center; gap:16px; height:64px; }
+.wrap { max-width:1180px; margin:0 auto; padding:0 20px; }
+.logo { display:flex; align-items:center; gap:10px; font-weight:600; font-size:18px; text-decoration:none; color:inherit; }
+.logo i { width:32px; height:32px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:grid; place-items:center; }
+.logo i svg { width:17px; height:17px; }
+.right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.right a { color:var(--muted); text-decoration:none; font-size:14px; } .right a:hover { color:var(--text); }
+.theme { background:none; border:1px solid var(--line); color:var(--muted); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:16px; padding:0; }
+h1 { font-size:clamp(28px,4vw,40px); letter-spacing:-.03em; font-weight:500; margin:30px 0 6px; }
+.sub { color:var(--muted); margin:0 0 22px; max-width:640px; }
+main { max-width:1180px; margin:0 auto; padding:0 20px 56px; display:grid; gap:18px; grid-template-columns:380px 1fr; align-items:start; }
+@media (max-width:900px) { main { grid-template-columns:1fr; } }
+.card { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:20px; }
+label { display:block; font-size:13px; color:var(--muted); margin:12px 0 5px; }
 input, select, button { font:inherit; color:inherit; }
-input, select { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
-.row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-button { cursor:pointer; border:0; border-radius:8px; padding:9px 12px; background:var(--line); }
-button.primary { background:var(--accent); color:#fff; width:100%; margin-top:14px; font-weight:600; padding:12px; }
-button.link { background:none; color:var(--accent); padding:4px 0; }
-.person { display:grid; grid-template-columns:1fr 1fr 32px; gap:6px; margin-bottom:6px; }
+input, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); }
+.row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+button { cursor:pointer; border:0; border-radius:12px; padding:9px 12px; background:var(--bg2); border:1px solid var(--line); }
+button.primary { background:var(--btn); color:var(--btnText); width:100%; margin-top:16px; font-weight:600; padding:13px; border-color:var(--btn); }
+button.primary:disabled { opacity:.6; cursor:progress; }
+button.link { background:none; border:0; color:var(--accent); padding:4px 0; }
+.person { display:grid; grid-template-columns:1fr 1.3fr 36px; gap:6px; margin-bottom:6px; }
 .person button { padding:0; }
-.hint { font-size:13px; color:var(--muted); margin-top:8px; }
-#status { color:var(--muted); margin:0 0 12px; }
-#map { height:320px; border-radius:14px; border:1px solid var(--line); margin-bottom:16px; }
-.result { display:grid; gap:8px; margin-bottom:12px; }
-.result h3 { margin:0; display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
-.score { font-size:22px; font-weight:700; }
-.bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; } .bar i { display:block; height:100%; background:var(--accent); }
+.hint { font-size:13px; color:var(--dim); margin-top:10px; } .hint a { color:var(--muted); }
+#status { color:var(--muted); margin:6px 0 12px; }
+#map { height:340px; border-radius:20px; border:1px solid var(--line); margin-bottom:16px; }
+.result { display:grid; gap:9px; margin-bottom:14px; }
+.result h3 { margin:0; display:flex; justify-content:space-between; gap:8px; align-items:baseline; font-weight:500; font-size:19px; }
+.score { font-size:26px; font-weight:700; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.bar { height:6px; background:var(--bg2); border-radius:3px; overflow:hidden; } .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
-.chip { font-size:12px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); }
+.chip { font-size:12px; padding:3px 10px; border-radius:999px; border:1px solid var(--line); background:var(--bg2); }
 .chip.low { border-color:var(--warn); color:var(--warn); } .chip.high { border-color:var(--good); color:var(--good); }
 .muted { color:var(--muted); font-size:13px; }
-a.btn { display:inline-block; background:var(--text); color:var(--bg); text-decoration:none; padding:8px 12px; border-radius:8px; font-weight:600; font-size:14px; }
+a.btn { display:inline-block; background:var(--btn); color:var(--btnText); text-decoration:none; padding:9px 14px; border-radius:12px; font-weight:600; font-size:14px; }
+footer { border-top:1px solid var(--line); padding:26px 0 36px; color:var(--dim); font-size:13px; }
+footer a { color:var(--muted); }
 </style>
+<script>try { const t = localStorage.getItem('sm_theme'); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
 <body>
-<header>
-  <h1><a href="/" style="color:inherit;text-decoration:none">Stay<span>Match</span></a></h1>
-  <p>Das Viertel finden, in dem die ganze Gruppe glücklich ist – dann direkt passende Unterkünfte öffnen.</p>
-</header>
+<nav class="top" aria-label="Hauptnavigation">
+  <div class="wrap">
+    <a class="logo" href="/"><i><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg></i>StayMatch</a>
+    <div class="right">
+      <a href="/#plugin">Plugin</a>
+      <button class="theme" id="theme" aria-label="Hell/Dunkel umschalten">◐</button>
+    </div>
+  </div>
+</nav>
+<div class="wrap">
+  <h1>Viertel-Finder</h1>
+  <p class="sub">Das Viertel finden, in dem die ganze Gruppe glücklich ist, und dann direkt passende Unterkünfte öffnen.</p>
+</div>
 <main>
   <section class="card">
     <label for="city">Wohin?</label>
@@ -64,10 +89,18 @@ a.btn { display:inline-block; background:var(--text); color:var(--bg); text-deco
     <button class="link" id="addPerson">+ Person hinzufügen</button>
     <button class="link" id="example" style="display:block">Beispiel: 2 Party, 2 Chill, 1 Sightseeing</button>
 
+    <label for="radius">Umkreis um das Viertel</label>
+    <select id="radius">
+      <option value="500">500 m (kurze Wege)</option>
+      <option value="800" selected>800 m (Standard)</option>
+      <option value="1200">1,2 km</option>
+      <option value="2000">2 km (mit Bahn)</option>
+    </select>
+
     <button class="primary" id="go">Beste Viertel finden</button>
     <button class="link" id="share" style="display:block;margin-top:6px">🔗 Link zum Teilen kopieren</button>
     <div class="hint" id="shareMsg" role="status" aria-live="polite">Schick den Link in den Gruppenchat: Alle sehen dieselbe Reise, jede Person kann sich selbst eintragen und den Link zurückschicken. Die Daten stehen nur im Link, nicht auf einem Server.</div>
-    <div class="hint">Daten: OpenStreetMap (Bars, Parks, Cafés, Sehenswürdigkeiten, ÖPNV im Umkreis von 800 m). Für Ortsname und Orte werden die Kartendienste von OpenStreetMap angefragt, die Kartenkacheln kommen immer von dort. <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md">Datenschutz</a>. Wertung: 60 % zählt die am wenigsten zufriedene Person, 40 % der Schnitt – so gewinnt nicht einfach die Mehrheit.</div>
+    <div class="hint">Daten: OpenStreetMap (Bars, Parks, Cafés, Sehenswürdigkeiten, ÖPNV im gewählten Umkreis, nähere Orte zählen mehr). Für Ortsname und Orte werden die Kartendienste von OpenStreetMap angefragt, die Kartenkacheln kommen immer von dort. <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md">Datenschutz</a>. Wertung: 60 % zählt die am wenigsten zufriedene Person, 40 % der Schnitt, so gewinnt nicht einfach die Mehrheit. Ändert sich Gruppe oder Umkreis, wird sofort neu gerechnet.</div>
   </section>
   <section>
     <p id="status" role="status" aria-live="polite">Stadt, Zeitraum, Budget und Gruppe eingeben.</p>
@@ -76,8 +109,17 @@ a.btn { display:inline-block; background:var(--text); color:var(--bg); text-deco
     <div id="results"></div>
   </section>
 </main>
+<footer>
+  <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden.</div>
+</footer>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="scoring.js"></script>
 <script src="app.js"></script>
+<script>
+  document.getElementById('theme').onclick = () => {
+    const root = document.documentElement, next = root.dataset.theme === 'light' ? 'dark' : 'light';
+    root.dataset.theme = next; try { localStorage.setItem('sm_theme', next); } catch {}
+  };
+</script>
 </body>
 </html>

@@ -70,6 +70,7 @@
     .item a { color: var(--fg); font-weight: 600; text-decoration: none; }
     .score { float: right; font-weight: 700; font-size: 16px; }
     ul { margin: 4px 0 0; padding-left: 16px; } li.warn { color: var(--warn); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; } .chips button { font-size: 12px; padding: 3px 8px; }
     textarea { width: 100%; box-sizing: border-box; height: 52px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; font: 12px system-ui; background: var(--bg); color: var(--fg); }
     .row { display: flex; gap: 6px; margin: 6px 0; } .row button { flex: 1; }
   `;
@@ -87,12 +88,22 @@
   }
 
   // ---------- Suchseite ----------
-  let lastSig = '', lastRanked = null;
+  const FILTERS = [['rating', '⭐ ab 4,7'], ['budget', '💶 im Budget'], ['beds', '🛏️ genug Betten'], ['fav', '🏅 Favorit/Superhost']];
+  let lastSig = '', lastView = null, filters = {}, settings = { showBadges: true };
+
+  function passes(l) {
+    if (filters.rating && !(l.rating >= 4.7)) return false;
+    if (filters.budget && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
+    if (filters.beds && l.rank.parts.beds != null && l.rank.parts.beds < 1) return false; // unbekannt zählt als ok
+    if (filters.fav && !(l.badges || []).some(x => /favorit|superhost/i.test(x))) return false;
+    return true;
+  }
+
   async function handleSearch() {
     const listings = P.parseSearch(document);
     if (!listings.length) return;
     const sig = location.href + '|' + listings.map(l => l.id).join(',');
-    if (sig === lastSig) { if (lastRanked) badges(lastRanked); return; } // Panel nicht neu bauen, aber Plaketten nach Airbnb-Neuaufbau wieder setzen
+    if (sig === lastSig) { if (lastView) applyBadges(); return; } // Panel nicht neu bauen, aber Plaketten nach Airbnb-Neuaufbau wieder setzen
     lastSig = sig;
 
     const sp = P.searchParams(location.href);
@@ -107,35 +118,53 @@
     const nights = sp.nights || trip?.nights || null;
     const ctx = { people, nights, budget: trip?.budget || null, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked };
     const ranked = R.rankListings(listings, ctx);
-    lastRanked = ranked;
 
-    badges(ranked);
+    const stored = await chrome.storage.local.get(['filters', 'settings', 'min:sm-search']);
+    filters = stored.filters || {};
+    settings = { showBadges: true, ...(stored.settings || {}) };
+    lastView = { ranked, ctx, disliked, trip, count: listings.length, min: !!stored['min:sm-search'] };
 
     // Empfehlungen für das Popup merken (nur die eigene Auswahl, lokal)
     chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, top: ranked.slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, url: `${location.origin}/rooms/${l.id}` })) } });
 
-    const top = ranked.filter(l => !disliked.has(l.id)).slice(0, 3);
-    const { ['min:sm-search']: min } = await chrome.storage.local.get('min:sm-search');
+    applyBadges();
+    renderSearch();
+  }
+
+  function renderSearch() {
+    const { ranked, ctx, disliked, trip, count } = lastView;
+    const old = document.getElementById('sm-search')?.shadowRoot?.querySelector('.box');
+    const minimized = old ? old.classList.contains('min') : lastView.min;
+    const top = ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 3);
+    const bd = l => [['Viertel', 'area'], ['Sterne', 'rating'], ['Preis', 'price'], ['Betten', 'beds']]
+      .filter(([, k]) => l.rank.parts[k] != null).map(([n, k]) => `${n} ${Math.round(l.rank.parts[k] * 100)}`).join(' · ');
     panel('sm-search', 'Top 3 für euch', [
       !trip ? h('div', { class: 'muted' }, 'Tipp: Erst im Viertel-Finder suchen, dann kennt StayMatch eure Gruppe, das Budget und die Viertel.') : null,
-      h('div', { class: 'muted' }, `${listings.length} Unterkünfte auf dieser Seite bewertet${people ? ` · ${people} Personen` : ''}${nights ? ` · ${nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
-      top.map((l, i) => h('div', { class: 'item' },
+      h('div', { class: 'muted' }, `${count} Unterkünfte auf dieser Seite bewertet${ctx.people ? ` · ${ctx.people} Personen` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
+      h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter' }, FILTERS.map(([k, label]) => h('button', {
+        class: filters[k] ? 'on' : '', 'aria-pressed': String(!!filters[k]),
+        onclick: async () => { filters[k] = !filters[k]; await chrome.storage.local.set({ filters }); applyBadges(); renderSearch(); },
+      }, label))),
+      top.length ? top.map((l, i) => h('div', { class: 'item' },
         h('span', { class: 'score', title: 'Passt-Wert 0–100' }, l.rank.score),
         h('a', { href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener' }, `${i + 1}. ${l.title || l.kind}`),
         h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · ')),
-        h('ul', {}, l.rank.why.map(w => h('li', {}, w)), l.rank.warn.map(w => h('li', { class: 'warn' }, '⚠️ ' + w))))),
+        h('ul', {}, l.rank.why.map(w => h('li', {}, w)), l.rank.warn.map(w => h('li', { class: 'warn' }, '⚠️ ' + w))),
+        h('div', { class: 'muted' }, 'Zusammensetzung: ' + bd(l))))
+        : h('div', { class: 'muted' }, 'Keine Unterkunft auf dieser Seite erfüllt alle Filter. Filter lockern oder weiterblättern.'),
       h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → neue Unterkünfte werden automatisch mitbewertet.'),
-    ], { minimized: !!min });
+    ], { minimized });
   }
 
-  // Punkte direkt an den Karten. Markiert, damit der MutationObserver sie ignoriert.
-  function badges(ranked) {
-    const byId = new Map(ranked.map(l => [l.id, l]));
+  // Punkte direkt an den Karten (abschaltbar im Popup). Markiert, damit der MutationObserver sie ignoriert.
+  function applyBadges() {
+    if (!lastView) return;
+    const byId = new Map(lastView.ranked.map(l => [l.id, l]));
     for (const card of document.querySelectorAll('[data-testid="card-container"]')) {
       const id = card.querySelector('a[href*="/rooms/"]')?.getAttribute('href')?.match(P.ROOM_RE)?.[1];
       const l = id && byId.get(id);
-      if (!l) continue;
       let b = card.querySelector('[data-staymatch-badge]');
+      if (!l || !settings.showBadges) { b?.remove(); if (!settings.showBadges) card.style.opacity = ''; continue; }
       if (!b) {
         b = h('div', { 'data-staymatch-badge': '1', 'data-staymatch': '1' });
         if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
@@ -146,9 +175,10 @@
       b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;pointer-events:none`;
       b.textContent = `StayMatch ${s}`;
       b.title = [...l.rank.why, ...l.rank.warn].join(' · ');
-      card.style.opacity = l.rank.warn.some(w => w.includes('👎')) ? '0.45' : '';
+      card.style.opacity = l.rank.warn.some(w => w.includes('👎')) ? '0.45' : !passes(l) ? '0.35' : '';
     }
   }
+  chrome.storage.onChanged?.addListener(ch => { if (ch.settings) { settings = { showBadges: true, ...(ch.settings.newValue || {}) }; applyBadges(); } });
 
   // ---------- Unterkunftsseite ----------
   const HINTS = [
@@ -246,7 +276,7 @@
     const path = location.pathname;
     const roomId = path.match(P.ROOM_RE)?.[1];
     if (location.href !== lastUrl) {
-      lastUrl = location.href; lastSig = ''; lastRanked = null;
+      lastUrl = location.href; lastSig = ''; lastView = null;
       if (!roomId) document.getElementById('sm-room')?.remove();
       if (!/^\/s\//.test(path)) document.getElementById('sm-search')?.remove();
       if (roomId) setTimeout(() => handleRoom(roomId).catch(e => console.debug('StayMatch:', e)), 2000);
