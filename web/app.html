@@ -77,7 +77,13 @@ a.btn { display:inline-block; background:var(--text); color:var(--bg); text-deco
   </section>
 </main>
 <script src="vendor/leaflet/leaflet.js"></script>
+<!-- Reihenfolge wichtig: core.js zuerst, app-main.js zuletzt (klassische Skripte, gemeinsamer globaler Bereich) -->
+<script src="core.js"></script>
 <script src="scoring.js"></script>
-<script src="app.js"></script>
+<script src="app-form.js"></script>
+<script src="app-map.js"></script>
+<script src="app-results.js"></script>
+<script src="app-share.js"></script>
+<script src="app-main.js"></script>
 </body>
 </html>

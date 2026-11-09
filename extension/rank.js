@@ -1,12 +1,8 @@
 // StayMatch – bewertet Unterkünfte für die Gruppe. Reine Funktionen, ohne chrome.*.
 (function (root) {
-  const R = 6371000, toR = Math.PI / 180;
-  function distM(a, b) {
-    const dLat = (b.lat - a.lat) * toR, dLon = (b.lon - a.lon) * toR;
-    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLon / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(x));
-  }
-  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  // Kern aus core.js: im Plugin vorher geladen (manifest.json), in Node per require
+  const C = root.StayMatchCore || (typeof require === 'function' ? require('./core.js') : null);
+  const { distM, norm, RADIUS } = C;
 
   // Viertel-Wert: nächstes Viertel aus dem Viertel-Finder (Koordinaten), sonst Namensabgleich
   function areaFor(listing, areas) {
@@ -14,7 +10,7 @@
     if (listing.lat != null) {
       let best = null, bd = Infinity;
       for (const a of areas) { const d = distM(listing, a); if (d < bd) { bd = d; best = a; } }
-      if (best && bd <= 1500) return { ...best, dist: Math.round(bd) };
+      if (best && bd <= RADIUS.match) return { ...best, dist: Math.round(bd) };
     }
     const loc = norm(listing.locality);
     if (loc) {

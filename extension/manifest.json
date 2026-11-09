@@ -43,9 +43,12 @@
         "https://www.airbnb.com.br/*"
       ],
       "js": [
+        "core.js",
         "parse.js",
         "rank.js",
-        "content.js"
+        "content-common.js",
+        "content-search.js",
+        "content-listing.js"
       ],
       "run_at": "document_idle"
     },

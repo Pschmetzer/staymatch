@@ -34,7 +34,8 @@ Lizenz: MIT
 ## Entwickeln
 ```bash
 node --test tests/*.test.js          # Tests
+node scripts/sync-core.mjs           # shared/ nach web/ und extension/ kopieren (nach Änderungen am Kern)
 ./scripts/deploy.sh         # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
 node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/)
 ```
-Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md)
+Mitmachen: [CONTRIBUTING.md](CONTRIBUTING.md) · Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md)
