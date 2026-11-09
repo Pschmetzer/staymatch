@@ -1,0 +1,21 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Syntax aller JavaScript-Dateien
+        run: |
+          for f in web/*.js extension/*.js scripts/*.mjs; do node --check "$f"; done
+      - name: Manifest ist gültiges JSON mit Pflichtfeldern
+        run: |
+          node -e "const m=require('./extension/manifest.json'); if(m.manifest_version!==3||!m.version||!m.icons) throw new Error('manifest unvollständig')"
+      - name: Tests
+        run: node --test tests/
+      - name: Plugin-ZIP lässt sich bauen
+        run: ./scripts/build-plugin-zip.sh

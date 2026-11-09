@@ -16,11 +16,9 @@
     foodie: { label: '🍝 Foodie', w: { party: 0.2, chill: 0.2, sights: 0.2, food: 1, transit: 0.3 } },
   };
 
-  function categoryOf(tags) {
-    for (const [key, cat] of Object.entries(CATEGORIES)) {
-      if (cat.tags.some(([k, v]) => tags[k] === v)) return key;
-    }
-    return null;
+  // Ein Ort kann in mehreren Kategorien zählen (Park mit Sehenswürdigkeit = Chillen UND Sightseeing)
+  function categoriesOf(tags) {
+    return Object.entries(CATEGORIES).filter(([, cat]) => cat.tags.some(([k, v]) => tags[k] === v)).map(([key]) => key);
   }
 
   function distM(a, b) {
@@ -91,5 +89,5 @@
     return out;
   }
 
-  root.StayMatch = { pickDiverse, CATEGORIES, PRESETS, categoryOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
+  root.StayMatch = { pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
 })(typeof window !== 'undefined' ? window : globalThis);

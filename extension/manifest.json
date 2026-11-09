@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "StayMatch – Unterkunfts-Merkzettel",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Bewertet Unterkünfte auf der Suchseite, die du öffnest, für deine Gruppe und zeigt die Top 3. Merkt sich Verlauf, Likes und Bewertungs-Stichworte. Alles lokal.",
   "permissions": [
     "storage"

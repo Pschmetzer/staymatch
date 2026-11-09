@@ -35,9 +35,10 @@
   function priceScore(total, budget) {
     if (total == null || !budget) return null;
     const r = total / budget;
-    if (r <= 0.6) return 0.85;           // sehr günstig: gut, aber evtl. Haken
-    if (r <= 1) return 1 - (r - 0.6) * 0.5; // im Budget
-    return Math.max(0, 0.8 - (r - 1) * 2.5); // drüber: schnell schlechter
+    // stetig: sehr günstig 0,8 (evtl. Haken) → ideal bei 50 % → 0,8 am Budget → drüber schnell schlechter
+    if (r <= 0.5) return 0.8 + 0.4 * r;
+    if (r <= 1) return 1 - (r - 0.5) * 0.4;
+    return Math.max(0, 0.8 - (r - 1) * 2.5);
   }
 
   function bedScore(l, people) {

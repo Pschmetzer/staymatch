@@ -87,12 +87,12 @@
   }
 
   // ---------- Suchseite ----------
-  let lastSig = '';
+  let lastSig = '', lastRanked = null;
   async function handleSearch() {
     const listings = P.parseSearch(document);
     if (!listings.length) return;
     const sig = location.href + '|' + listings.map(l => l.id).join(',');
-    if (sig === lastSig) return; // nichts Neues – verhindert Endlosschleifen
+    if (sig === lastSig) { if (lastRanked) badges(lastRanked); return; } // Panel nicht neu bauen, aber Plaketten nach Airbnb-Neuaufbau wieder setzen
     lastSig = sig;
 
     const sp = P.searchParams(location.href);
@@ -107,6 +107,7 @@
     const nights = sp.nights || trip?.nights || null;
     const ctx = { people, nights, budget: trip?.budget || null, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked };
     const ranked = R.rankListings(listings, ctx);
+    lastRanked = ranked;
 
     badges(ranked);
 
@@ -245,7 +246,7 @@
     const path = location.pathname;
     const roomId = path.match(P.ROOM_RE)?.[1];
     if (location.href !== lastUrl) {
-      lastUrl = location.href; lastSig = '';
+      lastUrl = location.href; lastSig = ''; lastRanked = null;
       if (!roomId) document.getElementById('sm-room')?.remove();
       if (!/^\/s\//.test(path)) document.getElementById('sm-search')?.remove();
       if (roomId) setTimeout(() => handleRoom(roomId).catch(e => console.debug('StayMatch:', e)), 2000);

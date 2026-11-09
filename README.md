@@ -17,7 +17,7 @@ python3 -m http.server 8765 -d web
 Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app.html (Viertel-Finder).
 
 ## Chrome-Erweiterung (`extension/`)
-Download als ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (neu bauen mit `./scripts/build-plugin-zip.sh`).
+Download als ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (wird beim Deploy gebaut, lokal mit `./scripts/build-plugin-zip.sh`).
 
 1. `chrome://extensions` öffnen
 2. Oben rechts den **Entwicklermodus** einschalten
@@ -30,3 +30,11 @@ Alle Daten bleiben lokal in `chrome.storage.local`. Das Plugin liest nur Seiten,
 - Kein offizielles Produkt und nicht mit Airbnb verbunden. Die Erweiterung liest nur Seiten, die du selbst öffnest.
 
 Lizenz: MIT
+
+## Entwickeln
+```bash
+node --test tests/          # Tests
+./scripts/deploy.sh         # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
+node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/)
+```
+Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md)

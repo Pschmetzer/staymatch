@@ -7,11 +7,16 @@
 <meta name="description" content="StayMatch findet das Stadtviertel, in dem eure ganze Reisegruppe glücklich ist, und empfiehlt direkt die passenden Unterkünfte.">
 <meta property="og:title" content="StayMatch – das Viertel, in dem alle glücklich sind">
 <meta property="og:description" content="Party, Chill, Sightseeing: StayMatch findet den Kompromiss für eure Gruppe und empfiehlt die Top 3 Unterkünfte.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://staymatch-tau.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23e0475b%22/><path d=%22M50 25 78 52H68v23H32V52H22z%22 fill=%22white%22/></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 :root {
   --bg: #0b0b0d; --bg2: #121216; --card: #17171c; --line: #26262d; --text: #f4f4f6; --muted: #9a9aa4; --dim: #6c6c76;
   --accent: #e0475b; --accent2: #ff8a5c; --good: #2fbf85; --warn: #e6a23c; --btn: #f4f4f6; --btnText: #0b0b0d;
@@ -100,7 +105,7 @@ h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), va
 @media (max-width: 520px) { .strip .wrap { grid-template-columns: 1fr; padding: 28px 16px; } }
 .strip h3 { font-size: 17px; font-weight: 500; margin: 0 0 4px; } .strip p { margin: 0; color: var(--muted); font-size: 15px; }
 
-section.block { padding: 110px 0; }
+section.block { padding: 110px 0; scroll-margin-top: 80px; }
 @media (max-width: 700px) { section.block { padding: 72px 0; } }
 .eyebrow { color: var(--accent); font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 h2 { font-size: clamp(32px, 4.4vw, 52px); line-height: 1.08; letter-spacing: -.03em; font-weight: 500; margin: 12px 0 18px; max-width: 760px; }
@@ -190,10 +195,10 @@ footer a { color: var(--muted); }
         <a class="btn primary" href="app.html">Viertel finden <span aria-hidden="true">→</span></a>
         <a class="btn ghost" href="#so-gehts">So funktioniert's</a>
       </div>
-      <p class="note">Kostenlos · Open Source · ohne Anmeldung</p>
+      <p class="note">Kostenlos · Open Source · ohne Anmeldung · Bild rechts: Beispiel mit erfundenen Werten</p>
     </div>
 
-    <div class="stage" aria-label="Beispiel: Gràcia passt für alle fünf, Top 3 Unterkünfte werden empfohlen" role="img">
+    <div class="stage" aria-label="Beispiel-Darstellung mit erfundenen Werten: Gràcia passt für alle fünf, Top 3 Unterkünfte werden empfohlen" role="img">
       <div class="mapcard">
         <div class="road" style="left:-10%;top:40%;width:130%;height:14px;transform:rotate(-14deg)"></div>
         <div class="road" style="left:55%;top:-10%;width:12px;height:130%;transform:rotate(18deg)"></div>
@@ -210,7 +215,7 @@ footer a { color: var(--muted); }
       </div>
       <div class="panel">
         <h4>Stay<span>Match</span> · Top 3 für euch</h4>
-        <div class="sub">24 Unterkünfte bewertet · 5 Personen · 4 Nächte</div>
+        <div class="sub"><b style="color:var(--accent)">BEISPIEL</b> · 24 Unterkünfte bewertet · 5 Personen · 4 Nächte</div>
         <div class="li"><b>1. Wohnung in Gràcia</b><span class="sc">91</span><small>⭐ 4,77 · 5 Betten · 140 € p. P.</small></div>
         <div class="li"><b>2. Loft nahe Plaça del Sol</b><span class="sc">86</span><small>⭐ 4,82 · 4 Schlafzimmer · 152 € p. P.</small></div>
         <div class="li"><b>3. Altbau mit Balkon</b><span class="sc">83</span><small>⭐ 4,68 · Superhost · 131 € p. P.</small></div>
@@ -292,7 +297,7 @@ footer a { color: var(--muted); }
           <a class="btn primary" href="staymatch-plugin.zip" download>Plugin herunterladen <span aria-hidden="true">↓</span></a>
           <a class="btn ghost" href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">Code auf GitHub</a>
         </div>
-        <p class="meta">Version 0.2 · ca. 18 KB · Chrome, Edge, Brave · noch nicht im Chrome Web Store</p>
+        <p class="meta">Chrome, Edge, Brave · klein und ohne Konto · noch nicht im Chrome Web Store</p>
       </div>
       <ol>
         <li><span>ZIP herunterladen und entpacken.</span></li>
@@ -312,7 +317,7 @@ footer a { color: var(--muted); }
     <div class="faq">
       <details><summary>Kostet StayMatch etwas?</summary><p>Nein. Viertel-Finder und Plugin sind kostenlos und Open Source unter MIT-Lizenz.</p></details>
       <details><summary>Ist StayMatch von Airbnb?</summary><p>Nein. StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Die Links führen zur normalen Suche, gebucht wird dort wie gewohnt.</p></details>
-      <details><summary>Was passiert mit meinen Daten?</summary><p>Nichts verlässt deinen Browser. Gruppe, Likes, Notizen und Verlauf liegen lokal im Plugin-Speicher. Es gibt kein Konto und keinen StayMatch-Server.</p></details>
+      <details><summary>Was passiert mit meinen Daten?</summary><p>Gruppe, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Für den Viertel-Finder werden bei Städten, die nicht vorab geladen sind, der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap geschickt (Ortssuche, Kartenkacheln, Orte-Abfrage). Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a>.</p></details>
       <details><summary>Durchsucht das Plugin Airbnb im Hintergrund?</summary><p>Nein. Es liest nur die Seite, die du selbst geöffnet hast, und schickt keine eigenen Anfragen. Blätterst du weiter, werden die neuen Unterkünfte mitbewertet.</p></details>
       <details><summary>Warum muss ich den Entwicklermodus einschalten?</summary><p>Das Plugin ist noch nicht im Chrome Web Store. Bis dahin lädst du es als entpackte Erweiterung. Den Code kannst du jederzeit auf GitHub ansehen.</p></details>
       <details><summary>Welche Städte funktionieren?</summary><p>Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt dauert bis zu einer Minute, danach geht es sofort.</p></details>
@@ -334,7 +339,7 @@ footer a { color: var(--muted); }
 
 <footer>
   <div class="wrap">
-    <span>© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a></span>
+    <span>© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a> · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a></span>
     <span>Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden.</span>
   </div>
 </footer>
