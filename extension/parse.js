@@ -60,7 +60,7 @@
         totalPrice: num(priceLabel), currency: currency(priceLabel),
         isTotal: TOTAL_RE.test(priceLabel),
         lat: coord?.latitude ?? null, lon: coord?.longitude ?? null,
-        multiUnit: lines.some(l => /verfügbar|available/i.test(l)),
+        multiUnit: lines.some(l => /\d+\s*(?:Unterkünfte|Einheiten|units?|listings?)\b.*(?:verfügbar|available)/i.test(l)),
         ...details(lines),
         badges: (r.badges || []).map(b => b.text || b.loggingContext?.badgeType).filter(Boolean),
         image: r.contextualPictures?.[0]?.picture || null,
@@ -84,7 +84,7 @@
         kind, locality: (kind.match(/^.*(?:^|\s)(?:in|im|en|à|em|w)\s+(.+)$/) || [])[1] || null,
         rating: rt.value, reviewCount: rt.count,
         totalPrice: num(priceLine), currency: currency(priceLine), isTotal: TOTAL_RE.test(priceLine),
-        lat: null, lon: null, multiUnit: /verfügbar|available/i.test(txt),
+        lat: null, lon: null, multiUnit: /\d+\s*(?:Unterkünfte|Einheiten|units?|listings?)\b.*(?:verfügbar|available)/i.test(txt),
         ...details(lines), badges: [/Gäste-Favorit|Guest favorite/i.test(txt) && 'Gäste-Favorit', /Superhost/i.test(txt) && 'Superhost'].filter(Boolean),
         image: card.querySelector('img')?.src || null, source: 'dom',
       };

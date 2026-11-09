@@ -17,5 +17,7 @@ jobs:
           node -e "const m=require('./extension/manifest.json'); if(m.manifest_version!==3||!m.version||!m.icons) throw new Error('manifest unvollständig')"
       - name: Tests
         run: node --test tests/*.test.js
+      - name: Tests in amerikanischer Zeitzone (Datumsfehler #537)
+        run: TZ=America/New_York node --test tests/*.test.js
       - name: Plugin-ZIP lässt sich bauen
         run: ./scripts/build-plugin-zip.sh

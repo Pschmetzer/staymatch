@@ -20,8 +20,9 @@
     }
     const loc = norm(listing.locality);
     if (loc) {
-      const exact = areas.filter(a => norm(a.name) === loc);
-      const hits = exact.length ? exact : areas.filter(a => { const n = norm(a.name); return n && (loc.includes(n) || n.includes(loc)); });
+      const names = a => [a.name, ...(a.alt || [])].map(norm).filter(Boolean);
+      const exact = areas.filter(a => names(a).includes(loc));
+      const hits = exact.length ? exact : areas.filter(a => names(a).some(n => loc.includes(n) || n.includes(loc)));
       if (hits.length === 1) return { ...hits[0], dist: null };
       if (hits.length > 1) { // mehrere Teil-Viertel: Mittelwert statt bestes, als "ungefähr" markiert
         const avg = k => Math.round(hits.reduce((s, a) => s + a[k], 0) / hits.length);
@@ -87,8 +88,9 @@
   // ctx: { people, budget, nights, areas, taste, seen, disliked }
   function scoreListing(l, ctx) {
     const area = areaFor(l, ctx.areas);
+    // Abstand zum Viertel-Zentrum: am Rand (1,5 km) bis 15 % weniger als mittendrin
     const parts = {
-      area: area ? area.total / 100 : null,
+      area: area ? area.total / 100 * (area.dist != null ? 1 - 0.15 * Math.min(1, area.dist / 1500) : 1) : null,
       rating: ratingScore(l.rating, l.reviewCount),
       price: priceScore(stayTotal(l, ctx.nights), ctx.budget),
       beds: bedScore(l, ctx.people),
@@ -102,7 +104,7 @@
     if (ctx.disliked?.has(l.id)) score = Math.min(score, 20);
 
     const why = [], warn = [];
-    if (area) why.push(`Viertel ${area.name}: ${area.total}/100 für die Gruppe${area.approx ? ' (ungefähr)' : ''}`);
+    if (area) why.push(`Viertel ${area.name}: ${area.total}/100 für die Gruppe${area.approx ? ' (ungefähr)' : ''}${area.dist != null && area.dist > 600 ? `, ${(area.dist / 1000).toFixed(1).replace('.', ',')} km vom Zentrum` : ''}`);
     if (area?.approx) warn.push('Viertel nur ungefähr bestimmt (mehrere Teil-Viertel)');
     if (area?.minName && area.min < 40) warn.push(`${area.minName} wäre dort eher unzufrieden (${area.min})`);
     const fmt = n => Number(n).toLocaleString(ctx.lang || 'de-DE', { maximumFractionDigits: 2 });

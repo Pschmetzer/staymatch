@@ -190,6 +190,7 @@
       const bg = s >= 75 ? '#1f9d6b' : s >= 55 ? '#d68a00' : '#9a9aa0';
       b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;pointer-events:none`;
       b.textContent = `StayMatch ${s}`;
+      b.setAttribute('role', 'img'); b.setAttribute('aria-label', `StayMatch-Wert ${s} von 100`);
       b.title = [...l.rank.why, ...l.rank.warn].join(' · ');
       card.style.opacity = l.rank.warn.some(w => w.includes('👎')) ? '0.45' : !passes(l) ? '0.35' : '';
     }

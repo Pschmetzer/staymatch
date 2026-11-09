@@ -13,7 +13,7 @@ let people = (a => Array.isArray(a) ? a : DEFAULT_PEOPLE)(store.get('sm_people',
   .filter(p => p && typeof p.name === 'string').map(p => ({ ...p, type: SM.PRESETS[p.type] ? p.type : 'chill' }));
 // Nächste freie Nummer, damit nach Löschen nicht zweimal "Person 3" entsteht
 const freeName = () => { let n = people.length + 1; while (people.some(p => p.name.trim() === `Person ${n}`)) n++; return `Person ${n}`; };
-const DOMAIN = SM.airbnbDomain(navigator.language), CUR = SM.currencyFor(DOMAIN);
+const DOMAIN = SM.airbnbDomain(navigator.language), CUR = SM.currencyFor(DOMAIN), DE = /^de/i.test(navigator.language || 'de');
 
 // Standard-Zeitraum: in 4 Wochen, 4 Nächte
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -70,7 +70,7 @@ function budgetNums() {
 function updateBudget() {
   const b = budgetNums();
   $('budgetInfo').textContent = b.n
-    ? `${b.n} Nächte · ${Math.round(b.perNight)} ${CUR} pro Nacht · ${Math.round(b.perPerson)} ${CUR} pro Person`
+    ? `${b.n} Nächte · ${Math.round(b.perNight)} ${CUR} pro Nacht · ${Math.round(b.perPerson)} ${CUR} pro Person · ≈ ${Math.round(people.length ? b.perNight / people.length : 0)} ${CUR} pro Nacht und Person`
     : 'Zeitraum wählen';
 }
 ['checkin', 'checkout', 'budget'].forEach(id => $(id).addEventListener('input', () => { updateBudget(); rescore(); }));
@@ -107,19 +107,22 @@ async function geocodeFresh(city) {
 }
 
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
-const FIELDS = ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'public_transport', 'wikidata'];
+const FIELDS = ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'public_transport', 'wikidata', 'name:de', 'alt_name'];
 // CSV statt JSON: ca. 6x kleiner. Alle Server parallel, der schnellste gewinnt.
 async function overpass(bbox) {
+  // Orte ca. 900 m über den Rand hinaus laden, damit Randviertel nicht unterschätzt werden (Viertel nur innerhalb)
   const b = bbox.map(x => x.toFixed(4)).join(',');
+  const [bs, bw, bn, be] = bbox, pad = 0.008, padl = pad / Math.cos((bs + bn) / 2 * Math.PI / 180);
+  const bo = [bs - pad, bw - padl, bn + pad, be + padl].map(x => x.toFixed(4)).join(',');
   const q = `[out:csv(::lat,::lon,${FIELDS.slice(2).join(',')};true;"|")][timeout:90];(
     nwr["place"~"^(suburb|neighbourhood|quarter)$"](${b});
-    nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${b});
-    nwr["leisure"~"^(park|garden|spa)$"](${b});
-    nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"](${b});
-    nwr["historic"~"^(monument|castle|memorial|ruins|church|cathedral)$"](${b});
-    nwr["natural"="beach"](${b});
-    node["railway"~"^(station|subway_entrance|tram_stop)$"](${b});
-    node["public_transport"="station"](${b});
+    nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${bo});
+    nwr["leisure"~"^(park|garden|spa)$"](${bo});
+    nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"](${bo});
+    nwr["historic"~"^(monument|castle|memorial|ruins|church|cathedral)$"](${bo});
+    nwr["natural"="beach"](${bo});
+    node["railway"~"^(station|subway_entrance|tram_stop)$"](${bo});
+    node["public_transport"="station"](${bo});
   );out center;`;
   // Fair zu den freiwilligen Servern: erst einer, der nächste erst nach 20 s ohne Antwort oder bei Fehler.
   const ctrl = new AbortController();
@@ -152,8 +155,8 @@ async function overpass(bbox) {
     clearTimeout(timeout);
     if (!navigator.onLine) throw new Error('Du bist offline. Internet prüfen und nochmal versuchen.');
     const errs = e.errors || [e];
+    if (errs.some(x => /: (429|502|503|504)$/.test(x.message))) throw new Error('OpenStreetMap-Server gerade überlastet – bitte in einer Minute nochmal versuchen.');
     if (errs.some(x => x.name === 'AbortError')) throw new Error('OpenStreetMap hat nicht rechtzeitig geantwortet. Kleinere Stadt oder später nochmal versuchen.');
-    if (errs.some(x => /: (429|504)/.test(x.message))) throw new Error('OpenStreetMap-Server gerade überlastet – bitte in einer Minute nochmal versuchen.');
     throw new Error('OpenStreetMap-Daten konnten nicht geladen werden (' + errs.map(x => x.message).join(', ') + '). Bitte gleich nochmal versuchen.');
   }
 }
@@ -225,7 +228,13 @@ async function run() {
     for (const t of rows) {
       const lat = +t.lat, lon = +t.lon;
       if (!lat) continue;
-      if (t.place && t.name) { if (!areas.some(a => a.name === t.name && SM.distM(a, { lat, lon }) < 1500)) areas.push({ name: t.name, lat, lon }); continue; }
+      if (t.place && t.name) {
+        // deutscher Name zur Anzeige (wenn Browser deutsch), Originalname bleibt für Airbnb-Suche und Plugin-Abgleich
+        const shown = DE && t['name:de'] ? t['name:de'] : t.name;
+        const alt = [t.name, t['name:de'], ...(t.alt_name || '').split(';')].map(x => (x || '').trim()).filter(x => x && x !== shown);
+        if (!areas.some(a => a.orig === t.name && SM.distM(a, { lat, lon }) < 1500)) areas.push({ name: shown, orig: t.name, alt: [...new Set(alt)], lat, lon });
+        continue;
+      }
       for (const cat of SM.categoriesOf(t)) pois.push({ lat, lon, cat, name: t.name, tags: t, w: t.amenity === 'fast_food' ? 0.3 : 1 });
     }
     if (areas.length < 2) throw new Error('Keine Viertel in OpenStreetMap gefunden – andere Stadt versuchen.');
@@ -248,7 +257,8 @@ function compute() {
   for (const a of areas) a.group = SM.groupScore(a.norm, ppl);
   // Viertel ohne nennenswerte Infrastruktur ausblenden
   const sorted = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10)
-    .sort((a, b) => b.group.total - a.group.total);
+    // Gleichstand: kleinere Spanne zwischen den Personen, dann mehr ÖPNV
+    .sort((a, b) => b.group.total - a.group.total || (Math.max(...a.group.scores) - a.group.min) - (Math.max(...b.group.scores) - b.group.min) || b.counts.transit - a.counts.transit);
   const ranked = SM.pickDiverse(sorted, 8, Math.max(1200, r * 1.5));
   if (!ranked.length) { $('results').innerHTML = ''; $('map').hidden = true; $('status').textContent = 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis oder einen anderen Ortsnamen.'; return; }
   $('status').textContent = `${sorted.length} Viertel und ${pois.length} Orte ausgewertet. Die besten für eure Gruppe:`;
@@ -264,7 +274,7 @@ function renderResults(ranked, pois, ppl, geo, r) {
   $('results').innerHTML = ranked.map((a, i) => {
     const highlights = [...new Set(pois.filter(p => p.name && p.cat !== 'transit' && p.cat !== 'food' && SM.distM(a, p) < r)
       .sort((x, y) => (y.tags.wikidata ? 1 : 0) - (x.tags.wikidata ? 1 : 0)).map(p => p.name))].slice(0, 5);
-    const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length, priceMaxNight: b.perNight, radius: r, lang: navigator.language });
+    const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.orig || a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length, priceMaxNight: b.perNight, radius: r, lang: navigator.language });
     const chips = ppl.map((p, j) => {
       const s = a.group.scores[j];
       return `<span class="chip ${s < 40 ? 'low' : s >= 70 ? 'high' : ''}">${escapeHtml(p.name)}: ${s}</span>`;
@@ -275,7 +285,7 @@ function renderResults(ranked, pois, ppl, geo, r) {
     const weak = low && a.group.min < 60 ? SM.weakness(a.norm, a.counts, low.w) : null;
     const why = weak ? `<div class="muted">⚠️ ${escapeHtml(low.name)} (${a.group.min}) ${weak.kind === 'missing' ? `vermisst hier: ${weak.label} (nur ${weak.count} im Umkreis)` : `stört: viel ${weak.label} (${weak.count} im Umkreis)`}</div>` : '';
     return `<article class="card result">
-      <h3><span>${i + 1}. ${escapeHtml(a.name)}</span><span class="score">${a.group.total}</span></h3>
+      <h3><span>${i + 1}. ${escapeHtml(a.name)}${a.orig && a.orig !== a.name ? ` <small class="muted">${escapeHtml(a.orig)}</small>` : ''}</span><span class="score" aria-label="${a.group.total} von 100">${a.group.total}</span></h3>
       <div class="bar"><i style="width:${a.group.total}%"></i></div>
       <div class="chips">${chips}</div>
       ${why}
@@ -347,7 +357,7 @@ function saveTrip(geo, areas, ppl) {
     nights: b.n, budget: b.total, people: ppl.map(p => ({ name: p.name, type: p.type })),
     areas: areas.map(a => {
       const j = a.group.scores.indexOf(a.group.min);
-      return { name: a.name, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: ppl[j]?.name || null };
+      return { name: a.name, alt: a.alt?.length ? a.alt.slice(0, 4) : undefined, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: ppl[j]?.name || null };
     }),
   };
   const v = JSON.stringify(trip);

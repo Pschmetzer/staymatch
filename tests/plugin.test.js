@@ -74,3 +74,15 @@ test('Parser: Gesamtpreis in mehreren Sprachen', () => {
   for (const t of ['702 € Gesamtpreis', '€702 total', '702 € totale', '702 zł łącznie']) assert.ok(P.TOTAL_RE.test(t), t);
   assert.ok(!P.TOTAL_RE.test('120 € pro Nacht'));
 });
+
+test('Viertel-Abgleich nutzt Alternativnamen (deutsch/original)', () => {
+  const areas = [{ name: 'Altstadt', alt: ['Ciutat Vella'], lat: 1, lon: 1, total: 70, min: 60 }];
+  assert.equal(R.areaFor({ locality: 'Ciutat Vella' }, areas).total, 70);
+});
+
+test('Unterkunft am Viertelrand zählt etwas weniger als mittendrin', () => {
+  const areas = [{ name: 'A', lat: 41.4, lon: 2.16, total: 80, min: 70 }];
+  const mid = R.scoreListing({ id: '1', lat: 41.4, lon: 2.16 }, { areas });
+  const edge = R.scoreListing({ id: '2', lat: 41.412, lon: 2.16 }, { areas });
+  assert.ok(mid.parts.area > edge.parts.area);
+});

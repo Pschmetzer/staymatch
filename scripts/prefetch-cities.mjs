@@ -5,7 +5,7 @@
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
 
 const OUT = new URL('../web/data/', import.meta.url);
-const FIELDS = ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'public_transport', 'wikidata'];
+const FIELDS = ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'public_transport', 'wikidata', 'name:de', 'alt_name'];
 const SERVERS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 const UA = 'StayMatch-prefetch (+https://github.com/Pschmetzer/staymatch)';
 
