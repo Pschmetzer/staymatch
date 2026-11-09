@@ -1,0 +1,6 @@
+{
+  "name": "staymatch-tests",
+  "private": true,
+  "description": "Nur für die DOM-Tests des Plugins (jsdom). Das Plugin selbst hat keine Abhängigkeiten.",
+  "devDependencies": { "jsdom": "^26.1.0" }
+}

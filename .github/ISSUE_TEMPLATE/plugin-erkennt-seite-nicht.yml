@@ -1,0 +1,40 @@
+name: Plugin erkennt die Seite nicht
+description: StayMatch zeigt auf einer Airbnb-Suchseite keine Wertung an.
+labels: [plugin]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Bitte keine persönlichen Daten posten** (keine Namen, Adressen, Reisedaten, Links mit Suchparametern).
+        Schneide Links hinter dem Fragezeichen ab, z. B. `https://www.airbnb.de/s/Barcelona/homes`.
+  - type: input
+    id: domain
+    attributes:
+      label: Airbnb-Domain und Seitentyp
+      description: Nur Domain und Pfad ohne Parameter, z. B. airbnb.de, Suchseite, Karte, Wunschliste.
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Plugin-Version und Browser
+      description: Version steht unter chrome://extensions, z. B. 0.3.0 in Chrome 130.
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: Was passiert, was hast du erwartet?
+      description: Zum Beispiel „Kein Panel“, „Panel leer“ oder „Preise falsch“.
+    validations: { required: true }
+  - type: textarea
+    id: console
+    attributes:
+      label: Konsolen-Meldungen (optional)
+      description: Auf der Airbnb-Seite F12 → Konsole → Zeilen mit „StayMatch“ oder roten Fehlern kopieren. Vorher persönliche Daten entfernen.
+      render: text
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Bestätigung
+      options:
+        - label: Ich habe keine persönlichen Daten in dieses Issue geschrieben.
+          required: true

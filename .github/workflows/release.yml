@@ -1,0 +1,38 @@
+name: Release
+# Bei einem Tag wie v0.3.0: Tests laufen, das Plugin-ZIP wird gebaut und an ein GitHub-Release gehängt.
+# Es wird nichts deployt.
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Tag passt zur Manifest-Version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          v=$(node -p "require('./extension/manifest.json').version")
+          if [ "$TAG" != "v$v" ]; then
+            echo "Tag $TAG passt nicht zur Manifest-Version v$v" >&2
+            exit 1
+          fi
+      - name: Tests
+        run: node --test tests/*.test.js
+      - name: ZIP bauen und prüfen
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          ./scripts/build-plugin-zip.sh "staymatch-plugin-$TAG.zip"
+          node .github/scripts/check-zip.mjs "staymatch-plugin-$TAG.zip"
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" "staymatch-plugin-$TAG.zip" --title "StayMatch $TAG" --generate-notes --verify-tag
