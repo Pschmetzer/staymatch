@@ -114,7 +114,7 @@ async function overpass(bbox) {
   const b = bbox.map(x => x.toFixed(4)).join(',');
   const [bs, bw, bn, be] = bbox, pad = 0.008, padl = pad / Math.cos((bs + bn) / 2 * Math.PI / 180);
   const bo = [bs - pad, bw - padl, bn + pad, be + padl].map(x => x.toFixed(4)).join(',');
-  const q = `[out:csv(::lat,::lon,${FIELDS.slice(2).join(',')};true;"|")][timeout:90];(
+  const q = `[out:csv(::lat,::lon,${FIELDS.slice(2).map(f => `"${f}"`).join(',')};true;"|")][timeout:90];(
     nwr["place"~"^(suburb|neighbourhood|quarter)$"](${b});
     nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${bo});
     nwr["leisure"~"^(park|garden|spa)$"](${bo});
@@ -243,7 +243,7 @@ async function run() {
   } catch (e) {
     $('status').textContent = 'Fehler: ' + (/failed to fetch|networkerror|load failed/i.test(e.message) ? 'Keine Verbindung zum Kartendienst. Internet prüfen und nochmal versuchen.' : e.message);
     // Alte Ergebnisse gehören zu einer anderen Suche: ausblenden statt als neue ausgeben
-    if (lastData && normCity(lastData.query || '') !== normCity(city)) { $('results').innerHTML = ''; $('map').hidden = true; }
+    if (lastData && normCity(lastData.query || '') !== normCity(city)) { $('results').innerHTML = ''; $('map').hidden = true; lastData = null; }
   } finally { $('go').disabled = false; $('results').removeAttribute('aria-busy'); }
 }
 

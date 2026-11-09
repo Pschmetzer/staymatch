@@ -30,7 +30,7 @@ async function geocode(city) {
 // gleiche Abfrage wie in web/app.js
 function query(bbox) {
   const b = bbox.map(x => x.toFixed(4)).join(',');
-  return `[out:csv(::lat,::lon,${FIELDS.slice(2).join(',')};true;"|")][timeout:90];(
+  return `[out:csv(::lat,::lon,${FIELDS.slice(2).map(f => `"${f}"`).join(',')};true;"|")][timeout:90];(
     nwr["place"~"^(suburb|neighbourhood|quarter)$"](${b});
     nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${b});
     nwr["leisure"~"^(park|garden|spa)$"](${b});

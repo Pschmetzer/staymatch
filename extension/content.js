@@ -140,7 +140,7 @@
     lastView = { ranked, ctx, disliked, trip, count: listings.length, min: defaultMin(stored['min:sm-search']) };
 
     // Empfehlungen für das Popup merken (nur die eigene Auswahl, lokal)
-    chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, top: ranked.slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, url: `${location.origin}/rooms/${l.id}${location.search}` })) } });
+    chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, top: ranked.slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: R.stayTotal(l, nights), perNight: R.perNight(l, nights), currency: l.currency, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, url: `${location.origin}/rooms/${l.id}${location.search}` })) } });
 
     applyBadges();
     renderSearch();
