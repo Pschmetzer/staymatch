@@ -1,7 +1,21 @@
 #!/bin/sh
 # Packt extension/ als ZIP für den Download auf der Website (web/staymatch-plugin.zip).
+# Optional: Zieldatei als erstes Argument (z. B. fürs Release). Benötigt das Programm "zip".
 set -e
 cd "$(dirname "$0")/.."
-rm -f web/staymatch-plugin.zip
-(cd extension && zip -qr -X ../web/staymatch-plugin.zip . -x '.*')
-echo "web/staymatch-plugin.zip ($(wc -c < web/staymatch-plugin.zip) Bytes)"
+
+if ! command -v zip >/dev/null 2>&1; then
+  echo "Fehler: 'zip' ist nicht installiert." >&2
+  echo "  macOS:         ist vorinstalliert (sonst: brew install zip)" >&2
+  echo "  Debian/Ubuntu: sudo apt-get install zip" >&2
+  echo "  Windows:       WSL oder Git Bash verwenden" >&2
+  exit 1
+fi
+
+OUT="${1:-web/staymatch-plugin.zip}"
+case "$OUT" in /*) ABS="$OUT" ;; *) ABS="$PWD/$OUT" ;; esac
+rm -f "$ABS"
+# Versteckte Dateien (.DS_Store, .git*) auf jeder Ebene sowie Tests und Editor-Reste ausschließen.
+(cd extension && zip -qr -X "$ABS" . \
+  -x '.*' -x '*/.*' -x '__MACOSX/*' -x '*.test.js' -x '*.map' -x '*~' -x '*.swp')
+echo "$OUT ($(wc -c < "$ABS") Bytes)"
