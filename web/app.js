@@ -121,7 +121,22 @@ async function overpass(bbox) {
 
 // Ergebnis pro Stadt einen Tag lang im Browser merken (spart die langsame Abfrage)
 function cacheGet(k) { try { const c = JSON.parse(sessionStorage.getItem(k) || localStorage.getItem(k)); return c && Date.now() - c.t < 864e5 ? c.rows : null; } catch { return null; } }
-function cacheSet(k, rows) { const v = JSON.stringify({ t: Date.now(), rows }); try { localStorage.setItem(k, v); } catch { try { sessionStorage.setItem(k, v); } catch {} } }
+function cacheSet(k, rows) {
+  const v = JSON.stringify({ t: Date.now(), rows });
+  for (let i = 0; i < 4; i++) {
+    try { localStorage.setItem(k, v); return; } catch {
+      // älteste Stadt löschen (sm_trip bleibt), dann erneut versuchen
+      let oldest = null, ot = Infinity;
+      try { for (const key of Object.keys(localStorage)) if (key.startsWith('sm_osm2_')) { const t = JSON.parse(localStorage.getItem(key)).t; if (t < ot) { ot = t; oldest = key; } } } catch {}
+      if (!oldest) break;
+      localStorage.removeItem(oldest);
+    }
+  }
+  try { sessionStorage.setItem(k, v); } catch {}
+}
+
+// alte Cache-Version (vor CSV/nwr) entfernen
+try { Object.keys(localStorage).filter(k => k.startsWith('sm_osm_')).forEach(k => localStorage.removeItem(k)); } catch {}
 
 let map, layer;
 async function run() {
@@ -214,7 +229,11 @@ function saveTrip(geo, areas, ppl) {
       return { name: a.name, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: ppl[j]?.name || null };
     }),
   };
-  store.set('sm_trip', trip);
+  const v = JSON.stringify(trip);
+  try { localStorage.setItem('sm_trip', v); }
+  catch { // Speicher voll: alte Stadt-Caches löschen und nochmal
+    try { Object.keys(localStorage).filter(k => k.startsWith('sm_osm')).forEach(k => localStorage.removeItem(k)); localStorage.setItem('sm_trip', v); } catch {}
+  }
   window.dispatchEvent(new Event('staymatch:trip'));
 }
 // Hinweis, ob das Plugin installiert ist (setzt bridge.js)

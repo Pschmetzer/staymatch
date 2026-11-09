@@ -95,8 +95,11 @@
     if (sig === lastSig) return; // nichts Neues – verhindert Endlosschleifen
     lastSig = sig;
 
-    const trip = await getTrip();
     const sp = P.searchParams(location.href);
+    // Reise nur nutzen, wenn sie zu dieser Suche passt (gleiches Datum oder Unterkünfte nahe den Vierteln)
+    const savedTrip = await getTrip();
+    const trip = savedTrip && ((sp.checkin && sp.checkin === savedTrip.checkin) ||
+      listings.some(l => l.lat != null && R.areaFor({ lat: l.lat, lon: l.lon }, savedTrip.areas || []))) ? savedTrip : null;
     const items = await allListings();
     const seen = new Set(items.map(i => i.id));
     const disliked = new Set(items.filter(i => i.vote === -1).map(i => i.id));

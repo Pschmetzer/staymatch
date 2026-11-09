@@ -1,7 +1,7 @@
 # StayMatch – Verbesserungen und Ideen
 
 Stand: 09.11.2026, nach Durchsicht von `web/app.js`, `web/scoring.js`, `web/index.html`, `extension/*`, `README.md`, `KONZEPT.md`.
-Legende: 🔴 echter Fehler · 🟠 wichtige Verbesserung · 🟢 Idee/Feature · Aufwand: S (Stunden) / M (1–2 Tage) / L (Woche+)
+Legende: ✅ erledigt (Branch feat/suchseiten-empfehlung) · 🔴 echter Fehler · 🟠 wichtige Verbesserung · 🟢 Idee/Feature · Aufwand: S (Stunden) / M (1–2 Tage) / L (Woche+)
 
 ---
 
@@ -18,62 +18,62 @@ Heute findet die App nur das **Viertel**. Die Unterkünfte muss man selbst durch
 **Empfehlung: B jetzt bauen, A parallel beantragen.** Mit B kommt das Ergebnis „wir müssen nichts anschauen“ fast vollständig: ein Klick, Plugin empfiehlt.
 
 Ideen dazu:
-1. 🟢 Plugin liest Suchergebnis-Karten: Titel, Preis gesamt, Sterne, Anzahl Bewertungen, Superhost, Lage (lat/lon), Bild, Betten/Schlafzimmer. (M)
-2. 🟢 Score pro Unterkunft = Viertel-Gruppenscore + Preis im Budget + Sterne (gewichtet nach Bewertungsanzahl) + Schlafplätze ≥ Gruppe + dein Geschmacksprofil. (M)
-3. 🟢 Badge direkt auf jeder Karte („92 – passt super“, „zu teuer“, „zu wenig Betten“). (S)
-4. 🟢 Seitenpanel „Top 3 für euch“ mit Begründung in einem Satz. (S)
-5. 🟢 Ungeeignete Karten automatisch ausgrauen (zu wenige Betten, unter 4,5 Sterne, über Budget). (S)
-6. 🟢 „Weitere Seite laden“-Knopf, den **du** klickst; Plugin sammelt über mehrere Seiten, die du blätterst. (S)
+1. ✅ 🟢 Plugin liest Suchergebnis-Karten: Titel, Preis gesamt, Sterne, Anzahl Bewertungen, Superhost, Lage (lat/lon), Bild, Betten/Schlafzimmer. (M)
+2. ✅ 🟢 Score pro Unterkunft = Viertel-Gruppenscore + Preis im Budget + Sterne (gewichtet nach Bewertungsanzahl) + Schlafplätze ≥ Gruppe + dein Geschmacksprofil. (M)
+3. ✅ 🟢 Badge direkt auf jeder Karte („92 – passt super“, „zu teuer“, „zu wenig Betten“). (S)
+4. ✅ 🟢 Seitenpanel „Top 3 für euch“ mit Begründung in einem Satz. (S)
+5. ✅ 🟢 Ungeeignete Karten automatisch ausgrauen (zu wenige Betten, unter 4,5 Sterne, über Budget). (S)
+6. ✅ 🟢 „Weitere Seite laden“-Knopf, den **du** klickst; Plugin sammelt über mehrere Seiten, die du blätterst. (S)
 7. 🟢 Ergebnisse als Shortlist an die Gruppe teilen (Link mit Top 5). (M)
-8. 🟢 Bayes-Sterne: 5,0 bei 3 Bewertungen zählt weniger als 4,9 bei 300. (S)
-9. 🟢 Echter Preis pro Person inkl. Gebühren, wenn Airbnb „Gesamtpreis“ anzeigt. (S)
+8. ✅ 🟢 Bayes-Sterne: 5,0 bei 3 Bewertungen zählt weniger als 4,9 bei 300. (S)
+9. ✅ 🟢 Echter Preis pro Person inkl. Gebühren, wenn Airbnb „Gesamtpreis“ anzeigt. (S)
 10. 🟢 Entfernung jeder Unterkunft zu den Highlights des Viertels (Bars, Park, Sehenswürdigkeit) anzeigen. (S)
 
 ---
 
 ## 1. Echte Fehler im Code 🔴
 
-11. 🔴 `web/app.js:14-16` – Standarddatum über `toISOString()` (UTC). Kurz nach Mitternacht in Deutschland springt das Datum um einen Tag. Lokales Datum verwenden. (S)
-12. 🔴 `web/app.js:130` – `SM.PRESETS[p.type].w` stürzt ab, wenn im gespeicherten `localStorage` ein Typ steht, den es nicht mehr gibt. Beim Laden prüfen und auf `chill` zurückfallen. (S)
-13. 🔴 `extension/content.js:62` – Die Notiz wird ungeschützt in `innerHTML` eingesetzt. Eine Notiz mit `</textarea><img onerror=…>` führt Code auf der Airbnb-Seite aus. Escapen oder per `textContent`/`value` setzen. (S)
-14. 🔴 `extension/content.js:7` – `/clean/` trifft „cleaning fee“, `/zentral/` trifft „Zentralheizung“, `/central/` trifft „central heating“. Falsche 👍. Wortgrenzen und Ausnahmelisten. (S)
-15. 🔴 `extension/content.js:6-11` – Keine Verneinung: „nicht sauber“, „not clean“ ergibt „👍 sauber“. Verneinung im Umfeld (3 Wörter davor) prüfen. (S)
-16. 🔴 `extension/content.js:3` – Regex `\/rooms\/(\d+)` greift nicht bei `/rooms/plus/123`, `/rooms/luxury/…`. (S)
-17. 🔴 `extension/manifest.json` – Content-Script läuft nur bei vollem Seitenladen. Airbnb ist eine Single-Page-App: Wechsel zwischen Unterkünften im selben Tab wird nicht erfasst. Auf allen Airbnb-Seiten laden und URL-Wechsel beobachten. (S)
-18. 🔴 `extension/content.js:42-47` – Lesen-Ändern-Schreiben auf einem großen `listings`-Objekt. Zwei offene Tabs überschreiben sich gegenseitig. Pro Unterkunft ein eigener Schlüssel `l:<id>`. (S)
-19. 🔴 `extension/content.js:74` – Jeder Reload zählt als neuer Besuch. Besuche innerhalb von 30 Minuten zusammenfassen. (S)
-20. 🔴 `extension/content.js:25` – Preis wird mit dem ersten Treffer im ganzen Seitentext gelesen. Das kann ein durchgestrichener Preis, „Ähnliche Unterkünfte“ oder der Gesamtpreis sein. Auf das Buchungs-Widget eingrenzen. (S)
-21. 🔴 `extension/content.js:25` – Nur Euro. CHF, $, £ werden nicht erkannt, Profil mischt Währungen. Währung mitspeichern. (S)
+11. ✅ 🔴 `web/app.js:14-16` – Standarddatum über `toISOString()` (UTC). Kurz nach Mitternacht in Deutschland springt das Datum um einen Tag. Lokales Datum verwenden. (S)
+12. ✅ 🔴 `web/app.js:130` – `SM.PRESETS[p.type].w` stürzt ab, wenn im gespeicherten `localStorage` ein Typ steht, den es nicht mehr gibt. Beim Laden prüfen und auf `chill` zurückfallen. (S)
+13. ✅ 🔴 `extension/content.js:62` – Die Notiz wird ungeschützt in `innerHTML` eingesetzt. Eine Notiz mit `</textarea><img onerror=…>` führt Code auf der Airbnb-Seite aus. Escapen oder per `textContent`/`value` setzen. (S)
+14. ✅ 🔴 `extension/content.js:7` – `/clean/` trifft „cleaning fee“, `/zentral/` trifft „Zentralheizung“, `/central/` trifft „central heating“. Falsche 👍. Wortgrenzen und Ausnahmelisten. (S)
+15. ✅ 🔴 `extension/content.js:6-11` – Keine Verneinung: „nicht sauber“, „not clean“ ergibt „👍 sauber“. Verneinung im Umfeld (3 Wörter davor) prüfen. (S)
+16. ✅ 🔴 `extension/content.js:3` – Regex `\/rooms\/(\d+)` greift nicht bei `/rooms/plus/123`, `/rooms/luxury/…`. (S)
+17. ✅ 🔴 `extension/manifest.json` – Content-Script läuft nur bei vollem Seitenladen. Airbnb ist eine Single-Page-App: Wechsel zwischen Unterkünften im selben Tab wird nicht erfasst. Auf allen Airbnb-Seiten laden und URL-Wechsel beobachten. (S)
+18. ✅ 🔴 `extension/content.js:42-47` – Lesen-Ändern-Schreiben auf einem großen `listings`-Objekt. Zwei offene Tabs überschreiben sich gegenseitig. Pro Unterkunft ein eigener Schlüssel `l:<id>`. (S)
+19. ✅ 🔴 `extension/content.js:74` – Jeder Reload zählt als neuer Besuch. Besuche innerhalb von 30 Minuten zusammenfassen. (S)
+20. ✅ 🔴 `extension/content.js:25` – Preis wird mit dem ersten Treffer im ganzen Seitentext gelesen. Das kann ein durchgestrichener Preis, „Ähnliche Unterkünfte“ oder der Gesamtpreis sein. Auf das Buchungs-Widget eingrenzen. (S)
+21. ✅ 🔴 `extension/content.js:25` – Nur Euro. CHF, $, £ werden nicht erkannt, Profil mischt Währungen. Währung mitspeichern. (S)
 22. 🔴 `extension/content.js:71` – Feste 2,5 s Wartezeit. Bei langsamem Netz fehlen Daten, bei schnellem wird unnötig gewartet. `MutationObserver` mit Abbruch nach 10 s. (S)
-23. 🔴 `web/app.js:67-87` – Jede Suche schickt die schwere Abfrage gleichzeitig an **drei** freiwillige Overpass-Server. Das verdreifacht deren Last und verstößt gegen deren Fair-Use. Gestaffelt starten (zweiter Server erst nach 15 s ohne Antwort). (S)
-24. 🔴 `web/app.js:83` – Kein eigenes Timeout. Hängt ein Server, wartet die Seite ewig. `AbortSignal.timeout(100000)`. (S)
-25. 🔴 `web/app.js:79` vs. `web/scoring.js:8` – `public_transport=station` steht in den Kategorien, wird aber nicht abgefragt. Abfrage automatisch aus `CATEGORIES` erzeugen, damit beides nie auseinanderläuft. (S)
-26. 🔴 `web/app.js:73` – Viertel nur als Knoten (`node`). Viele Viertel sind in OSM nur als Fläche/Relation eingetragen und fehlen. `nwr` + `out center`. (S)
-27. 🔴 `web/app.js:74` – Bars, Cafés, Restaurants nur als Knoten. Als Gebäude gezeichnete Clubs fehlen. (S)
+23. ✅ 🔴 `web/app.js:67-87` – Jede Suche schickt die schwere Abfrage gleichzeitig an **drei** freiwillige Overpass-Server. Das verdreifacht deren Last und verstößt gegen deren Fair-Use. Gestaffelt starten (zweiter Server erst nach 15 s ohne Antwort). (S)
+24. ✅ 🔴 `web/app.js:83` – Kein eigenes Timeout. Hängt ein Server, wartet die Seite ewig. `AbortSignal.timeout(100000)`. (S)
+25. ✅ 🔴 `web/app.js:79` vs. `web/scoring.js:8` – `public_transport=station` steht in den Kategorien, wird aber nicht abgefragt. Abfrage automatisch aus `CATEGORIES` erzeugen, damit beides nie auseinanderläuft. (S)
+26. ✅ 🔴 `web/app.js:73` – Viertel nur als Knoten (`node`). Viele Viertel sind in OSM nur als Fläche/Relation eingetragen und fehlen. `nwr` + `out center`. (S)
+27. ✅ 🔴 `web/app.js:74` – Bars, Cafés, Restaurants nur als Knoten. Als Gebäude gezeichnete Clubs fehlen. (S)
 28. 🔴 `web/app.js:127` – Kleine Orte ohne eingetragene Viertel ergeben „Keine Viertel gefunden“. Rückfall: Stadt in ein Raster (z. B. 1 km) teilen und Rasterzellen benennen. (M)
-29. 🔴 `web/app.js:123` – Doppelte Viertel mit gleichem Namen (z. B. zweimal eingetragen) erscheinen doppelt. Nach Name + Nähe zusammenfassen. (S)
-30. 🔴 `web/app.js:91-93` – CSV wird mit `|` getrennt; ein Name mit `|` verschiebt alle Spalten. Selten, aber möglich. Zeilen mit falscher Spaltenzahl verwerfen. (S)
-31. 🔴 `web/app.js:61-63` – Längenfaktor fest 1,4. In Oslo/Stockholm (60° N) ist der Ausschnitt dadurch zu schmal. `1/cos(lat)` verwenden. (S)
-32. 🔴 `web/app.js:56` – Kein `r.ok`-Check bei Nominatim. Bei Sperre (429) kommt eine kryptische JSON-Fehlermeldung. (S)
+29. ✅ 🔴 `web/app.js:123` – Doppelte Viertel mit gleichem Namen (z. B. zweimal eingetragen) erscheinen doppelt. Nach Name + Nähe zusammenfassen. (S)
+30. ✅ 🔴 `web/app.js:91-93` – CSV wird mit `|` getrennt; ein Name mit `|` verschiebt alle Spalten. Selten, aber möglich. Zeilen mit falscher Spaltenzahl verwerfen. (S)
+31. ✅ 🔴 `web/app.js:61-63` – Längenfaktor fest 1,4. In Oslo/Stockholm (60° N) ist der Ausschnitt dadurch zu schmal. `1/cos(lat)` verwenden. (S)
+32. ✅ 🔴 `web/app.js:56` – Kein `r.ok`-Check bei Nominatim. Bei Sperre (429) kommt eine kryptische JSON-Fehlermeldung. (S)
 33. 🔴 `web/app.js:55` – `limit=1`: „Paris“ kann Paris, Texas sein; „Mallorca“ liefert eine ganze Insel. Auswahl anzeigen, wenn mehrere Treffer. (S)
-34. 🔴 `web/app.js:102-103` – Cache wächst unbegrenzt. Pro Stadt ca. 1,5 MB, nach ~3 Städten ist `localStorage` voll, ältere Einträge werden nie gelöscht. IndexedDB + älteste zuerst löschen. (S)
-35. 🔴 `web/app.js:114` – „Kann bis zu 1 Minute dauern“ erscheint auch, wenn das Ergebnis aus dem Cache kommt. (S)
-36. 🔴 `web/app.js:137` – Zählt alle Viertel, auch die herausgefilterten. Zahl irreführend. (S)
-37. 🔴 `web/app.js:141` – Netzwerkfehler erscheinen auf Englisch („Failed to fetch“). Übersetzen. (S)
-38. 🔴 Checkout vor Check-in oder Datum in der Vergangenheit wird nicht verhindert (`min`-Attribute fehlen). (S)
-39. 🔴 Negatives Budget möglich. (S)
-40. 🔴 `web/scoring.js:11` – Kommentar sagt „Gewichte 0..1“, Chill hat aber −0,5. Veraltet. (S)
-41. 🔴 `web/scoring.js:1` – Kommentar sagt, die Datei werde auch von der Erweiterung genutzt. Stimmt nicht. Einbinden oder Kommentar ändern. (S)
-42. 🔴 `web/app.js:177` – Kreise (800 m) überlappen sich, weil der Mindestabstand nur 1200 m ist. Radius = halber Mindestabstand oder Abstand ≥ 1600 m. (S)
-43. 🔴 `web/app.js:148` – Highlights im Umkreis 600 m, Bewertung aber 800 m. Vereinheitlichen. (S)
-44. 🔴 `web/app.js:172` – Tile-URL mit `{s}.`-Subdomains ist bei OSM veraltet. `https://tile.openstreetmap.org/{z}/{x}/{y}.png` und Attribution mit Link. (S)
-45. 🔴 `web/index.html` – Leaflet von unpkg ohne `integrity`-Hash (SRI). (S)
+34. ✅ 🔴 `web/app.js:102-103` – Cache wächst unbegrenzt. Pro Stadt ca. 1,5 MB, nach ~3 Städten ist `localStorage` voll, ältere Einträge werden nie gelöscht. IndexedDB + älteste zuerst löschen. (S)
+35. ✅ 🔴 `web/app.js:114` – „Kann bis zu 1 Minute dauern“ erscheint auch, wenn das Ergebnis aus dem Cache kommt. (S)
+36. ✅ 🔴 `web/app.js:137` – Zählt alle Viertel, auch die herausgefilterten. Zahl irreführend. (S)
+37. ✅ 🔴 `web/app.js:141` – Netzwerkfehler erscheinen auf Englisch („Failed to fetch“). Übersetzen. (S)
+38. ✅ 🔴 Checkout vor Check-in oder Datum in der Vergangenheit wird nicht verhindert (`min`-Attribute fehlen). (S)
+39. ✅ 🔴 Negatives Budget möglich. (S)
+40. ✅ 🔴 `web/scoring.js:11` – Kommentar sagt „Gewichte 0..1“, Chill hat aber −0,5. Veraltet. (S)
+41. ✅ 🔴 `web/scoring.js:1` – Kommentar sagt, die Datei werde auch von der Erweiterung genutzt. Stimmt nicht. Einbinden oder Kommentar ändern. (S)
+42. ✅ 🔴 `web/app.js:177` – Kreise (800 m) überlappen sich, weil der Mindestabstand nur 1200 m ist. Radius = halber Mindestabstand oder Abstand ≥ 1600 m. (S)
+43. ✅ 🔴 `web/app.js:148` – Highlights im Umkreis 600 m, Bewertung aber 800 m. Vereinheitlichen. (S)
+44. ✅ 🔴 `web/app.js:172` – Tile-URL mit `{s}.`-Subdomains ist bei OSM veraltet. `https://tile.openstreetmap.org/{z}/{x}/{y}.png` und Attribution mit Link. (S)
+45. ✅ 🔴 `web/index.html` – Leaflet von unpkg ohne `integrity`-Hash (SRI). (S)
 46. 🔴 `web/.gitignore` wurde von Vercel angelegt und ist doppelt zur Root-`.gitignore`. (S)
-47. 🔴 `extension/content.js:65` – Notiz wird nur bei `change` (Fokus verlassen) gespeichert. Tab zu → Notiz weg. Mit `input` + Verzögerung speichern. (S)
-48. 🔴 `extension/content.js:64` – 👍/👎 lässt sich nicht wieder abwählen. Zweiter Klick = zurücksetzen. (S)
-49. 🔴 `extension/popup.js` – Bilder ohne Ladefehler-Behandlung; abgelaufene Airbnb-Bild-URLs zeigen kaputte Icons. (S)
-50. 🔴 `extension/manifest.json` – Keine Icons. Chrome zeigt ein graues Standard-Icon; der Web Store lehnt ohne 128-px-Icon ab. (S)
-51. 🔴 `extension/manifest.json` – Nur 4 Länderdomains. Fehlt: .co.uk, .fr, .es, .it, .nl, .com.au, .ca, .pl, .pt … (S)
+47. ✅ 🔴 `extension/content.js:65` – Notiz wird nur bei `change` (Fokus verlassen) gespeichert. Tab zu → Notiz weg. Mit `input` + Verzögerung speichern. (S)
+48. ✅ 🔴 `extension/content.js:64` – 👍/👎 lässt sich nicht wieder abwählen. Zweiter Klick = zurücksetzen. (S)
+49. ✅ 🔴 `extension/popup.js` – Bilder ohne Ladefehler-Behandlung; abgelaufene Airbnb-Bild-URLs zeigen kaputte Icons. (S)
+50. ✅ 🔴 `extension/manifest.json` – Keine Icons. Chrome zeigt ein graues Standard-Icon; der Web Store lehnt ohne 128-px-Icon ab. (S)
+51. ✅ 🔴 `extension/manifest.json` – Nur 4 Länderdomains. Fehlt: .co.uk, .fr, .es, .it, .nl, .com.au, .ca, .pl, .pt … (S)
 
 ## 2. Bewertungslogik und Daten 🟠
 
@@ -156,7 +156,7 @@ Ideen dazu:
 125. 🟠 Mindest-Schlafzimmer/Betten an Such-Link übergeben (Parameter prüfen). (S)
 126. 🟠 Unterkunftstyp (ganze Unterkunft) an Such-Link übergeben. (S)
 127. 🟠 Animierte Rangliste beim Ändern der Gruppe. (S)
-128. 🟠 Tastaturkürzel: Enter im Stadtfeld startet Suche. (S)
+128. ✅ 🟠 Tastaturkürzel: Enter im Stadtfeld startet Suche. (S)
 129. 🟠 Ergebnisse ohne Neuladen neu berechnen, wenn Gruppe geändert wird (Daten sind ja schon da). (S)
 130. 🟠 Mobile: Karte oben einklappbar, Formular als Schritt-für-Schritt. (S)
 131. 🟠 Typografie/Branding: Logo, eigene Schrift, Farbsystem. (S)
@@ -167,16 +167,16 @@ Ideen dazu:
 
 ## 4. Barrierefreiheit 🟠
 
-136. 🟠 `#status` als `role="status" aria-live="polite"`, damit Screenreader Fortschritt vorlesen. (S)
+136. ✅ 🟠 `#status` als `role="status" aria-live="polite"`, damit Screenreader Fortschritt vorlesen. (S)
 137. 🟠 Ergebnisliste mit Überschriften-Hierarchie und `aria-label` pro Karte. (S)
 138. 🟠 Chips nicht nur über Farbe (niedrig/hoch) unterscheiden – Symbol ergänzen. (S)
 139. 🟠 Farbkontrast prüfen (`--muted` auf `--bg`, Warn-Orange). (S)
-140. 🟠 Sichtbarer Fokusrahmen für alle Knöpfe. (S)
+140. ✅ 🟠 Sichtbarer Fokusrahmen für alle Knöpfe. (S)
 141. 🟠 Karte per Tastatur bedienbar oder Liste als gleichwertige Alternative. (S)
 142. 🟠 Entfernen-Knopf ✕ mit Personennamen im `aria-label`. (S)
 143. 🟠 `prefers-reduced-motion` respektieren. (S)
 144. 🟠 Overlay der Erweiterung per Tastatur erreichbar, mit `role="dialog"`. (S)
-145. 🟠 Popup-Tabs als echte `role="tablist"`. (S)
+145. ✅ 🟠 Popup-Tabs als echte `role="tablist"`. (S)
 
 ## 5. Performance ⚡
 
@@ -195,11 +195,11 @@ Ideen dazu:
 
 156. 🟠 Content-Security-Policy-Header auf Vercel (nur unpkg, OSM, Overpass erlauben). (S)
 157. 🟠 Weitere Header: `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. (S)
-158. 🟠 Inline-Styles in der Erweiterung in eine CSS-Datei mit Shadow DOM verschieben (keine Konflikte mit Airbnb-CSS, kein Stil-Leck). (S)
+158. ✅ 🟠 Inline-Styles in der Erweiterung in eine CSS-Datei mit Shadow DOM verschieben (keine Konflikte mit Airbnb-CSS, kein Stil-Leck). (S)
 159. 🟠 Datenschutzerklärung (nötig für Chrome Web Store, auch wenn alles lokal ist). (S)
 160. 🟠 Impressum auf der Website (deutsches Recht, sobald öffentlich beworben). (S)
-161. 🟠 „Alle Daten löschen“-Knopf im Popup. (S)
-162. 🟠 Import der eigenen Daten (JSON) für Gerätewechsel. (S)
+161. ✅ 🟠 „Alle Daten löschen“-Knopf im Popup. (S)
+162. ✅ 🟠 Import der eigenen Daten (JSON) für Gerätewechsel. (S)
 163. 🟠 Keine Airbnb-Bilder im Popup laden, wenn Nutzer das nicht will (Tracking über Bild-CDN). (S)
 164. 🟠 Hinweis „nicht mit Airbnb verbunden“ auch in der Web-App und im Store-Eintrag. (S)
 165. 🟠 Markenrecht: Button-Text „auf Airbnb ansehen“ ist ok, aber kein Airbnb-Logo, keine Farbe nachahmen. (S)
@@ -213,11 +213,11 @@ Ideen dazu:
 170. 🟠 Eigene Reisen erfassen: Seite „Reisen“ auslesen, wenn du sie öffnest → „wo war ich schon“. (S)
 171. 🟠 Wunschlisten auslesen, wenn du sie öffnest. (S)
 172. 🟠 Eigene geschriebene Bewertungen auslesen → stärkstes Geschmackssignal. (S)
-173. 🟠 Suchseiten bewerten (siehe Abschnitt 0). (M)
+173. ✅ 🟠 Suchseiten bewerten (siehe Abschnitt 0). (M)
 174. 🟠 Viertel-Score direkt auf der Unterkunftsseite (scoring.js einbinden, Gruppe aus der Web-App übernehmen). (M)
-175. 🟠 Gruppe zwischen Web-App und Plugin synchronisieren (`externally_connectable`). (S)
+175. ✅ 🟠 Gruppe zwischen Web-App und Plugin synchronisieren (`externally_connectable`). (S)
 176. 🟠 Overlay minimieren, verschieben, Position merken. (S)
-177. 🟠 Overlay im Dark Mode. (S)
+177. ✅ 🟠 Overlay im Dark Mode. (S)
 178. 🟠 Overlay per Popup wieder einblenden. (S)
 179. 🟠 Tags statt freier Notiz („Balkon“, „Pool“, „zu weit weg“). (S)
 180. 🟠 Sterne 1–5 statt nur 👍/👎. (S)
@@ -231,11 +231,11 @@ Ideen dazu:
 188. 🟠 Bewertungs-Zusammenfassung mit KI (Claude) – „3 von 20 erwähnen Lärm nachts“. (M)
 189. 🟠 Bewertungen nach Datum gewichten (neuere zählen mehr). (S)
 190. 🟠 Bewertungen nach Gruppenreisen filtern („mit Freunden“, „Gruppe“). (S)
-191. 🟠 Preisverlauf: Preis bei jedem Besuch speichern → „seit gestern 12 % teurer“. (S)
+191. ✅ 🟠 Preisverlauf: Preis bei jedem Besuch speichern → „seit gestern 12 % teurer“. (S)
 192. 🟠 Preisalarm: Benachrichtigung, wenn eine gemerkte Unterkunft günstiger wird (nur wenn du die Seite öffnest – oder über offizielle API). (M)
 193. 🟠 Vergleichstabelle der gemerkten Unterkünfte im Popup. (S)
 194. 🟠 Gemerkte Unterkünfte auf einer Karte im Popup/Options-Seite. (M)
-195. 🟠 Export als CSV/Google-Sheets. (S)
+195. ✅ 🟠 Export als CSV/Google-Sheets. (S)
 196. 🟠 Sync über `chrome.storage.sync` (klein) oder Konto. (M)
 197. 🟠 Options-Seite (Sprache, Währung, Overlay an/aus). (S)
 198. 🟠 Firefox-/Edge-/Safari-Version (gleiche Codebasis, WebExtensions). (M)
@@ -243,8 +243,8 @@ Ideen dazu:
 200. 🟠 Content-Script robust: mehrere Selektoren, Fehler-Telemetrie lokal, Selbsttest-Seite. (S)
 201. 🟠 Fake-Bewertungs-Indikator: viele 5-Sterne in kurzer Zeit, kurze generische Texte. (M)
 202. 🟠 Fotos-Check: Anzahl Fotos, fehlen Bad/Schlafzimmer-Fotos? (S)
-203. 🟠 „Schon gesehen“-Markierung auf Suchergebnis-Karten. (S)
-204. 🟠 Ausgeblendete Unterkünfte (👎) in Suchergebnissen verstecken. (S)
+203. ✅ 🟠 „Schon gesehen“-Markierung auf Suchergebnis-Karten. (S)
+204. ✅ 🟠 Ausgeblendete Unterkünfte (👎) in Suchergebnissen verstecken. (S)
 205. 🟠 Tastenkürzel (z. B. Alt+L = gefällt mir). (S)
 206. 🟠 Badge-Zähler am Plugin-Icon (Anzahl 👍 dieser Reise). (S)
 207. 🟠 Unterkünfte einer Reise zuordnen („Barcelona Mai“). (S)
@@ -409,13 +409,13 @@ Ideen dazu:
 
 ## Meine Top 10 für den nächsten Schritt
 
-1. **Abschnitt 0, Weg B:** Plugin bewertet die Suchseite und empfiehlt die Top 3 → euer Wunsch „ohne anschauen“.
-2. **#13** Notiz-Sicherheitslücke schließen.
-3. **#14, #15** Falsche Bewertungs-Stichworte (Wortgrenzen, Verneinung).
-4. **#17** Plugin auch bei Seitenwechsel ohne Reload.
-5. **#23, #24** Overpass fair und mit Timeout abfragen.
-6. **#95** Top-Städte vorab berechnen → Ergebnis in 1 Sekunde statt 1 Minute.
+1. ✅ **Abschnitt 0, Weg B:** Plugin bewertet die Suchseite und empfiehlt die Top 3 → euer Wunsch „ohne anschauen“.
+2. ✅ **#13** Notiz-Sicherheitslücke schließen.
+3. ✅ **#14, #15** Falsche Bewertungs-Stichworte (Wortgrenzen, Verneinung).
+4. ✅ **#17** Plugin auch bei Seitenwechsel ohne Reload.
+5. ✅ **#23, #24** Overpass fair und mit Timeout abfragen.
+6. ✅ **#95** Top-Städte vorab berechnen → Ergebnis in 1 Sekunde statt 1 Minute.
 7. **#91 + #229** Gruppen-Link: jeder stellt sich selbst ein.
-8. **#186** Hausregel „keine Partys“ erkennen – wichtig für eure Party-Leute.
-9. **#183, #184** Betten-Check.
+8. ✅ **#186** Hausregel „keine Partys“ erkennen – wichtig für eure Party-Leute.
+9. ✅ **#183, #184** Betten-Check.
 10. **#82, #210** Tests + CI, damit Änderungen nichts kaputtmachen.
