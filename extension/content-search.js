@@ -151,7 +151,7 @@
       h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → die Seiten, die du öffnest, werden zusammen bewertet. Es wird nichts von selbst nachgeladen.'),
       pages > 1 ? h('div', { class: 'row' }, h('button', { onclick: async () => { await chrome.storage.local.remove('pool'); lastSig = ''; lastView = null; SMC.route?.(); } }, 'Sammlung leeren')) : null,
       h('div', { class: 'muted' }, 'Tasten: Alt+Shift+V Vergleich · K kopieren · M ein-/ausklappen'),
-      !trip ? h('div', { class: 'muted' }, 'Mit Freunden unterwegs? Im ', h('a', { href: window.StayMatchCore.APP_URL, target: '_blank', rel: 'noopener' }, 'Viertel-Finder'), ' das Viertel finden, in dem alle zufrieden sind.') : null,
+      !trip ? h('div', { class: 'muted' }, 'Tipp: Im ', h('a', { href: window.StayMatchCore.APP_URL, target: '_blank', rel: 'noopener' }, 'Viertel-Finder'), ' findest du vorher das Viertel, das zu dir passt, auch mit Mitreisenden.') : null,
     ], { minimized, wide: compareMode });
   }
 
