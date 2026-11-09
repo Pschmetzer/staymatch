@@ -9,7 +9,7 @@ Dein Helfer, um schneller ein passendes Airbnb zu finden. Die Chrome-Erweiterung
 ## So funktioniert's
 1. **Direkt:** Airbnb-Suche öffnen, im StayMatch-Panel Budget pro Nacht und Wünsche wählen (ganze Unterkunft, kein Gewerbe, Superhost, ab 20 Bewertungen, ruhig/sauber/WLAN).
 2. **Optional vorher:** Im Viertel-Finder Stadt, Zeitraum, Budget, Interessen und Wünsche eingeben → passende Viertel. „Unterkünfte hier ansehen“ öffnet die Suche mit Datum, Gästen, Preisgrenze und Kartenausschnitt; Wünsche und Budget gehen ans Plugin.
-3. Das Plugin bewertet alle Unterkünfte auf der Seite (Sterne mit Bayes-Mittel, Preis vs. Budget, deine Wünsche, falls bekannt Viertel, bei Gruppen Betten) und zeigt die **Top 3 mit Begründung**. Auf der Unterkunftsseite warnt es, wenn Bewertungen deinen Wünschen widersprechen. Blättern bewertet neue Unterkünfte mit. Beim Blättern wird jede neue Seite für sich bewertet; die Top 3 gelten je Seite (Sammeln über mehrere Seiten folgt). Das Plugin gibt es nur für Chrome-Browser am Computer, der Viertel-Finder läuft auch auf dem Handy.
+3. Das Plugin bewertet alle Unterkünfte auf der Seite (Sterne mit Bayes-Mittel, Preis vs. Budget, deine Wünsche, falls bekannt Viertel, bei Gruppen Betten) und zeigt die **Top 3 mit Begründung**. Auf der Unterkunftsseite warnt es, wenn Bewertungen deinen Wünschen widersprechen. Beim Blättern sammelt das Plugin die Unterkünfte aller Seiten, die Top 3 gelten für alles, was du gesehen hast; Vergleichstabelle und „Top 3 kopieren“ helfen bei der Entscheidung. Das Plugin gibt es nur für Chrome-Browser am Computer, der Viertel-Finder läuft auch auf dem Handy.
 
 ## Web-App (`web/`)
 Statisch, ohne Backend und ohne API-Keys.
