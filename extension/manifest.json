@@ -1,13 +1,68 @@
 {
   "manifest_version": 3,
   "name": "StayMatch – Unterkunfts-Merkzettel",
-  "version": "0.1.0",
-  "description": "Merkt sich angesehene Unterkünfte, was dir gefallen hat, und fasst Bewertungen zusammen. Alles bleibt lokal in deinem Browser.",
-  "permissions": ["storage"],
-  "action": { "default_popup": "popup.html", "default_title": "StayMatch" },
-  "content_scripts": [{
-    "matches": ["https://www.airbnb.de/rooms/*", "https://www.airbnb.com/rooms/*", "https://www.airbnb.at/rooms/*", "https://www.airbnb.ch/rooms/*"],
-    "js": ["content.js"],
-    "run_at": "document_idle"
-  }]
+  "version": "0.2.0",
+  "description": "Bewertet Unterkünfte auf der Suchseite, die du öffnest, für deine Gruppe und zeigt die Top 3. Merkt sich Verlauf, Likes und Bewertungs-Stichworte. Alles lokal.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "StayMatch",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.airbnb.de/*",
+        "https://www.airbnb.com/*",
+        "https://www.airbnb.at/*",
+        "https://www.airbnb.ch/*",
+        "https://www.airbnb.co.uk/*",
+        "https://www.airbnb.fr/*",
+        "https://www.airbnb.es/*",
+        "https://www.airbnb.it/*",
+        "https://www.airbnb.nl/*",
+        "https://www.airbnb.pt/*",
+        "https://www.airbnb.pl/*",
+        "https://www.airbnb.be/*",
+        "https://www.airbnb.dk/*",
+        "https://www.airbnb.se/*",
+        "https://www.airbnb.no/*",
+        "https://www.airbnb.fi/*",
+        "https://www.airbnb.ie/*",
+        "https://www.airbnb.gr/*",
+        "https://www.airbnb.cz/*",
+        "https://www.airbnb.com.au/*",
+        "https://www.airbnb.ca/*",
+        "https://www.airbnb.co.nz/*",
+        "https://www.airbnb.mx/*",
+        "https://www.airbnb.com.br/*"
+      ],
+      "js": [
+        "parse.js",
+        "rank.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://staymatch-tau.vercel.app/*",
+        "http://localhost:8765/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
 }

@@ -1,4 +1,4 @@
-// StayMatch – gemeinsame Bewertungslogik (Web-App + Chrome-Erweiterung)
+// StayMatch – Bewertungslogik der Viertel (Web-App). Das Plugin bekommt die fertigen Werte über bridge.js.
 (function (root) {
   const CATEGORIES = {
     party: { label: 'Party', tags: [['amenity', 'bar'], ['amenity', 'pub'], ['amenity', 'nightclub'], ['amenity', 'biergarten']] },
@@ -8,7 +8,7 @@
     transit: { label: 'ÖPNV', tags: [['railway', 'station'], ['railway', 'subway_entrance'], ['public_transport', 'station']] },
   };
 
-  // Gewichte je Typ (0..1). Jeder Typ will etwas Essen und ÖPNV.
+  // Gewichte je Typ: positiv = wichtig, negativ = stört. Jeder Typ will etwas Essen und ÖPNV.
   const PRESETS = {
     party: { label: '🎉 Party', w: { party: 1, chill: 0.1, sights: 0.1, food: 0.4, transit: 0.4 } },
     chill: { label: '🌿 Chill', w: { party: -0.5, chill: 1, sights: 0.2, food: 0.5, transit: 0.2 } },

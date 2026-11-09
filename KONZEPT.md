@@ -14,7 +14,8 @@
 - Für jedes Top-Viertel gibt es einen Link in die Unterkunftssuche mit Datum, Personenzahl, Preisgrenze und Kartenausschnitt.
 - Karte mit den Top-Vierteln und Highlights in der Nähe.
 
-### 2. Chrome-Erweiterung „Merkzettel“ (`extension/`)
+### 2. Chrome-Erweiterung (`extension/`)
+- **Suchseite:** bewertet alle Unterkünfte der geöffneten Suchseite für die Gruppe und zeigt die Top 3 mit Begründung. Gruppe, Budget und Viertel-Werte kommen aus dem Viertel-Finder (`bridge.js`).
 - Liest nur Unterkunftsseiten, die du selbst öffnest. Es gibt kein Scraping und keinen Server.
 - **Verlauf:** wo du schon warst, wie oft, wann.
 - **Gefällt mir / Nein** plus Notiz pro Unterkunft.

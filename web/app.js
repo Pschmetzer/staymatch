@@ -8,12 +8,17 @@ const store = {
 let people = store.get('sm_people', [
   { name: 'Lena', type: 'party' }, { name: 'Mia', type: 'party' },
   { name: 'Jonas', type: 'chill' }, { name: 'Sara', type: 'chill' }, { name: 'Tom', type: 'sights' },
-]);
+]).filter(p => p && typeof p.name === 'string').map(p => ({ ...p, type: SM.PRESETS[p.type] ? p.type : 'chill' }));
 
 // Standard-Zeitraum: in 4 Wochen, 4 Nächte
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const d0 = new Date(Date.now() + 28 * 864e5), d1 = new Date(d0.getTime() + 4 * 864e5);
-$('checkin').value = d0.toISOString().slice(0, 10);
-$('checkout').value = d1.toISOString().slice(0, 10);
+$('checkin').value = ymd(d0);
+$('checkout').value = ymd(d1);
+// #38 keine Vergangenheit, Abreise nach Anreise
+$('checkin').min = ymd(new Date());
+const syncMin = () => { const c = new Date($('checkin').value); if (!isNaN(c)) { $('checkout').min = ymd(new Date(c.getTime() + 864e5)); if ($('checkout').value <= $('checkin').value) $('checkout').value = ymd(new Date(c.getTime() + 864e5)); } };
+$('checkin').addEventListener('change', syncMin); syncMin();
 
 function renderPeople() {
   $('people').innerHTML = '';
@@ -35,7 +40,7 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp
 
 function budgetNums() {
   const n = SM.nights($('checkin').value, $('checkout').value);
-  const total = +$('budget').value || 0;
+  const total = Math.max(0, +$('budget').value || 0);
   return { n, total, perNight: n ? total / n : 0, perPerson: people.length ? total / people.length : 0 };
 }
 function updateBudget() {
@@ -53,6 +58,7 @@ $('example').onclick = () => {
 
 async function geocode(city) {
   const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(city)}`, { headers: { 'Accept-Language': 'de' } });
+  if (!r.ok) throw new Error(`Ortssuche gerade nicht erreichbar (${r.status}) – bitte gleich nochmal versuchen.`);
   const j = await r.json();
   if (!j.length) throw new Error('Stadt nicht gefunden');
   let [s, n, w, e] = j[0].boundingbox.map(Number);
@@ -60,40 +66,55 @@ async function geocode(city) {
   // Große Städte auf ca. 16 × 16 km um das Zentrum begrenzen (Overpass-Last)
   const h = 0.075;
   s = Math.max(s, lat - h); n = Math.min(n, lat + h);
-  w = Math.max(w, lon - h * 1.4); e = Math.min(e, lon + h * 1.4);
+  const hl = h / Math.cos(lat * Math.PI / 180);
+  w = Math.max(w, lon - hl); e = Math.min(e, lon + hl);
   return { lat, lon, bbox: [s, w, n, e], name: j[0].display_name.split(',')[0] };
 }
 
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
-const FIELDS = ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'wikidata'];
+const FIELDS = ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'public_transport', 'wikidata'];
 // CSV statt JSON: ca. 6x kleiner. Alle Server parallel, der schnellste gewinnt.
 async function overpass(bbox) {
   const b = bbox.map(x => x.toFixed(4)).join(',');
   const q = `[out:csv(::lat,::lon,${FIELDS.slice(2).join(',')};true;"|")][timeout:90];(
-    node["place"~"^(suburb|neighbourhood|quarter)$"](${b});
-    node["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${b});
+    nwr["place"~"^(suburb|neighbourhood|quarter)$"](${b});
+    nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${b});
     nwr["leisure"~"^(park|garden|spa)$"](${b});
     nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"](${b});
     node["historic"="monument"](${b});
     nwr["natural"="beach"](${b});
     node["railway"~"^(station|subway_entrance)$"](${b});
+    node["public_transport"="station"](${b});
   );out center;`;
+  // Fair zu den freiwilligen Servern: erst einer, der nächste erst nach 20 s ohne Antwort oder bei Fehler.
   const ctrl = new AbortController();
-  const tries = OVERPASS.map(async url => {
-    const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
-    const text = await r.text();
-    if (!r.ok || !text.startsWith('@lat')) throw new Error(`${new URL(url).host}: ${r.status}`);
-    return text;
+  const timeout = setTimeout(() => ctrl.abort(), 110000);
+  let next = Promise.resolve();
+  const tries = OVERPASS.map((url, i) => {
+    const prev = next;
+    let release;
+    next = new Promise(r => { release = r; });
+    return (async () => {
+      if (i) await Promise.race([prev, new Promise(r => setTimeout(r, 20000 * i))]);
+      try {
+        const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
+        const text = await r.text();
+        if (!r.ok || !text.startsWith('@lat')) throw new Error(`${new URL(url).host}: ${r.status}`);
+        return text;
+      } catch (e) { release(); throw e; }
+    })();
   });
   try {
     const text = await Promise.any(tries);
-    ctrl.abort();
+    clearTimeout(timeout); ctrl.abort();
     return text.split('\n').slice(1).filter(Boolean).map(line => {
       const v = line.split('|'), t = {};
+      if (v.length !== FIELDS.length) return null; // Name mit | → Zeile verwerfen
       FIELDS.forEach((f, i) => { if (v[i]) t[f] = v[i]; });
       return t;
-    });
+    }).filter(Boolean);
   } catch (e) {
+    clearTimeout(timeout);
     throw new Error('OpenStreetMap-Server gerade überlastet – bitte in einer Minute nochmal versuchen.');
   }
 }
@@ -111,16 +132,16 @@ async function run() {
   try {
     $('status').textContent = 'Suche Stadt …';
     const geo = await geocode(city);
-    $('status').textContent = `Lade Orte in ${geo.name} aus OpenStreetMap (kann bis zu 1 Minute dauern) …`;
-    const cacheKey = 'sm_osm_' + geo.bbox.map(x => x.toFixed(3)).join(',');
+    const cacheKey = 'sm_osm2_' + geo.bbox.map(x => x.toFixed(3)).join(',');
     let rows = cacheGet(cacheKey);
+    $('status').textContent = rows ? `Nutze gespeicherte Daten für ${geo.name} …` : `Lade Orte in ${geo.name} aus OpenStreetMap (kann bis zu 1 Minute dauern) …`;
     if (!rows) { rows = await overpass(geo.bbox); cacheSet(cacheKey, rows); }
 
     const areas = [], pois = [];
     for (const t of rows) {
       const lat = +t.lat, lon = +t.lon;
       if (!lat) continue;
-      if (t.place && t.name) { areas.push({ name: t.name, lat, lon }); continue; }
+      if (t.place && t.name) { if (!areas.some(a => a.name === t.name && SM.distM(a, { lat, lon }) < 1500)) areas.push({ name: t.name, lat, lon }); continue; }
       const cat = SM.categoryOf(t);
       if (cat) pois.push({ lat, lon, cat, name: t.name, tags: t });
     }
@@ -134,18 +155,19 @@ async function run() {
       .sort((a, b) => b.group.total - a.group.total);
     const ranked = SM.pickDiverse(sorted);
 
-    $('status').textContent = `${areas.length} Viertel und ${pois.length} Orte ausgewertet. Die besten für eure Gruppe:`;
+    $('status').textContent = `${sorted.length} Viertel und ${pois.length} Orte ausgewertet. Die besten für eure Gruppe:`;
+    saveTrip(geo, sorted, ppl);
     renderResults(ranked, pois, ppl, geo);
     renderMap(ranked, geo);
   } catch (e) {
-    $('status').textContent = 'Fehler: ' + e.message;
+    $('status').textContent = 'Fehler: ' + (/fetch|network/i.test(e.message) ? 'Keine Verbindung zum Kartendienst. Internet prüfen und nochmal versuchen.' : e.message);
   } finally { $('go').disabled = false; }
 }
 
 function renderResults(ranked, pois, ppl, geo) {
   const b = budgetNums();
   $('results').innerHTML = ranked.map((a, i) => {
-    const highlights = pois.filter(p => p.name && p.cat !== 'transit' && p.cat !== 'food' && SM.distM(a, p) < 600)
+    const highlights = pois.filter(p => p.name && p.cat !== 'transit' && p.cat !== 'food' && SM.distM(a, p) < 800)
       .sort((x, y) => (y.tags.wikidata ? 1 : 0) - (x.tags.wikidata ? 1 : 0)).slice(0, 5).map(p => p.name);
     const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length, priceMaxNight: b.perNight });
     const chips = ppl.map((p, j) => {
@@ -169,14 +191,34 @@ function renderMap(ranked, geo) {
   $('map').hidden = false;
   if (!map) {
     map = L.map('map');
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
   }
   map.invalidateSize();
   map.fitBounds(L.latLngBounds(ranked.map(a => [a.lat, a.lon])).pad(0.3));
   if (layer) layer.remove();
-  layer = L.layerGroup(ranked.map((a, i) => L.circle([a.lat, a.lon], { radius: 800, color: i === 0 ? '#e0475b' : '#888', weight: 2, fillOpacity: 0.12 })
+  layer = L.layerGroup(ranked.map((a, i) => L.circle([a.lat, a.lon], { radius: 600, color: i === 0 ? '#e0475b' : '#888', weight: 2, fillOpacity: 0.12 })
     .bindTooltip(`${i + 1}. ${a.name} (${a.group.total})`, { permanent: i < 3 }))).addTo(map);
 }
 
 $('go').onclick = run;
+$('city').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+
+// Brücke zum Plugin: alle bewerteten Viertel + Gruppe speichern, Plugin übernimmt sie
+function saveTrip(geo, areas, ppl) {
+  const b = budgetNums();
+  const trip = {
+    savedAt: Date.now(), city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value,
+    nights: b.n, budget: b.total, people: ppl.map(p => ({ name: p.name, type: p.type })),
+    areas: areas.map(a => {
+      const j = a.group.scores.indexOf(a.group.min);
+      return { name: a.name, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: ppl[j]?.name || null };
+    }),
+  };
+  store.set('sm_trip', trip);
+  window.dispatchEvent(new Event('staymatch:trip'));
+}
+// Hinweis, ob das Plugin installiert ist (setzt bridge.js)
+setTimeout(() => {
+  if (document.documentElement.dataset.staymatchExtension) $('extHint').textContent = '✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 für euch.';
+}, 800);
 renderPeople();

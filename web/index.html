@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StayMatch</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<meta name="description" content="Findet das Stadtviertel, in dem die ganze Reisegruppe zufrieden ist.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23e0475b%22/><path d=%22M50 25 78 52H68v23H32V52H22z%22 fill=%22white%22/></svg>">
 <style>
 :root { --bg:#f7f6f3; --card:#fff; --text:#1d1d1f; --muted:#6b6b70; --line:#e4e2dc; --accent:#e0475b; --good:#1f9d6b; --warn:#d68a00; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#141416; --card:#1e1e22; --text:#f2f2f4; --muted:#a0a0a8; --line:#2e2e34; } }
@@ -20,6 +22,7 @@ label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
 input, select, button { font:inherit; color:inherit; }
 input, select { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
 .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 button { cursor:pointer; border:0; border-radius:8px; padding:9px 12px; background:var(--line); }
 button.primary { background:var(--accent); color:#fff; width:100%; margin-top:14px; font-weight:600; padding:12px; }
 button.link { background:none; color:var(--accent); padding:4px 0; }
@@ -65,12 +68,13 @@ a.btn { display:inline-block; background:var(--text); color:var(--bg); text-deco
     <div class="hint">Daten: OpenStreetMap (Bars, Parks, Cafés, Sehenswürdigkeiten, ÖPNV im Umkreis von 800 m). Wertung: 60 % zählt die am wenigsten zufriedene Person, 40 % der Schnitt – so gewinnt nicht einfach die Mehrheit.</div>
   </section>
   <section>
-    <p id="status">Stadt, Zeitraum, Budget und Gruppe eingeben.</p>
+    <p id="status" role="status" aria-live="polite">Stadt, Zeitraum, Budget und Gruppe eingeben.</p>
+    <p class="muted" id="extHint">Tipp: Mit dem StayMatch-Plugin für Chrome werden die Unterkünfte auf Airbnb automatisch für euch bewertet.</p>
     <div id="map" hidden></div>
     <div id="results"></div>
   </section>
 </main>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="scoring.js"></script>
 <script src="app.js"></script>
 </body>
