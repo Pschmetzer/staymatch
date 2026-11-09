@@ -14,9 +14,11 @@ Statisch, ohne Backend und ohne API-Keys.
 ```bash
 python3 -m http.server 8765 -d web
 ```
-Dann http://localhost:8765 öffnen.
+Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app.html (Viertel-Finder).
 
 ## Chrome-Erweiterung (`extension/`)
+Download als ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (neu bauen mit `./scripts/build-plugin-zip.sh`).
+
 1. `chrome://extensions` öffnen
 2. Oben rechts den **Entwicklermodus** einschalten
 3. **Entpackte Erweiterung laden** → Ordner `extension/` wählen

@@ -1,4 +1,4 @@
-const APP_URL = 'https://staymatch-tau.vercel.app';
+const APP_URL = 'https://staymatch-tau.vercel.app/app.html';
 document.getElementById('app').href = APP_URL;
 let tab = 'top', listings = {}, lastSearch = null, trip = null;
 
