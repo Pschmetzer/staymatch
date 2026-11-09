@@ -6,7 +6,7 @@
 <title>StayMatch</title>
 <meta name="description" content="StayMatch bewertet jede Unterkunft auf deiner Airbnb-Suche nach Budget, Sternen und Wünschen und zeigt sofort die Top 3. Kostenlos, ohne Konto.">
 <meta property="og:title" content="StayMatch – das passende Airbnb in 2 Minuten">
-<meta property="og:description" content="Das Plugin bewertet jede Unterkunft auf der Suchseite und zeigt die Top 3 mit Begründung. Für Gruppen: der Viertel-Finder.">
+<meta property="og:description" content="Das Plugin bewertet jede Unterkunft auf der Suchseite und zeigt die Top 3 mit Begründung. Mit Wünschen wie ganze Wohnung oder Superhost, allein oder mit Freunden.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://staymatch-tau.vercel.app/og.png">
 <meta property="og:image:width" content="1200">
@@ -18,12 +18,12 @@
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 :root {
-  --bg: #0b0b0d; --bg2: #121216; --card: #17171c; --line: #26262d; --text: #f4f4f6; --muted: #9a9aa4; --dim: #6c6c76;
+  --bg: #0b0b0d; --bg2: #121216; --card: #17171c; --line: #26262d; --text: #f4f4f6; --muted: #9a9aa4; --dim: #8b8b95;
   --accent: #e0475b; --accent2: #ff8a5c; --good: #2fbf85; --warn: #e6a23c; --btn: #f4f4f6; --btnText: #0b0b0d;
   --glow: rgba(224, 71, 91, .18);
 }
 :root[data-theme="light"] {
-  --bg: #fbfaf8; --bg2: #f3f1ed; --card: #fff; --line: #e6e3dd; --text: #141416; --muted: #5d5d66; --dim: #8a8a93;
+  --bg: #fbfaf8; --bg2: #f3f1ed; --card: #fff; --line: #e6e3dd; --text: #141416; --muted: #5d5d66; --dim: #6b6b74;
   --btn: #141416; --btnText: #fff; --glow: rgba(224, 71, 91, .12);
 }
 * { box-sizing: border-box; }
@@ -46,7 +46,7 @@ nav.top .wrap { display: flex; align-items: center; gap: 28px; height: 68px; }
 .links a:hover { color: var(--text); }
 .right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
 .theme { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 10px; width: 38px; height: 38px; cursor: pointer; font-size: 16px; }
-@media (max-width: 820px) { .links { display: none; } }
+@media (max-width: 820px) { nav.top .wrap { flex-wrap: wrap; height: auto; padding-top: 12px; padding-bottom: 10px; gap: 8px 16px; } .links { order: 3; width: 100%; overflow-x: auto; gap: 20px; } .links a { font-size: 14px; white-space: nowrap; } }
 
 .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 14px; padding: 13px 22px; font-weight: 500; font-size: 16px; text-decoration: none; border: 1px solid var(--line); transition: transform .15s, background .15s; white-space: nowrap; }
 .btn:hover { transform: translateY(-1px); }
@@ -100,6 +100,12 @@ h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), va
 .li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; }
 .li b { font-weight: 600; } .li .sc { grid-row: span 2; align-self: center; font-weight: 700; font-size: 18px; color: var(--good); }
 .li small { color: var(--muted); font-size: 12px; }
+.li .why { grid-column: 1 / -1; color: var(--good); font-size: 12px; } .li .why.w { color: var(--warn); }
+.group .lbl { width: 100%; font-size: 12px; color: var(--dim); margin-left: 4px; }
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .cmp { grid-template-columns: 1fr; } }
+.cmp .f ul { margin: 10px 0 0; padding-left: 18px; color: var(--muted); font-size: 15px; } .cmp .f li { margin: 6px 0; }
+.cmp .f.good { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
 .group { position: absolute; left: -6px; top: -18px; display: flex; gap: 6px; flex-wrap: wrap; max-width: 320px; }
 .chip { background: var(--bg2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .chip.ok { border-color: color-mix(in srgb, var(--good) 60%, var(--line)); }
@@ -169,8 +175,8 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 footer a { color: var(--muted); }
 </style>
 <script>
-  // Theme vor dem ersten Zeichnen setzen (Standard: dunkel wie in der Präsentation)
-  try { const t = localStorage.getItem('sm_theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+  // Theme vor dem ersten Zeichnen setzen (gespeicherte Wahl, sonst Systemeinstellung)
+  try { const t = localStorage.getItem('sm_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : ''); if (t) document.documentElement.dataset.theme = t; } catch {}
 </script>
 </head>
 <body>
@@ -181,6 +187,7 @@ footer a { color: var(--muted); }
     <div class="links">
       <a href="#so-gehts">So geht's</a>
       <a href="#funktionen">Funktionen</a>
+      <a href="#gruppen">Für Gruppen</a>
       <a href="#plugin">Plugin</a>
       <a href="#faq">FAQ</a>
     </div>
@@ -199,7 +206,7 @@ footer a { color: var(--muted); }
       <p class="lead">StayMatch bewertet jede Unterkunft auf deiner Suchseite nach Budget, ehrlichen Sternen, Betten und deinen Wünschen und zeigt sofort die drei besten mit Begründung. Kein Durchklicken von 40 Inseraten mehr.</p>
       <div class="ctas">
         <a class="btn primary" href="#plugin">Plugin holen <span aria-hidden="true">↓</span></a>
-        <a class="btn ghost" href="/app">Mit Gruppe: Viertel finden <span aria-hidden="true">→</span></a>
+        <a class="btn ghost" href="/app">Erst das passende Viertel finden <span aria-hidden="true">→</span></a>
       </div>
       <form class="quick" id="quick" aria-label="Schnellstart: direkt auf Airbnb suchen">
         <input name="city" required placeholder="Stadt, z. B. Lissabon" aria-label="Stadt" autocomplete="off">
@@ -209,30 +216,31 @@ footer a { color: var(--muted); }
         <button class="btn primary" type="submit">Suchen</button>
       </form>
       <p class="mobile-hint">📱 Das Plugin läuft in Chrome, Edge und Brave am Computer, nicht in der Airbnb-App. Merk dir die Seite für die Suche am Laptop.</p>
-      <p class="note">Kostenlos · Open Source · ohne Anmeldung · Schnellstart öffnet die normale Airbnb-Suche · Bild rechts: Beispiel mit erfundenen Werten</p>
+      <p class="note">Kostenlos · Open Source · ohne Anmeldung · Schnellstart öffnet die normale Airbnb-Suche · Beispielbild mit erfundenen Werten</p>
     </div>
 
-    <div class="stage" aria-label="Beispiel-Darstellung mit erfundenen Werten: Gràcia passt für alle fünf, Top 3 Unterkünfte werden empfohlen" role="img">
+    <div class="stage" aria-label="Beispiel mit erfundenen Werten: Wünsche einer Person, passendes Viertel Gràcia, Top 3 Unterkünfte mit Begründung" role="img">
       <div class="mapcard">
         <div class="road" style="left:-10%;top:40%;width:130%;height:14px;transform:rotate(-14deg)"></div>
         <div class="road" style="left:55%;top:-10%;width:12px;height:130%;transform:rotate(18deg)"></div>
         <div class="road" style="left:-10%;top:76%;width:80%;height:9px;transform:rotate(8deg)"></div>
-        <div class="zone z1"><span>Gràcia · 78</span></div>
+        <div class="zone z1"><span>Gràcia · 84</span></div>
         <div class="zone z2"><span>Gòtic · 61</span></div>
         <div class="zone z3"><span>Poblenou · 54</span></div>
-        <i class="dot d-p" style="left:46%;top:30%"></i><i class="dot d-p" style="left:52%;top:47%"></i><i class="dot d-p" style="left:18%;top:62%"></i><i class="dot d-p" style="left:24%;top:70%"></i>
-        <i class="dot d-c" style="left:57%;top:35%"></i><i class="dot d-c" style="left:43%;top:44%"></i><i class="dot d-c" style="left:74%;top:66%"></i>
-        <i class="dot d-s" style="left:50%;top:26%"></i><i class="dot d-s" style="left:14%;top:56%"></i><i class="dot d-s" style="left:61%;top:42%"></i>
+        <i class="dot d-c" style="left:46%;top:30%"></i><i class="dot d-c" style="left:57%;top:35%"></i><i class="dot d-c" style="left:43%;top:44%"></i>
+        <i class="dot d-s" style="left:50%;top:26%"></i><i class="dot d-s" style="left:61%;top:42%"></i><i class="dot d-s" style="left:14%;top:56%"></i>
+        <i class="dot d-p" style="left:18%;top:62%"></i><i class="dot d-p" style="left:24%;top:70%"></i><i class="dot d-c" style="left:74%;top:66%"></i>
       </div>
       <div class="group">
-        <span class="chip ok">🎉 Lena 82</span><span class="chip ok">🎉 Mia 82</span><span class="chip ok">🌿 Jonas 74</span><span class="chip ok">🌿 Sara 74</span><span class="chip ok">🏛️ Tom 80</span>
+        <span class="lbl">Deine Wünsche</span>
+        <span class="chip ok">🏠 Ganze Wohnung</span><span class="chip ok">🏅 Superhost</span><span class="chip ok">🤫 Ruhig</span><span class="chip ok">💶 bis 140 €/Nacht</span>
       </div>
       <div class="panel">
-        <h4>Stay<span>Match</span> · Top 3 für euch</h4>
-        <div class="sub"><b style="color:var(--accent)">BEISPIEL</b> · 24 Unterkünfte bewertet · 5 Personen · 4 Nächte</div>
-        <div class="li"><b>1. Wohnung in Gràcia</b><span class="sc">91</span><small>⭐ 4,77 · 5 Betten · 140 € p. P.</small></div>
-        <div class="li"><b>2. Loft nahe Plaça del Sol</b><span class="sc">86</span><small>⭐ 4,82 · 4 Schlafzimmer · 152 € p. P.</small></div>
-        <div class="li"><b>3. Altbau mit Balkon</b><span class="sc">83</span><small>⭐ 4,68 · Superhost · 131 € p. P.</small></div>
+        <h4>Stay<span>Match</span> · Top 3 für dich</h4>
+        <div class="sub"><b style="color:var(--accent)">BEISPIEL</b> · 24 Unterkünfte bewertet · 4 Nächte</div>
+        <div class="li"><b>1. Wohnung in Gràcia</b><span class="sc">91</span><small>⭐ 4,86 bei 212 · 132 € pro Nacht</small><span class="why">✓ ganze Unterkunft · ✓ Superhost</span></div>
+        <div class="li"><b>2. Studio nahe Parc Güell</b><span class="sc">86</span><small>⭐ 4,82 bei 94 · 118 € pro Nacht</small><span class="why">✓ ganze Unterkunft · ✓ im Budget</span></div>
+        <div class="li"><b>3. Altbau mit Balkon</b><span class="sc">79</span><small>⭐ 4,71 bei 58 · 139 € pro Nacht</small><span class="why w">⚠ kein Superhost</span></div>
       </div>
     </div>
   </div>
@@ -240,10 +248,10 @@ footer a { color: var(--muted); }
 
 <div class="strip">
   <div class="wrap">
-    <div><h3>Fair statt Mehrheit</h3><p>Die am wenigsten zufriedene Person zählt am meisten.</p></div>
-    <div><h3>Echte Orte</h3><p>Bars, Parks, Museen und Bahn aus OpenStreetMap.</p></div>
-    <div><h3>Top 3 automatisch</h3><p>Das Plugin bewertet die ganze Suchseite für euch.</p></div>
-    <div><h3>Bleibt bei dir</h3><p>Kein Konto, kein Server. Alles lokal im Browser.</p></div>
+    <div><p><strong>Top 3 statt 40 Tabs</strong><br>Das Plugin bewertet jede Unterkunft auf deiner Suchseite.</p></div>
+    <div><p><strong>Passend zu dir</strong><br>Budget, Bewertungen und deine Wünsche zählen, auf Wunsch auch das Viertel.</p></div>
+    <div><p><strong>Ehrliche Sterne</strong><br>5,0 bei drei Bewertungen zählt weniger als 4,9 bei 300.</p></div>
+    <div><p><strong>Bleibt bei dir</strong><br>Kein Konto, kein StayMatch-Server. Alles lokal im Browser.</p></div>
   </div>
 </div>
 
@@ -255,7 +263,7 @@ footer a { color: var(--muted); }
     <div class="steps">
       <div class="step"><h3>Plugin installieren</h3><p>Einmal in Chrome, Edge oder Brave einrichten. Kein Konto, keine Anmeldung.</p></div>
       <div class="step"><h3>Ganz normal suchen</h3><p>Stadt und Datum auf Airbnb eingeben. Im StayMatch-Panel Budget pro Nacht und Wünsche wählen, etwa ganze Unterkunft oder Superhost.</p></div>
-      <div class="step"><h3>Top 3 nehmen</h3><p>Jede Karte bekommt einen Punktwert, die drei besten stehen oben mit Begründung. Mit Gruppe? Der Viertel-Finder sucht vorher das Viertel, in dem alle zufrieden sind.</p></div>
+      <div class="step"><h3>Top 3 nehmen</h3><p>Jede Karte bekommt einen Punktwert, die drei besten stehen oben mit Begründung. Du kennst die Stadt nicht? Der Viertel-Finder sucht vorher das Viertel, das zu dir passt.</p></div>
     </div>
   </div>
 </section>
@@ -263,35 +271,54 @@ footer a { color: var(--muted); }
 <section class="block" id="funktionen" style="padding-top:0">
   <div class="wrap">
     <span class="eyebrow">Funktionen</span>
-    <h2>Alles, was eine Gruppenreise braucht.</h2>
-    <p class="intro">Gebaut für Junggesellenabschiede, Städtetrips mit Freunden und alle Reisen, bei denen nicht alle dasselbe wollen.</p>
+    <h2>Alles, damit du schneller die richtige Unterkunft findest.</h2>
+    <p class="intro">Für Städtetrips, Workations, Wochenenden und alle Reisen, bei denen du nicht stundenlang suchen willst.</p>
     <div class="grid">
-      <div class="f"><div class="ic">🗺️</div><h3>Viertel-Finder</h3><p>Jedes Viertel bekommt pro Person einen Wert von 0 bis 100. Nachbar-Viertel werden zusammengefasst, damit ihr echte Alternativen seht.</p></div>
-      <div class="f"><div class="ic">⚖️</div><h3>Fairness-Wertung</h3><p>60 % zählt die Person, die am wenigsten zufrieden wäre. Partymeilen ziehen bei den Chill-Leuten Punkte ab.</p></div>
-      <div class="f"><div class="ic">💶</div><h3>Budget & Zeitraum</h3><p>Gesamtbudget wird in pro Nacht und pro Person umgerechnet und direkt als Filter an die Suche übergeben.</p></div>
-      <div class="f"><div class="ic">⭐</div><h3>Ehrliche Sterne</h3><p>5,0 bei drei Bewertungen zählt weniger als 4,9 bei 300. Dazu Betten-Check für eure Gruppengröße.</p></div>
-      <div class="f"><div class="ic">💬</div><h3>Bewertungen auf einen Blick</h3><p>Stichworte aus den Rezensionen: sauber, Lage, laut, WLAN. Auch „nicht sauber“ wird richtig erkannt.</p></div>
-      <div class="f"><div class="ic">🧠</div><h3>Lernt deinen Geschmack</h3><p>👍 und 👎 pro Unterkunft, Notizen, Verlauf und Preisverlauf. Daraus entsteht dein persönliches Profil.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">✅</div><h3>Deine Wünsche</h3><p>Ganze Unterkunft, kein gewerblicher Anbieter, Superhost oder Gäste-Favorit, genug Bewertungen. Was nicht passt, steht als Warnung dabei.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">💬</div><h3>Bewertungen gelesen</h3><p>Auf der Unterkunftsseite zieht StayMatch Stichworte aus den Rezensionen: sauber, Lage, laut, WLAN. Wünschst du „ruhig“ und andere Gäste schreiben „laut“, warnt es dich.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">⭐</div><h3>Ehrliche Sterne</h3><p>Wenige Bewertungen zählen weniger. So rutscht die neue 5,0-Wohnung nicht automatisch an die Spitze.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">💶</div><h3>Budget im Blick</h3><p>Budget pro Nacht direkt im Panel oder als Gesamtbudget im Viertel-Finder. Zu teure Unterkünfte rutschen nach unten.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">🗺️</div><h3>Passendes Viertel (optional)</h3><p>Der Viertel-Finder bewertet jedes Viertel nach deinen Interessen (Party, Chillen, Sightseeing, Essen, Familie, Natur) mit echten Orten aus OpenStreetMap.</p></div>
+      <div class="f"><div class="ic" aria-hidden="true">🧠</div><h3>Merkt sich, was du gesehen hast</h3><p>Verlauf, 👍 und 👎, Notizen und die Preisänderung seit deinem ersten Besuch. Was du ablehnst, taucht nicht mehr in deinen Top 3 auf.</p></div>
     </div>
   </div>
 </section>
 
 <section class="block" style="padding-top:0">
+  <div class="wrap">
+    <span class="eyebrow">Warum nicht einfach sortieren?</span>
+    <h2>Airbnb sortiert nach Preis oder Sternen. StayMatch nach dir.</h2>
+    <div class="cmp">
+      <div class="f"><h3>Nur Airbnb-Suche</h3><ul>
+        <li>Du öffnest Dutzende Unterkünfte, um Bewertungen, Art und Preis zu vergleichen.</li>
+        <li>Eine 5,0 bei drei Bewertungen steht neben einer 4,9 bei 300.</li>
+        <li>Ob die Gegend zu dir passt, musst du selbst recherchieren.</li>
+      </ul></div>
+      <div class="f good"><h3>Mit StayMatch</h3><ul>
+        <li>Die drei passendsten stehen oben, mit Begründung und Warnungen.</li>
+        <li>Sterne werden nach Anzahl der Bewertungen gewichtet.</li>
+        <li>Auf Wunsch ist das Viertel schon nach deinen Interessen ausgewählt.</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="gruppen" style="padding-top:0">
   <div class="wrap fair">
     <div>
-      <span class="eyebrow">Warum fair?</span>
-      <h2>Die Mehrheit gewinnt nicht automatisch.</h2>
-      <p class="intro" style="margin-bottom:0">Würde man nur den Durchschnitt nehmen, landet die Gruppe immer auf der Partymeile, weil zwei feiern wollen. StayMatch schaut zuerst, wem es am schlechtesten ginge, und sucht dann den besten Kompromiss.</p>
+      <span class="eyebrow">Auch für Gruppen</span>
+      <h2>Mit Freunden unterwegs? Dann fair für alle.</h2>
+      <p class="intro" style="margin-bottom:0">Füg im Viertel-Finder Mitreisende hinzu, jede Person wählt ihren Typ. StayMatch schaut dann zuerst, wem es am schlechtesten ginge (60 %), und nimmt den Schnitt dazu (40 %). So landet die Gruppe nicht automatisch auf der Partymeile, nur weil zwei feiern wollen.</p>
     </div>
     <div class="vs">
       <div class="bars">
-        <h4>Altstadt</h4><div class="muted">nur Durchschnitt: 71</div>
+        <h4>Altstadt</h4><div class="muted">Durchschnitt 72 · StayMatch 52</div>
         <div class="row"><span>🎉 Party (2)</span><div class="bar"><i style="width:96%"></i></div><b>96</b></div>
         <div class="row"><span>🌿 Chill (2)</span><div class="bar"><i style="width:38%"></i></div><b>38</b></div>
         <div class="row"><span>🏛️ Sights</span><div class="bar"><i style="width:91%"></i></div><b>91</b></div>
       </div>
       <div class="bars">
-        <h4>Gràcia</h4><div class="muted">StayMatch-Wertung: 78</div>
+        <h4>Gràcia</h4><div class="muted">Durchschnitt 78 · StayMatch 76</div>
         <div class="row"><span>🎉 Party (2)</span><div class="bar"><i class="g" style="width:82%"></i></div><b>82</b></div>
         <div class="row"><span>🌿 Chill (2)</span><div class="bar"><i class="g" style="width:74%"></i></div><b>74</b></div>
         <div class="row"><span>🏛️ Sights</span><div class="bar"><i class="g" style="width:80%"></i></div><b>80</b></div>
@@ -329,14 +356,16 @@ footer a { color: var(--muted); }
     <span class="eyebrow">FAQ</span>
     <h2>Häufige Fragen</h2>
     <div class="faq">
-      <details><summary>Kostet StayMatch etwas?</summary><p>Nein. Viertel-Finder und Plugin sind kostenlos und Open Source unter MIT-Lizenz.</p></details>
+      <details><summary>Kostet StayMatch etwas?</summary><p>Nein. Plugin und Viertel-Finder sind kostenlos und Open Source unter MIT-Lizenz.</p></details>
       <details><summary>Ist StayMatch von Airbnb?</summary><p>Nein. StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Die Links führen zur normalen Suche, gebucht wird dort wie gewohnt.</p></details>
-      <details><summary>Was passiert mit meinen Daten?</summary><p>Gruppe, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a>.</p></details>
+      <details><summary>Was passiert mit meinen Daten?</summary><p>Wünsche, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" target="_blank" rel="noopener">Datenschutz</a>.</p></details>
       <details><summary>Durchsucht das Plugin Airbnb im Hintergrund?</summary><p>Nein. Es liest nur die Seite, die du selbst geöffnet hast, und schickt keine eigenen Anfragen. Blätterst du weiter, werden die neuen Unterkünfte mitbewertet.</p></details>
       <details><summary>Warum muss ich den Entwicklermodus einschalten?</summary><p>Das Plugin ist noch nicht im Chrome Web Store. Bis dahin lädst du es als entpackte Erweiterung. Den Code kannst du jederzeit auf GitHub ansehen.</p></details>
-      <details><summary>Geht das auch allein oder zu zweit?</summary><p>Ja. Das Plugin braucht den Viertel-Finder nicht: Airbnb-Suche öffnen, Budget pro Nacht und Wünsche im Panel einstellen, fertig. Der Viertel-Finder ist ein Zusatz für Gruppen mit unterschiedlichen Vorlieben.</p></details>
-      <details><summary>Funktioniert StayMatch auf dem Handy?</summary><p>Das Plugin nicht: Browser-Erweiterungen laufen nur in Chrome, Edge und Brave am Computer und nicht in der Airbnb-App. Den Viertel-Finder kannst du auf dem Handy nutzen und den Link mit deiner Gruppe teilen.</p></details>
-      <details><summary>Welche Städte funktionieren?</summary><p>Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt dauert bis zu einer Minute, danach geht es sofort.</p></details>
+      <details><summary>Woher weiß StayMatch, was zu mir passt?</summary><p>Aus dem, was du angibst: Budget, Wünsche an die Unterkunft und, wenn du den Viertel-Finder nutzt, deine Interessen für die Gegend. Dazu kommen die Sterne mit Anzahl der Bewertungen und deine 👍 und 👎. StayMatch zeigt immer, warum eine Unterkunft oben steht.</p></details>
+      <details><summary>Was bedeuten die Zahlen von 0 bis 100?</summary><p>Eine Mischung aus Sternen, Preis, deinen Wünschen und, falls bekannt, dem Viertel. Fehlt eine Angabe, zählt sie nicht mit, statt als 0 zu werten.</p></details>
+      <details><summary>Kann ich auch mit Freunden suchen?</summary><p>Ja. Füg im Viertel-Finder Mitreisende hinzu, dann sucht StayMatch das Viertel, in dem alle zufrieden sind, und prüft, ob genug Betten da sind. Den Link schickst du in den Gruppenchat.</p></details>
+      <details><summary>Funktioniert StayMatch auf dem Handy?</summary><p>Das Plugin nicht: Browser-Erweiterungen laufen nur in Chrome, Edge und Brave am Computer und nicht in der Airbnb-App. Den Viertel-Finder kannst du auf dem Handy nutzen und dir den Link für den Laptop schicken.</p></details>
+      <details><summary>Welche Städte funktionieren?</summary><p>Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt kann bis zu einer Minute dauern. Danach merkt sich dein Browser die Daten einen Tag lang.</p></details>
       <details><summary>Wie genau ist die Empfehlung?</summary><p>Sie ist ein guter Startpunkt, kein Urteil. StayMatch zeigt immer, warum eine Unterkunft oben steht, und warnt bei Punkten wie zu wenigen Betten oder Preis über Budget.</p></details>
     </div>
   </div>
@@ -348,7 +377,7 @@ footer a { color: var(--muted); }
     <p class="intro" style="margin:0 auto 34px">In zwei Minuten weißt du, welche Unterkunft passt.</p>
     <div class="ctas">
       <a class="btn primary" href="staymatch-plugin.zip" download>Plugin herunterladen <span aria-hidden="true">↓</span></a>
-      <a class="btn ghost" href="/app">Mit Gruppe: Viertel finden <span aria-hidden="true">→</span></a>
+      <a class="btn ghost" href="/app">Erst das passende Viertel finden <span aria-hidden="true">→</span></a>
     </div>
   </div>
 </section>

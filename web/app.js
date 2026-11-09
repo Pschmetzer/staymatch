@@ -11,10 +11,19 @@ const CORE_CATS = ['party', 'chill', 'sights', 'food', 'transit'];
 const CITIES = ['Barcelona', 'Lissabon', 'Rom', 'Wien', 'Berlin', 'Paris', 'Madrid', 'Prag', 'Amsterdam', 'Budapest'];
 const TIERS = ['', '€', '€€', '€€€'];
 
-let people = store.get('sm_people', [
-  { name: 'Lena', type: 'party' }, { name: 'Mia', type: 'party' },
-  { name: 'Jonas', type: 'chill' }, { name: 'Sara', type: 'chill' }, { name: 'Tom', type: 'sights' },
-]).map(SM.cleanPerson).filter(Boolean);
+// Standard: eine Person (du). Mitreisende sind optional.
+let people = store.get('sm_people', [{ name: 'Du', type: 'sights' }]).map(SM.cleanPerson).filter(Boolean);
+const solo = () => people.length === 1;
+// Wünsche an die Unterkunft (Schlüssel wie extension/rank.js: WISHES und REVIEW_WISHES)
+const WISH_KEYS = ['whole', 'private', 'trusted', 'reviews', 'quiet', 'clean', 'wifi'];
+const cleanWishes = w => Array.isArray(w) ? WISH_KEYS.filter(k => w.includes(k)) : [];
+let wishes = cleanWishes(store.get('sm_wishes', ['whole']));
+function renderWishes() {
+  document.querySelectorAll('#wishes input[type=checkbox]').forEach(cb => {
+    cb.checked = wishes.includes(cb.value);
+    cb.onchange = () => { wishes = WISH_KEYS.filter(k => document.querySelector(`#wishes input[value="${k}"]`)?.checked); store.set('sm_wishes', wishes); if (lastView) saveTrip(lastData.geo, lastView.byTotal, lastView.ppl); };
+  });
+}
 let fairness = SM.cleanFairness(store.get('sm_fair', 0.6)); // Gewicht der unzufriedensten Person (Rest: Schnitt)
 const openTune = new WeakSet(); // welche Personen haben das Regler-Feld offen
 let sortMode = 'fair', shown = 8;
@@ -77,6 +86,8 @@ syncMin(false);
 
 function renderPeople() {
   $('people').innerHTML = '';
+  $('peopleLabel').textContent = solo() ? 'Was ist dir in der Gegend wichtig?' : `Wer reist mit? (${people.length} Personen)`;
+  $('addPerson').textContent = solo() ? '+ Mitreisende hinzufügen' : '+ Person hinzufügen';
   people.forEach((p, i) => {
     const box = document.createElement('div');
     box.className = 'pbox';
@@ -92,6 +103,7 @@ function renderPeople() {
     row.children[1].onchange = e => { p.type = e.target.value; if (p.type2 === p.type) delete p.type2; delete p.custom; save(); renderPeople(); };
     row.children[2].onclick = () => { openTune.has(p) ? openTune.delete(p) : openTune.add(p); renderPeople(); };
     row.children[3].onclick = () => { offerUndo(`${p.name} entfernt.`); people.splice(i, 1); save(); renderPeople(); };
+    if (solo()) { row.classList.add('solo'); row.children[0].hidden = row.children[3].hidden = true; }
     box.appendChild(row);
     if (openTune.has(p)) box.appendChild(tunePanel(p, i));
     $('people').appendChild(box);
@@ -150,7 +162,7 @@ function updateBudget() {
   const warn = !b.n ? '' : b.total === 0 ? 'Budget 0: In der Airbnb-Suche wird dann kein Preisfilter gesetzt.'
     : b.perPersonNight < 25 ? '⚠ Unter 25 € pro Person und Nacht wird es in den meisten Städten knapp.' : '';
   $('budgetInfo').innerHTML = (b.n
-    ? `${b.n} Nächte · ${Math.round(b.perNight)} € pro Nacht · ${Math.round(b.perPerson)} € pro Person · ${Math.round(b.perPersonNight)} € pro Person und Nacht`
+    ? `${b.n} ${b.n === 1 ? 'Nacht' : 'Nächte'} · ${Math.round(b.perNight)} € pro Nacht${solo() ? '' : ` · ${Math.round(b.perPerson)} € pro Person · ${Math.round(b.perPersonNight)} € pro Person und Nacht`}`
     : 'Zeitraum wählen') + (warn ? `<div class="warn">${warn}</div>` : '') + '<div>Das Budget filtert nur die Airbnb-Suche, die Viertel-Wertung ändert es nicht.</div>';
   $('bedsLabel').textContent = `Mindestens ${Math.max(1, Math.ceil(people.length / 2))} Schlafzimmer in die Airbnb-Suche übernehmen` + (kids + babys ? ` (${kids + babys} Kind${kids + babys > 1 ? 'er' : ''} zählen als Gäste auf Airbnb mit)` : '');
 }
@@ -383,7 +395,7 @@ async function run(pick) {
 }
 $('formToggle').onclick = () => {
   const c = $('formBody').classList.toggle('collapsed');
-  $('formToggle').setAttribute('aria-expanded', String(!c)); $('formToggle').textContent = c ? 'Gruppe und Einstellungen ändern' : 'Einstellungen einklappen';
+  $('formToggle').setAttribute('aria-expanded', String(!c)); $('formToggle').textContent = c ? 'Wünsche und Einstellungen ändern' : 'Einstellungen einklappen';
 };
 // Mehrdeutiger Ortsname („Paris“): Person wählt
 function showChoices(choices) {
@@ -439,7 +451,7 @@ function compute() {
       : 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis, weniger strenge Entfernung zum Zentrum oder einen anderen Ortsnamen.';
     return;
   }
-  $('status').textContent = `${okAreas.length} Viertel und ${pois.length} Orte ausgewertet.${vetoNote} Die besten für eure Gruppe:`;
+  $('status').textContent = `${okAreas.length} Viertel und ${pois.length} Orte ausgewertet.${vetoNote} Die besten ${solo() ? 'für dich' : 'für eure Gruppe'}:`;
   $('intro').hidden = true;
   if (/Chrome\//.test(navigator.userAgent) && !/Edg|OPR|Mobile|Android/.test(navigator.userAgent)) $('extHint').hidden = false;
   saveTrip(geo, byTotal, ppl);
@@ -700,7 +712,7 @@ const b64 = {
 function shareState() {
   const f = formState();
   return { c: f.c, i: f.i, o: f.o, b: f.b, bm: f.bm, r: f.r, mc: f.mc, k: f.k, y: f.y, bd: f.bd, f: Math.round(fairness * 100),
-    p: people.map(p => [p.name, p.type, p.custom ? Object.keys(SM.CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]) };
+    p: people.map(p => [p.name, p.type, p.custom ? Object.keys(SM.CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: wishes };
 }
 function applyShared(h) {
   try {
@@ -715,6 +727,7 @@ function applyShared(h) {
       veto: v || undefined,
     })).filter(Boolean);
     if (!people.length) return false;
+    if (Array.isArray(s.w)) { wishes = cleanWishes(s.w); store.set('sm_wishes', wishes); renderWishes(); } // alte Links ohne Wünsche bleiben gültig
     if (s.f != null) { fairness = SM.cleanFairness(+s.f / 100); store.set('sm_fair', fairness); updateFair(); }
     applyForm({ c: str(s.c, 80), i: day(s.i), o: day(s.o), b: Math.max(0, Math.min(1e6, +s.b || 0)), bm: s.bm, r: s.r, mc: s.mc, k: s.k, y: s.y, bd: s.bd });
     syncMin(false);
@@ -724,7 +737,7 @@ function applyShared(h) {
 }
 $('share').onclick = async () => {
   const url = location.origin + location.pathname + '#t=' + b64.enc(shareState());
-  try { await navigator.clipboard.writeText(url); $('shareMsg').textContent = '✅ Link kopiert. Schick ihn in den Gruppenchat.'; }
+  try { await navigator.clipboard.writeText(url); $('shareMsg').textContent = solo() ? '✅ Link kopiert. Damit öffnest du deine Suche auch auf einem anderen Gerät.' : '✅ Link kopiert. Schick ihn in den Gruppenchat.'; }
   catch { $('shareMsg').textContent = 'Kopieren nicht möglich. Kopiere den Link aus der Adresszeile.'; }
   history.replaceState(null, '', url);
 };
@@ -733,7 +746,7 @@ $('city').addEventListener('input', () => {
   $('choices').hidden = true; saveForm();
   const stale = lastData && normCity($('city').value) !== lastData.q;
   $('stale').hidden = !stale;
-  if (stale) $('stale').textContent = `Die Ergebnisse unten gehören zu „${lastData.geo.name}“. Mit „Beste Viertel finden“ suchst du die neue Stadt.`;
+  if (stale) $('stale').textContent = `Die Ergebnisse unten gehören zu „${lastData.geo.name}“. Mit „Passende Viertel finden“ suchst du die neue Stadt.`;
 });
 if (location.hash.startsWith('#t=')) {
   if (applyShared(location.hash.slice(3))) {
@@ -747,7 +760,7 @@ function saveTrip(geo, areas, ppl) {
   const b = budgetNums();
   const trip = {
     savedAt: Date.now(), city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value,
-    nights: b.n, budget: b.total, people: ppl.map(p => ({ name: p.name, type: p.type })),
+    nights: b.n, budget: b.total, people: ppl.map(p => ({ name: p.name, type: p.type })), wishes,
     areas: areas.map(a => {
       const j = a.group.scores.indexOf(a.group.min);
       return { name: a.name, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: ppl[j]?.name || null };
@@ -762,6 +775,7 @@ function saveTrip(geo, areas, ppl) {
 }
 // Hinweis, ob das Plugin installiert ist (setzt bridge.js)
 setTimeout(() => {
-  if (document.documentElement.dataset.staymatchExtension) { $('extHint').hidden = false; $('extHint').textContent = '✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 für euch.'; }
+  if (document.documentElement.dataset.staymatchExtension) { $('extHint').hidden = false; $('extHint').textContent = `✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 ${solo() ? 'für dich' : 'für euch'}.`; }
 }, 800);
+renderWishes();
 renderPeople();

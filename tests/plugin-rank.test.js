@@ -74,3 +74,9 @@ test('Direkt-Modus: Budget pro Nacht wirkt auch ohne Reisedaten, Hotelzimmer ist
   assert.equal(R.WISHES.whole.check({ kind: 'Unterkunft' }), null);
   assert.equal(R.WISHES.whole.check({ kind: 'Loft in Gràcia' }), true);
 });
+
+test('Wunsch „ganze Unterkunft“: Schlafzimmer im Titel ist kein Zimmer-Angebot', () => {
+  assert.equal(R.WISHES.whole.check({ kind: 'Wohnung', title: '2 Schlafzimmer in Gràcia' }), true);
+  assert.equal(R.WISHES.whole.check({ kind: 'Apartment', title: '1 bedroom in Soho' }), true);
+  assert.equal(R.WISHES.whole.check({ kind: '', title: 'Zimmer in Berlin' }), false);
+});

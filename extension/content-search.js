@@ -34,6 +34,11 @@
     const nights = sp.nights || trip?.nights || null;
     // Direkt-Modus: ohne Viertel-Finder gelten Budget pro Nacht und Wünsche aus dem Panel
     quick = { budgetNight: null, wishes: [], ...((await chrome.storage.local.get('quick')).quick || {}) };
+    // Wünsche aus dem Viertel-Finder übernehmen, sobald dort neu gesucht wurde (danach gelten die Chips im Panel)
+    if (Array.isArray(savedTrip?.wishes) && savedTrip.savedAt > (quick.tripAt || 0)) {
+      quick = { ...quick, wishes: savedTrip.wishes.filter(k => R.WISHES[k] || R.REVIEW_WISHES[k]), tripAt: savedTrip.savedAt };
+      chrome.storage.local.set({ quick });
+    }
     const ctx = { people, nights, budget: trip?.budget || null, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked, wishes: quick.wishes };
     const ranked = R.rankListings(listings, ctx);
 
@@ -68,7 +73,11 @@
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Deine Wünsche' }, Object.entries(R.WISHES).map(([k, w]) => h('button', {
         class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
         onclick: () => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] }),
-      }, w.label))),
+      }, w.label)), Object.entries(R.REVIEW_WISHES).map(([k, w]) => h('button', {
+        class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
+        title: 'Prüft StayMatch auf der Unterkunftsseite anhand der Bewertungen',
+        onclick: () => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] }),
+      }, `${{ quiet: '🤫', clean: '🧽', wifi: '📶' }[k]} ${w[0]}`))),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter' }, FILTERS.map(([k, label]) => h('button', {
         class: filters[k] ? 'on' : '', 'aria-pressed': String(!!filters[k]),
         ...(k === 'budget' && !budgetKnown ? { disabled: '', title: 'Kein Budget bekannt. Oben ein Budget pro Nacht eintragen.', style: 'opacity:.5;cursor:not-allowed' } : {}),

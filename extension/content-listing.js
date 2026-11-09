@@ -70,11 +70,14 @@
     const item = await saveListing(id, { ...clean, priceHistory: priceHistory.slice(-30), visits: (old?.visits || 0) + (recent ? 0 : 1) });
     const trip = await getTrip();
     const area = trip?.areas?.length ? R.areaFor(item, trip.areas) : null;
-    roomPanel(item, area);
+    const quick = (await chrome.storage.local.get('quick')).quick || {};
+    const ctx = { solo: !trip || trip.people?.length === 1, wishes: quick.wishes || trip?.wishes || [] };
+    roomPanel(item, area, ctx);
   }
 
-  function roomPanel(item, area) {
-    const vote = v => async () => roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v }), area); // 2. Klick hebt auf
+  function roomPanel(item, area, ctx = {}) {
+    const vote = v => async () => roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v }), area, ctx); // 2. Klick hebt auf
+    const conflicts = R.reviewConflicts(item.hints, ctx.wishes);
     const note = h('textarea', { placeholder: 'Notiz: was gefällt / stört?', 'aria-label': 'Notiz' });
     note.value = item.note || ''; // value statt innerHTML → kein Code-Einschleusen
     note.oninput = () => { clearTimeout(roomTimer); roomTimer = setTimeout(() => saveListing(item.id, { note: note.value }), 400); };
@@ -82,7 +85,8 @@
     const change = ph.length > 1 ? Math.round((ph.at(-1).p / ph[0].p - 1) * 100) : 0;
     panel('sm-room', item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier', [
       h('div', {}, item.rating ? `⭐ ${item.rating}${item.reviewCount ? ` (${item.reviewCount})` : ''}` : 'Noch keine Sterne gefunden'),
-      area ? h('div', {}, `Viertel ${area.name}: ${area.total}/100 für eure Gruppe`) : null,
+      area ? h('div', {}, `Viertel ${area.name}: ${area.total}/100 ${ctx.solo ? 'für dich' : 'für eure Gruppe'}`) : null,
+      ...conflicts.map(c => h('div', { class: 'warn' }, '⚠️ ' + c)),
       item.hints?.length ? h('div', { class: 'muted' }, 'Aus den Bewertungen: ' + item.hints.join(' · ')) : null,
       change ? h('div', { class: 'muted' }, `Preis seit dem ersten Besuch ${change > 0 ? '+' : ''}${change} %`) : null,
       h('div', { class: 'row' },

@@ -72,7 +72,7 @@
     .item { border-top: 1px solid var(--line); padding: 8px 0; }
     .item a { color: var(--fg); font-weight: 600; text-decoration: none; }
     .score { float: right; font-weight: 700; font-size: 16px; }
-    ul { margin: 4px 0 0; padding-left: 16px; } li.warn { color: var(--warn); }
+    ul { margin: 4px 0 0; padding-left: 16px; } li.warn, div.warn { color: var(--warn); }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; } .chips button { font-size: 12px; padding: 3px 8px; }
     textarea { width: 100%; box-sizing: border-box; height: 52px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; font: 12px system-ui; background: var(--bg); color: var(--fg); }
     .row { display: flex; gap: 6px; margin: 6px 0; } .row button { flex: 1; }
