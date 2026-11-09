@@ -1,4 +1,4 @@
-// StayMatch Viertel-Finder – Reise per Link teilen (alles steht im Teil nach #, wird nie an einen Server geschickt) ----
+// StayMatch Viertel-Finder – Reise per Link teilen (alles steht im Teil nach #, wird nie an einen Server geschickt)
 const b64 = {
   enc: o => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
   dec: s => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)))),

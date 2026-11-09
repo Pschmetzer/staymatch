@@ -14,8 +14,13 @@
     }
     const loc = norm(listing.locality);
     if (loc) {
-      const hit = areas.find(a => norm(a.name) === loc) || areas.find(a => loc.includes(norm(a.name)) || norm(a.name).includes(loc));
-      if (hit) return { ...hit, dist: null };
+      const exact = areas.filter(a => norm(a.name) === loc);
+      const hits = exact.length ? exact : areas.filter(a => { const n = norm(a.name); return n && (loc.includes(n) || n.includes(loc)); });
+      if (hits.length === 1) return { ...hits[0], dist: null };
+      if (hits.length > 1) { // mehrere Teil-Viertel: Mittelwert statt bestes, als "ungefähr" markiert
+        const avg = k => Math.round(hits.reduce((s, a) => s + a[k], 0) / hits.length);
+        return { name: listing.locality, lat: hits[0].lat, lon: hits[0].lon, total: avg('total'), min: avg('min'), minName: null, approx: true, dist: null };
+      }
     }
     return null;
   }
@@ -78,7 +83,8 @@
     if (ctx.disliked?.has(l.id)) score = Math.min(score, 20);
 
     const why = [], warn = [];
-    if (area) why.push(`Viertel ${area.name}: ${area.total}/100 für die Gruppe`);
+    if (area) why.push(`Viertel ${area.name}: ${area.total}/100 für die Gruppe${area.approx ? ' (ungefähr)' : ''}`);
+    if (area?.approx) warn.push('Viertel nur ungefähr bestimmt (mehrere Teil-Viertel)');
     if (area?.minName && area.min < 40) warn.push(`${area.minName} wäre dort eher unzufrieden (${area.min})`);
     if (l.rating != null) (parts.rating >= 0.7 ? why : parts.rating < 0.35 ? warn : why).push(`⭐ ${String(l.rating).replace('.', ',')} bei ${l.reviewCount || 0} Bewertungen`);
     else warn.push('noch keine Bewertungen');

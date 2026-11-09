@@ -90,7 +90,12 @@ $('file').onchange = async e => {
     const src = j.listings || j;
     const entries = Object.values(src).filter(v => v && v.id && /^\d+$/.test(String(v.id)));
     await chrome.storage.local.set(Object.fromEntries(entries.map(v => ['l:' + v.id, v])));
-    load();
+    chrome.storage.local.get('settings').then(r => { $('optBadges').checked = (r.settings || {}).showBadges !== false; });
+$('optBadges').onchange = async e => {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  await chrome.storage.local.set({ settings: { ...settings, showBadges: e.target.checked } });
+};
+load();
   } catch { alert('Datei konnte nicht gelesen werden.'); }
 };
 $('wipe').onclick = async () => {

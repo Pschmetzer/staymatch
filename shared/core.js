@@ -18,6 +18,8 @@
     chill: { label: '🌿 Chill', w: { party: -0.5, chill: 1, sights: 0.2, food: 0.5, transit: 0.2 } },
     sights: { label: '🏛️ Sightseeing', w: { party: 0.1, chill: 0.2, sights: 1, food: 0.4, transit: 0.7 } },
     foodie: { label: '🍝 Foodie', w: { party: 0.2, chill: 0.2, sights: 0.2, food: 1, transit: 0.3 } },
+    family: { label: '👨‍👩‍👧 Familie', w: { party: -0.8, chill: 1, sights: 0.6, food: 0.6, transit: 0.5 } },
+    nature: { label: '🌲 Natur', w: { party: -0.3, chill: 1, sights: 0.4, food: 0.3, transit: 0.2 } },
   };
 
   // Radien in Metern
@@ -29,7 +31,7 @@
   const BBOX_HALF = 0.075; // Große Städte auf ca. 16 × 16 km um das Zentrum begrenzen (Overpass-Last)
   const VISIT_WINDOW_MS = 30 * 60 * 1000; // Reload innerhalb von 30 Min. ≠ neuer Besuch
 
-  const APP_URL = 'https://staymatch-tau.vercel.app/app.html';
+  const APP_URL = 'https://staymatch-tau.vercel.app/app';
   // Muss zu extension/manifest.json passen (Test prüft das)
   const AIRBNB_DOMAINS = ['airbnb.de', 'airbnb.com', 'airbnb.at', 'airbnb.ch', 'airbnb.co.uk', 'airbnb.fr', 'airbnb.es', 'airbnb.it', 'airbnb.nl', 'airbnb.pt',
     'airbnb.pl', 'airbnb.be', 'airbnb.dk', 'airbnb.se', 'airbnb.no', 'airbnb.fi', 'airbnb.ie', 'airbnb.gr', 'airbnb.cz', 'airbnb.com.au', 'airbnb.ca',
@@ -50,10 +52,11 @@
     return 2 * R * Math.asin(Math.sqrt(x));
   }
 
-  // Textvergleich: klein, ohne Akzente, nur Buchstaben/Ziffern (Viertel-Namen, Orte)
-  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  // Viertel-/Ortsnamen vergleichen (Plugin): Akzente, Satzzeichen und Artikel weg: "l'Eixample" = "Eixample", "Vila de Gràcia" = "Gracia"
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+    .replace(/^(vila de|barri de|el barri de|el|la|les|els|l|los|las|le|il|lo|der|die|das)\s+/, '');
   // Stadtname für den Index der vorab geladenen Städte: klein, ohne Akzente, Satzzeichen bleiben
-  const normCity = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  const normCity = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
   function overpassFilter(type, key, values) {
     return values.length === 1 ? `${type}["${key}"="${values[0]}"]` : `${type}["${key}"~"^(${values.join('|')})$"]`;

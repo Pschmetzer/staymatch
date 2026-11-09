@@ -40,6 +40,7 @@ function renderPeople() {
 }
 function save() {
   store.set('sm_people', people);
+  rescore();
   // Änderungen gelten ab jetzt: alten Teilen-Link aus der Adresszeile nehmen, sonst überschreibt ein Neuladen die Eingaben
   if (location.hash.startsWith('#t=')) history.replaceState(null, '', location.pathname + location.search);
 }
@@ -56,7 +57,8 @@ function updateBudget() {
     ? `${b.n} Nächte · ${Math.round(b.perNight)} € pro Nacht · ${Math.round(b.perPerson)} € pro Person`
     : 'Zeitraum wählen';
 }
-['checkin', 'checkout', 'budget'].forEach(id => $(id).addEventListener('input', updateBudget));
+['checkin', 'checkout', 'budget'].forEach(id => $(id).addEventListener('input', () => { updateBudget(); rescore(); }));
+$('radius').addEventListener('change', () => rescore());
 $('addPerson').onclick = () => { people.push({ name: `Person ${people.length + 1}`, type: 'chill' }); save(); renderPeople(); };
 $('example').onclick = () => {
   people = [{ name: 'Party 1', type: 'party' }, { name: 'Party 2', type: 'party' }, { name: 'Chill 1', type: 'chill' }, { name: 'Chill 2', type: 'chill' }, { name: 'Sights', type: 'sights' }];
