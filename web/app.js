@@ -611,6 +611,7 @@ function buildMapBar(ppl) {
   const sel = $('mapWho'), keep = sel.value;
   sel.innerHTML = `<option value="g">Gruppe</option>` + ppl.map((p, i) => `<option value="${i}">${escapeHtml(p.name)}</option>`).join('');
   if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+  $('mapWhoWrap').hidden = ppl.length < 2; // allein: Auswahl ist sinnlos
   if (!$('poiToggles').children.length) {
     $('poiToggles').innerHTML = Object.entries(SM.CATEGORIES).map(([k, c]) => `<label><input type="checkbox" data-poi="${k}"> <i class="dot" style="background:${POI_COLORS[k]}"></i>${c.label}</label>`).join('');
     $('poiToggles').onchange = () => lastView && renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois);
