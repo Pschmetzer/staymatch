@@ -57,7 +57,7 @@ function render() {
   $('profile').replaceChildren(...profile(items));
   $('trip').replaceChildren(trip
     ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} ${trip.people?.length === 1 ? 'Person' : 'Personen'} · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
-    : 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Für Gruppen: erst den Viertel-Finder nutzen.');
+    : 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Optional findet der Viertel-Finder vorher das passende Viertel, auch für Gruppen.');
   let rows;
   if (tab === 'top') {
     rows = lastSearch?.top?.length
@@ -103,11 +103,12 @@ async function setSetting(patch) {
 }
 $('optBadges').onchange = e => setSetting({ showBadges: e.target.checked });
 $('optTheme').onchange = e => setSetting({ theme: e.target.value });
-// Merkliste (👍) als Text für den Gruppenchat
+// Merkliste (👍) als Text zum Teilen (Preis pro Person nur, wenn mehrere reisen)
 $('share').onclick = async () => {
   const liked = Object.values(listings).filter(i => i.vote === 1).sort((a, b) => (b.rating || 0) - (a.rating || 0));
   if (!liked.length) { $('share').textContent = 'Erst 👍 vergeben'; return; }
-  const text = window.StayMatchRank.shareText(liked.map(i => ({ ...i, stay: null, ppnPerson: trip?.people?.length && i.pricePerNight ? Math.round(i.pricePerNight / trip.people.length) : null })), { title: 'Unsere Merkliste (StayMatch)' });
+  const n = trip?.people?.length || 0;
+  const text = window.StayMatchRank.shareText(liked.map(i => ({ ...i, stay: null, ppnPerson: n > 1 && i.pricePerNight ? Math.round(i.pricePerNight / n) : null })), { title: n > 1 ? 'Unsere Merkliste (StayMatch)' : 'Meine Merkliste (StayMatch)' });
   try { await navigator.clipboard.writeText(text); $('share').textContent = 'Kopiert ✓'; } catch { $('share').textContent = 'Nicht möglich'; }
   setTimeout(() => { $('share').textContent = 'Merkliste kopieren'; }, 2500);
 };

@@ -5,6 +5,7 @@ Stand: 09.11.2026 (Webfassung: https://staymatch-tau.vercel.app/datenschutz). St
 ## Plugin (Chrome-Erweiterung)
 - Liest nur Airbnb-Seiten, die du selbst öffnest. Es stellt keine eigenen Anfragen an Airbnb und fängt keine Netzwerkdaten ab.
 - Gespeichert wird lokal in `chrome.storage.local`: angesehene Unterkünfte (Titel, Preis, Bewertung, Lage, Bild-Adresse), deine 👍/👎, Notizen, Preisverlauf und die Reise (Personen, Wünsche, Budget, bewertete Viertel).
+- Das Plugin sammelt die Suchseiten, die du nacheinander selbst öffnest, bis zu 2 Stunden lokal in `chrome.storage.local`, damit alle gemeinsam bewertet werden. Es lädt keine Seite von selbst nach. In die Zwischenablage schreibt es nur, wenn du auf „Kopieren“ klickst. „Fehler melden“ öffnet ein GitHub-Formular mit Versionsnummer und Zählwerten (keine Adresse, keine Seiteninhalte); gesendet wird erst, wenn du es dort selbst abschickst.
 - Nichts davon wird an uns oder Dritte gesendet. Löschen: Popup → „Alles löschen“, oder die Erweiterung entfernen.
 - Speicherdauer: Die Daten bleiben, bis du sie löschst. Eine automatische Löschung (z. B. nach 12 Monaten) gibt es noch nicht.
 - Berechtigungen: `storage` (lokaler Speicher) und Zugriff auf Airbnb-Seiten (zum Lesen der geöffneten Seite) sowie auf die StayMatch-Website (um die Reise zu übernehmen).

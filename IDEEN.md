@@ -1060,4 +1060,4 @@ Stand: 09.11.2026. Alles nur in `extension/` und `tests/`. Die Erweiterung wurde
 862. 🟠 Gesammelte Preise anderer Seiten können veraltet sein (Airbnb ändert Preise). Zeitstempel je Unterkunft anzeigen und alte Einträge kennzeichnen. (S)
 863. ✅ 🟠 CI: `npm ci --prefix tests` vor `node --test`, sonst werden die DOM-Tests übersprungen (Datei `.github/workflows/ci.yml`, nicht Teil dieser Runde). (S)
 864. 🟠 Die Tests prüfen nur selbst gebaute Seiten. Eine Stichprobe mit einer echten, selbst gespeicherten Airbnb-Seite (nicht ins Repo) steht aus (siehe #212, #396). (M)
-865. 🟠 PRIVACY.md und STORE.md um Zwischenablage (nur auf Klick), Sammlung der Suchseiten (lokal, 2 h) und GitHub-Link „Fehler melden“ ergänzen. (S)
+865. ✅ 🟠 PRIVACY.md (und datenschutz.html) um Zwischenablage (nur auf Klick), Sammlung der Suchseiten (lokal, 2 h) und GitHub-Link „Fehler melden“ ergänzen. (S)

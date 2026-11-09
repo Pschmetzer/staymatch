@@ -226,3 +226,26 @@ test('Eine Person: „Top 3 für dich“, kein Preis pro Person, Wünsche aus de
   assert.deepEqual(chrome.data.quick.wishes, ['trusted'], 'Wünsche übernommen');
   assert.match(box.textContent, /✓ Superhost oder Gäste-Favorit|Wunsch nicht erfüllt: kein Superhost/, 'Wunsch fließt ins Ranking');
 });
+
+test('Popup, eine Person: „Meine Merkliste“ ohne Preis pro Person', { skip }, async () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const chrome = chromeMock({ settings: { showBadges: true }, trip: { ...TRIP, people: [{ name: 'Du', type: 'sights' }] }, 'l:1': { id: '1', title: 'Loft', vote: 1, rating: 4.8, pricePerNight: 200, url: 'https://www.airbnb.de/rooms/1', locality: 'Gràcia', note: 'Balkon' }, 'l:2': { id: '2', title: 'Nein', vote: -1 } });
+  const dom = new D.JSDOM(fs.readFileSync(path.join(D.EXT, 'popup.html'), 'utf8').replace(/<script[^>]*><\/script>/g, ''), { runScripts: 'outside-only', url: 'chrome-extension://x/popup.html' });
+  const w = dom.window; w.chrome = chrome; D.track(w);
+  let copied = null;
+  Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { copied = t; } }, configurable: true });
+  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('popup.js'));
+  await until(() => w.document.getElementById('optTheme').value === 'auto' && w.document.getElementById('list').children.length);
+  const theme = w.document.getElementById('optTheme'); theme.value = 'dark'; theme.dispatchEvent(new w.Event('change'));
+  await until(() => chrome.data.settings.theme === 'dark');
+  assert.equal(chrome.data.settings.theme, 'dark');
+  assert.equal(chrome.data.settings.showBadges, true, 'andere Einstellungen bleiben');
+  const cb = w.document.getElementById('optBadges'); cb.checked = false; cb.dispatchEvent(new w.Event('change'));
+  await until(() => chrome.data.settings.showBadges === false);
+  assert.equal(chrome.data.settings.showBadges, false);
+  assert.equal(chrome.data.settings.theme, 'dark');
+  w.document.getElementById('share').click();
+  await until(() => copied);
+  assert.match(copied, /^Meine Merkliste \(StayMatch\)\n\n1\. Loft – Gràcia · ⭐ 4,8\n {3}Notiz: Balkon\n {3}https:\/\/www\.airbnb\.de\/rooms\/1$/);
+  assert.ok(!copied.includes('Nein'), '👎 nicht in der Merkliste');
+});
