@@ -15,7 +15,7 @@
 - Karte mit den Top-Vierteln und Highlights in der Nähe.
 
 ### 2. Chrome-Erweiterung (`extension/`)
-- **Suchseite:** bewertet alle Unterkünfte der geöffneten Suchseite für die Gruppe und zeigt die Top 3 mit Begründung. Gruppe, Budget und Viertel-Werte kommen aus dem Viertel-Finder (`bridge.js`).
+- **Suchseite:** bewertet alle Unterkünfte der geöffneten Suchseite für die Gruppe und zeigt die Top 3 mit Begründung. Gruppe, Budget und Viertel-Werte kommen aus dem Viertel-Finder: `bridge.js` liest sie von der StayMatch-Seite und legt sie im Plugin-Speicher ab (kein `externally_connectable`).
 - Liest nur Unterkunftsseiten, die du selbst öffnest. Es gibt kein Scraping und keinen Server.
 - **Verlauf:** wo du schon warst, wie oft, wann.
 - **Gefällt mir / Nein** plus Notiz pro Unterkunft.
@@ -37,6 +37,8 @@
 - Airbnb hat **keine öffentliche API**. Server-Scraping verstößt gegen die Nutzungsbedingungen und wird gesperrt. Deshalb sucht die App Viertel, und die Unterkünfte siehst du auf der Airbnb-Seite selbst.
 - Die Suchlink-Parameter (`checkin`, `checkout`, `adults`, `price_max`, Kartenbereich) sind nicht offiziell dokumentiert und können sich ändern. Ob `price_max` pro Nacht oder gesamt gilt, ist nicht bestätigt.
 - Die Seitenstruktur von Airbnb ändert sich oft. Die Erweiterung nutzt deshalb zuerst die URL und strukturierte Daten (JSON-LD) und lässt fehlende Felder weg.
+- Das Plugin bewertet je Suchseite. Ein Sammeln über mehrere Seiten gibt es noch nicht, die Top 3 gelten für die geöffnete Seite. Es läuft nur in Chrome-Browsern am Computer, nicht auf dem Handy.
+- Das Geschmacksprofil fließt nur mit kleinem Gewicht (5 %) in die Plugin-Wertung ein.
 - Die öffentlichen OpenStreetMap-Server (Overpass) sind manchmal langsam (bis ca. 1 Minute). Ergebnisse werden einen Tag im Browser zwischengespeichert.
 
 ## Ideen von bestehenden Tools
@@ -46,9 +48,9 @@
 - **Lücke im Markt:** Bisher vergleicht kein Tool Stadtviertel für Gruppen. Genau das ist der Kern von StayMatch.
 
 ## Roadmap
-1. **Gruppen-Link:** Jeder füllt seine Vorlieben selbst aus, statt dass einer für alle wählt (geteilte Daten, kein Login).
-2. **Live-Voting:** Die Gruppe stimmt über Top-Viertel und gemerkte Unterkünfte ab.
-3. **Viertel-Overlay in der Erweiterung:** Auf der Unterkunftsseite steht direkt der Gruppen-Score des Viertels.
+1. ~~Teilen-Link~~ **umgesetzt:** Gruppe, Reise und Budget stecken im Teil nach `#` der Adresse (kodiert, nicht verschlüsselt, kein Login). **Offen:** Jede Person füllt ihre Vorlieben selbst aus, statt dass einer für alle wählt.
+2. **Live-Voting (offen):** Die Gruppe stimmt über Top-Viertel und gemerkte Unterkünfte ab.
+3. **Viertel-Overlay in der Erweiterung:** Auf der Unterkunftsseite steht der Gruppen-Score des Viertels und der Verlauf (`sm-room`-Panel). Offen: Qualität auf echten Seiten prüfen.
 4. **Feinere Typen:** eigene Gewichte pro Person (Schieberegler), Aktivitäten wie Surfen, Karaoke, Shopping, Wandern.
 5. **Weitere Portale:** Booking.com, Vrbo.
 6. **Konto und Sync:** Verlauf über mehrere Geräte.

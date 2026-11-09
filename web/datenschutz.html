@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datenschutz · StayMatch</title>
+<meta name="description" content="Was StayMatch speichert, was das Plugin liest und welche Dienste der Viertel-Finder anfragt.">
+<link rel="canonical" href="https://staymatch-tau.vercel.app/datenschutz">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/legal.css">
+</head><body><main>
+<a class="back" href="/">← StayMatch</a>
+<h1>Datenschutz bei StayMatch</h1>
+<p class="stand">Stand: 09.11.2026 · Dieselbe Fassung liegt als <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> im Repository.</p>
+<p>StayMatch hat kein Konto, keinen eigenen Server mit Datenbank und kein Tracking.</p>
+
+<h2>Plugin (Chrome-Erweiterung)</h2>
+<ul>
+<li>Liest nur Airbnb-Seiten, die du selbst öffnest. Es stellt keine eigenen Anfragen an Airbnb und fängt keine Netzwerkdaten ab.</li>
+<li>Gespeichert wird lokal in <code>chrome.storage.local</code>: angesehene Unterkünfte (Titel, Preis, Bewertung, Lage, Bild-Adresse), deine 👍/👎, Notizen, Preisverlauf und die Reise (Gruppe, Budget, bewertete Viertel).</li>
+<li>Nichts davon wird an uns oder Dritte gesendet. Löschen: Popup → „Alles löschen“, oder die Erweiterung entfernen.</li>
+<li>Speicherdauer: Die Daten bleiben, bis du sie löschst. Eine automatische Löschung gibt es noch nicht.</li>
+<li>Berechtigungen: <code>storage</code> (lokaler Speicher), Zugriff auf Airbnb-Seiten (zum Lesen der geöffneten Seite) und auf die StayMatch-Website (um die Reise zu übernehmen).</li>
+</ul>
+
+<h2>Viertel-Finder (Website)</h2>
+<ul>
+<li>Gruppe, Reisedaten und Budget bleiben im Browser (<code>localStorage</code>) und in einem Teilen-Link, den du selbst erzeugst. Der Teil nach <code>#</code> wird von Browsern nicht an Server gesendet. Der Link ist nur kodiert, nicht verschlüsselt: Wer ihn hat, kann die Namen und Angaben lesen. Teile ihn nur mit Leuten, die ihn sehen sollen.</li>
+<li>Der eingegebene Ortsname und deine IP-Adresse gehen an
+  <ul>
+  <li>Nominatim (OpenStreetMap Foundation) für die Ortssuche,</li>
+  <li>einen der Overpass-Server (<code>overpass-api.de</code>, <code>overpass.kumi.systems</code>, <code>overpass.private.coffee</code>) für die Orte,</li>
+  <li>die OpenStreetMap-Kartenkacheln (<code>tile.openstreetmap.org</code>) für die Karte. Die Kacheln werden <b>immer</b> von dort geladen.</li>
+  </ul>
+  Deren Datenschutzhinweise gelten dort.</li>
+<li>Optional (noch nicht aktiv): Städte können vorab geladen werden. Für sie entfallen Nominatim und Overpass, die Kartenkacheln bleiben.</li>
+<li>Schrift (Inter) und Karten-Bibliothek (Leaflet) werden von der eigenen Seite geladen, nicht von Google oder unpkg.</li>
+<li>Hosting: Vercel. Dabei fallen die üblichen Server-Protokolle an (IP-Adresse, Zeitpunkt, abgerufene Datei).</li>
+</ul>
+
+<h2>Cookies und Browser-Speicher</h2>
+<p>Keine Cookies. <code>localStorage</code> speichert Gruppe, Reise, Design (hell/dunkel) und Zwischenspeicher der Stadtdaten (24 Stunden), <code>sessionStorage</code> hält Stadtdaten für die Dauer des Tabs, wenn der dauerhafte Speicher voll ist. Beides dient nur den eigenen Funktionen und wird nicht gesendet. Darum braucht die Seite kein Cookie-Banner. Löschen: Websitedaten im Browser entfernen.</p>
+
+<h2>Kontakt</h2>
+<p>Fragen oder Löschwünsche: <a href="https://github.com/Pschmetzer/staymatch/issues" rel="noopener">Issue im Repository</a>. Bitte keine persönlichen Daten in öffentliche Issues schreiben.</p>
+<div class="todo" role="note"><b>TODO Nutzer:</b> Eine E-Mail-Adresse für Datenschutzfragen und die Angabe der verantwortlichen Stelle eintragen. Beides fehlt absichtlich, siehe <a href="/impressum">Impressum</a>.</div>
+
+<p>StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden.</p>
+<footer><a href="/impressum">Impressum</a> · <a href="/">Startseite</a></footer>
+</main></body></html>

@@ -7,14 +7,14 @@ Findet das Stadtviertel, in dem eine ganze Reisegruppe zufrieden ist (z. B. 2× 
 ## So funktioniert's
 1. Im Viertel-Finder Stadt, Zeitraum, Budget und Gruppe eingeben → beste Viertel.
 2. „Unterkünfte hier ansehen“ öffnet die Suche mit Datum, Personenzahl, Preisgrenze und Kartenausschnitt.
-3. Das Plugin bewertet alle Unterkünfte auf dieser Seite (Viertel-Wert für die Gruppe, Sterne mit Bayes-Mittel, Gesamtpreis vs. Budget, Betten) und zeigt die **Top 3 mit Begründung**. Jede Karte bekommt einen Punktwert. Blättern bewertet neue Unterkünfte mit.
+3. Das Plugin bewertet alle Unterkünfte auf dieser Seite (Viertel-Wert für die Gruppe, Sterne mit Bayes-Mittel, Gesamtpreis vs. Budget, Betten) und zeigt die **Top 3 mit Begründung**. Jede Karte bekommt einen Punktwert. Beim Blättern wird jede neue Seite für sich bewertet; die Top 3 gelten je Seite (Sammeln über mehrere Seiten folgt). Das Plugin gibt es nur für Chrome-Browser am Computer, der Viertel-Finder läuft auch auf dem Handy.
 
 ## Web-App (`web/`)
 Statisch, ohne Backend und ohne API-Keys.
 ```bash
 python3 -m http.server 8765 -d web
 ```
-Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app.html (Viertel-Finder).
+Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app.html (Viertel-Finder). Seiten für Recht: `impressum.html` (Platzhalter, `TODO Nutzer`) und `datenschutz.html`. Hero-Bild oder -Video: siehe [LUMINA-PROMPTS.md](LUMINA-PROMPTS.md).
 
 ## Chrome-Erweiterung (`extension/`)
 Download als ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (wird beim Deploy gebaut, lokal mit `./scripts/build-plugin-zip.sh`).
@@ -37,4 +37,4 @@ node --test tests/*.test.js          # Tests
 ./scripts/deploy.sh         # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
 node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/)
 ```
-Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md)
+Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md) · Sicherheit: [SECURITY.md](SECURITY.md)
