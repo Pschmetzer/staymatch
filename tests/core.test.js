@@ -59,21 +59,22 @@ test('Neue Typen existieren und haben alle Kategorien', () => {
   }
 });
 
-// Eingefroren: die Abfrage, die vor dem Umbau in web/app.js und scripts/prefetch-cities.mjs von Hand stand
-test('Overpass-Abfrage aus CATEGORIES ist gleich der alten Handabfrage', () => {
+// Eingefroren: so sieht die Abfrage aus (bei neuen Kategorien bewusst anpassen, dann Städte neu vorladen)
+test('Overpass-Abfrage aus CATEGORIES ist gleich der eingefrorenen Abfrage', () => {
   const b = '41.3170,2.0770,41.4580,2.2280';
-  const old = `[out:csv(::lat,::lon,place,name,amenity,leisure,tourism,historic,natural,railway,public_transport,wikidata;true;"|")][timeout:90];(
+  const old = `[out:csv(::lat,::lon,place,name,amenity,leisure,tourism,historic,natural,railway,public_transport,shop,wikidata;true;"|")][timeout:90];(
     nwr["place"~"^(suburb|neighbourhood|quarter)$"](${b});
-    nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food)$"](${b});
-    nwr["leisure"~"^(park|garden|spa)$"](${b});
-    nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"](${b});
+    nwr["amenity"~"^(bar|pub|nightclub|biergarten|cafe|restaurant|fast_food|marketplace)$"](${b});
+    nwr["leisure"~"^(park|garden|spa|fitness_centre|sports_centre|playground)$"](${b});
+    nwr["tourism"~"^(attraction|museum|viewpoint|gallery|zoo|theme_park)$"](${b});
     node["historic"="monument"](${b});
     nwr["natural"="beach"](${b});
     node["railway"~"^(station|subway_entrance)$"](${b});
     node["public_transport"="station"](${b});
+    nwr["shop"~"^(mall|department_store)$"](${b});
   );out center;`;
   assert.equal(C.overpassQuery([41.317, 2.077, 41.458, 2.228]), old);
-  assert.deepEqual(C.FIELDS, ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'public_transport', 'wikidata']);
+  assert.deepEqual(C.FIELDS, ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'public_transport', 'shop', 'wikidata']);
 });
 
 test('Nominatim-URL wie vorher (Web-App ohne, Prefetch mit accept-language)', () => {
