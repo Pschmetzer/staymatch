@@ -20,6 +20,7 @@ for (const f of files) {
       const own = /^https:\/\/staymatch-tau\.vercel\.app(\/[^?#]*)?/.exec(u);
       if (own) {
         const p = (own[1] || '/').replace(/\/$/, '') || '/index';
+        if (p.endsWith('.zip')) continue; // Zip entsteht erst beim Build (siehe .gitignore)
         if (![`web${p}`, `web${p}.html`, `web${p}/index.html`].some((x) => existsSync(x))) errors.push(`${f}: Seite fehlt in web/: ${u}`);
       } else if (!/^https?:\/\/(localhost|127\.0\.0\.1)/.test(u)) external.set(u, f);
     } else if (!/^(mailto:|tel:)/.test(u)) {
