@@ -8,7 +8,7 @@ test('cleanWeights: begrenzt, rundet, ergänzt fehlende Kategorien, verwirft Mü
   assert.equal(SM.cleanWeights(null), null);
   assert.equal(SM.cleanWeights('x'), null);
   const w = SM.cleanWeights({ party: 5, chill: -9, sights: 'abc', food: 0.34, evil: 1 });
-  assert.deepEqual(w, { party: 1, chill: -1, sights: 0, food: 0.3, transit: 0 });
+  assert.deepEqual(w, { party: 1, chill: -1, sights: 0, food: 0.3, transit: 0, shop: 0, sport: 0, kids: 0 });
   assert.ok(!('evil' in w));
 });
 
@@ -78,7 +78,7 @@ test('compareAreas: Gewinner je Kategorie, je Person und gesamt', () => {
   const A = { counts: { party: 10, chill: 3, sights: 5, food: 8, transit: 1 }, group: { total: 70, scores: [80, 60] } };
   const B = { counts: { party: 4, chill: 3, sights: 9, food: 8, transit: 2 }, group: { total: 55, scores: [50, 60] } };
   const c = SM.compareAreas(A, B, [{ name: 'L' }, { name: 'M' }]);
-  assert.deepEqual(c.cats.map(x => x.win), [1, 0, 2, 0, 2]);
+  assert.deepEqual(c.cats.map(x => x.win), [1, 0, 2, 0, 2, 0, 0, 0]);
   assert.deepEqual(c.persons.map(x => x.win), [1, 0]);
   assert.equal(c.total.win, 1);
   assert.equal(c.persons[0].name, 'L');
