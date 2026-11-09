@@ -187,7 +187,7 @@
     return { value: known ? hit.length / known : null, hit, miss };
   }
   // Wünsche, die sich erst auf der Unterkunftsseite aus Bewertungs-Stichworten prüfen lassen
-  const REVIEW_WISHES = { quiet: ['ruhig', /laut/], clean: ['sauber', /schmutzig|nicht sauber/], wifi: ['gutes WLAN', /WLAN/] };
+  const REVIEW_WISHES = { quiet: ['ruhig', /laut|hellhörig|Baustelle/], clean: ['sauber', /schmutzig|nicht sauber/], wifi: ['gutes WLAN', /WLAN/] };
   function reviewConflicts(hints, wishes) {
     const out = [];
     for (const k of wishes || []) {
@@ -235,6 +235,9 @@
     const breakdown = Object.entries(parts).filter(([, v]) => v != null).map(([k, v]) => ({
       key: k, value: v, share: +(weights[k] / w).toFixed(3), points: +((v * weights[k] / w) * 100).toFixed(1),
     }));
+    // Nr. 10: Warnungen aus Bewertungen, die du auf der Unterkunftsseite schon gesehen hast (⚠️ …), drücken die Wertung leicht
+    const known = ctx.known?.get?.(l.id);
+    const hintWarn = (known?.hints || []).filter(x => String(x).startsWith('⚠️')).map(x => String(x).replace(/^⚠️\s*/, ''));
 
     const why = [], warn = [], unsuitableReasons = [], short = { why: [], warn: [] };
     let adjust = 0;
@@ -296,6 +299,9 @@
     if (disliked) warn.push('von dir mit 👎 markiert');
     if (pe.mismatch) warn.push(`Airbnb zeigt ${pe.mismatch.airbnb} Gäste, in deiner Reise stehen ${pe.mismatch.trip}: bewertet mit ${pe.mismatch.airbnb}`);
 
+    for (const x of hintWarn) warn.push(`Bewertungen: ${x} (aus deinem Besuch)`);
+    if (hintWarn.length) adjust -= Math.min(8, 4 * hintWarn.length);
+
     let score = Math.round(base) + adjust;
     if (l.badges?.some(b => /favorit|superhost/i.test(b))) score += 3; // kleiner Vertrauensbonus
     score = Math.max(0, Math.min(100, score));
@@ -303,8 +309,11 @@
 
     const unsuitable = disliked || unsuitableReasons.length > 0;
     const badgeReason = disliked ? '👎 von dir markiert' : (unsuitableReasons[0] ? unsuitableReasons[0] : (short.warn[0] || short.why.slice(0, 2).join(' · ')));
+    // Preis pro Nacht und (nur bei mehreren Personen) pro Person und Nacht, für Panel, Plaketten und Vergleich
+    const night = perNight(l, ctx.nights);
+    const ppn = { night: night == null ? null : Math.round(night), person: night != null && people > 1 ? Math.round(night / people) : null };
     return {
-      score, parts, area, why, warn,
+      score, parts, area, why, warn, ppn, stay: total == null ? null : Math.round(total),
       disliked, unsuitable, unsuitableReasons, badgeReason,
       breakdown, adjust, people, peopleMismatch: pe.mismatch,
       budgetKnown: !!(budget || ctx.budgetPerNight), tripTotal: total, priceUncertain: !!l.multiUnit,
@@ -328,8 +337,43 @@
     });
   }
 
+  // Vergleichstabelle: Zeilen mit je einer Zelle pro Unterkunft (nur reine Texte, kein HTML)
+  function compareRows(top, ctx = {}) {
+    const fmt = (v, u = '') => v == null ? '–' : `${v}${u}`;
+    const rows = [
+      ['Passt-Wert', l => `${l.rank.score}/100`],
+      ['Viertel', l => l.rank.area ? `${l.rank.area.name} (${l.rank.area.total})` : (l.locality || '–')],
+      ['Gesamtpreis', l => l.rank.stay == null ? '–' : `${l.rank.stay} ${l.currency || '€'}`],
+      ['pro Nacht', l => l.rank.ppn?.night == null ? '–' : `${l.rank.ppn.night} ${l.currency || '€'}`],
+      ...(ctx.people > 1 ? [['pro Person/Nacht', l => l.rank.ppn?.person == null ? '–' : `${l.rank.ppn.person} ${l.currency || '€'}`]] : []),
+      ['Sterne', l => l.rating == null ? 'neu' : `${String(l.rating).replace('.', ',')} (${l.reviewCount || 0})`],
+      ['Betten', l => fmt(l.beds)],
+      ['Schlafzimmer', l => fmt(l.bedrooms)],
+      ['Gastgeber', l => (l.badges || []).join(', ') || '–'],
+      ['Warnungen', l => l.rank.warn.length ? String(l.rank.warn.length) + ': ' + l.rank.warn.slice(0, 2).join('; ') : 'keine'],
+    ];
+    return rows.map(([label, f]) => ({ label, cells: top.map(f) }));
+  }
+
+  // Text für den Gruppenchat. Nur Titel, Eckdaten und der Link, den die Gruppe selbst öffnet.
+  function shareText(items, meta = {}) {
+    const head = meta.title || 'Meine Auswahl (StayMatch)';
+    const lines = [head];
+    if (meta.sub) lines.push(meta.sub);
+    items.forEach((l, i) => {
+      const bits = [l.locality, l.rating != null && `⭐ ${String(l.rating).replace('.', ',')}`,
+        l.score != null && `${l.score}/100`,
+        (l.rank?.stay ?? l.stay) != null && `${l.rank?.stay ?? l.stay} ${l.currency || '€'} gesamt`,
+        (l.rank?.ppn?.person ?? l.ppnPerson) != null && `${l.rank?.ppn?.person ?? l.ppnPerson} ${l.currency || '€'} p. P./Nacht`].filter(Boolean);
+      lines.push('', `${i + 1}. ${l.title || l.kind || 'Unterkunft'}${bits.length ? ' – ' + bits.join(' · ') : ''}`);
+      if (l.note) lines.push(`   Notiz: ${l.note}`);
+      if (l.url) lines.push(`   ${l.url}`);
+    });
+    return lines.join('\n');
+  }
+
   root.StayMatchRank = {
     rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, reviewConflicts, REVIEW_WISHES,
-    weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings,
+    weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

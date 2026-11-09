@@ -32,6 +32,8 @@ jobs:
         run: node .github/scripts/check-domains.mjs
       - name: Größengrenzen für web/*.js und index.html
         run: node .github/scripts/check-size.mjs
+      - name: jsdom für die DOM-Tests des Plugins
+        run: npm ci --prefix tests --no-audit --no-fund
       - name: Tests
         run: node --test tests/*.test.js
       - name: Plugin-ZIP lässt sich bauen

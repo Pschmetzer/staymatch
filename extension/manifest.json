@@ -46,6 +46,8 @@
         "core.js",
         "parse.js",
         "rank.js",
+        "hints.js",
+        "pool.js",
         "content-common.js",
         "content-search.js",
         "content-listing.js"

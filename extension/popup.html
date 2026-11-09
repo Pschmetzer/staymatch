@@ -18,9 +18,14 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <div id="trip"></div>
 <nav role="tablist"><button role="tab" data-tab="top" class="on">Empfehlungen</button><button role="tab" data-tab="all">Verlauf</button><button role="tab" data-tab="liked">Gefällt mir</button><button role="tab" data-tab="disliked">Nein</button></nav>
 <div id="list"></div>
-<label id="opts" style="display:block;padding:6px 14px;font-size:12px;border-top:1px solid #eee"><input type="checkbox" id="optBadges" checked> Punkte an den Airbnb-Karten anzeigen</label>
+<div id="opts" style="padding:6px 14px;font-size:12px;border-top:1px solid #eee">
+<label style="display:block"><input type="checkbox" id="optBadges" checked> Punkte an den Airbnb-Karten anzeigen</label>
+<label style="display:block;margin-top:4px">Panel-Design: <select id="optTheme"><option value="auto">automatisch</option><option value="light">hell</option><option value="dark">dunkel</option></select></label>
+<button id="share" style="margin-top:6px;font-size:12px;color:#e0475b;background:none;border:0;cursor:pointer;padding:0">Merkliste kopieren</button>
+</div>
 <footer><a id="app" target="_blank">Viertel-Finder öffnen</a><span><button id="csv">CSV</button> · <button id="export">JSON</button> · <button id="import">Import</button> · <button id="wipe">Alles löschen</button></span></footer>
 <input type="file" id="file" accept="application/json" hidden>
 <script src="core.js"></script>
+<script src="rank.js"></script>
 <script src="popup.js"></script>
 </body></html>

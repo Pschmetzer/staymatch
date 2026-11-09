@@ -4,7 +4,7 @@ Schön, dass du helfen willst! Ideen und offene Punkte stehen in [IDEEN.md](IDEE
 
 ## Lokal testen
 
-Du brauchst nur Node 22 oder neuer. Es gibt keine Abhängigkeiten, kein `npm install`.
+Du brauchst nur Node 22 oder neuer. Für die DOM-Tests des Plugins einmal `npm ci --prefix tests` (installiert nur jsdom), sonst kein `npm install`.
 
 ```bash
 npm test          # Tests (node --test tests/*.test.js)
@@ -34,7 +34,7 @@ Version in `extension/manifest.json` und `package.json` erhöhen, in [CHANGELOG.
 
 ## Projektstruktur und Regeln für Mitwirkende
 
-Kein Framework, keine npm-Abhängigkeiten, kein Server, kein Build-Schritt für Nutzer.
+Kein Framework, keine Laufzeit-Abhängigkeiten, kein Server, kein Build-Schritt für Nutzer. Einzige Entwicklungs-Abhängigkeit: `jsdom` für die DOM-Tests des Plugins (`npm ci --prefix tests`; ohne sie werden diese Tests übersprungen).
 
 | Ordner | Inhalt |
 |---|---|
