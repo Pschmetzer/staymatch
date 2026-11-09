@@ -249,3 +249,11 @@ test('Popup, eine Person: „Meine Merkliste“ ohne Preis pro Person', { skip }
   assert.match(copied, /^Meine Merkliste \(StayMatch\)\n\n1\. Loft – Gràcia · ⭐ 4,8\n {3}Notiz: Balkon\n {3}https:\/\/www\.airbnb\.de\/rooms\/1$/);
   assert.ok(!copied.includes('Nein'), '👎 nicht in der Merkliste');
 });
+
+test('Ohne Reise: Hinweis spricht Einzelreisende an, nicht „Mit Freunden“', { skip }, async () => {
+  const { doc } = makePage({ body: searchBody(), chrome: chromeMock({}) });
+  const box = await until(() => shadow(doc, 'sm-search')?.querySelector('.box'));
+  assert.ok(box, 'Panel fehlt');
+  assert.match(box.textContent, /Tipp: Im Viertel-Finder findest du vorher das Viertel, das zu dir passt/);
+  assert.doesNotMatch(box.textContent, /Mit Freunden/);
+});
