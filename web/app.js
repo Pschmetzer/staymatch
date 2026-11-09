@@ -187,7 +187,7 @@ function addPerson() {
 }
 $('addPerson').onclick = addPerson;
 $('example').onclick = () => {
-  offerUndo('Beispielgruppe geladen.');
+  offerUndo('Beispiel geladen.');
   people = [{ name: 'Party 1', type: 'party' }, { name: 'Party 2', type: 'party' }, { name: 'Chill 1', type: 'chill' }, { name: 'Chill 2', type: 'chill' }, { name: 'Sights', type: 'sights' }];
   save(); renderPeople();
 };
@@ -199,17 +199,17 @@ $('pasteGo').onclick = () => {
 // ---- Gespeicherte Gruppen ----
 function renderTpl() {
   const l = store.get('sm_groups', []);
-  $('tpl').innerHTML = '<option value="">Gruppe wählen …</option>' + l.map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.people.length})</option>`).join('');
+  $('tpl').innerHTML = '<option value="">Auswahl …</option>' + l.map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.people.length})</option>`).join('');
 }
 $('tpl').onchange = () => {
   const g = store.get('sm_groups', [])[+$('tpl').value];
   if (!g) return;
   const list = (g.people || []).map(SM.cleanPerson).filter(Boolean);
   if (!list.length) return;
-  offerUndo(`Gruppe „${g.name}“ geladen.`); people = list; save(); renderPeople();
+  offerUndo(`Auswahl „${g.name}“ geladen.`); people = list; save(); renderPeople();
 };
 $('tplSave').onclick = () => {
-  const name = (prompt('Name der Gruppe?', people.slice(0, 3).map(p => p.name).join(', ')) || '').trim().slice(0, 40);
+  const name = (prompt('Name für diese Auswahl?', people.slice(0, 3).map(p => p.name).join(', ')) || '').trim().slice(0, 40);
   if (!name) return;
   store.set('sm_groups', [...store.get('sm_groups', []), { name, people: clone(people) }].slice(-8)); renderTpl();
 };
@@ -531,7 +531,7 @@ function renderResults() {
     const osm = `https://www.openstreetmap.org/?mlat=${a.lat.toFixed(5)}&mlon=${a.lon.toFixed(5)}#map=16/${a.lat.toFixed(5)}/${a.lon.toFixed(5)}`;
     return `<article class="card result" id="area-${i}" data-i="${i}" tabindex="-1" aria-labelledby="areah-${i}">
       <h3 id="areah-${i}"><span class="rank-num">${i + 1}. ${escapeHtml(a.name)} <button type="button" class="fav" data-fav="${escapeHtml(k)}" aria-pressed="${isFav}" aria-label="${escapeHtml(a.name)} als Favorit ${isFav ? 'entfernen' : 'merken'}">${isFav ? '♥' : '♡'}</button>${delta}</span>
-        <span><span class="score" aria-label="Gruppenwert ${a.group.total} von 100, ${SM.verdict(a.group.total)}">${a.group.total}</span><span class="verdict">/100 · ${SM.verdict(a.group.total)}</span></span></h3>
+        <span><span class="score" aria-label="Gesamtwert ${a.group.total} von 100, ${SM.verdict(a.group.total)}">${a.group.total}</span><span class="verdict">/100 · ${SM.verdict(a.group.total)}</span></span></h3>
       ${badges ? `<div class="badges">${badges}</div>` : ''}
       <div class="bar" aria-hidden="true"><i style="width:${a.group.total}%"></i></div>
       <div>${escapeHtml(SM.summary(a, ppl))}</div>${tie}
@@ -598,7 +598,7 @@ function renderCompare() {
   const row = (label, x) => `<tr><th scope="row">${escapeHtml(label)}</th>${cell(x.a, x.win, 1)}${cell(x.b, x.win, 2)}</tr>`;
   el.innerHTML = `<div class="card"><table class="cmp-table"><caption>Vergleich: ${escapeHtml(A.name)} gegen ${escapeHtml(B.name)}</caption>
     <thead><tr><th scope="col"></th><th scope="col">${escapeHtml(A.name)}</th><th scope="col">${escapeHtml(B.name)}</th></tr></thead>
-    <tbody>${row('Gruppenwert', c.total)}
+    <tbody>${row(solo() ? 'Gesamtwert' : 'Gruppenwert', c.total)}
     ${c.persons.map(p => row('Zufriedenheit ' + p.name, p)).join('')}
     ${c.cats.map(x => row(x.label + ' (Anzahl)', x)).join('')}</tbody></table>
     <button type="button" class="link" id="cmpClose">Vergleich schließen</button></div>`;
