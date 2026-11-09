@@ -13,6 +13,8 @@
   // Wörter, die einen Gesamtpreis (statt Preis pro Nacht) anzeigen. Ungeprüft live: welche Wörter Airbnb je Sprache nutzt.
   const TOTAL_RE = /gesamt|insgesamt|total|totaal|totalt|totale|łącznie|razem|celkem|samlet|yhteensä|összesen|toplam/i;
 
+  const NIGHT_RE = /pro nacht|per night|par nuit|por noche|a notte|per nacht|za noc|na noc|natt\b/i;
+
   function toNumber(s) {
     const m = String(s).match(new RegExp(`^(\\d{1,3}(?:[.,\\u00a0\\u202f\\u2009 ]\\d{3})+|\\d+)(?:[.,](\\d{1,2}))?$`));
     if (!m) return null;
@@ -146,7 +148,7 @@
         id, title: card.querySelector('[data-testid="listing-card-name"]')?.innerText || card.querySelector('[data-testid="listing-card-subtitle"]')?.innerText || kind,
         kind, locality: localityFromTitle(kind),
         rating: rt.value, reviewCount: rt.count,
-        totalPrice: num(priceLine), currency: currency(priceLine), isTotal: TOTAL_RE.test(priceLine),
+        totalPrice: num(priceLine), currency: currency(priceLine), isTotal: TOTAL_RE.test(priceLine), priceWord: TOTAL_RE.test(priceLine) || NIGHT_RE.test(priceLine),
         lat: null, lon: null, multiUnit: /verfügbar|available|disponible|beschikbaar/i.test(txt),
         ...details(lines), ...detailsExt(lines), badges: [/Gäste-Favorit|Guest favorite/i.test(txt) && 'Gäste-Favorit', /Superhost/i.test(txt) && 'Superhost'].filter(Boolean),
         image: card.querySelector('img')?.src || null, source: 'dom',
@@ -156,7 +158,10 @@
 
   const PRICE_KEYS = ['totalPrice', 'currency', 'isTotal'];
   // Zusammenführen: State liefert Koordinaten/Details, DOM sagt, was gerade sichtbar ist.
-  // Hat die Karte einen Preis, gewinnt der DOM-Preis (der State kann von einem anderen Zeitraum stammen).
+  // Preis: Stimmt der DOM-Betrag mit dem State überein, gilt der State (er kennt "Gesamtpreis" sicher).
+  // Weicht er ab (State veraltet, z. B. Seite 2 oder anderer Zeitraum), gilt der DOM-Betrag; "gesamt" nur,
+  // wenn die Zeile selbst ein Gesamt- oder Nacht-Wort enthält, sonst bleibt die Einheit des States.
+  // Ungeprüft live: ob die sichtbare Preiszeile überhaupt "gesamt" enthält.
   function parseSearch(doc) {
     const state = fromState(doc), cards = fromCards(doc);
     const byId = new Map();
@@ -165,8 +170,12 @@
     for (const c of cards) {
       const s = byId.get(c.id);
       if (!s) { out.push(c); continue; }
-      const fromS = Object.fromEntries(Object.entries(s).filter(([k, v]) => v != null && v !== '' && !(c.totalPrice != null && PRICE_KEYS.includes(k))));
-      out.push({ ...c, ...fromS, id: c.id, source: 'state+dom', coordsMissing: s.lat == null || s.lon == null });
+      const stale = c.totalPrice != null && s.totalPrice != null && c.totalPrice !== s.totalPrice;
+      const skip = stale || (c.totalPrice != null && s.totalPrice == null) ? PRICE_KEYS : [];
+      const fromS = Object.fromEntries(Object.entries(s).filter(([k, v]) => v != null && v !== '' && !skip.includes(k)));
+      const merged = { ...c, ...fromS, id: c.id, source: 'state+dom', coordsMissing: s.lat == null || s.lon == null, priceFromDom: stale };
+      if (stale && !c.priceWord) merged.isTotal = s.isTotal;
+      out.push(merged);
     }
     // Sicherheitsnetz: falls keine Karten gefunden wurden, nur State
     return out.length ? out : state.filter(s => s.id);
