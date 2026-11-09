@@ -102,6 +102,35 @@
     return out.length ? out : state.filter(s => s.id);
   }
 
+  // Selbstdiagnose: Warum haben wir (nichts) gefunden? Liefert nur Zahlen und Stichworte, keine Seiteninhalte.
+  function diagnose(doc) {
+    const d = { stateFound: false, stateCount: 0, stateNote: 'fehlt', cards: 0, roomLinks: 0 };
+    const el = doc.getElementById('data-deferred-state-0');
+    if (el) {
+      d.stateNote = 'kein gültiges JSON';
+      try {
+        const ss = JSON.parse(el.textContent)?.niobeClientData?.[0]?.[1]?.data?.presentation?.staysSearch;
+        if (ss?.results?.searchResults) { d.stateFound = true; d.stateCount = ss.results.searchResults.length; d.stateNote = 'ok'; }
+        else d.stateNote = 'Struktur anders als erwartet';
+      } catch {}
+    }
+    d.cards = doc.querySelectorAll('[data-testid="card-container"]').length;
+    d.roomLinks = new Set([...doc.querySelectorAll('a[href*="/rooms/"]')].map(a => a.getAttribute('href')?.match(ROOM_RE)?.[1]).filter(Boolean)).size;
+    return d;
+  }
+  // Wie vollständig war das Gelesene? (Airbnb ändert gern einzelne Felder)
+  function quality(listings) {
+    const n = listings.length;
+    const miss = f => listings.filter(l => l[f] == null).length;
+    return { n, noPrice: miss('totalPrice'), noRating: miss('rating'), noBeds: listings.filter(l => l.beds == null && l.bedrooms == null).length };
+  }
+  function diagnosisText(d) {
+    if (d.cards === 0 && d.roomLinks > 0) return 'Es gibt Links zu Unterkünften, aber keine Karten im bekannten Format. Airbnb hat den Seitenaufbau vermutlich geändert.';
+    if (d.cards === 0 && d.stateCount > 0) return 'Airbnb hat Daten geladen, aber die Karten sind nicht im bekannten Format. Seitenaufbau vermutlich geändert.';
+    if (d.cards === 0) return 'Keine Unterkünfte gefunden. Vielleicht lädt die Seite noch, die Suche hat keine Treffer, oder der Seitenaufbau ist neu.';
+    return 'Karten gefunden, aber keine Unterkunfts-Nummer lesbar. Die Link-Form hat sich vermutlich geändert.';
+  }
+
   function searchParams(url) {
     const q = new URL(url).searchParams;
     const ci = q.get('checkin') || q.get('check_in'), co = q.get('checkout') || q.get('check_out');
@@ -109,5 +138,5 @@
     return { checkin: ci, checkout: co, nights, adults: +(q.get('adults') || 0) || null };
   }
 
-  root.StayMatchParse = { parseSearch, fromState, fromCards, searchParams, num, rating, details, ROOM_RE };
+  root.StayMatchParse = { diagnose, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, rating, details, ROOM_RE };
 })(typeof window !== 'undefined' ? window : globalThis);

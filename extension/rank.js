@@ -69,6 +69,20 @@
     return Math.max(0, Math.min(1, s));
   }
 
+  // Gesamtpreis des Aufenthalts, wenn er sich ehrlich bestimmen lässt (sonst null).
+  // Airbnb zeigt je nach Seite "Gesamtpreis" oder "pro Nacht".
+  function stayTotal(l, ctx) {
+    if (l.totalPrice == null) return null;
+    if (l.isTotal) return l.totalPrice;
+    return ctx.nights ? l.totalPrice * ctx.nights : null; // pro Nacht ohne bekannte Nächte: kein Vergleich mit dem Gesamtbudget
+  }
+  // { night, person }: Preis pro Nacht und pro Person und Nacht (jeweils gerundet oder null)
+  function perNight(l, ctx) {
+    if (l.totalPrice == null) return { night: null, person: null };
+    const night = l.isTotal ? (ctx.nights ? l.totalPrice / ctx.nights : null) : l.totalPrice;
+    return { night: night == null ? null : Math.round(night), person: night != null && ctx.people ? Math.round(night / ctx.people) : null };
+  }
+
   const WEIGHTS = { area: 0.35, rating: 0.25, price: 0.2, beds: 0.15, taste: 0.05 };
 
   // ctx: { people, budget, nights, areas, taste, seen, disliked }
@@ -77,7 +91,7 @@
     const parts = {
       area: area ? area.total / 100 : null,
       rating: ratingScore(l.rating, l.reviewCount),
-      price: priceScore(l.isTotal ? l.totalPrice : l.totalPrice && ctx.nights ? l.totalPrice * ctx.nights : l.totalPrice, ctx.budget),
+      price: priceScore(stayTotal(l, ctx), ctx.budget),
       beds: bedScore(l, ctx.people),
       taste: tasteScore({ ...l, nights: ctx.nights }, ctx.taste),
     };
@@ -85,6 +99,10 @@
     let s = 0, w = 0;
     for (const [k, v] of Object.entries(parts)) if (v != null) { s += v * WEIGHTS[k]; w += WEIGHTS[k]; }
     let score = w ? Math.round((s / w) * 100) : 50;
+    // Stichworte aus Bewertungen, die du auf der Unterkunftsseite schon gesehen hast (⚠️ …)
+    const known = ctx.known?.get?.(l.id);
+    const hintWarn = (known?.hints || []).filter(x => String(x).startsWith('⚠️')).map(x => String(x).replace(/^⚠️\s*/, ''));
+    if (hintWarn.length) score = Math.max(0, score - Math.min(8, 4 * hintWarn.length));
     if (l.badges?.some(b => /favorit|superhost/i.test(b))) score = Math.min(100, score + 3); // kleiner Vertrauensbonus
     if (ctx.disliked?.has(l.id)) score = Math.min(score, 20);
 
@@ -94,20 +112,56 @@
     if (area?.minName && area.min < 40) warn.push(`${area.minName} wäre dort eher unzufrieden (${area.min})`);
     if (l.rating != null) (parts.rating >= 0.7 ? why : parts.rating < 0.35 ? warn : why).push(`⭐ ${String(l.rating).replace('.', ',')} bei ${l.reviewCount || 0} Bewertungen`);
     else warn.push('noch keine Bewertungen');
+    const ppn = perNight(l, ctx), cur = l.currency || '€', stay = stayTotal(l, ctx);
     if (parts.price != null) {
-      const pp = ctx.people ? Math.round(l.totalPrice / ctx.people) : null;
-      (parts.price >= 0.75 ? why : warn).push(`${l.totalPrice} ${l.currency || '€'} gesamt${pp ? ` (${pp} pro Person)` : ''}${parts.price < 0.75 ? ' – über Budget' : ''}`);
-    }
+      (parts.price >= 0.75 ? why : warn).push(`${stay} ${cur} gesamt${ppn.person ? ` (${ppn.person} ${cur} pro Person und Nacht)` : ''}${parts.price < 0.75 ? ' – über Budget' : ''}`);
+    } else if (ppn.person) why.push(`${ppn.person} ${cur} pro Person und Nacht`);
+    else if (ppn.night) why.push(`${ppn.night} ${cur} pro Nacht`);
     if (parts.beds != null) (parts.beds >= 1 ? why : warn).push(`${l.beds ?? '?'} Betten, ${l.bedrooms ?? '?'} Schlafzimmer für ${ctx.people}`);
     if (l.badges?.length) why.push(l.badges.join(' · '));
     if (ctx.seen?.has(l.id)) why.push('schon angesehen');
     if (ctx.disliked?.has(l.id)) warn.push('von dir mit 👎 markiert');
-    return { score, parts, area, why, warn };
+    for (const x of hintWarn) warn.push(`Bewertungen: ${x} (aus deinem Besuch)`);
+    return { score, parts, area, why, warn, ppn, stay };
   }
 
   function rankListings(listings, ctx) {
     return listings.map(l => ({ ...l, rank: scoreListing(l, ctx) })).sort((a, b) => b.rank.score - a.rank.score);
   }
 
-  root.StayMatchRank = { rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS };
+  // Vergleichstabelle: Zeilen mit je einer Zelle pro Unterkunft (nur reine Texte, kein HTML)
+  function compareRows(top, ctx = {}) {
+    const fmt = (v, u = '') => v == null ? '–' : `${v}${u}`;
+    const rows = [
+      ['Passt-Wert', l => `${l.rank.score}/100`],
+      ['Viertel', l => l.rank.area ? `${l.rank.area.name} (${l.rank.area.total})` : (l.locality || '–')],
+      ['Gesamtpreis', l => l.rank.stay == null ? '–' : `${l.rank.stay} ${l.currency || '€'}`],
+      ['pro Person/Nacht', l => l.rank.ppn?.person == null ? '–' : `${l.rank.ppn.person} ${l.currency || '€'}`],
+      ['Sterne', l => l.rating == null ? 'neu' : `${String(l.rating).replace('.', ',')} (${l.reviewCount || 0})`],
+      ['Betten', l => fmt(l.beds)],
+      ['Schlafzimmer', l => fmt(l.bedrooms)],
+      ['Gastgeber', l => (l.badges || []).join(', ') || '–'],
+      ['Warnungen', l => l.rank.warn.length ? String(l.rank.warn.length) + ': ' + l.rank.warn.slice(0, 2).join('; ') : 'keine'],
+    ];
+    return rows.map(([label, f]) => ({ label, cells: top.map(f) }));
+  }
+
+  // Text für den Gruppenchat. Nur Titel, Eckdaten und der Link, den die Gruppe selbst öffnet.
+  function shareText(items, meta = {}) {
+    const head = meta.title || 'Unsere Auswahl (StayMatch)';
+    const lines = [head];
+    if (meta.sub) lines.push(meta.sub);
+    items.forEach((l, i) => {
+      const bits = [l.locality, l.rating != null && `⭐ ${String(l.rating).replace('.', ',')}`,
+        l.score != null && `${l.score}/100`,
+        (l.rank?.stay ?? l.stay) != null && `${l.rank?.stay ?? l.stay} ${l.currency || '€'} gesamt`,
+        (l.rank?.ppn?.person ?? l.ppnPerson) != null && `${l.rank?.ppn?.person ?? l.ppnPerson} ${l.currency || '€'} p. P./Nacht`].filter(Boolean);
+      lines.push('', `${i + 1}. ${l.title || l.kind || 'Unterkunft'}${bits.length ? ' – ' + bits.join(' · ') : ''}`);
+      if (l.note) lines.push(`   Notiz: ${l.note}`);
+      if (l.url) lines.push(`   ${l.url}`);
+    });
+    return lines.join('\n');
+  }
+
+  root.StayMatchRank = { compareRows, shareText, stayTotal, perNight, rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS };
 })(typeof window !== 'undefined' ? window : globalThis);

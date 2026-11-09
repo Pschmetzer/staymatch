@@ -90,13 +90,26 @@ $('file').onchange = async e => {
     const src = j.listings || j;
     const entries = Object.values(src).filter(v => v && v.id && /^\d+$/.test(String(v.id)));
     await chrome.storage.local.set(Object.fromEntries(entries.map(v => ['l:' + v.id, v])));
-    chrome.storage.local.get('settings').then(r => { $('optBadges').checked = (r.settings || {}).showBadges !== false; });
-$('optBadges').onchange = async e => {
-  const { settings = {} } = await chrome.storage.local.get('settings');
-  await chrome.storage.local.set({ settings: { ...settings, showBadges: e.target.checked } });
-};
-load();
+    load();
   } catch { alert('Datei konnte nicht gelesen werden.'); }
+};
+chrome.storage.local.get('settings').then(r => {
+  $('optBadges').checked = (r.settings || {}).showBadges !== false;
+  $('optTheme').value = (r.settings || {}).theme || 'auto';
+});
+async function setSetting(patch) {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  await chrome.storage.local.set({ settings: { ...settings, ...patch } });
+}
+$('optBadges').onchange = e => setSetting({ showBadges: e.target.checked });
+$('optTheme').onchange = e => setSetting({ theme: e.target.value });
+// Merkliste (👍) als Text für den Gruppenchat
+$('share').onclick = async () => {
+  const liked = Object.values(listings).filter(i => i.vote === 1).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  if (!liked.length) { $('share').textContent = 'Erst 👍 vergeben'; return; }
+  const text = window.StayMatchRank.shareText(liked.map(i => ({ ...i, stay: null, ppnPerson: trip?.people?.length && i.pricePerNight ? Math.round(i.pricePerNight / trip.people.length) : null })), { title: 'Unsere Merkliste (StayMatch)' });
+  try { await navigator.clipboard.writeText(text); $('share').textContent = 'Kopiert ✓'; } catch { $('share').textContent = 'Nicht möglich'; }
+  setTimeout(() => { $('share').textContent = 'Merkliste kopieren'; }, 2500);
 };
 $('wipe').onclick = async () => {
   if (!confirm('Alle gespeicherten Unterkünfte, Likes, Notizen und die Reise löschen? Das kann nicht rückgängig gemacht werden.')) return;

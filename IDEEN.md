@@ -24,7 +24,7 @@ Ideen dazu:
 4. ✅ 🟢 Seitenpanel „Top 3 für euch“ mit Begründung in einem Satz. (S)
 5. ✅ 🟢 Ungeeignete Karten automatisch ausgrauen (zu wenige Betten, unter 4,5 Sterne, über Budget). (S)
 6. ✅ 🟢 „Weitere Seite laden“-Knopf, den **du** klickst; Plugin sammelt über mehrere Seiten, die du blätterst. (S)
-7. 🟢 Ergebnisse als Shortlist an die Gruppe teilen (Link mit Top 5). (M)
+7. 🟡 (teils: Text mit Links zum Kopieren in den Gruppenchat, Top 3 statt Top 5, kein Link auf die Web-App) 🟢 Ergebnisse als Shortlist an die Gruppe teilen (Link mit Top 5). (M)
 8. ✅ 🟢 Bayes-Sterne: 5,0 bei 3 Bewertungen zählt weniger als 4,9 bei 300. (S)
 9. ✅ 🟢 Echter Preis pro Person inkl. Gebühren, wenn Airbnb „Gesamtpreis“ anzeigt. (S)
 10. 🟢 Entfernung jeder Unterkunft zu den Highlights des Viertels (Bars, Park, Sehenswürdigkeit) anzeigen. (S)
@@ -240,12 +240,12 @@ Ideen dazu:
 197. 🟠 Options-Seite (Sprache, Währung, Overlay an/aus). (S)
 198. 🟠 Firefox-/Edge-/Safari-Version (gleiche Codebasis, WebExtensions). (M)
 199. 🟠 Chrome Web Store veröffentlichen (Icons, Screenshots, Beschreibung, Datenschutz). (M)
-200. 🟠 Content-Script robust: mehrere Selektoren, Fehler-Telemetrie lokal, Selbsttest-Seite. (S)
+200. 🟡 (teils: Selbstdiagnose und Meldung bei Airbnb-Änderung; weiter fehlen mehrere Ersatz-Selektoren und der Selbsttest) 🟠 Content-Script robust: mehrere Selektoren, Fehler-Telemetrie lokal, Selbsttest-Seite. (S)
 201. 🟠 Fake-Bewertungs-Indikator: viele 5-Sterne in kurzer Zeit, kurze generische Texte. (M)
 202. 🟠 Fotos-Check: Anzahl Fotos, fehlen Bad/Schlafzimmer-Fotos? (S)
 203. ✅ 🟠 „Schon gesehen“-Markierung auf Suchergebnis-Karten. (S)
 204. ✅ 🟠 Ausgeblendete Unterkünfte (👎) in Suchergebnissen verstecken. (S)
-205. 🟠 Tastenkürzel (z. B. Alt+L = gefällt mir). (S)
+205. ✅ (als Alt+Shift+L/N/M/V/K, weil Alt+L/D im Browser belegt sein kann) 🟠 Tastenkürzel (z. B. Alt+L = gefällt mir). (S)
 206. 🟠 Badge-Zähler am Plugin-Icon (Anzahl 👍 dieser Reise). (S)
 207. 🟠 Unterkünfte einer Reise zuordnen („Barcelona Mai“). (S)
 
@@ -437,7 +437,7 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 349. ✅ 🔴 `extension/rank.js:38` – **Sprung in der Preiswertung.** Bei 60 % des Budgets gibt es 0,85, bei 61 % plötzlich 0,995. Eine etwas teurere Wohnung schlägt eine günstigere. Kurve stetig machen. (S)
 350. ✅ 🔴 `extension/content.js:95` – Bleibt die Liste der Unterkünfte gleich, werden die Punkte-Plaketten nicht neu gesetzt. Rendert Airbnb eine Karte neu (React), ist die Plakette weg und kommt nicht wieder. Plaketten bei jedem Durchlauf prüfen, nur das Panel überspringen. (S)
 351. 🔴 `extension/content.js:227` – Klickt man 👍, während man noch in die Notiz tippt, wird das Panel neu gebaut. Der Text der letzten 400 ms ist weg. Vor dem Neubau Notiz speichern. (S)
-352. 🔴 `extension/content.js:227` – Ein gemeinsamer Timer `roomTimer` für alle Notizen: Wechselt man schnell die Unterkunft, wird die falsche Notiz gespeichert. Timer pro Unterkunft. (S)
+352. ✅ 🔴 `extension/content.js:227` – Ein gemeinsamer Timer `roomTimer` für alle Notizen: Wechselt man schnell die Unterkunft, wird die falsche Notiz gespeichert. Timer pro Unterkunft. (S)
 353. 🔴 `extension/parse.js:41` – Bei jeder Änderung auf der Seite wird das 370-KB-JSON von Airbnb neu geparst und 24-mal `innerText` gelesen (erzwingt Layout). Ergebnis nach Länge des Textes zwischenspeichern. (S)
 354. ✅ 🔴 `extension/parse.js` – Auf Seite 2 und nach Kartenverschieben ist der Seitenzustand veraltet. Dann haben nur Karten aus Seite 1 Koordinaten, im Test 12 von 24. Rest wird über den Viertelnamen geraten. Eine Alias-Tabelle („Gracia“ = „Gràcia“ = „Vila de Gràcia“) hilft. (M)
 355. ✅ 🔴 `extension/rank.js` – Namensabgleich nimmt bei „Eixample“ irgendein Teil-Viertel, auch wenn das Viertel in Wahrheit schlecht passt. Bei mehreren Treffern den Mittelwert nehmen und als „ungefähr“ markieren. (S)
@@ -457,7 +457,7 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 369. 🔴 `extension/popup.js` – `APP_URL` ist fest eingetragen. Beim Domain-Wechsel muss man es an zwei Stellen ändern. (S)
 370. 🔴 `README.md` – Verweist auf `localhost:8765/app.html`, aber die Dev-Konfiguration startet auf einem anderen Port. Anleitung einmal komplett durchspielen. (S)
 371. 🔴 `scripts/build-plugin-zip.sh` – Prüft nicht, ob `zip` installiert ist, und bricht ohne klare Meldung ab. (S)
-372. 🔴 `extension/content.js` – `console.debug` verschluckt alle Fehler. Bei einer Airbnb-Änderung merkt niemand, dass das Plugin kaputt ist. Sichtbarer Hinweis im Panel: „Ich verstehe diese Seite nicht mehr (Fehler melden)“. (S)
+372. ✅ 🔴 `extension/content.js` – `console.debug` verschluckt alle Fehler. Bei einer Airbnb-Änderung merkt niemand, dass das Plugin kaputt ist. Sichtbarer Hinweis im Panel: „Ich verstehe diese Seite nicht mehr (Fehler melden)“. (S)
 
 ## B. Rechtliches und Datenschutz 🔵
 
@@ -494,8 +494,8 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 400. ✅ 🟠 Plakette ausblenden: Schalter im Popup. (S)
 401. 🟠 Popup-Einstellungen: Sprache, Gewichtung (Viertel vs. Preis vs. Sterne) per Schieberegler. (M)
 402. ✅ 🟠 „Warum diese Punktzahl?“ als aufklappbare Aufschlüsselung (35 % Viertel, 25 % Sterne …). (S)
-403. 🟠 Vergleich zweier Unterkünfte nebeneinander im Panel. (M)
-404. 🟠 Gruppen-Share: Top 3 als Link oder Bild für den Gruppenchat. (M)
+403. ✅ (als Tabelle der Top 3, nicht frei wählbar) 🟠 Vergleich zweier Unterkünfte nebeneinander im Panel. (M)
+404. 🟡 (teils: als Text mit Links kopieren, kein Bild, kein Link) 🟠 Gruppen-Share: Top 3 als Link oder Bild für den Gruppenchat. (M)
 405. 🟠 Bild-Export „Unsere Top 3“ (Canvas) mit Viertel, Preis pro Kopf, Punkten. (M)
 406. 🟠 Badge am Plugin-Symbol zeigt die Anzahl guter Treffer auf der aktuellen Seite. (S)
 407. 🟠 Seite einer Unterkunft: Betten-Check gegen die Gruppengröße, mit Warnung. (S)
@@ -507,9 +507,9 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 413. 🟠 Lagebeschreibung der Unterkunft gegen die Viertelwerte prüfen („liegt am Rand von Gràcia, 900 m zur Partymeile“). (M)
 414. 🟠 Entfernung zu Wunschorten pro Person („Lena: 6 Min. zur nächsten Bar, Tom: 12 Min. zur Kathedrale“). (M)
 415. 🟠 Eigene Wunschorte setzen („Hotel XY, Restaurant Z“) und Entfernung dorthin anzeigen. (M)
-416. 🟠 Tastaturkürzel: `J/K` durch die Top-Liste, `L` = 👍, `D` = 👎. (S)
+416. 🟡 (teils: L = 👍 und N = 👎 mit Alt+Shift; J/K durch die Liste fehlt) 🟠 Tastaturkürzel: `J/K` durch die Top-Liste, `L` = 👍, `D` = 👎. (S)
 417. 🟠 Panel verschiebbar, Position merken. (S)
-418. 🟠 Panel bei Airbnb-Dark-Mode anpassen (statt nur System-Einstellung). (S)
+418. 🟡 (teils: Schalter automatisch/hell/dunkel im Popup; Airbnbs eigener Dunkelmodus wird nicht erkannt) 🟠 Panel bei Airbnb-Dark-Mode anpassen (statt nur System-Einstellung). (S)
 419. 🟠 Mobile Chrome (Android): Panel als Bottom-Sheet. Chrome Android unterstützt Erweiterungen nicht; Alternative Kiwi/Firefox Android. (M)
 420. 🟠 Aufgeräumte Datenmigration: Version im Speicher (`schema: 2`) und Migrationsfunktionen statt Einzelfall im Popup. (S)
 
@@ -654,3 +654,23 @@ Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das h
 8. **#436** Daten für 50 Städte vorab, damit niemand eine Minute wartet.
 9. **#475** Gruppen-Link ohne Konto: Jede Person wählt ihren Typ selbst.
 10. **#389** Chrome Web Store, damit der Entwicklermodus wegfällt.
+
+---
+
+# Runde 4: Plugin 0.4.0
+
+Stand: 09.11.2026. Alles nur in `extension/` und `tests/`. Die Erweiterung wurde **noch nie in echtem Chrome geladen**, die Tests laufen auf einer selbst gebauten, Airbnb-ähnlichen Seite (jsdom). Ob echtes Airbnb so aussieht, ist damit nicht belegt. Keine neue Berechtigung, kein Netzwerkzugriff, nichts wird von selbst nachgeladen.
+
+536. ✅ 🟠 Seitenaufbau unbekannt: Nach 9 s ohne lesbare Unterkünfte zeigt das Panel „Ich verstehe diese Seite nicht (mehr)“ mit Zahlen (Seitenzustand, Karten, Links) und Knopf „Diagnose kopieren“ / „Fehler melden“ (öffnet ein GitHub-Issue, nur auf Klick, ohne Adresse und Seiteninhalt). Sind einzelne Felder bei den meisten Karten leer (Preise, Sterne, Betten), steht das im Panel. (S)
+537. ✅ 🟠 Preis pro Person und Nacht: in Plakette, Panel, Vergleich und Teilen-Text. Preis pro Nacht ohne bekannte Nächte wird nicht mehr mit dem Gesamtbudget verglichen (vorher zu optimistisch bewertet). (S)
+538. ✅ 🟠 Warnhinweise aus Bewertungen (nur Texte, die du auf der Unterkunftsseite geöffnet hast): Treppen, kein Aufzug, hohe Reinigungsgebühr, hellhörig, Baustelle, Ungeziefer, ohne Klimaanlage, „anders als im Inserat“, zusätzlich zu laut/schmutzig/WLAN. Verneinung („nicht laut“) wird erkannt. Auf der Suchseite senken Warnungen früherer Besuche die Wertung (max. −8) und erscheinen als Warnung. (M)
+539. ✅ 🟠 Vergleichstabelle der Top 3 nebeneinander im Panel (Punkte, Viertel, Gesamtpreis, pro Person und Nacht, Sterne, Betten, Schlafzimmer, Gastgeber, Warnungen). (S)
+540. ✅ 🟠 „Top 3 kopieren“ im Panel und „Merkliste kopieren“ (👍) im Popup: Text mit Eckdaten und Links für den Gruppenchat. Kein Link auf die Web-App, kein Konto. (S)
+541. ✅ 🟠 Tastenkürzel Alt+Shift+L 👍, N 👎, M ein-/ausklappen, V Vergleich, K kopieren. Nicht beim Tippen in Feldern. (S)
+542. ✅ 🟠 Panel-Design: automatisch, hell oder dunkel (Popup). (S)
+543. ✅ 🟠 Mehrere Suchseiten gemeinsam ranken: Seiten, die du nacheinander selbst öffnest, werden bis zu 2 Stunden und 300 Unterkünfte lokal gesammelt. Datum oder Gästezahl ändern = neue Sammlung, „Sammlung leeren“ im Panel. Karten anderer Seiten haben keine Plakette, solange sie nicht sichtbar sind. (M)
+544. ✅ 🔴 `extension/popup.js` – Der Schalter „Punkte anzeigen“ funktionierte erst nach einem Import, weil seine Handler im Import-Handler standen. (S)
+545. 🟠 Gesammelte Preise anderer Seiten können veraltet sein (Airbnb ändert Preise). Zeitstempel je Unterkunft anzeigen und alte Einträge kennzeichnen. (S)
+546. 🟠 CI: `npm ci --prefix tests` vor `node --test`, sonst werden die DOM-Tests übersprungen (Datei `.github/workflows/ci.yml`, nicht Teil dieser Runde). (S)
+547. 🟠 Die Tests prüfen nur selbst gebaute Seiten. Eine Stichprobe mit einer echten, selbst gespeicherten Airbnb-Seite (nicht ins Repo) steht aus (siehe #212, #396). (M)
+548. 🟠 PRIVACY.md und STORE.md um Zwischenablage (nur auf Klick), Sammlung der Suchseiten (lokal, 2 h) und GitHub-Link „Fehler melden“ ergänzen. (S)
