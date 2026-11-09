@@ -191,6 +191,11 @@
   function summary(a, people) {
     const { scores, min } = a.group;
     if (!people.length) return '';
+    if (people.length === 1) { // eine Person: direkt ansprechen
+      if (min >= 70) return 'Passt gut zu dir.';
+      const w = min < 60 ? weakness(a.norm, a.counts, people[0].w || weightsOf(people[0])) : null;
+      return !w ? 'Solide für dich.' : w.kind === 'missing' ? `Dir fehlt hier etwas ${w.label}.` : `Hier gibt es dir zu viel ${w.label}.`;
+    }
     if (scores.every(x => x >= 70)) return 'Passt für alle gut.';
     const lowIdx = scores.indexOf(min), low = people[lowIdx];
     const weak = low && min < 60 ? weakness(a.norm, a.counts, low.w || weightsOf(low)) : null;

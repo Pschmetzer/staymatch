@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "StayMatch – Unterkunfts-Merkzettel",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Bewertet jede Unterkunft auf der Suchseite nach Budget, Sternen und Wünschen und zeigt die Top 3. Alles lokal.",
   "permissions": [
     "storage"

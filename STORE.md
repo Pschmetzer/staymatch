@@ -9,7 +9,7 @@ Einreichen musst du selbst (Entwicklerkonto, einmalig 5 USD): https://chrome.goo
 
 **Beschreibung:**
 Finde schneller die passende Unterkunft, statt 40 Inserate einzeln anzuklicken. Öffne eine normale Airbnb-Suche, und StayMatch bewertet jede Unterkunft auf der Seite: Sterne mit Gewichtung nach Anzahl der Bewertungen, Gesamtpreis gegen dein Budget pro Nacht, Betten und deine Wünsche (ganze Unterkunft, Superhost/Gäste-Favorit, viele Bewertungen, kein gewerblicher Anbieter). Die besten drei erscheinen mit Begründung, jede Karte bekommt einen Punktwert.
-Für Gruppen: Der Viertel-Finder (https://staymatch-tau.vercel.app/app) sucht vorher das Stadtviertel, in dem alle zufrieden sind, und übergibt Gruppe, Budget und Viertel ans Plugin.
+Optional: Der Viertel-Finder (https://staymatch-tau.vercel.app/app) sucht vorher das Stadtviertel, das zu dir passt (mit Freunden: in dem alle zufrieden sind), und übergibt Wünsche, Budget und Viertel ans Plugin.
 Dazu: Verlauf, 👍/👎, Notizen, Preisverlauf, Export.
 Kein Konto, keine Server, kein Tracking. Das Plugin liest nur Seiten, die du selbst öffnest. Unabhängig, nicht mit Airbnb verbunden. Open Source (MIT).
 

@@ -1,4 +1,4 @@
-// StayMatch – bewertet Unterkünfte für die Gruppe. Reine Funktionen, ohne chrome.*.
+// StayMatch – bewertet Unterkünfte für dich (oder deine Gruppe). Reine Funktionen, ohne chrome.*.
 // Schnittstelle nur erweitert: alle bisherigen Felder von scoreListing/rankListings bleiben.
 (function (root) {
   // Kern aus core.js: im Plugin vorher geladen (manifest.json), in Node per require
@@ -294,7 +294,7 @@
     if (l.badges?.length) why.push(l.badges.join(' · '));
     if (ctx.seen?.has(l.id)) why.push('schon angesehen');
     if (disliked) warn.push('von dir mit 👎 markiert');
-    if (pe.mismatch) warn.push(`Airbnb zeigt ${pe.mismatch.airbnb} Gäste, deine Gruppe hat ${pe.mismatch.trip}: bewertet mit ${pe.mismatch.airbnb}`);
+    if (pe.mismatch) warn.push(`Airbnb zeigt ${pe.mismatch.airbnb} Gäste, in deiner Reise stehen ${pe.mismatch.trip}: bewertet mit ${pe.mismatch.airbnb}`);
 
     let score = Math.round(base) + adjust;
     if (l.badges?.some(b => /favorit|superhost/i.test(b))) score += 3; // kleiner Vertrauensbonus
