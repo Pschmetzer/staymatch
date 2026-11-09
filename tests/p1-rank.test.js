@@ -147,3 +147,28 @@ test('filterListings', () => {
   const noBudget = R.rankListings([L({ id: '9' })], { people: 5, nights: 4 });
   assert.equal(R.filterListings(noBudget, { inBudget: true }).length, 1);
 });
+
+test('Eine Person: keine Betten, kein „pro Person“, Texte „für dich“; Wünsche als Teil', () => {
+  const ctx = { people: 1, nights: 4, budget: 1000, wishes: ['whole', 'private', 'trusted', 'reviews'], areas: [{ name: 'Gràcia', lat: 1, lon: 1, total: 70, min: 20, minName: 'Tom' }] };
+  const r = R.scoreListing(L({ kind: 'Wohnung in Gràcia', locality: 'Gràcia', beds: 1, reviewCount: 50, badges: ['Superhost'] }), ctx);
+  assert.equal(r.parts.beds, null); assert.equal(r.parts.wishes, 1);
+  const all = [...r.why, ...r.warn].join('|');
+  assert.ok(!/pro Person|Betten|unzufrieden/.test(all), all);
+  assert.match(all, /für dich/); assert.match(all, /✓ ganze Unterkunft/);
+  const bad = R.scoreListing(L({ kind: 'Privatzimmer in Gràcia', pro: true, reviewCount: 5 }), ctx);
+  assert.ok(bad.warn.some(t => /Wunsch nicht erfüllt: nur ein Zimmer/.test(t)));
+  assert.ok(bad.warn.some(t => /gewerblicher Anbieter/.test(t)));
+  assert.ok(bad.parts.wishes < 0.5 && bad.score < r.score);
+  assert.equal(R.wishScore(L({ kind: 'Etwas' }), ['whole']).value, null, 'unbekannt zählt nicht');
+  assert.equal(R.wishScore(L({ kind: 'Zimmer in Rom' }), ['whole']).value, 0);
+});
+
+test('Gruppe (2+) bleibt: Betten, pro Person', () => {
+  const r = R.scoreListing(L(), { people: 4, nights: 4, budget: 1200 });
+  assert.notEqual(r.parts.beds, null); assert.ok(r.why.some(t => /pro Person/.test(t)));
+});
+
+test('Wunsch-Stichworte aus Bewertungen', () => {
+  assert.equal(R.reviewConflicts(['⚠️ mehrfach „laut“'], ['quiet']).length, 1);
+  assert.deepEqual(R.reviewConflicts(['⚠️ laut'], ['clean']), []);
+});
