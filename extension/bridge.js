@@ -1,4 +1,4 @@
-// StayMatch – Brücke: übernimmt Gruppe, Budget und Viertel-Wertungen aus dem Viertel-Finder ins Plugin.
+// StayMatch – Brücke: übernimmt Wünsche, Personen, Budget und Viertel-Wertungen aus dem Viertel-Finder ins Plugin.
 // Läuft nur auf der StayMatch-Website. Liest dort localStorage (gleiche Herkunft) und speichert lokal im Plugin.
 (() => {
   function sync() {
