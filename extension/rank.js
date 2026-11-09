@@ -171,7 +171,7 @@
   const WISHES = {
     whole: { label: '🏠 ganze Unterkunft', ok: 'ganze Unterkunft', no: 'nur ein Zimmer', check: l => {
       const k = `${l.kind || ''} ${l.title || ''}`;
-      return PRIVATE_ROOM.test(k) || SHARED_ROOM.test(k) ? false : l.kind ? true : null;
+      return PRIVATE_ROOM.test(k) || SHARED_ROOM.test(k) || ROOM_ONLY.test(k) ? false : WHOLE_PLACE.test(k) ? true : null;
     } },
     trusted: { label: '🏅 Superhost/Favorit', ok: 'Superhost oder Gäste-Favorit', no: 'kein Superhost/Gäste-Favorit', check: l => (l.badges || []).some(b => /favorit|superhost/i.test(b)) },
     reviews: { label: '💬 ab 20 Bewertungen', ok: 'viele Bewertungen', no: 'weniger als 20 Bewertungen', check: l => l.reviewCount == null ? null : l.reviewCount >= 20 },
@@ -193,6 +193,8 @@
     return w;
   }
 
+  const ROOM_ONLY = /zimmer in|hotelzimmer|room in|hotel room|chambre d'hôtel|habitación en|stanza in/i;
+  const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|\bhaus\b|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
   const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|kamer/i;
   const SHARED_ROOM = /gemeinsch|geteilt\w* zimmer|shared room|chambre partagée|habitación compartida|camera condivisa|hostel|schlafsaal|dorm/i;
   const sepNum = (n, d = 1) => String(Math.round(n * 10 ** d) / 10 ** d).replace('.', ',');
@@ -208,7 +210,8 @@
     const parts = {
       area: area ? area.total / 100 : null,
       rating: ratingScore(effectiveRating(l), l.reviewCount),
-      price: priceScore(total, budget), // ohne Nächtezahl bei Nachtpreis: kein Preis-Teil
+      // ohne Nächtezahl bei Nachtpreis: nur mit Budget pro Nacht vergleichbar (Direkt-Modus), sonst kein Preis-Teil
+      price: total != null ? priceScore(total, budget) : (!l.isTotal && ctx.budgetPerNight ? priceScore(l.totalPrice, ctx.budgetPerNight) : null),
       beds: bedScore(l, people),
       taste: tasteScore({ ...l, nights: ctx.nights }, ctx.taste),
       wishes: wish.value,
@@ -247,9 +250,9 @@
       const unsure = l.multiUnit ? ' (ab-Preis, je nach Wohnung)' : '';
       if (parts.price != null) {
         const ok = parts.price >= 0.75;
-        const label = l.isTotal ? `${l.totalPrice} ${cur} gesamt` : `${l.totalPrice} ${cur} pro Nacht (${Math.round(total)} ${cur} gesamt)`;
+        const label = l.isTotal ? `${l.totalPrice} ${cur} gesamt` : `${l.totalPrice} ${cur} pro Nacht${total != null ? ` (${Math.round(total)} ${cur} gesamt)` : ''}`;
         (ok ? why : warn).push(`${label}${pp ? ` (${pp} pro Person)` : ''}${ok ? '' : ' – über Budget'}${unsure}`);
-        (ok ? short.why : short.warn).push(`${Math.round(total)} ${cur}`);
+        (ok ? short.why : short.warn).push(`${Math.round(total ?? l.totalPrice)} ${cur}${total == null ? '/Nacht' : ''}`);
         if (parts.price < 0.3) unsuitableReasons.push('deutlich über Budget');
       } else if (l.isTotal) {
         why.push(`${l.totalPrice} ${cur} gesamt${pp ? ` (${pp} pro Person)` : ''}${unsure}`);
@@ -292,7 +295,7 @@
       score, parts, area, why, warn,
       disliked, unsuitable, unsuitableReasons, badgeReason,
       breakdown, adjust, people, peopleMismatch: pe.mismatch,
-      budgetKnown: !!budget, tripTotal: total, priceUncertain: !!l.multiUnit,
+      budgetKnown: !!(budget || ctx.budgetPerNight), tripTotal: total, priceUncertain: !!l.multiUnit,
     };
   }
 

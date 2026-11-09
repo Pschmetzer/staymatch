@@ -60,3 +60,17 @@ test('Direkt-Modus: Wünsche heben passende Unterkünfte, Solo ohne Pro-Kopf', (
   // unbekannte Wünsche werden ignoriert
   assert.equal(R.wishScore(flat, ['gibtsnicht']).value, null);
 });
+
+test('Direkt-Modus: Budget pro Nacht wirkt auch ohne Reisedaten, Hotelzimmer ist keine ganze Unterkunft', () => {
+  const cheap = { id: 'c', kind: 'Wohnung', totalPrice: 90, currency: '€', rating: 4.8, reviewCount: 30 };
+  const pricey = { id: 'd', kind: 'Wohnung', totalPrice: 300, currency: '€', rating: 4.8, reviewCount: 30 };
+  const ctx = { people: 2, budgetPerNight: 120 };
+  const a = R.scoreListing(cheap, ctx), b = R.scoreListing(pricey, ctx);
+  assert.ok(a.parts.price >= 0.75 && b.parts.price < 0.3);
+  assert.ok(a.budgetKnown);
+  assert.ok(b.warn.some(w => w.includes('über Budget') && !w.includes('NaN')));
+  assert.equal(R.WISHES.whole.check({ kind: 'Hotelzimmer in Lissabon' }), false);
+  assert.equal(R.WISHES.whole.check({ kind: 'Zimmer in Hotel' }), false);
+  assert.equal(R.WISHES.whole.check({ kind: 'Unterkunft' }), null);
+  assert.equal(R.WISHES.whole.check({ kind: 'Loft in Gràcia' }), true);
+});

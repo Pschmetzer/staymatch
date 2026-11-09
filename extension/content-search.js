@@ -9,7 +9,7 @@
   function passes(l) {
     if (filters.rating && !(l.rating >= 4.7)) return false;
     // ohne bekanntes Budget kann der Filter nichts aussortieren (sonst bliebe nach einer Suche ohne Reise alles leer)
-    if (filters.budget && lastView?.ctx && R.effectiveBudget(lastView.ctx) && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
+    if (filters.budget && l.rank.budgetKnown && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
     if (filters.beds && l.rank.parts.beds != null && l.rank.parts.beds < 1) return false; // unbekannt zählt als ok
     if (filters.fav && !(l.badges || []).some(x => /favorit|superhost/i.test(x))) return false;
     return true;
@@ -56,7 +56,7 @@
     const top = ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 3);
     const bd = l => [['Viertel', 'area'], ['Sterne', 'rating'], ['Preis', 'price'], ['Wünsche', 'wishes'], ['Betten', 'beds']]
       .filter(([, k]) => l.rank.parts[k] != null).map(([n, k]) => `${n} ${Math.round(l.rank.parts[k] * 100)}`).join(' · ');
-    const budgetKnown = !!R.effectiveBudget(ctx);
+    const budgetKnown = !!(R.effectiveBudget(ctx) || ctx.budgetPerNight);
     const setQuick = async patch => { quick = { ...quick, ...patch }; await chrome.storage.local.set({ quick }); lastSig = ''; handleSearch(); };
     const budgetInput = h('input', { type: 'number', min: '0', step: '10', inputmode: 'numeric', placeholder: 'z. B. 120', 'aria-label': 'Budget pro Nacht in Euro',
       style: 'width:90px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--bg);color:var(--fg);font:12px system-ui' });
