@@ -48,10 +48,22 @@
     return Math.max(0, 0.8 - (r - 1) * 2.5);
   }
 
+  // Preis für den ganzen Aufenthalt bzw. pro Nacht. null, wenn es ohne Nächte nicht bestimmbar ist.
+  function stayTotal(l, nights) {
+    if (l.totalPrice == null) return null;
+    if (l.isTotal) return l.totalPrice;
+    return nights ? l.totalPrice * nights : null;
+  }
+  function perNight(l, nights) {
+    if (l.totalPrice == null) return null;
+    if (!l.isTotal) return l.totalPrice;
+    return nights ? l.totalPrice / nights : null;
+  }
+
   function bedScore(l, people) {
     if (!people) return null;
     if (l.beds == null && l.bedrooms == null) return null; // unbekannt, nicht 0
-    const beds = l.beds ?? l.bedrooms;
+    const beds = l.beds ?? l.bedrooms * 1.7; // ein Schlafzimmer hat meist mehr als einen Schlafplatz
     if (beds >= people) return 1;
     if (beds * 2 >= people) return 0.65; // Doppelbetten teilen
     return 0.25;
@@ -60,8 +72,9 @@
   function tasteScore(l, taste) {
     if (!taste || !taste.likedCount) return null;
     let s = 0.5;
-    if (taste.avgPricePerNight && l.totalPrice && l.nights) {
-      const ppn = l.totalPrice / l.nights, r = ppn / taste.avgPricePerNight;
+    const ppn = perNight(l, l.nights);
+    if (taste.avgPricePerNight && ppn) {
+      const r = ppn / taste.avgPricePerNight;
       s += r < 1.25 && r > 0.6 ? 0.2 : -0.1;
     }
     if (taste.localities?.length && l.locality && taste.localities.some(x => norm(x) === norm(l.locality))) s += 0.2;
@@ -77,7 +90,7 @@
     const parts = {
       area: area ? area.total / 100 : null,
       rating: ratingScore(l.rating, l.reviewCount),
-      price: priceScore(l.isTotal ? l.totalPrice : l.totalPrice && ctx.nights ? l.totalPrice * ctx.nights : l.totalPrice, ctx.budget),
+      price: priceScore(stayTotal(l, ctx.nights), ctx.budget),
       beds: bedScore(l, ctx.people),
       taste: tasteScore({ ...l, nights: ctx.nights }, ctx.taste),
     };
@@ -92,11 +105,15 @@
     if (area) why.push(`Viertel ${area.name}: ${area.total}/100 für die Gruppe${area.approx ? ' (ungefähr)' : ''}`);
     if (area?.approx) warn.push('Viertel nur ungefähr bestimmt (mehrere Teil-Viertel)');
     if (area?.minName && area.min < 40) warn.push(`${area.minName} wäre dort eher unzufrieden (${area.min})`);
-    if (l.rating != null) (parts.rating >= 0.7 ? why : parts.rating < 0.35 ? warn : why).push(`⭐ ${String(l.rating).replace('.', ',')} bei ${l.reviewCount || 0} Bewertungen`);
+    const fmt = n => Number(n).toLocaleString(ctx.lang || 'de-DE', { maximumFractionDigits: 2 });
+    if (l.rating != null) (parts.rating >= 0.7 ? why : parts.rating < 0.35 ? warn : why).push(`⭐ ${fmt(l.rating)} bei ${l.reviewCount || 0} Bewertungen`);
     else warn.push('noch keine Bewertungen');
+    const cur = l.currency || '€', total = stayTotal(l, ctx.nights);
     if (parts.price != null) {
-      const pp = ctx.people ? Math.round(l.totalPrice / ctx.people) : null;
-      (parts.price >= 0.75 ? why : warn).push(`${l.totalPrice} ${l.currency || '€'} gesamt${pp ? ` (${pp} pro Person)` : ''}${parts.price < 0.75 ? ' – über Budget' : ''}`);
+      const pp = ctx.people ? Math.round(total / ctx.people) : null;
+      (parts.price >= 0.75 ? why : warn).push(`${fmt(Math.round(total))} ${cur} gesamt${pp ? ` (${fmt(pp)} pro Person)` : ''}${parts.price < 0.75 ? ' – über Budget' : ''}`);
+    } else if (l.totalPrice != null) {
+      why.push(total != null ? `${fmt(Math.round(total))} ${cur} gesamt` : `${fmt(l.totalPrice)} ${cur} pro Nacht`);
     }
     if (parts.beds != null) (parts.beds >= 1 ? why : warn).push(`${l.beds ?? '?'} Betten, ${l.bedrooms ?? '?'} Schlafzimmer für ${ctx.people}`);
     if (l.badges?.length) why.push(l.badges.join(' · '));
@@ -109,5 +126,5 @@
     return listings.map(l => ({ ...l, rank: scoreListing(l, ctx) })).sort((a, b) => b.rank.score - a.rank.score);
   }
 
-  root.StayMatchRank = { rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS };
+  root.StayMatchRank = { rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, stayTotal, perNight, WEIGHTS };
 })(typeof window !== 'undefined' ? window : globalThis);

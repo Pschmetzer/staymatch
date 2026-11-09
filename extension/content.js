@@ -27,7 +27,7 @@
     return {
       likedCount: liked.length,
       avgPricePerNight: avg(liked.map(i => i.pricePerNight).filter(Boolean)),
-      minRating: Math.min(...liked.map(i => i.rating).filter(Boolean), 5) - 0.05,
+      minRating: (r => r.length ? Math.min(...r) - 0.05 : null)(liked.map(i => i.rating).filter(Boolean)),
       localities: [...new Set(liked.map(i => i.locality).filter(Boolean))],
     };
   }
@@ -75,12 +75,20 @@
     .row { display: flex; gap: 6px; margin: 6px 0; } .row button { flex: 1; }
   `;
 
+  // Geschlossen bleibt geschlossen, bis eine andere Suche bzw. Unterkunft geöffnet wird (nicht bei jedem Nachladen)
+  const closed = {};
+  const closeKey = () => location.pathname + '|' + new URLSearchParams(location.search).get('checkin');
+  const isClosed = id => closed[id] && closed[id] === closeKey();
+  // In schmalen Fenstern standardmäßig eingeklappt, damit Airbnbs eigene Leisten frei bleiben
+  const defaultMin = stored => stored ?? window.innerWidth < 900;
+
   function panel(id, title, bodyNodes, { minimized = false } = {}) {
+    if (isClosed(id)) return;
     const root = host(id);
     root.replaceChildren();
     const box = h('div', { class: 'box' + (minimized ? ' min' : ''), role: 'dialog', 'aria-label': title });
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
-    const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');
+    const close = h('button', { 'aria-label': 'Schließen', onclick: () => { closed[id] = closeKey(); document.getElementById(id)?.remove(); } }, '✕');
     box.append(h('style', {}, CSS),
       h('div', { class: 'head' }, h('b', { class: 'brand' }, 'Stay', h('span', {}, 'Match'), ' · ', title), h('div', {}, toggle, ' ', close)),
       h('div', { class: 'body' }, bodyNodes));
@@ -110,23 +118,29 @@
     const sp = P.searchParams(location.href);
     // Reise nur nutzen, wenn sie zu dieser Suche passt (gleiches Datum oder Unterkünfte nahe den Vierteln)
     const savedTrip = await getTrip();
-    const trip = savedTrip && ((sp.checkin && sp.checkin === savedTrip.checkin) ||
-      listings.some(l => l.lat != null && R.areaFor({ lat: l.lat, lon: l.lon }, savedTrip.areas || []))) ? savedTrip : null;
+    // Gleiches Datum allein reicht nicht (sonst bewertet Barcelona Lissabon): Unterkünfte nahe den Vierteln oder Stadtname in der URL
+    const near = savedTrip && listings.some(l => l.lat != null && R.areaFor({ lat: l.lat, lon: l.lon }, savedTrip.areas || []));
+    const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const sameCity = savedTrip?.city && sp.place && norm(sp.place).includes(norm(savedTrip.city));
+    const anyCoords = listings.some(l => l.lat != null);
+    const trip = savedTrip && (near || (sameCity && !anyCoords) || (sameCity && sp.checkin === savedTrip.checkin)) ? savedTrip : null;
     const items = await allListings();
     const seen = new Set(items.map(i => i.id));
     const disliked = new Set(items.filter(i => i.vote === -1).map(i => i.id));
-    const people = trip?.people?.length || sp.adults || null;
+    const people = sp.adults || trip?.people?.length || null; // Gästezahl auf Airbnb ist aktueller als die Reise
     const nights = sp.nights || trip?.nights || null;
-    const ctx = { people, nights, budget: trip?.budget || null, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked };
+    // Andere Nächte als im Viertel-Finder: Budget pro Nacht hochrechnen
+    const budget = trip?.budget ? (trip.nights && nights && nights !== trip.nights ? Math.round(trip.budget / trip.nights * nights) : trip.budget) : null;
+    const ctx = { people, nights, budget, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked, lang: document.documentElement.lang || navigator.language };
     const ranked = R.rankListings(listings, ctx);
 
     const stored = await chrome.storage.local.get(['filters', 'settings', 'min:sm-search']);
     filters = stored.filters || {};
     settings = { showBadges: true, ...(stored.settings || {}) };
-    lastView = { ranked, ctx, disliked, trip, count: listings.length, min: !!stored['min:sm-search'] };
+    lastView = { ranked, ctx, disliked, trip, count: listings.length, min: defaultMin(stored['min:sm-search']) };
 
     // Empfehlungen für das Popup merken (nur die eigene Auswahl, lokal)
-    chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, top: ranked.slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, url: `${location.origin}/rooms/${l.id}` })) } });
+    chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, top: ranked.slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, url: `${location.origin}/rooms/${l.id}${location.search}` })) } });
 
     applyBadges();
     renderSearch();
@@ -141,7 +155,7 @@
       .filter(([, k]) => l.rank.parts[k] != null).map(([n, k]) => `${n} ${Math.round(l.rank.parts[k] * 100)}`).join(' · ');
     panel('sm-search', 'Top 3 für euch', [
       !trip ? h('div', { class: 'muted' }, 'Tipp: Erst im Viertel-Finder suchen, dann kennt StayMatch eure Gruppe, das Budget und die Viertel.') : null,
-      h('div', { class: 'muted' }, `${count} Unterkünfte auf dieser Seite bewertet${ctx.people ? ` · ${ctx.people} Personen` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
+      h('div', { class: 'muted' }, `${count} Unterkünfte auf dieser Seite bewertet${ctx.people ? ` · ${ctx.people} Personen` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €${trip?.nights && ctx.nights !== trip.nights ? ` (auf ${ctx.nights} Nächte umgerechnet)` : ''}` : ''}`),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter' }, FILTERS.map(([k, label]) => h('button', {
         class: filters[k] ? 'on' : '', 'aria-pressed': String(!!filters[k]),
         ...(k === 'budget' && !ctx.budget ? { disabled: '', title: 'Kein Budget bekannt. Erst den Viertel-Finder nutzen.', style: 'opacity:.5;cursor:not-allowed' } : {}),
@@ -183,33 +197,6 @@
   chrome.storage.onChanged?.addListener(ch => { if (ch.settings) { settings = { showBadges: true, ...(ch.settings.newValue || {}) }; applyBadges(); } });
 
   // ---------- Unterkunftsseite ----------
-  const HINTS = [
-    // [Label, Muster, positiv?]
-    ['sauber', /\b(sauber|blitzsauber|spotless|very clean|super clean|so clean)\b/i, true],
-    ['Lage', /\b(tolle|super|perfekte|zentrale) lage\b|\b(great|perfect|excellent) location\b/i, true],
-    ['Gastgeber', /\bgastgeber\w*\b[^.]{0,40}\b(nett|freundlich|hilfsbereit)\b|\bhost was (great|helpful|friendly|amazing)\b/i, true],
-    ['laut', /\b(laut|lärm|lärmig|noisy|noise)\b/i, false],
-    ['schmutzig', /\b(schmutzig|dreckig|dirty|unclean)\b/i, false],
-    ['Bett', /\b(unbequem\w*|uncomfortable)\b/i, false],
-    ['WLAN', /\b(wlan|wifi|wi-fi)\b[^.]{0,30}\b(schlecht|langsam|bad|slow|poor)\b/i, false],
-  ];
-  const NEG = /\b(nicht|kein|keine|nie|not|never|no|wasn't|isn't)\b/i;
-
-  function reviewHints(text) {
-    const sentences = text.split(/(?<=[.!?\n])\s+/);
-    const counts = {};
-    for (const s of sentences) for (const [label, re, pos] of HINTS) {
-      const m = s.match(re);
-      if (!m) continue;
-      const before = s.slice(Math.max(0, m.index - 30), m.index);
-      const negated = NEG.test(before);
-      const isPos = negated ? !pos : pos;
-      const key = (isPos ? '👍 ' : '⚠️ ') + (negated && pos ? 'nicht ' + label : label);
-      counts[key] = (counts[key] || 0) + 1;
-    }
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, n]) => n > 1 ? `${k} (${n}×)` : k);
-  }
-
   function roomData(id) {
     let ld = {};
     for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
@@ -220,9 +207,16 @@
     // Preis nur aus dem Buchungsbereich, nicht aus "ähnliche Unterkünfte"
     const book = document.querySelector('[data-testid="book-it-default"], [data-section-id="BOOK_IT_SIDEBAR"], [data-plugin-in-point-id="BOOK_IT_SIDEBAR"]');
     const priceText = book?.innerText || '';
-    const nightM = priceText.match(/(\d[\d.,  ]*)\s?(€|CHF|£|\$)\s?(?:pro Nacht|Nacht|night)/i);
-    const totalM = priceText.match(/(\d[\d.,  ]*)\s?(€|CHF|£|\$)\s?(?:insgesamt|gesamt|total)/i);
-    const reviews = [...document.querySelectorAll('[data-review-id], [data-testid*="review"], [data-section-id*="REVIEWS"] [role="listitem"]')].map(e => e.innerText).join('\n');
+    // "120 € pro Nacht" und "$120 night" / "€120 per night"
+    const AMT = '(\\d[\\d.,\\s\\u00a0\\u202f]*?)', CUR = '(€|CHF|£|\\$)';
+    const priceM = words => { const w = `\\s?(?:${words})`;
+      const a = priceText.match(new RegExp(AMT + '\\s?' + CUR + w, 'i')); if (a) return a;
+      const b = priceText.match(new RegExp(CUR + '\\s?' + AMT + w, 'i')); return b ? [b[0], b[2], b[1]] : null; };
+    const nightM = priceM('pro Nacht|Nacht|per night|a night|night');
+    const totalM = priceM('insgesamt|gesamt|total');
+    // Selektoren können verschachtelt treffen → nur äußerste Elemente, sonst zählt eine Bewertung doppelt
+    const revEls = [...document.querySelectorAll('[data-review-id], [data-testid*="review"], [data-section-id*="REVIEWS"] [role="listitem"]')];
+    const reviews = revEls.filter(e => !revEls.some(o => o !== e && o.contains(e))).map(e => e.innerText).join('\n');
     return {
       id, url: location.origin + location.pathname,
       title: ld.name || meta('og:title') || document.title,
@@ -234,7 +228,7 @@
       pricePerNight: nightM ? P.num(nightM[1]) : totalM && sp.nights ? Math.round(P.num(totalM[1]) / sp.nights) : null,
       currency: (nightM || totalM)?.[2] || null,
       checkin: sp.checkin, checkout: sp.checkout,
-      hints: reviews ? reviewHints(reviews) : [],
+      hints: reviews ? P.reviewHints(reviews) : [],
     };
   }
 
@@ -245,20 +239,27 @@
     const data = roomData(id);
     // fehlende Felder nicht mit null überschreiben
     const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v != null && !(Array.isArray(v) && !v.length)));
+    // Verlauf pro Reisezeitraum: Mai und August nicht vergleichen
+    const period = (data.checkin || '') + '_' + (data.checkout || '');
     const priceHistory = [...(old?.priceHistory || [])];
-    if (data.pricePerNight && priceHistory.at(-1)?.p !== data.pricePerNight) priceHistory.push({ t: Date.now(), p: data.pricePerNight });
+    const last = priceHistory.filter(x => (x.k || '_') === period).at(-1);
+    if (data.pricePerNight && last?.p !== data.pricePerNight) priceHistory.push({ t: Date.now(), p: data.pricePerNight, k: period });
     const item = await saveListing(id, { ...clean, priceHistory: priceHistory.slice(-30), visits: (old?.visits || 0) + (recent ? 0 : 1) });
     const trip = await getTrip();
     const area = trip?.areas?.length ? R.areaFor(item, trip.areas) : null;
-    roomPanel(item, area);
+    const st = await chrome.storage.local.get('min:sm-room');
+    roomPanel(item, area, period, defaultMin(st['min:sm-room']));
   }
 
-  function roomPanel(item, area) {
-    const vote = v => async () => roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v }), area); // 2. Klick hebt auf
+  function roomPanel(item, area, period, minimized) {
+    const vote = v => async () => {
+      const cur = document.getElementById('sm-room')?.shadowRoot?.querySelector('.box')?.classList.contains('min');
+      roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v }), area, period, cur ?? minimized); // 2. Klick hebt auf
+    };
     const note = h('textarea', { placeholder: 'Notiz: was gefällt / stört?', 'aria-label': 'Notiz' });
     note.value = item.note || ''; // value statt innerHTML → kein Code-Einschleusen
     note.oninput = () => { clearTimeout(roomTimer); roomTimer = setTimeout(() => saveListing(item.id, { note: note.value }), 400); };
-    const ph = item.priceHistory || [];
+    const ph = (item.priceHistory || []).filter(x => (x.k || '_') === period);
     const change = ph.length > 1 ? Math.round((ph.at(-1).p / ph[0].p - 1) * 100) : 0;
     panel('sm-room', item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier', [
       h('div', {}, item.rating ? `⭐ ${item.rating}${item.reviewCount ? ` (${item.reviewCount})` : ''}` : 'Noch keine Sterne gefunden'),
@@ -269,7 +270,7 @@
         h('button', { class: item.vote === 1 ? 'on' : '', onclick: vote(1) }, '👍 Gefällt mir'),
         h('button', { class: item.vote === -1 ? 'on' : '', onclick: vote(-1) }, '👎 Nein')),
       note,
-    ]);
+    ], { minimized });
   }
 
   // ---------- Router: Airbnb wechselt Seiten ohne Neuladen ----------
