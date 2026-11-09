@@ -160,7 +160,7 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
     <div id="people"></div>
     <div class="tools">
       <button type="button" class="link" id="addPerson">+ Person hinzufügen</button>
-      <button type="button" class="link" id="example">Beispielgruppe laden</button>
+      <button type="button" class="link" id="example">Beispiel mit Mitreisenden laden</button>
     </div>
     <fieldset id="wishes" class="wishes">
       <legend>Was ist dir bei der Unterkunft wichtig?</legend>
@@ -175,13 +175,13 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
     </fieldset>
     <div class="undo" id="undo" role="status" hidden><span id="undoMsg"></span><button type="button" class="link" id="undoBtn">Rückgängig</button></div>
     <details>
-      <summary>Gruppe aus Text einfügen</summary>
-      <div class="body"><textarea id="paste" aria-label="Gruppe als Text" placeholder="Lena Party, Mia Chill, Tom Sightseeing"></textarea><button type="button" class="link" id="pasteGo">Übernehmen</button></div>
+      <summary>Reisende aus Text einfügen</summary>
+      <div class="body"><textarea id="paste" aria-label="Reisende als Text" placeholder="Lena Party, Mia Chill, Tom Sightseeing"></textarea><button type="button" class="link" id="pasteGo">Übernehmen</button></div>
     </details>
     <details>
-      <summary>Gespeicherte Gruppen</summary>
-      <div class="body"><select id="tpl" aria-label="Gespeicherte Gruppe laden"></select>
-        <div class="tools"><button type="button" class="link" id="tplSave">Aktuelle Gruppe speichern</button><button type="button" class="link" id="tplDel">Auswahl löschen</button></div></div>
+      <summary>Gespeicherte Reisende</summary>
+      <div class="body"><select id="tpl" aria-label="Gespeicherte Reisende laden"></select>
+        <div class="tools"><button type="button" class="link" id="tplSave">Aktuelle Reisende speichern</button><button type="button" class="link" id="tplDel">Auswahl löschen</button></div></div>
     </details>
     <details>
       <summary>Was bedeuten die Typen?</summary>
@@ -225,7 +225,7 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
     <div class="hint">Daten: OpenStreetMap (Orte im Umkreis, nähere zählen mehr). Für Ortssuche, Orte und Kartenkacheln werden OpenStreetMap-Dienste angefragt. <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md">Datenschutz</a>.</div>
     <details>
       <summary>Wie wird gewertet?</summary>
-      <div class="body">Standardmäßig zählt zu 60 % die am wenigsten zufriedene Person und zu 40 % der Schnitt, so gewinnt nicht einfach die Mehrheit. Mit dem Fairness-Regler änderst du das Verhältnis. Das Budget ändert die Wertung nicht, es filtert nur die Airbnb-Suche. Die Preislage je Viertel ist eine grobe Schätzung aus Lage und Sehenswürdigkeiten. Ändert sich Gruppe oder Umkreis, wird sofort neu gerechnet.</div>
+      <div class="body">Standardmäßig zählt (wenn ihr mehrere seid) zu 60 % die am wenigsten zufriedene Person und zu 40 % der Schnitt, so gewinnt nicht einfach die Mehrheit. Mit dem Fairness-Regler änderst du das Verhältnis. Das Budget ändert die Wertung nicht, es filtert nur die Airbnb-Suche. Die Preislage je Viertel ist eine grobe Schätzung aus Lage und Sehenswürdigkeiten. Ändern sich Reisende oder Umkreis, wird sofort neu gerechnet.</div>
     </details>
   </form>
   <section>
