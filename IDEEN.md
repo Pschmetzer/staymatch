@@ -419,3 +419,238 @@ Ideen dazu:
 8. **#186** Hausregel „keine Partys“ erkennen – wichtig für eure Party-Leute.
 9. **#183, #184** Betten-Check.
 10. **#82, #210** Tests + CI, damit Änderungen nichts kaputtmachen.
+
+---
+---
+
+# Runde 2: Ideen nach Durchsicht von Landingpage, Plugin-Download und Weg B
+
+Stand: 09.11.2026. Gelesen: `extension/*` (inkl. `parse.js`, `rank.js`, `bridge.js`), `web/*` (inkl. `index.html`, `app.html`), `scripts/`, `README.md`, `KONZEPT.md`.
+Die Nummern setzen Runde 1 fort. Legende wie oben, dazu 🔵 = rechtlich/Datenschutz.
+Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das hier sind 170 Punkte, die ich einzeln begründen kann.
+
+## A. Neue Fehler im Code von heute 🔴
+
+346. 🔴 `web/app.js:219` – **Enter startet die Suche auch während sie läuft.** Der Knopf ist dann gesperrt, `run()` prüft das aber nicht. Wer Enter drückt, schickt parallel weitere Overpass-Abfragen. Am Anfang von `run()` abbrechen, wenn `$('go').disabled`. (S)
+347. 🔴 `web/app.js:212` – Gibt es kein Viertel mit mindestens 10 Orten, ist `ranked` leer und `fitBounds` wirft „Bounds are not valid“. Die Nutzerin sieht eine kryptische Meldung. Leeren Zustand abfangen („Keine passenden Viertel, versuche einen größeren Ort“). (S)
+348. 🔴 `web/scoring.js:19` – **Ein Ort zählt nur in einer Kategorie.** Ein Park mit `tourism=attraction` (Park Güell!) zählt nur als „Chillen“, nie als Sehenswürdigkeit. Orte in mehreren Kategorien zählen lassen. (S)
+349. 🔴 `extension/rank.js:38` – **Sprung in der Preiswertung.** Bei 60 % des Budgets gibt es 0,85, bei 61 % plötzlich 0,995. Eine etwas teurere Wohnung schlägt eine günstigere. Kurve stetig machen. (S)
+350. 🔴 `extension/content.js:95` – Bleibt die Liste der Unterkünfte gleich, werden die Punkte-Plaketten nicht neu gesetzt. Rendert Airbnb eine Karte neu (React), ist die Plakette weg und kommt nicht wieder. Plaketten bei jedem Durchlauf prüfen, nur das Panel überspringen. (S)
+351. 🔴 `extension/content.js:227` – Klickt man 👍, während man noch in die Notiz tippt, wird das Panel neu gebaut. Der Text der letzten 400 ms ist weg. Vor dem Neubau Notiz speichern. (S)
+352. 🔴 `extension/content.js:227` – Ein gemeinsamer Timer `roomTimer` für alle Notizen: Wechselt man schnell die Unterkunft, wird die falsche Notiz gespeichert. Timer pro Unterkunft. (S)
+353. 🔴 `extension/parse.js:41` – Bei jeder Änderung auf der Seite wird das 370-KB-JSON von Airbnb neu geparst und 24-mal `innerText` gelesen (erzwingt Layout). Ergebnis nach Länge des Textes zwischenspeichern. (S)
+354. 🔴 `extension/parse.js` – Auf Seite 2 und nach Kartenverschieben ist der Seitenzustand veraltet. Dann haben nur Karten aus Seite 1 Koordinaten, im Test 12 von 24. Rest wird über den Viertelnamen geraten. Eine Alias-Tabelle („Gracia“ = „Gràcia“ = „Vila de Gràcia“) hilft. (M)
+355. 🔴 `extension/rank.js` – Namensabgleich nimmt bei „Eixample“ irgendein Teil-Viertel, auch wenn das Viertel in Wahrheit schlecht passt. Bei mehreren Treffern den Mittelwert nehmen und als „ungefähr“ markieren. (S)
+356. 🔴 `extension/rank.js` – Mehrfach-Unterkünfte („3 Wohnungen verfügbar“) zeigen den Preis „ab“. Der Preis ist dann zu optimistisch. Kennzeichnen und nicht als sicher bewerten. (S)
+357. 🔴 `extension/popup.js:38` – Beim Import kann jedes Bild-URL stehen (Tracking-Pixel). `url` wird geprüft, `image` nicht. Nur Airbnb-Bild-Server erlauben. (S)
+358. 🔴 `extension/popup.js` – Import ohne Größen- und Mengengrenze. Eine riesige Datei friert das Popup ein oder füllt den Speicher. (S)
+359. 🔴 `extension/manifest.json` – Kein `unlimitedStorage`. `chrome.storage.local` hat eine Grenze; bei vielen gemerkten Unterkünften schlägt `set` still fehl. Fehler abfangen und Hinweis zeigen. (S)
+360. 🔴 `extension/content.js:261` – Dauer-Timer, der jede Sekunde die Adresse prüft, auf jeder Airbnb-Seite, auch im Hintergrund-Tab. Besser `navigation`-Ereignis oder `popstate` + History-Patch. (S)
+361. 🔴 `web/app.js` – Cache-Schlüssel enthält die Bounding-Box auf 3 Stellen. Dieselbe Stadt aus „Berlin“ und „Berlin, Deutschland“ kann leicht abweichen und wird doppelt geladen und gespeichert (je ~1,5 MB). Nach Stadt-ID (OSM-ID) schlüsseln. (S)
+362. 🔴 `web/index.html` – Beispiel-Panel zeigt erfundene Unterkünfte und Werte ohne Kennzeichnung. Besucher könnten es für echte Ergebnisse halten. Beschriften: „Beispiel“. (S)
+363. 🔴 `web/index.html` – Sticky-Navigation verdeckt Überschriften beim Klick auf „So geht's“ & Co. `scroll-margin-top: 90px` für die Abschnitte. (S)
+364. 🔴 `web/index.html` – „Version 0.2 · ca. 18 KB“ steht fest im Text und veraltet beim nächsten Plugin-Update. Aus `manifest.json` beim Bauen einsetzen. (S)
+365. 🔴 `web/staymatch-plugin.zip` – Die ZIP liegt als Binärdatei im Repo und kann hinter dem Code zurückbleiben. Beim Deploy bauen (Vercel-Build-Schritt), nicht einchecken. (S)
+366. 🔴 `web/app.html` – App und Landingpage sehen verschieden aus (hell/System vs. dunkel, andere Schrift). Das wirkt wie zwei Produkte. Gemeinsames Design (CSS-Variablen, Schrift). (M)
+367. 🔴 `web/app.html` – Kein Hell/Dunkel-Schalter, anders als die Landingpage. Gewählte Einstellung wird nicht übernommen. (S)
+368. 🔴 `extension/bridge.js` – Läuft nur auf `staymatch-tau.vercel.app` und `localhost:8765`. Zieht die Seite auf eine eigene Domain um, funktioniert die Verbindung nicht mehr. Domain-Liste aus einer Stelle pflegen. (S)
+369. 🔴 `extension/popup.js` – `APP_URL` ist fest eingetragen. Beim Domain-Wechsel muss man es an zwei Stellen ändern. (S)
+370. 🔴 `README.md` – Verweist auf `localhost:8765/app.html`, aber die Dev-Konfiguration startet auf einem anderen Port. Anleitung einmal komplett durchspielen. (S)
+371. 🔴 `scripts/build-plugin-zip.sh` – Prüft nicht, ob `zip` installiert ist, und bricht ohne klare Meldung ab. (S)
+372. 🔴 `extension/content.js` – `console.debug` verschluckt alle Fehler. Bei einer Airbnb-Änderung merkt niemand, dass das Plugin kaputt ist. Sichtbarer Hinweis im Panel: „Ich verstehe diese Seite nicht mehr (Fehler melden)“. (S)
+
+## B. Rechtliches und Datenschutz 🔵
+
+373. 🔵 `web/index.html:11` – **Google Fonts wird von Google geladen.** Dabei geht die IP-Adresse der Besucherin an Google. In Deutschland gab es dafür Abmahnungen und ein Urteil des LG München (2022). Schrift selbst hosten. (S)
+374. 🔵 `web/index.html:315` – Die FAQ sagt „Nichts verlässt deinen Browser“. Das stimmt für Gruppe und Likes, aber der Stadtname geht an Nominatim und Overpass, Kartenkacheln kommen von OpenStreetMap, Leaflet von unpkg. Aussage präzisieren, sonst ist sie falsch. (S)
+375. 🔵 `web/app.html` – Leaflet von unpkg: noch eine Drittpartei mit IP-Weitergabe. Selbst hosten (11 KB gzip). (S)
+376. 🔵 Datenschutzerklärung fehlt. Nötig, sobald Besucherinnen aus der EU Drittanbieter-Anfragen auslösen. (S)
+377. 🔵 Impressum fehlt. Für eine öffentliche, deutschsprachige Seite meist Pflicht, auch bei nichtkommerziellen Projekten, die sich an die Öffentlichkeit richten. Adresse oder Impressumsdienst prüfen. (S)
+378. 🔵 **Commit-E-Mail öffentlich.** Alle Commits im öffentlichen Repo tragen `pschmetzer@proton.me`. Künftig die GitHub-noreply-Adresse (`git config user.email`). Alte Commits nur mit Neuschreiben der Historie zu ändern, das lohnt bei dem jungen Repo. (S)
+379. 🔵 Marken: „StayMatch“ vor dem Chrome-Web-Store-Start kurz auf Namenskollisionen prüfen (DPMA/EUIPO, App-Stores). (S)
+380. 🔵 Plugin-Name und Beschreibung dürfen Airbnb nicht als Herkunft nahelegen. „Für Airbnb“ im Store-Titel vermeiden, im Text „funktioniert auf airbnb.de“. (S)
+381. 🔵 Hinweistext „nicht mit Airbnb verbunden“ auch im Plugin-Panel und im Popup. (S)
+382. 🔵 Ehrlicher Hinweis in der FAQ zu Airbnbs Nutzungsbedingungen: Plugin liest nur die geöffnete Seite, Airbnb kann das trotzdem anders sehen. Wer das nicht möchte, lässt es sein. (S)
+383. 🔵 Lizenz-Hinweise Dritter in `LICENSE`/`NOTICE`: Leaflet (BSD-2), Inter (OFL), OpenStreetMap-Daten (ODbL). (S)
+384. 🔵 ODbL-Pflicht beim Teilen von Ergebnissen: Quelle nennen. Im Export und im Teilen-Link mitliefern. (S)
+385. 🔵 `SECURITY.md` mit Meldeweg für Sicherheitslücken, bevor jemand sie öffentlich als Issue meldet. (S)
+386. 🔵 Cookie-Banner nicht nötig, solange nur `localStorage` für eigene Funktionen genutzt wird. Dokumentieren, warum. (S)
+387. 🔵 Chrome-Web-Store verlangt eine Begründung pro Berechtigung. `storage` und die Seiten-Zugriffe schon vorab sauber formulieren. (S)
+388. 🔵 Zugriff nur auf die Länderseiten, die wirklich unterstützt sind. Aktuell 24 Domains; was nicht getestet ist, vorerst weglassen. (S)
+
+## C. Plugin: Verteilung und Qualität 🧩
+
+389. 🟠 Chrome Web Store veröffentlichen (Icons, Screenshots, Datenschutz, Beschreibung). Einmalig 5 USD Entwicklergebühr. Danach entfällt der Entwicklermodus. (M)
+390. 🟠 Automatische Updates erst über den Store. Bis dahin: Plugin prüft einmal pro Woche eine `version.json` auf der Seite und zeigt „Neue Version“. (S)
+391. 🟠 Edge-Add-ons-Store (gleiche Datei, kostenlos). (S)
+392. 🟠 Firefox: `browser_specific_settings` ergänzen, AMO-Veröffentlichung. (M)
+393. 🟠 Safari-Version über Xcode-Konverter, vor allem für iPhone-Nutzer. (L)
+394. 🟠 Eine „Selbsttest“-Seite im Popup: öffnet eine Beispiel-Suche und prüft, ob Preis, Sterne und Betten erkannt werden. Zeigt grün/rot. (M)
+395. 🟠 Anonyme, freiwillige Fehlermeldung („Seite nicht erkannt“) ohne persönliche Daten. (M)
+396. 🟠 Playwright-Test gegen eine gespeicherte Kopie der Suchseite (nur lokal, nicht im Repo). (M)
+397. 🟠 Parser auf mehrere Quellen erweitern: Booking.com, Vrbo. Gleiche Schnittstelle `parseSearch`, eigene Datei je Portal. (L)
+398. 🟠 Sortierung auf der Airbnb-Seite selbst: Knopf „Nach StayMatch sortieren“ ordnet die Karten um. (M)
+399. 🟠 Filter-Chips im Panel: „nur ≥ 4,7“, „nur im Budget“, „nur mit genug Betten“, „nur Gäste-Favorit“. (S)
+400. 🟠 Plakette ausblenden: Schalter im Popup. (S)
+401. 🟠 Popup-Einstellungen: Sprache, Gewichtung (Viertel vs. Preis vs. Sterne) per Schieberegler. (M)
+402. 🟠 „Warum diese Punktzahl?“ als aufklappbare Aufschlüsselung (35 % Viertel, 25 % Sterne …). (S)
+403. 🟠 Vergleich zweier Unterkünfte nebeneinander im Panel. (M)
+404. 🟠 Gruppen-Share: Top 3 als Link oder Bild für den Gruppenchat. (M)
+405. 🟠 Bild-Export „Unsere Top 3“ (Canvas) mit Viertel, Preis pro Kopf, Punkten. (M)
+406. 🟠 Badge am Plugin-Symbol zeigt die Anzahl guter Treffer auf der aktuellen Seite. (S)
+407. 🟠 Seite einer Unterkunft: Betten-Check gegen die Gruppengröße, mit Warnung. (S)
+408. 🟠 Seite einer Unterkunft: Hausregeln auslesen („Keine Partys“, Ruhezeiten) und für Party-Gruppen warnen. Vorher prüfen, ob die Regel nicht ohnehin bei allen steht. (M)
+409. 🟠 Stornobedingungen als Zeile im Panel. (S)
+410. 🟠 Ausstattung abgleichen: Gruppe wünscht Klimaanlage, WLAN, Küche; Panel zeigt, was fehlt. (M)
+411. 🟠 Bewertungstexte nach „Gruppe/Freunde“ filtern und Stichworte nur daraus bilden. (M)
+412. 🟠 Zusammenfassung der Bewertungen mit KI (lokal oder per eigenem API-Schlüssel der Nutzerin). (L)
+413. 🟠 Lagebeschreibung der Unterkunft gegen die Viertelwerte prüfen („liegt am Rand von Gràcia, 900 m zur Partymeile“). (M)
+414. 🟠 Entfernung zu Wunschorten pro Person („Lena: 6 Min. zur nächsten Bar, Tom: 12 Min. zur Kathedrale“). (M)
+415. 🟠 Eigene Wunschorte setzen („Hotel XY, Restaurant Z“) und Entfernung dorthin anzeigen. (M)
+416. 🟠 Tastaturkürzel: `J/K` durch die Top-Liste, `L` = 👍, `D` = 👎. (S)
+417. 🟠 Panel verschiebbar, Position merken. (S)
+418. 🟠 Panel bei Airbnb-Dark-Mode anpassen (statt nur System-Einstellung). (S)
+419. 🟠 Mobile Chrome (Android): Panel als Bottom-Sheet. Chrome Android unterstützt Erweiterungen nicht; Alternative Kiwi/Firefox Android. (M)
+420. 🟠 Aufgeräumte Datenmigration: Version im Speicher (`schema: 2`) und Migrationsfunktionen statt Einzelfall im Popup. (S)
+
+## D. Bewertungslogik und Daten 🟠
+
+421. 🟠 Statt harter Obergrenze pro Kategorie die Rangposition in der Stadt (Perzentil) nutzen. Ausreißer in der Altstadt drücken sonst alle anderen. (M)
+422. 🟠 Gewichtung nach Entfernung statt harter Radius (Bar in 100 m zählt mehr als in 790 m). (S)
+423. 🟠 Radius je Typ: Party-Leute laufen 1,5 km zur Bar, Chill-Leute wollen den Park direkt vor der Tür. (S)
+424. 🟠 Nachtleben nach Öffnungszeiten gewichten (Bars bis 2 Uhr zählen mehr als Cafés mit Bar-Tag). (M)
+425. 🟠 Lärm als Abzug: Nähe zu Clubs, Bahngleisen, Hauptstraßen (OSM-`highway=primary`) für Ruhe-Typen. (M)
+426. 🟠 Hotspot-Abzug: so viele Touristen-Läden, dass Locals fehlen (Typ „Locals“). (L)
+427. 🟠 Typ „Familie“, „Kultur“, „Shopping“, „Natur“, „Sport“ ergänzen (je ein Gewichtsprofil). (S)
+428. 🟠 Eigene Schieberegler je Person statt fester Typen. (M)
+429. 🟠 Mischtypen („60 % Party, 40 % Sightseeing“). (S)
+430. 🟠 Hartes Veto: „Auf keinen Fall Partymeile“ schließt Viertel aus. (S)
+431. 🟠 Wunschorte pro Person („will ans Meer“) über Entfernung zu Küste/Strand. (M)
+432. 🟠 Fußweg-Zeit statt Luftlinie (OpenRouteService / Valhalla). Gerade bei Hügeln und Flüssen verzerrt Luftlinie stark. (L)
+433. 🟠 ÖPNV-Anbindung nach Linien und Takt (GTFS-Daten) statt nur Haltestellen zählen. (L)
+434. 🟠 Preisniveau je Viertel aus den Suchergebnissen lernen (Median der Preise, die das Plugin sieht) und im Viertel-Finder anzeigen. (M)
+435. 🟠 Sicherheitsgefühl-Datenquellen je Stadt prüfen (offene Kriminalitätsdaten). Mit klarem Hinweis, dass es grob ist. (L)
+436. 🟠 Daten vorab für 50 Städte als statische Dateien (komprimiert, ~150 KB statt 1,5 MB). Dann ist das Ergebnis sofort da und Overpass wird entlastet. (M)
+437. 🟠 Nächtliche Aktualisierung dieser Städte per GitHub Action. (M)
+438. 🟠 Eigene kleine Server-Funktion mit Cache vor Overpass (Vercel Function + Blob). (M)
+439. 🟠 Alternativen zu Overpass bei Ausfall: Geofabrik-Auszüge, Overture Maps. (L)
+440. 🟠 Viertelgrenzen als Fläche (Relationen) statt Mittelpunkt, damit „Orte im Viertel“ stimmt. (M)
+441. 🟠 Orte pro Typ nach Qualität gewichten: Bars mit Website/Öffnungszeiten zählen mehr als Eintragsleichen. (M)
+442. 🟠 Unsicherheit anzeigen: Viertel mit wenigen OSM-Daten bekommen den Hinweis „wenig Daten“. (S)
+443. 🟠 Sensitivität: „Wenn Tom auf Chill wechselt, gewinnt Gràcia statt Poblenou“. (S)
+444. 🟠 Erklärbarkeit pro Person: „Sara wäre unzufrieden, weil nur 2 Parks in 800 m“. (S)
+445. 🟠 Einheitentests für `personScore`, `groupScore`, `pickDiverse`, `priceScore`, `parseSearch`, `num`. (S)
+446. 🟠 Testdaten (Mini-Stadt) im Repo, damit Tests ohne Netz laufen. (S)
+447. 🟠 Gewichte in einer JSON-Datei, geteilt zwischen Web und Plugin. (S)
+448. 🟠 Währungen umrechnen (Gesamtbudget in €, Unterkunft in CHF/£). (S)
+449. 🟠 Mehrere Zeiträume vergleichen: „Mai vs. Juni“ mit Preisunterschied (aus Plugin-Beobachtungen). (L)
+450. 🟠 Feiertage und Großveranstaltungen im Zeitraum als Warnung (Messen treiben Preise). (M)
+
+## E. Landingpage 🎨
+
+451. 🟠 Echte Screenshots statt gebautem Beispiel (Viertel-Finder und Panel auf Airbnb). Mit `Beispiel`-Kennzeichnung. (S)
+452. 🟠 Kurzes Demo-Video (15–20 s) im Hero, erstellt mit dem vorhandenen OpenMontage. (M)
+453. 🟠 Animierte Bewertung: Beim Scrollen füllen sich die Balken im Abschnitt „Warum fair?“. (S)
+454. 🟠 Interaktive Mini-Demo auf der Seite: drei Personen anklicken, Ranking ändert sich live (ohne Netz, mit eingebauten Beispieldaten). (M)
+455. 🟠 `og:image` und Twitter-Karte für schöne Vorschau in WhatsApp und Instagram. Fehlt derzeit komplett. (S)
+456. 🟠 `<link rel="canonical">`, `sitemap.xml`, `robots.txt`. (S)
+457. 🟠 Strukturierte Daten (`SoftwareApplication`) für Suchmaschinen. (S)
+458. 🟠 Englische Version (`/en`) mit `hreflang`. (M)
+459. 🟠 Eigene Domain (z. B. staymatch.app), danach Weiterleitung der Vercel-Adresse. (S)
+460. 🟠 Saubere Adressen: `/app` statt `/app.html` per `cleanUrls`. (S)
+461. 🟠 „So funktioniert's“ mit kurzen Loop-Animationen je Schritt. (M)
+462. 🟠 Abschnitt „Für wen?“ (Junggesellenabschied, Städtetrip, Familie, Firmen-Offsite) mit je einem Beispiel. (S)
+463. 🟠 Stimmen von echten Nutzerinnen erst, wenn es sie gibt. Bis dahin keine erfundenen Zitate. (—)
+464. 🟠 Zähler „X Städte, Y Viertel bewertet“ aus echten Daten. (S)
+465. 🟠 Newsletter/Warteliste fürs Web-Store-Release (ohne Tracking, z. B. Formular-Dienst in der EU). (S)
+466. 🟠 Lade-Performance: Inline-CSS ok, Schrift selbst hosten, `font-display: swap`, Bilder nur wo nötig. Ziel Lighthouse ≥ 95. (S)
+467. 🟠 Barrierefreiheit: Kontraste (`--dim` auf `--bg` ist knapp), `aria-label` für Beispielgrafik, Fokusreihenfolge, `prefers-reduced-motion` prüfen. (S)
+468. 🟠 Hell-Variante des Hero-Verlaufs prüfen (auf dem Handy wirkt der zweite Knopf im Hell-Modus fast unsichtbar, Kontrast prüfen). (S)
+469. 🟠 Sprung-Navigation per Tastatur („Zum Inhalt springen“-Link). (S)
+470. 🟠 Footer: Datenschutz, Impressum, GitHub, Lizenzen. (S)
+471. 🟠 404-Seite im gleichen Stil. (S)
+472. 🟠 Einfache, cookielose Statistik (Vercel Web Analytics oder Plausible), mit Hinweis in der Datenschutzerklärung. (S)
+473. 🟠 „Was ist neu“-Seite aus dem `CHANGELOG.md`. (S)
+474. 🟠 Preisvergleich „StayMatch vs. alles per Hand“ ersetzen durch ehrliche Zeitersparnis, erst nach Messung mit echten Nutzerinnen. (—)
+
+## F. Neue Features für die Nutzerinnen 💡
+
+475. 🟢 **Gruppen-Link ohne Konto:** Jede Person öffnet einen Link und wählt ihren Typ selbst. Daten wandern verschlüsselt in der URL (Fragment `#…`), kein Server nötig. (M)
+476. 🟢 Abstimmung über die Top-Viertel mit Daumen und Rangliste, ebenfalls über Link. (M)
+477. 🟢 „Quiz statt Typ“: 5 Fragen („Freitag, 23 Uhr, du bist …“) erzeugen das Profil. (S)
+478. 🟢 Konflikt-Karte: Wo sind die Wünsche am weitesten auseinander, und welches Viertel vermittelt am besten. (M)
+479. 🟢 Split-Stay: zwei Unterkünfte in zwei Vierteln, wenn kein Kompromiss gut genug ist. (M)
+480. 🟢 Kostenaufteilung nach Zimmergröße („Zimmer-Auktion“). (M)
+481. 🟢 Zimmerverteilung (Paare, Schnarcher, Frühaufsteher) als Vorschlag. (S)
+482. 🟢 Budget pro Person verschieden („Tom kann nur 120 €“). (S)
+483. 🟢 Anreise aus verschiedenen Städten, günstigster gemeinsamer Zeitraum. (L)
+484. 🟢 Zeitraum-Umfrage („Wann passt es allen?“) mit Kalenderansicht. (M)
+485. 🟢 Reisekasse-Rechner (Unterkunft + Anreise + Essen + Ausgehen pro Person). (M)
+486. 🟢 Aktivitätenplan pro Tag passend zur Gruppe (Vormittag Sights, Nachmittag Strand, Abend Bar). (L)
+487. 🟢 „Heute Abend“: offene Bars in Laufweite der Unterkunft. (M)
+488. 🟢 Regenplan bei schlechtem Wetter (Open-Meteo, kostenlos). (M)
+489. 🟢 Packliste je Ziel und Aktivität. (S)
+490. 🟢 Kalender-Export (`.ics`) für Check-in, Check-out, Reservierungen. (S)
+491. 🟢 Offline-Karte des Viertels für unterwegs (PWA). (M)
+492. 🟢 Reise-Rückblick: „Wie zufrieden wart ihr?“ lernt für die nächste Reise. (M)
+493. 🟢 Freunde-Profile speichern („Lena ist immer Party“). (S)
+494. 🟢 Mehrere Reisen verwalten und vergleichen („Barcelona vs. Lissabon“). (M)
+495. 🟢 Ziel-Vorschlag: „Wir wissen noch nicht wohin“ liefert Städte nach Gruppe, Budget und Monat. (L)
+496. 🟢 Überraschungsmodus: Budget und Stimmung angeben, die App wählt die Stadt. (M)
+497. 🟢 Glücksrad, wenn zwei Viertel gleichauf liegen. (S)
+498. 🟢 Streetview-/Mapillary-Vorschau der Straße der Unterkunft. (M)
+499. 🟢 Lärmkarten der Städte (EU-Lärmrichtlinie) als Ebene auf der Karte. (L)
+500. 🟢 Barrierefreie Reise als eigener Modus (Stufen, Aufzug, `wheelchair=yes`). (M)
+501. 🟢 Digital-Nomad-Modus (Coworking, Cafés mit WLAN, lange Aufenthalte). (M)
+502. 🟢 Firmen-Offsite-Modus (Meetingraum, WLAN, Gruppenessen). (M)
+503. 🟢 Junggesellenabschied-Modus (Clubs, Aktivitäten, Gruppentische). (M)
+504. 🟢 Reisen mit Kindern (Spielplätze, Ruhezeiten, Kinderwagen-tauglich). (M)
+505. 🟢 Haustier-Modus (Hundeparks, Tierärzte). (S)
+506. 🟢 Nachhaltigkeit: Anreise per Zug im CO₂-Vergleich. (M)
+507. 🟢 Locals-Tipp-Modus: wenig Touristen, gute Infrastruktur. (L)
+508. 🟢 Streaming-Reisebericht aus Fotos nach der Reise (Video per OpenMontage). (L)
+509. 🟢 Chatbot (Claude) für Rückfragen: „Warum nicht Gràcia?“ mit den eigenen Daten als Grundlage. (L)
+510. 🟢 WhatsApp-/Telegram-Bot: „/staymatch Barcelona 5 Leute“. (L)
+
+## G. Betrieb, Qualität, Wachstum 📦
+
+511. 🟠 `package.json` mit `dev`, `test`, `build`, `lint`. (S)
+512. 🟠 GitHub Actions: Syntaxprüfung, Tests, Manifest-Prüfung, ZIP bauen, bei Tag ein Release anhängen. (S)
+513. 🟠 Vercel-Build-Schritt erzeugt die ZIP, statt sie einzuchecken (siehe 365). (S)
+514. 🟠 `vercel.ts` mit Sicherheits-Headern (CSP, `X-Content-Type-Options`, `Referrer-Policy`) und `cleanUrls`. (S)
+515. 🟠 CSP so festziehen, dass nur eigene Dateien und die OSM-Dienste erlaubt sind (nach dem Selbst-Hosten von Schrift und Leaflet). (S)
+516. 🟠 Preview-Deploys manuell per `deploys vercel deploy` vor Produktion testen (Auto-Deploy bleibt aus). (S)
+517. 🟠 Playwright-Test der Web-App mit festen Testdaten, damit Overpass nicht gebraucht wird. (M)
+518. 🟠 Lighthouse in CI. (S)
+519. 🟠 Dependabot für die wenigen Abhängigkeiten (nach dem Selbst-Hosten ohnehin kaum welche). (S)
+520. 🟠 Issue-Vorlagen: „Plugin erkennt Seite nicht“ (mit Anleitung, was zu kopieren ist, ohne persönliche Daten). (S)
+521. 🟠 `CONTRIBUTING.md` mit „So testest du lokal“, `CODE_OF_CONDUCT.md`, `SECURITY.md`. (S)
+522. 🟠 `CHANGELOG.md` und Versionsschema. (S)
+523. 🟠 GitHub-Topics, Beschreibung, Social-Preview-Bild für das Repo. (S)
+524. 🟠 README mit GIF der Demo und Live-Link ganz oben. (S)
+525. 🟠 Gemeinsamen Code (Gewichte, Distanzfunktion) einmal pflegen und beim Bauen in Web und Plugin einsetzen. (S)
+526. 🟠 JSDoc-Typen oder TypeScript für `parse.js`/`rank.js`, damit Airbnb-Änderungen früh auffallen. (M)
+527. 🟠 Ordnerstruktur `packages/core`, `apps/web`, `apps/extension`, sobald ein zweites Portal dazukommt. (M)
+528. 🟠 Product-Hunt-Start, r/travel, r/solotravel, Junggesellenabschied-Foren, Reisegruppen-Communities. (S)
+529. 🟠 Kurzvideos (Reels/TikTok): „So findest du das Viertel für deine Gruppe“. Skripte mit den vorhandenen Skills. (S)
+530. 🟠 SEO-Seiten „Beste Viertel in Barcelona für Gruppen“ aus den eigenen Daten, statisch erzeugt. Nur mit echten, geprüften Daten. (M)
+531. 🟠 Nutzer-Interviews mit 5 Gruppen, die gerade planen. Wichtigster Schritt vor mehr Features. (S)
+532. 🟠 Affiliate-Links (Booking.com, GetYourGuide) offen als solche kennzeichnen. (M)
+533. 🟠 Premium-Idee: Gruppen-Sync, Preisalarme, KI-Zusammenfassungen. Erst bei echtem Bedarf. (L)
+534. 🟠 GitHub Sponsors für das Open-Source-Projekt. (S)
+535. 🟠 Partner-API prüfen: Booking.com Demand API als sauberer Weg zu Unterkunftsdaten ohne Seitenlesen. (L)
+
+---
+
+## Meine Top 10 für die nächste Runde
+
+1. **#373, #374, #375** Schrift und Leaflet selbst hosten, FAQ-Aussage zu Daten richtigstellen. Das ist der einzige Punkt mit echtem Rechtsrisiko und schnell erledigt.
+2. **#378** Künftige Commits mit noreply-Adresse.
+3. **#346, #347** Zwei echte Fehler im neuen Code (Enter-Doppelstart, leere Ergebnisliste).
+4. **#348, #349** Falsche Wertung bei Park-Sehenswürdigkeiten und Preissprung.
+5. **#350** Plaketten nach Neuaufbau von Airbnb wieder setzen.
+6. **#362, #455** Beispiel kennzeichnen, Vorschaubild für WhatsApp.
+7. **#365, #512, #513** ZIP beim Deploy bauen, CI einrichten.
+8. **#436** Daten für 50 Städte vorab, damit niemand eine Minute wartet.
+9. **#475** Gruppen-Link ohne Konto: Jede Person wählt ihren Typ selbst.
+10. **#389** Chrome Web Store, damit der Entwicklermodus wegfällt.
