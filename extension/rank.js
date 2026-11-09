@@ -164,13 +164,13 @@
 
   // Basisgewichte. Geschmack 5 % → 10 %: Die Landingpage verspricht, dass das Plugin den Geschmack lernt;
   // bei 5 % bewegte er die Wertung höchstens ±2,5 Punkte (Nr. 547). Jetzt bis ca. ±5.
-  const WEIGHTS = { area: 0.35, rating: 0.25, price: 0.2, beds: 0.15, taste: 0.10, wishes: 0.2 };
+  const WEIGHTS = { area: 0.3, rating: 0.2, price: 0.2, wishes: 0.2, beds: 0.12, taste: 0.10 };
 
   // Direkt-Modus: Wünsche an die Unterkunft, die sich schon auf der Suchseite prüfen lassen.
   // check liefert true (passt), false (passt nicht) oder null (unbekannt).
   const WISHES = {
     whole: { label: '🏠 ganze Unterkunft', ok: 'ganze Unterkunft', no: 'nur ein Zimmer', check: l => {
-      const k = `${l.kind || ''} ${l.title || ''}`;
+      const k = l.kind || l.title || ''; // erst die Art, freier Titel nur ohne Art („2 Schlafzimmer in …“)
       return PRIVATE_ROOM.test(k) || SHARED_ROOM.test(k) || ROOM_ONLY.test(k) ? false : WHOLE_PLACE.test(k) ? true : null;
     } },
     trusted: { label: '🏅 Superhost/Favorit', ok: 'Superhost oder Gäste-Favorit', no: 'kein Superhost/Gäste-Favorit', check: l => (l.badges || []).some(b => /favorit|superhost/i.test(b)) },
@@ -186,14 +186,25 @@
     const known = hit.length + miss.length;
     return { value: known ? hit.length / known : null, hit, miss };
   }
+  // Wünsche, die sich erst auf der Unterkunftsseite aus Bewertungs-Stichworten prüfen lassen
+  const REVIEW_WISHES = { quiet: ['ruhig', /laut/], clean: ['sauber', /schmutzig|nicht sauber/], wifi: ['gutes WLAN', /WLAN/] };
+  function reviewConflicts(hints, wishes) {
+    const out = [];
+    for (const k of wishes || []) {
+      const w = REVIEW_WISHES[k]; if (!w) continue;
+      const bad = (hints || []).find(h => h.startsWith('⚠️') && w[1].test(h));
+      if (bad) out.push(`passt nicht zu deinem Wunsch „${w[0]}“: ${bad.replace('⚠️ ', '')}`);
+    }
+    return out;
+  }
   // Nr. 653: Bei großen Gruppen zählen Betten mehr, bei Paaren/Solo weniger. Summe wird ohnehin neu normiert.
   function weightsFor(people) {
     const w = { ...WEIGHTS };
-    if (people >= 6) w.beds = 0.25; else if (people >= 4) w.beds = 0.18; else if (people && people <= 2) w.beds = 0.08;
+    if (people >= 6) w.beds = 0.22; else if (people >= 4) w.beds = 0.15; else if (people && people <= 2) w.beds = 0.08;
     return w;
   }
 
-  const ROOM_ONLY = /zimmer in|hotelzimmer|room in|hotel room|chambre d'hôtel|habitación en|stanza in/i;
+  const ROOM_ONLY = /\bzimmer in\b|hotelzimmer|\broom in\b|hotel room|chambre d'hôtel|habitación en|stanza in/i;
   const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|\bhaus\b|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
   const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|kamer/i;
   const SHARED_ROOM = /gemeinsch|geteilt\w* zimmer|shared room|chambre partagée|habitación compartida|camera condivisa|hostel|schlafsaal|dorm/i;
@@ -201,20 +212,19 @@
 
   // ctx: { people, adults?, budget, budgetPerNight?, tripNights?, nights, areas, taste, seen, disliked, wishes? }
   function scoreListing(l, ctx) {
-    const pe = resolvePeople(ctx), people = pe.people;
+    const pe = resolvePeople(ctx), people = pe.people, solo = people === 1;
+    const wish = wishScore(l, ctx.wishes);
     const area = areaFor(l, ctx.areas);
     const budget = effectiveBudget(ctx);
     const total = tripTotal(l, ctx.nights);
-    const wish = wishScore(l, ctx.wishes);
-    const solo = people === 1;
     const parts = {
       area: area ? area.total / 100 : null,
       rating: ratingScore(effectiveRating(l), l.reviewCount),
       // ohne Nächtezahl bei Nachtpreis: nur mit Budget pro Nacht vergleichbar (Direkt-Modus), sonst kein Preis-Teil
       price: total != null ? priceScore(total, budget) : (!l.isTotal && ctx.budgetPerNight ? priceScore(l.totalPrice, ctx.budgetPerNight) : null),
-      beds: bedScore(l, people),
-      taste: tasteScore({ ...l, nights: ctx.nights }, ctx.taste),
       wishes: wish.value,
+      beds: solo ? null : bedScore(l, people), // eine Person: keine Betten-Wertung
+      taste: tasteScore({ ...l, nights: ctx.nights }, ctx.taste),
     };
     const weights = weightsFor(people);
     // fehlende Teile weglassen und Gewichte neu verteilen
@@ -268,13 +278,15 @@
       (parts.beds >= 1 ? why : warn).push(`${cap}${l.bedrooms != null ? `, ${l.bedrooms} Schlafzimmer` : ''} für ${people}`);
       if (parts.beds < 1) short.warn.push(`${l.sleeps ?? l.beds} Betten für ${people}`);
       if (parts.beds <= 0.25) unsuitableReasons.push(`zu wenige Betten für ${people}`);
-    } else if (people && l.bedrooms != null && l.bedrooms * 3 < people) {
+    } else if (!solo && people && l.bedrooms != null && l.bedrooms * 3 < people) {
       warn.push(`Nur ${l.bedrooms} Schlafzimmer für ${people} (Betten unbekannt)`);
     }
 
     // Bäder, Unterkunftsart, gewerblicher Gastgeber (Nr. 573–575). Kleine Abzüge, keine Teile der Gewichtung.
     if (people && l.baths != null && people / l.baths > 4) { warn.push(`${sepNum(l.baths)} Bad für ${people} Personen`); short.warn.push('wenig Bäder'); adjust -= 4; }
     const kind = String(l.kind || '');
+    // Bei einer Person bleiben Hinweise zur Art, aber „Privatzimmer für 1“ ist kein Mangel
+
     if (SHARED_ROOM.test(kind)) { warn.push('Geteilter Raum / Schlafsaal'); short.warn.push('geteilter Raum'); adjust -= 10; if (people >= 2) unsuitableReasons.push('geteilter Raum'); }
     else if (PRIVATE_ROOM.test(kind) && people >= 3) { warn.push(`Nur ein Privatzimmer für ${people} Personen`); short.warn.push('nur Privatzimmer'); adjust -= 8; unsuitableReasons.push(`Privatzimmer für ${people}`); }
     if (l.pro) { warn.push('Gewerblicher Gastgeber'); adjust -= 2; }
@@ -317,7 +329,7 @@
   }
 
   root.StayMatchRank = {
-    rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore,
+    rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, reviewConflicts, REVIEW_WISHES,
     weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
