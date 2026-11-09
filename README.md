@@ -13,7 +13,7 @@ Your helper for finding the right Airbnb faster. The Chrome extension scores eve
 ## How it works
 1. **Directly:** Open an Airbnb search and choose your budget per night and wishes in the StayMatch panel (entire place, no commercial hosts, Superhost, 20+ reviews, quiet/clean/Wi-Fi).
 2. **Optionally first:** Enter city, dates, budget, interests and wishes in the neighbourhood finder → matching neighbourhoods. “See stays here” opens the search with dates, guests, price limit and map area; your wishes and budget are passed to the extension.
-3. The extension scores every listing on the page (stars with a Bayesian average, price vs. budget, your wishes, the neighbourhood if known, beds for groups) and shows the **top 3 with reasons**. On a listing page it warns you when reviews contradict your wishes. Each new results page is scored on its own; the top 3 apply per page (collecting across pages is coming). The extension runs in desktop Chrome only; the neighbourhood finder also works on mobile.
+3. The extension scores every listing on the page (stars with a Bayesian average, price vs. budget, your wishes, the neighbourhood if known, beds for groups) and shows the **top 3 with reasons**. On a listing page it warns you when reviews contradict your wishes. When you page through results, listings from all pages are collected and the top 3 cover everything you have seen; a compare table and “copy top 3” help you decide. The extension runs in desktop Chrome only; the neighbourhood finder also works on mobile.
 
 ## Web app (`web/`)
 Static, no backend and no API keys.
