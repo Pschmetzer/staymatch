@@ -409,13 +409,13 @@ Ideen dazu:
 
 ## Meine Top 10 für den nächsten Schritt
 
-1. ✅ **Abschnitt 0, Weg B:** Plugin bewertet die Suchseite und empfiehlt die Top 3 → euer Wunsch „ohne anschauen“.
-2. ✅ **#13** Notiz-Sicherheitslücke schließen.
-3. ✅ **#14, #15** Falsche Bewertungs-Stichworte (Wortgrenzen, Verneinung).
-4. ✅ **#17** Plugin auch bei Seitenwechsel ohne Reload.
-5. ✅ **#23, #24** Overpass fair und mit Timeout abfragen.
-6. ✅ **#95** Top-Städte vorab berechnen → Ergebnis in 1 Sekunde statt 1 Minute.
+1. **Abschnitt 0, Weg B:** Plugin bewertet die Suchseite und empfiehlt die Top 3 → euer Wunsch „ohne anschauen“.
+2. **#13** Notiz-Sicherheitslücke schließen.
+3. **#14, #15** Falsche Bewertungs-Stichworte (Wortgrenzen, Verneinung).
+4. **#17** Plugin auch bei Seitenwechsel ohne Reload.
+5. **#23, #24** Overpass fair und mit Timeout abfragen.
+6. **#95** Top-Städte vorab berechnen → Ergebnis in 1 Sekunde statt 1 Minute.
 7. **#91 + #229** Gruppen-Link: jeder stellt sich selbst ein.
-8. ✅ **#186** Hausregel „keine Partys“ erkennen – wichtig für eure Party-Leute.
-9. ✅ **#183, #184** Betten-Check.
+8. **#186** Hausregel „keine Partys“ erkennen – wichtig für eure Party-Leute.
+9. **#183, #184** Betten-Check.
 10. **#82, #210** Tests + CI, damit Änderungen nichts kaputtmachen.
