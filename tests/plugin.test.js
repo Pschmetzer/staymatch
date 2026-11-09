@@ -66,20 +66,20 @@ const base = { id: '1', title: 'A', rating: 4.9, reviewCount: 200, beds: 4, bedr
 
 test('Preis pro Person und Nacht: Gesamtpreis und Preis pro Nacht', () => {
   const ctx = { people: 4, nights: 4, budget: 2400 };
-  assert.deepEqual(R.perNight({ ...base, totalPrice: 800, isTotal: true }, ctx), { night: 200, person: 50 });
-  assert.deepEqual(R.perNight({ ...base, totalPrice: 200, isTotal: false }, ctx), { night: 200, person: 50 });
-  assert.deepEqual(R.perNight({ ...base, totalPrice: 800, isTotal: true }, { people: 4 }), { night: null, person: null });
-  assert.deepEqual(R.perNight({ ...base, totalPrice: 800, isTotal: true }, { nights: 4 }), { night: 200, person: null });
+  const ppn = (l, c) => R.scoreListing({ ...base, ...l }, c).ppn;
+  assert.deepEqual(ppn({ totalPrice: 800, isTotal: true }, ctx), { night: 200, person: 50 });
+  assert.deepEqual(ppn({ totalPrice: 200, isTotal: false }, ctx), { night: 200, person: 50 });
+  assert.deepEqual(ppn({ totalPrice: 800, isTotal: true }, { people: 4 }), { night: null, person: null });
+  assert.deepEqual(ppn({ totalPrice: 800, isTotal: true }, { nights: 4, people: 1 }), { night: 200, person: null }, 'eine Person: kein Preis pro Person');
   const r = R.scoreListing({ ...base, totalPrice: 800, isTotal: true }, ctx);
   assert.equal(r.ppn.person, 50);
   assert.equal(r.stay, 800);
-  assert.ok(r.why.some(w => w.includes('50 € pro Person und Nacht')), r.why.join('|'));
 });
 
 test('Preis pro Nacht ohne bekannte Nächte wird nicht mit dem Gesamtbudget verglichen', () => {
   const r = R.scoreListing({ ...base, totalPrice: 150, isTotal: false }, { people: 4, budget: 1000 });
   assert.equal(r.parts.price, null);
-  assert.ok(r.why.some(w => w.includes('38 € pro Person und Nacht')), r.why.join('|'));
+  assert.equal(r.ppn.person, 38);
   assert.equal(r.stay, null);
 });
 

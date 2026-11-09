@@ -85,7 +85,7 @@ test('Seitenaufbau unbekannt: klare Fehlermeldung statt leerem Panel, nur Zahlen
   const a = box.querySelector('a.btn');
   assert.match(a.href, /^https:\/\/github\.com\/pschmetzer\/staymatch\/issues\/new\?/);
   const body2 = decodeURIComponent(a.href);
-  assert.match(body2, /StayMatch 0\.4\.0/);
+  assert.match(body2, new RegExp(`StayMatch ${require('../extension/manifest.json').version.replace(/\./g, '\\.')}`));
   assert.ok(!body2.includes('airbnb.de'), 'keine Adresse im Bericht');
 });
 
@@ -174,19 +174,19 @@ test('Frühere Warnstichworte erscheinen als Warnung auf der Suchseite', { skip 
   assert.match(b.title, /Treppen/);
 });
 
-test('Manifest: Version 0.4.0, keine neuen Berechtigungen, alle Skripte vorhanden', () => {
+test('Manifest: Version 0.5.0, keine neuen Berechtigungen, alle Skripte vorhanden', () => {
   const m = require('../extension/manifest.json');
-  assert.equal(m.version, '0.4.0');
+  assert.equal(m.version, '0.5.0');
   assert.deepEqual(m.permissions, ['storage']);
   assert.equal(m.host_permissions, undefined);
   const js = m.content_scripts[0].js;
-  assert.deepEqual(js.slice(0, 4), ['parse.js', 'rank.js', 'hints.js', 'pool.js']);
+  assert.deepEqual(js, ['core.js', 'parse.js', 'rank.js', 'hints.js', 'pool.js', 'content-common.js', 'content-search.js', 'content-listing.js']);
   for (const f of m.content_scripts.flatMap(c => c.js)) assert.ok(require('node:fs').existsSync(require('node:path').join(__dirname, '..', 'extension', f)), f);
 });
 
 test('Plugin lädt keine fremden Adressen nach (kein fetch/XHR/WebSocket im Code)', () => {
   const fs = require('node:fs');
-  for (const f of ['content.js', 'parse.js', 'rank.js', 'hints.js', 'pool.js', 'popup.js', 'bridge.js']) {
+  for (const f of [...D.CONTENT_SCRIPTS, 'popup.js', 'bridge.js']) {
     const s = fs.readFileSync(require('node:path').join(__dirname, '..', 'extension', f), 'utf8');
     assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon|chrome\.(tabs|webRequest|scripting|alarms)/.test(s), f);
   }
@@ -199,7 +199,7 @@ test('Popup: Einstellungen funktionieren ohne vorherigen Import, Merkliste wird 
   const w = dom.window; w.chrome = chrome; D.track(w);
   let copied = null;
   Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { copied = t; } }, configurable: true });
-  w.eval(D.src('rank.js')); w.eval(D.src('popup.js'));
+  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('popup.js'));
   await until(() => w.document.getElementById('optTheme').value === 'auto' && w.document.getElementById('list').children.length);
   const theme = w.document.getElementById('optTheme'); theme.value = 'dark'; theme.dispatchEvent(new w.Event('change'));
   await until(() => chrome.data.settings.theme === 'dark');
@@ -212,5 +212,40 @@ test('Popup: Einstellungen funktionieren ohne vorherigen Import, Merkliste wird 
   w.document.getElementById('share').click();
   await until(() => copied);
   assert.match(copied, /^Unsere Merkliste \(StayMatch\)\n\n1\. Loft – Gràcia · ⭐ 4,8 · 50 € p\. P\.\/Nacht\n {3}Notiz: Balkon\n {3}https:\/\/www\.airbnb\.de\/rooms\/1$/);
+  assert.ok(!copied.includes('Nein'), '👎 nicht in der Merkliste');
+});
+
+test('Eine Person: „Top 3 für dich“, kein Preis pro Person, Wünsche aus dem Viertel-Finder', { skip }, async () => {
+  const solo = { ...TRIP, people: [{ name: 'Du', type: 'sights' }], wishes: ['trusted'], savedAt: 5 };
+  const { doc, chrome } = makePage({ body: searchBody(), url: 'https://www.airbnb.de/s/Barcelona/homes?checkin=2026-05-01&checkout=2026-05-05&adults=1', chrome: chromeMock({ trip: solo }) });
+  const box = await until(() => shadow(doc, 'sm-search')?.querySelector('.box'));
+  assert.ok(box, 'Panel fehlt');
+  assert.match(box.textContent, /Top 3 für dich/);
+  assert.match(box.textContent, /1 Person\b/);
+  assert.doesNotMatch(box.textContent, /pro Person|für euch|Betten.*für 1/);
+  assert.deepEqual(chrome.data.quick.wishes, ['trusted'], 'Wünsche übernommen');
+  assert.match(box.textContent, /✓ Superhost oder Gäste-Favorit|Wunsch nicht erfüllt: kein Superhost/, 'Wunsch fließt ins Ranking');
+});
+
+test('Popup, eine Person: „Meine Merkliste“ ohne Preis pro Person', { skip }, async () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const chrome = chromeMock({ settings: { showBadges: true }, trip: { ...TRIP, people: [{ name: 'Du', type: 'sights' }] }, 'l:1': { id: '1', title: 'Loft', vote: 1, rating: 4.8, pricePerNight: 200, url: 'https://www.airbnb.de/rooms/1', locality: 'Gràcia', note: 'Balkon' }, 'l:2': { id: '2', title: 'Nein', vote: -1 } });
+  const dom = new D.JSDOM(fs.readFileSync(path.join(D.EXT, 'popup.html'), 'utf8').replace(/<script[^>]*><\/script>/g, ''), { runScripts: 'outside-only', url: 'chrome-extension://x/popup.html' });
+  const w = dom.window; w.chrome = chrome; D.track(w);
+  let copied = null;
+  Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { copied = t; } }, configurable: true });
+  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('popup.js'));
+  await until(() => w.document.getElementById('optTheme').value === 'auto' && w.document.getElementById('list').children.length);
+  const theme = w.document.getElementById('optTheme'); theme.value = 'dark'; theme.dispatchEvent(new w.Event('change'));
+  await until(() => chrome.data.settings.theme === 'dark');
+  assert.equal(chrome.data.settings.theme, 'dark');
+  assert.equal(chrome.data.settings.showBadges, true, 'andere Einstellungen bleiben');
+  const cb = w.document.getElementById('optBadges'); cb.checked = false; cb.dispatchEvent(new w.Event('change'));
+  await until(() => chrome.data.settings.showBadges === false);
+  assert.equal(chrome.data.settings.showBadges, false);
+  assert.equal(chrome.data.settings.theme, 'dark');
+  w.document.getElementById('share').click();
+  await until(() => copied);
+  assert.match(copied, /^Meine Merkliste \(StayMatch\)\n\n1\. Loft – Gràcia · ⭐ 4,8\n {3}Notiz: Balkon\n {3}https:\/\/www\.airbnb\.de\/rooms\/1$/);
   assert.ok(!copied.includes('Nein'), '👎 nicht in der Merkliste');
 });

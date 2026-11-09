@@ -8,6 +8,8 @@ const EXT = path.join(__dirname, '..', '..', 'extension');
 const src = f => fs.readFileSync(path.join(EXT, f), 'utf8');
 
 const b64 = s => Buffer.from(s).toString('base64');
+// Reihenfolge der Content-Scripts wie im Browser: direkt aus manifest.json (ohne bridge.js)
+const CONTENT_SCRIPTS = JSON.parse(src('manifest.json')).content_scripts.find(c => (c.js || []).includes('content-common.js')).js;
 
 // Eine Karte so, wie das Plugin sie liest: testid-Attribute, Link, Texte in eigenen Zeilen
 function cardHtml(c) {
@@ -67,9 +69,9 @@ function polyfillInnerText(win) {
 
 // body: HTML der Seite, url: Adresse (bestimmt Pfad/Parameter), scripts: welche Plugin-Dateien laufen
 const open = [];
-function closeAll() { for (const w of open.splice(0)) try { w.close(); } catch {} } // content.js startet einen Intervall-Timer
+function closeAll() { for (const w of open.splice(0)) try { w.close(); } catch {} } // content-common.js startet einen Intervall-Timer
 
-function makePage({ body = '', url = 'https://www.airbnb.de/s/Barcelona/homes?checkin=2026-05-01&checkout=2026-05-05&adults=4', chrome = chromeMock(), scripts = ['parse.js', 'rank.js', 'hints.js', 'pool.js', 'content.js'], test = {} } = {}) {
+function makePage({ body = '', url = 'https://www.airbnb.de/s/Barcelona/homes?checkin=2026-05-01&checkout=2026-05-05&adults=4', chrome = chromeMock(), scripts = CONTENT_SCRIPTS, test = {} } = {}) {
   const dom = new JSDOM(`<!doctype html><html><head></head><body>${body}</body></html>`, { url, runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
   open.push(w);
@@ -85,4 +87,4 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const shadow = (doc, id) => doc.getElementById(id)?.shadowRoot;
 async function until(fn, ms = 1500) { const t = Date.now(); while (Date.now() - t < ms) { const v = fn(); if (v) return v; await sleep(10); } return fn(); }
 
-module.exports = { track: w => open.push(w), closeAll, JSDOM, makePage, chromeMock, searchBody, cardHtml, statePage, DEFAULT, sleep, shadow, until, EXT, src };
+module.exports = { CONTENT_SCRIPTS, track: w => open.push(w), closeAll, JSDOM, makePage, chromeMock, searchBody, cardHtml, statePage, DEFAULT, sleep, shadow, until, EXT, src };

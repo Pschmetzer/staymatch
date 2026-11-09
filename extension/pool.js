@@ -1,13 +1,13 @@
 // StayMatch – sammelt die Unterkünfte der Suchseiten, die DU nacheinander öffnest (Blättern),
 // damit alle Seiten gemeinsam gerankt werden. Es wird keine Seite von selbst geladen.
-// Reine Funktionen ohne chrome.*, der Speicher liegt in content.js.
+// Reine Funktionen ohne chrome.*, der Speicher liegt in content-search.js.
 (function (root) {
   const TTL = 2 * 3600e3, MAX = 300;
   // Diese Parameter ändern nur Seite oder Kartenausschnitt, nicht die Suche selbst
   const PAGING = ['items_offset', 'cursor', 'pagination_search', 'section_offset', 'federated_search_session_id', 'search_type',
     'ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'search_by_map', 'map_toggle', 'screen_size'];
   const KEEP = ['id', 'title', 'kind', 'locality', 'rating', 'reviewCount', 'totalPrice', 'currency', 'isTotal',
-    'lat', 'lon', 'multiUnit', 'beds', 'bedrooms', 'baths', 'badges'];
+    'lat', 'lon', 'multiUnit', 'beds', 'bedrooms', 'baths', 'badges', 'pro', 'sleeps'];
 
   function poolKey(url) {
     const u = new URL(url);
