@@ -93,7 +93,8 @@
 
   function passes(l) {
     if (filters.rating && !(l.rating >= 4.7)) return false;
-    if (filters.budget && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
+    // ohne bekanntes Budget kann der Filter nichts aussortieren (sonst bliebe nach einer Suche ohne Reise alles leer)
+    if (filters.budget && lastView?.ctx?.budget && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
     if (filters.beds && l.rank.parts.beds != null && l.rank.parts.beds < 1) return false; // unbekannt zählt als ok
     if (filters.fav && !(l.badges || []).some(x => /favorit|superhost/i.test(x))) return false;
     return true;
@@ -143,6 +144,7 @@
       h('div', { class: 'muted' }, `${count} Unterkünfte auf dieser Seite bewertet${ctx.people ? ` · ${ctx.people} Personen` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter' }, FILTERS.map(([k, label]) => h('button', {
         class: filters[k] ? 'on' : '', 'aria-pressed': String(!!filters[k]),
+        ...(k === 'budget' && !ctx.budget ? { disabled: '', title: 'Kein Budget bekannt. Erst den Viertel-Finder nutzen.', style: 'opacity:.5;cursor:not-allowed' } : {}),
         onclick: async () => { filters[k] = !filters[k]; await chrome.storage.local.set({ filters }); applyBadges(); renderSearch(); },
       }, label))),
       top.length ? top.map((l, i) => h('div', { class: 'item' },
