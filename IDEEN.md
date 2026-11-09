@@ -427,7 +427,7 @@ Ideen dazu:
 
 Stand: 09.11.2026. Gelesen: `extension/*` (inkl. `parse.js`, `rank.js`, `bridge.js`), `web/*` (inkl. `index.html`, `app.html`), `scripts/`, `README.md`, `KONZEPT.md`.
 Die Nummern setzen Runde 1 fort. Legende wie oben, dazu 🔵 = rechtlich/Datenschutz.
-Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das hier sind 170 Punkte, die ich einzeln begründen kann.
+Ehrlich vorweg: Auf 1000 komme ich nicht, ohne Füllmaterial zu schreiben. Das hier sind 190 Punkte (Nr. 346 bis 535), die ich einzeln begründen kann.
 
 ## A. Neue Fehler im Code von heute 🔴
 
