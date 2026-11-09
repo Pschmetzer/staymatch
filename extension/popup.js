@@ -10,7 +10,12 @@ function h(tag, attrs = {}, ...kids) {
   return e;
 }
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
-const safeUrl = u => /^https:\/\/www\.airbnb\.[a-z.]+\/rooms\//.test(u || '') ? u : '#';
+// Nur echte Airbnb-Seiten aus dem Manifest (www.airbnb.evil.com oder http:// fallen durch)
+const HOSTS = new Set((chrome.runtime.getManifest().content_scripts?.[0]?.matches || []).map(m => { try { return new URL(m.replace('*', '')).hostname; } catch { return null; } }).filter(Boolean));
+const safeUrl = u => {
+  try { const x = new URL(u); return x.protocol === 'https:' && HOSTS.has(x.hostname) && x.pathname.startsWith('/rooms/') ? x.href : '#'; }
+  catch { return '#'; }
+};
 
 async function load() {
   const all = await chrome.storage.local.get(null);
@@ -75,28 +80,45 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   tab = b.dataset.tab; render();
 });
 function download(name, text, type) {
-  const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name }); a.click();
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  h('a', { href: url, download: name }).click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 $('export').onclick = () => download('staymatch.json', JSON.stringify({ listings, trip }, null, 2), 'application/json');
 $('csv').onclick = () => {
   const cols = ['title', 'locality', 'rating', 'reviewCount', 'pricePerNight', 'currency', 'vote', 'visits', 'note', 'url'];
   const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  download('staymatch.csv', [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(i[c])).join(';'))].join('\n'), 'text/csv');
+  // BOM, damit Excel Umlaute und Emojis richtig zeigt
+  download('staymatch.csv', '\uFEFF' + [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(i[c])).join(';'))].join('\n'), 'text/csv;charset=utf-8');
 };
 $('import').onclick = () => $('file').click();
+// Zusammenführen statt überschreiben: neuerer Stand gewinnt, Notizen und Preisverlauf bleiben erhalten
+function mergeListing(old, inc) {
+  if (!old) return inc;
+  const newer = (inc.lastSeen || 0) > (old.lastSeen || 0) ? inc : old, other = newer === inc ? old : inc;
+  const notes = [...new Set([newer.note, other.note].map(n => (n || '').trim()).filter(Boolean))];
+  const ph = [...(old.priceHistory || []), ...(inc.priceHistory || [])].filter(x => x && x.t).sort((a, b) => a.t - b.t)
+    .filter((x, i, a) => !i || x.t !== a[i - 1].t).slice(-30);
+  return { ...other, ...newer, note: notes.join(' / ') || undefined, priceHistory: ph, visits: Math.max(old.visits || 0, inc.visits || 0), firstSeen: Math.min(old.firstSeen || Infinity, inc.firstSeen || Infinity) || undefined };
+}
 $('file').onchange = async e => {
   try {
     const j = JSON.parse(await e.target.files[0].text());
     const src = j.listings || j;
-    const entries = Object.values(src).filter(v => v && v.id && /^\d+$/.test(String(v.id)));
-    await chrome.storage.local.set(Object.fromEntries(entries.map(v => ['l:' + v.id, v])));
-    chrome.storage.local.get('settings').then(r => { $('optBadges').checked = (r.settings || {}).showBadges !== false; });
+    const entries = Object.values(src).filter(v => v && typeof v === 'object' && v.id && /^\d+$/.test(String(v.id)));
+    const merged = Object.fromEntries(entries.map(v => ['l:' + v.id, mergeListing(listings[v.id], { ...v, id: String(v.id) })]));
+    const extra = {};
+    if (j.trip && typeof j.trip === 'object' && j.trip.savedAt && (!trip || j.trip.savedAt > (trip.savedAt || 0))) extra.trip = j.trip;
+    await chrome.storage.local.set({ ...merged, ...extra });
+    alert(`${entries.length} Unterkünfte übernommen${extra.trip ? ' und die Reise' : ''}.`);
+    load();
+  } catch { alert('Datei konnte nicht gelesen werden.'); }
+  e.target.value = '';
+};
+chrome.storage.local.get('settings').then(r => { $('optBadges').checked = (r.settings || {}).showBadges !== false; });
 $('optBadges').onchange = async e => {
   const { settings = {} } = await chrome.storage.local.get('settings');
   await chrome.storage.local.set({ settings: { ...settings, showBadges: e.target.checked } });
-};
-load();
-  } catch { alert('Datei konnte nicht gelesen werden.'); }
 };
 $('wipe').onclick = async () => {
   if (!confirm('Alle gespeicherten Unterkünfte, Likes, Notizen und die Reise löschen? Das kann nicht rückgängig gemacht werden.')) return;
