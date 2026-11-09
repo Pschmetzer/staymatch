@@ -164,3 +164,9 @@ Die Liste wurde gegen den neueren Code geprüft. **Schon vorher da** (nicht neu 
 - 1003 (app.js teilen): In einer anderen Arbeit wird `app.js` gerade in `app-*.js` aufgeteilt. Das hier nicht doppelt tun.
 - 1005 (Web Worker): Das Raster in `scoreAreas` (1006) bringt den größten Teil des Gewinns.
 - 1007, 1008, 1009: nicht nötig bzw. nicht gewollt (keine Telemetrie).
+
+**Noch nicht auf der echten Seite geprüft 🔍:** Airbnb-Parameter `children`, `infants`, `min_bedrooms` (933, 934); echte Overpass-Antwort für eine Großstadt mit der neuen Abfrage (nur ein kleiner Ort wurde live getestet, Spielplätze und Fitnessstudios vergrößern die Antwort). Alle Browser-Prüfungen liefen mit künstlichen Daten.
+
+**Wertung ändert sich:** Neue Kategorien (Einkaufen, Sport, Kinderorte) und neue Typen (Shopping, Sport). Familie gewichtet Spielplätze mit 1, Chill, Sightseeing, Natur und Kultur bekamen kleine neue Gewichte. Bestehende Ergebnisse verschieben sich leicht.
+
+**Zusammenführen:** Der Zweig `claude/sweet-swirles-20557e` hat `app.js` in `app-*.js` aufgeteilt. Das widerspricht diesem Zweig (dort wird `app.js` gelöscht). Mit `feat/airbnb-schneller` gibt es keinen Konflikt.
