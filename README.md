@@ -3,7 +3,7 @@
 🇬🇧 English · 🇩🇪 [Deutsch](README.de.md)
 
 [![CI](https://github.com/Pschmetzer/staymatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Pschmetzer/staymatch/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: code MIT, map data ODbL (see [THIRD_PARTY.md](THIRD_PARTY.md))](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Live demo](https://img.shields.io/badge/live-staymatch--tau.vercel.app-000000?logo=vercel)](https://staymatch-tau.vercel.app)
 
 Your helper for finding the right Airbnb faster. The Chrome extension scores every listing on the Airbnb search page by budget, honest star ratings and your wishes (entire place, Superhost, quiet …) and shows the **top 3 with reasons**. Optionally, the neighbourhood finder first picks the area that suits you. On top of that you get history, 👍/👎, notes and review keywords. Groups work too: the least satisfied person counts.
@@ -35,11 +35,13 @@ All data stays local in `chrome.storage.local`. The extension only reads pages y
 - Places and neighbourhoods: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), via Nominatim and Overpass.
 - Not an official product and not affiliated with Airbnb. The extension only reads pages you open yourself.
 
-License: MIT
+License: code MIT, map data ODbL (see [THIRD_PARTY.md](THIRD_PARTY.md))
 
 ## Development
 ```bash
-node --test tests/*.test.js          # tests
+npm ci --prefix tests              # einmalig: jsdom für die DOM-Tests (sonst werden sie übersprungen)
+npm test                             # tests
+npm run check                        # alle Prüfungen (Syntax, HTML, Größen, Links, ZIP)
 node scripts/sync-core.mjs           # copy shared/ to web/ and extension/ (after changing the core)
 ./scripts/deploy.sh                  # build ZIP + upload to Vercel (VERCEL_SCOPE=<team> optional)
 node scripts/prefetch-cities.mjs [city ...]   # prefetch city data (web/data/)

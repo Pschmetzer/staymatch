@@ -31,11 +31,13 @@ Alle Daten bleiben lokal in `chrome.storage.local`. Das Plugin liest nur Seiten,
 - Orte und Viertel: © [OpenStreetMap](https://www.openstreetmap.org/copyright)-Mitwirkende (ODbL), über Nominatim und Overpass.
 - Kein offizielles Produkt und nicht mit Airbnb verbunden. Die Erweiterung liest nur Seiten, die du selbst öffnest.
 
-Lizenz: MIT
+Lizenz: Code MIT, Kartendaten ODbL (siehe [THIRD_PARTY.md](THIRD_PARTY.md))
 
 ## Entwickeln
 ```bash
-node --test tests/*.test.js          # Tests
+npm ci --prefix tests              # einmalig: jsdom für die DOM-Tests (sonst werden sie übersprungen)
+npm test                             # Tests
+npm run check                        # alle Prüfungen (Syntax, HTML, Größen, Links, ZIP)
 node scripts/sync-core.mjs           # shared/ nach web/ und extension/ kopieren (nach Änderungen am Kern)
 ./scripts/deploy.sh         # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
 node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/)

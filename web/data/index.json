@@ -12,5 +12,8 @@
  "vienna": "wien.json",
  "paris": "paris.json",
  "madrid": "madrid.json",
- "budapest": "budapest.json"
+ "budapest": "budapest.json",
+ "rom": "rom.json",
+ "roma": "rom.json",
+ "rome": "rom.json"
 }

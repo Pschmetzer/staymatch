@@ -1,5 +1,7 @@
 # Lumina: Bild- und Videoplätze
 
+„Lumina“ ist der interne Name für die optionalen Hero-Medien (Bild oder Kurzvideo) der Landingpage. Es gibt sie noch nicht; `web/media/` ist absichtlich leer, und die Seite funktioniert ohne. Die Prompts unten sind Vorschläge, kein offener Fehler.
+
 Platzhalter-Struktur. Die Landingpage hat im Hero einen Platz für ein Bild oder ein kurzes Video. **Solange keine Datei freigeschaltet ist, bleibt der Platz unsichtbar** und es gibt keine Anfrage und kein kaputtes Bild.
 
 ## Freischalten
@@ -7,7 +9,7 @@ Platzhalter-Struktur. Die Landingpage hat im Hero einen Platz für ein Bild oder
    - `lumina-hero.webp` und `lumina-hero.jpg` (16:9, 1280×720, je unter 150 KB)
    - optional `lumina-hero.mp4` (15–20 s, ohne Ton, unter 2 MB; wird bei „reduzierte Bewegung“ nicht abgespielt)
 2. In `web/index.html` `<meta name="sm-lumina" content="off">` auf `on` setzen.
-3. Lokal prüfen (`python3 -m http.server 8765 -d web`), hell und dunkel, Handy-Breite.
+3. Lokal prüfen (`npm run dev`), hell und dunkel, Handy-Breite.
 
 Alles wird selbst gehostet (keine externe Quelle). Das Bild ist Schmuck (`alt=""`). Wird es ein echter Screenshot, mit „Beispiel“ kennzeichnen und eine Beschreibung ergänzen.
 
@@ -19,8 +21,8 @@ Alles wird selbst gehostet (keine externe Quelle). Das Bild ist Schmuck (`alt=""
 ## Prompts (Entwurf, vom Nutzer zu prüfen)
 | Platz | Datei | Prompt |
 |---|---|---|
-| Hero | `lumina-hero.webp/.jpg` | TODO Nutzer: Prompt eintragen. Vorschlag: „Abstrakte Stadtkarte von oben mit weichen farbigen Kreisen (Viertel), fünf kleine Punkte in drei Farben, dunkler Hintergrund, rot-oranger Schein, ohne Schrift, 16:9“ |
-| Hero-Video | `lumina-hero.mp4` | TODO Nutzer: Prompt eintragen. Vorschlag: „Langsamer Zoom auf eine abstrakte Stadtkarte, ein Kreis leuchtet auf, 15 Sekunden, ohne Schrift, nahtlose Schleife“ |
+| Hero | `lumina-hero.webp/.jpg` | Vorschlag (noch nicht erzeugt): „Abstrakte Stadtkarte von oben mit weichen farbigen Kreisen (Viertel), fünf kleine Punkte in drei Farben, dunkler Hintergrund, rot-oranger Schein, ohne Schrift, 16:9“ |
+| Hero-Video | `lumina-hero.mp4` | Vorschlag (noch nicht erzeugt): „Langsamer Zoom auf eine abstrakte Stadtkarte, ein Kreis leuchtet auf, 15 Sekunden, ohne Schrift, nahtlose Schleife“ |
 
 ## Eingebaute Bilder (10.11.2026, Lumina, GPT Image 2.5 Sunburst, 16:9)
 Reine Stimmungsbilder, KI-generiert, `alt=""`. Der Laptop-Bildschirm zeigt keine echte App-Oberfläche. Je 1280 und 640 px breit als WebP und JPG, jede Datei unter 150 KB.

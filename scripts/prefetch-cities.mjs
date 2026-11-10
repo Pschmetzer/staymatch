@@ -12,11 +12,11 @@ const OUT = new URL('../web/data/', import.meta.url);
 const FIELDS = C.FIELDS, SERVERS = C.OVERPASS_SERVERS;
 const UA = 'StayMatch-prefetch (+https://github.com/Pschmetzer/staymatch)';
 
-// Name in der App-Suche (kleingeschrieben, ohne Akzente) → Datei
-const DEFAULT = {
-  barcelona: ['barcelona'], lissabon: ['lissabon', 'lisboa', 'lisbon'], berlin: ['berlin'], prag: ['prag', 'praha', 'prague'],
-  amsterdam: ['amsterdam'], rom: ['rom', 'roma', 'rome'], wien: ['wien', 'vienna'], paris: ['paris'], madrid: ['madrid'], budapest: ['budapest'],
-};
+// Städteliste: scripts/cities.json (Datei-Name → Suchnamen in der App, kleingeschrieben, ohne Akzente)
+const DEFAULT = JSON.parse(await readFile(new URL('cities.json', import.meta.url), 'utf8'));
+const MIN_ROWS = 200; // darunter gilt die Antwort als Teilergebnis und überschreibt keine gute Datei
+const slug = (c) => norm(c).replace(/\s+/g, '-');
+let failed = 0;
 const norm = C.normCity; // muss zur Suche in der Web-App passen
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -43,7 +43,7 @@ async function overpass(bbox) {
 
 const index = JSON.parse(await readFile(new URL('index.json', OUT), 'utf8').catch(() => '{}'));
 await mkdir(OUT, { recursive: true });
-const wanted = process.argv.slice(2).length ? Object.fromEntries(process.argv.slice(2).map(c => [norm(c), [norm(c)]])) : DEFAULT;
+const wanted = process.argv.slice(2).length ? Object.fromEntries(process.argv.slice(2).map(c => [slug(c), [norm(c)]])) : DEFAULT;
 
 for (const [key, aliases] of Object.entries(wanted)) {
   try {
@@ -52,10 +52,12 @@ for (const [key, aliases] of Object.entries(wanted)) {
     const csv = await overpass(geo.bbox);
     const rows = csv.split('\n').slice(1).filter(Boolean).map(l => l.split('|')).filter(v => v.length === FIELDS.length)
       .map(v => v.map((x, i) => i < 2 ? +(+x).toFixed(5) : x));
+    if (rows.length < MIN_ROWS) throw new Error(`nur ${rows.length} Zeilen (Minimum ${MIN_ROWS}), Datei bleibt unverändert`);
     await writeFile(new URL(`${key}.json`, OUT), JSON.stringify({ t: Date.now(), city: geo.name, bbox: geo.bbox, fields: FIELDS, rows }));
     for (const a of [...aliases, norm(geo.name)]) index[a] = `${key}.json`;
     await writeFile(new URL('index.json', OUT), JSON.stringify(index, null, 1));
     console.log('  ok', rows.length, 'Zeilen');
-  } catch (e) { console.error('  Fehler', key, e.message); }
+  } catch (e) { failed++; console.error('  Fehler', key, e.message); }
   await sleep(30000);
 }
+if (failed) { console.error(`${failed} Stadt/Städte fehlgeschlagen`); process.exitCode = 1; }

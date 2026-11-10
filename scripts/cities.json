@@ -1,0 +1,39 @@
+{
+ "barcelona": [
+  "barcelona"
+ ],
+ "lissabon": [
+  "lissabon",
+  "lisboa",
+  "lisbon"
+ ],
+ "berlin": [
+  "berlin"
+ ],
+ "prag": [
+  "prag",
+  "praha",
+  "prague"
+ ],
+ "amsterdam": [
+  "amsterdam"
+ ],
+ "rom": [
+  "rom",
+  "roma",
+  "rome"
+ ],
+ "wien": [
+  "wien",
+  "vienna"
+ ],
+ "paris": [
+  "paris"
+ ],
+ "madrid": [
+  "madrid"
+ ],
+ "budapest": [
+  "budapest"
+ ]
+}

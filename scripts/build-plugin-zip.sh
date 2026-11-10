@@ -18,4 +18,7 @@ rm -f "$ABS"
 # Versteckte Dateien (.DS_Store, .git*) auf jeder Ebene sowie Tests und Editor-Reste ausschließen.
 (cd extension && zip -qr -X "$ABS" . \
   -x '.*' -x '*/.*' -x '__MACOSX/*' -x '*.test.js' -x '*.map' -x '*~' -x '*.swp')
-echo "$OUT ($(wc -c < "$ABS") Bytes)"
+# SHA-256 neben das ZIP schreiben (Prüfsumme für Nutzer und Release)
+if command -v sha256sum >/dev/null 2>&1; then SUM=$(sha256sum "$ABS" | cut -d' ' -f1); else SUM=$(shasum -a 256 "$ABS" | cut -d' ' -f1); fi
+echo "$SUM  $(basename "$ABS")" > "$ABS.sha256"
+echo "$OUT ($(wc -c < "$ABS") Bytes, SHA-256 $SUM)"
