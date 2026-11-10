@@ -84,7 +84,7 @@ test('sitemap.xml: jede Adresse hat eine Seite, canonical stimmt', () => {
   const locs = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => new URL(m[1]));
   assert.ok(locs.length >= 2);
   for (const u of locs) {
-    assert.equal(u.origin, 'https://staymatch-tau.vercel.app');
+    assert.equal(u.origin, 'https://staymatch.pro');
     const rel = u.pathname === '/' ? 'index' : u.pathname.slice(1);
     const f = path.join(web, rel + '.html');
     assert.ok(fs.existsSync(f), `${u.pathname}: ${rel}.html fehlt`);

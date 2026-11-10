@@ -13,7 +13,8 @@ const web = path.join(root, 'web');
 const C = require(path.join(web, 'core.js'));
 require(path.join(web, 'scoring.js'));
 const SM = globalThis.StayMatch;
-const BASE = C.APP_URL.replace(/\/app\/?$/, '').replace(/\/$/, '');
+// Öffentliche Adresse der Website (Plugin-APP_URL in shared/core.js zeigt noch auf die alte Vercel-Adresse)
+const BASE = 'https://staymatch.pro';
 
 // Reisetypen: Schlüssel in core.js PRESETS, Überschrift, Kurzbeschreibung
 const TYPES = [

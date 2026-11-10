@@ -17,7 +17,7 @@ for (const f of files) {
   for (const u of urls) {
     if (/^https?:\/\//.test(u)) {
       // Eigene Website: gegen web/ prüfen (neue Seiten sind vor dem Deploy noch nicht live; cleanUrls: /x → web/x.html)
-      const own = /^https:\/\/staymatch-tau\.vercel\.app(\/[^?#]*)?/.exec(u);
+      const own = /^https:\/\/(?:staymatch-tau\.vercel\.app|staymatch\.pro)(\/[^?#]*)?/.exec(u);
       if (own) {
         const p = (own[1] || '/').replace(/\/$/, '') || '/index';
         if (p.endsWith('.zip')) continue; // Zip entsteht erst beim Build (siehe .gitignore)

@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://staymatch-tau.vercel.app/</loc></url>
-  <url><loc>https://staymatch-tau.vercel.app/en</loc></url>
-  <url><loc>https://staymatch-tau.vercel.app/app</loc></url>
-  <url><loc>https://staymatch-tau.vercel.app/datenschutz</loc></url>
+  <url><loc>https://staymatch.pro/</loc></url>
+  <url><loc>https://staymatch.pro/en</loc></url>
+  <url><loc>https://staymatch.pro/app</loc></url>
+  <url><loc>https://staymatch.pro/datenschutz</loc></url>
+  <url><loc>https://staymatch.pro/staedte/amsterdam</loc></url>
+  <url><loc>https://staymatch.pro/staedte/barcelona</loc></url>
+  <url><loc>https://staymatch.pro/staedte/berlin</loc></url>
+  <url><loc>https://staymatch.pro/staedte/budapest</loc></url>
+  <url><loc>https://staymatch.pro/staedte/lissabon</loc></url>
+  <url><loc>https://staymatch.pro/staedte/madrid</loc></url>
+  <url><loc>https://staymatch.pro/staedte/paris</loc></url>
+  <url><loc>https://staymatch.pro/staedte/prag</loc></url>
+  <url><loc>https://staymatch.pro/staedte/rom</loc></url>
+  <url><loc>https://staymatch.pro/staedte/wien</loc></url>
 </urlset>
