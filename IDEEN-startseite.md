@@ -1,6 +1,6 @@
 # StayMatch-Startseite: 100 Verbesserungen
 
-Stand 10.11.2026: ✅ umgesetzt in diesem Branch, ⏭️ nicht umgesetzt (Grund dahinter).
+Stand 10.11.2026: ✅ umgesetzt in diesem Branch, 🟡 teilweise, ⏭️ nicht umgesetzt (Grund dahinter).
 
 Grundlage: `web/index.html` auf `origin/main` (10.11.2026), dazu `sitemap.xml`, `vercel.json`, `staedte/`, `LUMINA-PROMPTS.md`.
 🔴 = Fehler/Widerspruch · 🟠 = deutlicher Gewinn · ⚪ = Feinschliff
@@ -21,8 +21,8 @@ Grundlage: `web/index.html` auf `origin/main` (10.11.2026), dazu `sitemap.xml`, 
 13. ✅🟠 `scroll-margin-top: 80px` reicht auf dem Handy nicht: die Navigation bricht dort zweizeilig um (~110 px), Überschriften rutschen unter die Leiste.
 14. ✅⚪ CSS für `.strip h3` ist ungenutzt (Leiste nutzt `<p><strong>`). Entweder echte `h3` verwenden (besser für Gliederung) oder CSS löschen.
 15. ✅⚪ Lumina-Hero-Platz (`#lumina`, `sm-lumina`, ca. 25 Zeilen) ist toter Code laut `LUMINA-PROMPTS.md` („bleibt aus“). Entfernen oder anders nutzen.
-16. ✅⚪ CSS-Block `.cmp` steht mitten im Hero-Panel-Bereich. Aufräumen.
-17. ✅⚪ Viele Inline-Styles (`style="padding-top:0"` 7×, Bars-`h4`, Intro-Abstände). Durch Klassen ersetzen.
+16. 🟡⚪ CSS-Block `.cmp` steht mitten im Hero-Panel-Bereich. Aufräumen. _(Teilweise: `.cmp`-Block steht weiter an alter Stelle)_
+17. 🟡⚪ Viele Inline-Styles (`style="padding-top:0"` 7×, Bars-`h4`, Intro-Abstände). Durch Klassen ersetzen. _(Teilweise: neue Abschnitte nutzen `.tight`, einige `style=`-Attribute bleiben)_
 18. ✅⚪ `theme-color` ändert sich beim Umschalten Hell/Dunkel nicht. Im Klick-Handler mitsetzen.
 
 ## B. Hero (erster Eindruck)
@@ -56,17 +56,17 @@ Grundlage: `web/index.html` auf `origin/main` (10.11.2026), dazu `sitemap.xml`, 
 42. ⏭️🟠 Zu jedem der 5 Schritte ein kleines Bild/GIF (Entwicklermodus-Schalter, „Entpackt laden“). _(Nicht umgesetzt: braucht echte Screenshots der Erweiterungs-Seite)_
 43. ✅🟠 Kopier-Knopf neben `chrome://extensions` (Link darauf ist nicht möglich).
 44. ✅🟠 Edge (`edge://extensions`) und Brave (`brave://extensions`) eigens nennen bzw. per Browser-Erkennung den richtigen Pfad zeigen.
-45. ✅🟠 Dateigröße und Version am Download-Knopf: „Plugin herunterladen (ZIP, 120 KB, v1.4)“.
+45. 🟡🟠 Dateigröße und Version am Download-Knopf: „Plugin herunterladen (ZIP, 120 KB, v1.4)“. _(Teilweise: Größe wird angezeigt, Version nicht)_
 46. ✅⚪ Nach Klick auf Download die Schrittliste hervorheben/hineinscrollen.
 47. ✅⚪ Hinweis „Mac: ZIP wird oft automatisch entpackt“.
 48. ✅⚪ Browser-Hinweis erkennt Opera/Vivaldi/Arc nicht als geeignet, obwohl dort Chrome-Erweiterungen laufen. Liste erweitern.
-49. ✅⚪ „Nur Chrome, Edge und Brave am Computer“ steht 4× auf der Seite. Einmal prominent reicht.
+49. 🟡⚪ „Nur Chrome, Edge und Brave am Computer“ steht 4× auf der Seite. Einmal prominent reicht. _(Teilweise: Hinweis steht weiter mehrfach, nur kürzer)_
 50. ✅⚪ Fehlerhilfe: „Plugin erscheint nicht?“ als eigener FAQ-Punkt (Seite neu laden, Airbnb-Domain, Erweiterung aktiv).
 
 ## E. Inhalte und Texte
-51. ✅🟠 Wiederholungen streichen: „Ehrliche Sterne“ kommt in Leiste, Funktionen und Vergleich vor; „40 Tabs/Inserate“ dreimal.
+51. 🟡🟠 Wiederholungen streichen: „Ehrliche Sterne“ kommt in Leiste, Funktionen und Vergleich vor; „40 Tabs/Inserate“ dreimal. _(Teilweise: „Ehrliche Sterne“ aus Leiste und Funktionen entfernt, „40 Tabs“ bleibt mehrfach)_
 52. ✅🟠 FAQ zusammenlegen: „Ist das Plugin von Airbnb erlaubt?“, „Durchsucht das Plugin Airbnb im Hintergrund?“ und Grenzen-Punkt 1 sagen dasselbe.
-53. ✅🟠 FAQ von 13 auf ~8 Fragen kürzen, Rest auf eine Hilfe-Seite.
+53. 🟡🟠 FAQ von 13 auf ~8 Fragen kürzen, Rest auf eine Hilfe-Seite. _(Teilweise: zusammengelegt auf 12 (EN 13) Fragen, nicht auf 8)_
 54. ✅🟠 „Warum nur Airbnb?“ Antwort klingt technisch („Suche per Link“). Nutzerorientiert: „Weil dort die meisten Ferienwohnungen sind; Booking.com ist eine Idee für später.“
 55. ✅⚪ Neuer Abschnitt „Beliebte Städte“ mit Links auf die 9 vorhandenen `staedte/`-Seiten (heute von der Startseite nicht verlinkt; gut für SEO und Nutzer).
 56. ⏭️⚪ Funktionen-Karte „Merkt sich, was du gesehen hast“ mit Mini-Beispiel „Preis −12 € seit Montag“. _(Nicht umgesetzt: offen, klein)_
