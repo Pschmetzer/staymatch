@@ -6,8 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StayMatch – das passende Airbnb in 2 Minuten</title>
 <meta name="description" content="StayMatch bewertet jede Unterkunft auf deiner Airbnb-Suche nach Budget, Sternen und Wünschen und zeigt sofort die Top 3. Kostenlos, ohne Konto.">
-<meta name="theme-color" content="#0b0b0d" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#ffffff">
 <link rel="canonical" href="https://staymatch-tau.vercel.app/">
 <link rel="alternate" hreflang="de" href="https://staymatch-tau.vercel.app/">
 <link rel="alternate" hreflang="en" href="https://staymatch-tau.vercel.app/en">
@@ -42,8 +41,8 @@
   --glow: rgba(224, 71, 91, .18);
 }
 :root[data-theme="light"] {
-  --bg: #fbfaf8; --bg2: #f3f1ed; --card: #fff; --line: #e6e3dd; --text: #141416; --muted: #55555e; --dim: #6b6b74; --line2: #b9b5ac;
-  --btn: #141416; --btnText: #fff; --glow: rgba(224, 71, 91, .12);
+  --bg: #fff; --bg2: #f7f7f7; --card: #fff; --line: #ebebeb; --text: #222; --muted: #6a6a6a; --dim: #717171; --line2: #b0b0b0;
+  --accent: #d70466; --accent2: #ff385c; --btn: #222; --btnText: #fff; --glow: rgba(255, 56, 92, .10);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
@@ -73,10 +72,12 @@ a { color: inherit; }
 .lumina video { position: absolute; inset: 0; }
 
 /* Nav */
+:root[data-theme="light"] nav.top { background: #fff; backdrop-filter: none; }
+:root[data-theme="light"] .logo { color: #ff385c; font-weight: 700; letter-spacing: -.02em; }
 nav.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
 nav.top .wrap { display: flex; align-items: center; gap: 28px; height: 68px; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 19px; text-decoration: none; }
-.logo i { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: grid; place-items: center; }
+.logo i { width: 34px; height: 34px; border-radius: 10px; background: #ff385c; display: grid; place-items: center; }
 .logo i svg { width: 18px; height: 18px; }
 .links { display: flex; gap: 26px; }
 .links a { color: var(--muted); text-decoration: none; font-size: 15px; }
@@ -232,7 +233,8 @@ footer a { color: var(--muted); }
 <script>
   // Theme vor dem ersten Zeichnen: eigene Wahl, sonst folgt die Seite dem System (CSS)
   document.documentElement.classList.add('js');
-  try { const t = localStorage.getItem('sm_theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+  let t = 'light'; try { const s = localStorage.getItem('sm_theme'); if (s === 'light' || s === 'dark') t = s; } catch {}
+  document.documentElement.dataset.theme = t;
 </script>
 </head>
 <body>
