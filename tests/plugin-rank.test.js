@@ -80,3 +80,10 @@ test('Wunsch „ganze Unterkunft“: Schlafzimmer im Titel ist kein Zimmer-Angeb
   assert.equal(R.WISHES.whole.check({ kind: 'Apartment', title: '1 bedroom in Soho' }), true);
   assert.equal(R.WISHES.whole.check({ kind: '', title: 'Zimmer in Berlin' }), false);
 });
+
+test('Wunsch „Luxus“: Stichworte passen, Zimmer nicht, sonst unbekannt', () => {
+  const { WISHES } = R;
+  assert.equal(WISHES.luxury.check({ kind: 'Wohnung', title: 'Penthouse mit Pool' }), true);
+  assert.equal(WISHES.luxury.check({ kind: 'Privatzimmer in Bangkok', title: 'Luxus-Zimmer' }), false);
+  assert.equal(WISHES.luxury.check({ kind: 'Wohnung', title: 'Gemütliches Studio' }), null);
+});

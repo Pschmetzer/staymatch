@@ -177,6 +177,10 @@
     } },
     trusted: { label: '🏅 Superhost/Favorit', ok: 'Superhost oder Gäste-Favorit', no: 'kein Superhost/Gäste-Favorit', check: l => (l.badges || []).some(b => /favorit|superhost/i.test(b)) },
     reviews: { label: '💬 ab 20 Bewertungen', ok: 'viele Bewertungen', no: 'weniger als 20 Bewertungen', check: l => l.reviewCount == null ? null : l.reviewCount >= 20 },
+    luxury: { label: '✨ Luxus', ok: 'Luxus-Unterkunft', no: 'eher einfache Unterkunft', check: l => {
+      const k = `${l.kind || ''} ${l.title || ''}`;
+      return PRIVATE_ROOM.test(k) || SHARED_ROOM.test(k) ? false : LUXURY.test(k) ? true : null; // sonst unbekannt, nie geraten
+    } },
     private: { label: '🙋 kein Gewerbe', ok: null, no: 'gewerblicher Anbieter', check: l => l.pro === true ? false : null }, // „privat“ ist nie sicher
   };
   function wishScore(l, wishes) {
@@ -206,6 +210,7 @@
     return w;
   }
 
+  const LUXURY = /luxus|luxur|penthouse|\bvilla\b|boutique|resort|\bsuite\b|rooftop|dachterrasse|infinity|5.?sterne|5.?star|designer|exklusiv|exclusive|prestige|palace|schloss|chateau|château|\bspa\b|premium/i;
   const ROOM_ONLY = /\bzimmer in\b|hotelzimmer|\broom in\b|hotel room|chambre d'hôtel|habitación en|stanza in/i;
   const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|entire|logement entier|intero|hele |ganze|alojamento inteiro|cały|\bhaus\b|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
   const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|kamer/i;

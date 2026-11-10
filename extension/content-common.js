@@ -87,7 +87,7 @@
 
   const CSS = `
     :host { all: initial; }
-    .box { position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; width: 320px; max-height: 70vh; overflow: auto;
+    .box { position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; width: 360px; max-height: 80vh; overflow: auto;
       background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
       font: 13px/1.45 system-ui, -apple-system, sans-serif; box-shadow: 0 8px 28px rgba(0,0,0,.18);
       --bg: #fff; --fg: #1d1d1f; --muted: #6b6b70; --line: #e4e2dc; --accent: #e0475b; --good: #1f9d6b; --warn: #b86e00; }
@@ -112,6 +112,16 @@
     ul { margin: 4px 0 0; padding-left: 16px; } li.warn, div.warn { color: var(--warn); }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; } .chips button { font-size: 12px; padding: 3px 8px; }
     textarea { width: 100%; box-sizing: border-box; height: 52px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; font: 12px system-ui; background: var(--bg); color: var(--fg); }
+    .item.hotel { border-top: 0; padding: 0 0 14px; }
+    .item.hotel .ph { position: relative; aspect-ratio: 16/10; border-radius: 12px; overflow: hidden; background: var(--line); margin-bottom: 8px; }
+    .item.hotel .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .item.hotel .ph .score { position: absolute; top: 8px; right: 8px; float: none; background: rgba(0,0,0,.72); color: #fff; border-radius: 999px; padding: 2px 10px; font-size: 14px; }
+    .item.hotel .ph .rank { position: absolute; top: 8px; left: 8px; background: #fff; color: #1d1d1f; border-radius: 999px; padding: 2px 9px; font-weight: 700; font-size: 12px; }
+    .item.hotel .ph .lux { position: absolute; left: 8px; bottom: 8px; background: linear-gradient(135deg,#d4af37,#f3dc8a); color: #4a3a00; border-radius: 999px; padding: 2px 9px; font-weight: 700; font-size: 11px; }
+    .item.hotel .name { display: block; font-size: 14px; }
+    .item.hotel .meta { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-top: 2px; }
+    .item.hotel .stars { color: var(--fg); font-weight: 600; white-space: nowrap; }
+    .item.hotel .price { margin-top: 2px; }
     .row { display: flex; gap: 6px; margin: 6px 0; } .row button { flex: 1; }
   `;
 
