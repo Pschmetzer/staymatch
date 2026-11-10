@@ -42,13 +42,14 @@ test('Sammlung: Seiten- und Kartenparameter ändern den Schlüssel nicht, Datum 
 
 test('Sammlung: mehrere Seiten werden vereinigt, neue Suche und Ablauf setzen zurück', () => {
   const u1 = 'https://www.airbnb.de/s/X/homes?adults=2', u2 = u1 + '&items_offset=18';
-  const L = (id, extra = {}) => ({ id, title: 't' + id, totalPrice: 100, image: 'x', ...extra });
+  const L = (id, extra = {}) => ({ id, title: 't' + id, totalPrice: 100, reviewTexts: 'x', ...extra });
   let p = POOL.mergePool(null, u1, [L('1'), L('2')], 1000);
   p = POOL.mergePool(p, u2, [L('3'), L('2', { totalPrice: 120 })], 2000);
   assert.deepEqual(p.pages, ['0', '18']);
   assert.deepEqual(Object.keys(p.items).sort(), ['1', '2', '3']);
   assert.equal(p.items['2'].totalPrice, 120, 'neuester Stand gewinnt');
-  assert.equal(p.items['1'].image, undefined, 'nur nötige Felder gespeichert');
+  assert.equal(p.items['1'].reviewTexts, undefined, 'nur nötige Felder gespeichert');
+  assert.equal(POOL.mergePool(null, 'https://www.airbnb.de/s/x?checkin=2026-12-09', [L(1, { image: 'https://a/b.jpg' })]).items['1'].image, 'https://a/b.jpg', 'Foto bleibt erhalten');
   assert.equal(POOL.mergePool(p, u1.replace('adults=2', 'adults=3'), [L('9')], 3000).pages.length, 1);
   assert.deepEqual(Object.keys(POOL.mergePool(p, u2, [L('9')], 2000 + POOL.TTL + 5).items), ['9']);
 });
