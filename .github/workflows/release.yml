@@ -54,7 +54,7 @@ jobs:
           node .github/scripts/check-zip.mjs "staymatch-plugin-$TAG.zip"
           sha256sum "staymatch-plugin-$TAG.zip" > "staymatch-plugin-$TAG.zip.sha256"
       - name: Herkunftsnachweis (Provenance)
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: staymatch-plugin-${{ github.ref_name }}.zip
       - name: Release anlegen
