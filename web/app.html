@@ -131,6 +131,36 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
 #intro ol { margin:8px 0 0; padding-left:20px; color:var(--muted); } #intro li { margin-bottom:6px; }
 #formToggle { display:none; width:100%; margin-bottom:10px; }
 @media (max-width:900px) { #formToggle.on { display:block; } #formBody.collapsed { display:none; } .stickybar { position:static; } }
+
+/* Suchformular im Stil einer Buchungskarte */
+:root { --shadow:0 6px 16px rgba(0,0,0,.35); --cta1:#d1344a; --cta2:#c2185b; }
+:root[data-theme="light"] { --shadow:0 6px 16px rgba(0,0,0,.12); --cta1:#d70466; --cta2:#c9304a; }
+form#f { border-radius:16px; padding:24px; box-shadow:var(--shadow); }
+:root[data-theme="light"] form#f { border-color:#ddd; }
+.seg { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); border:1px solid var(--muted); border-radius:12px; margin-top:4px; }
+.seg .cell { position:relative; padding:9px 12px 8px; min-width:0; border-top:1px solid var(--muted); border-radius:0; }
+.seg .cell:nth-child(even) { border-left:1px solid var(--muted); }
+.seg .full { grid-column:1 / -1; border-top:0; border-radius:11px 11px 0 0; }
+.seg .cell:last-child { border-radius:0 0 11px 0; } .seg .cell:nth-last-child(2) { border-radius:0 0 0 11px; }
+.seg label { margin:0; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text); }
+.seg input, .seg select { border:0; background:transparent; padding:2px 0 0; border-radius:0; font-size:15px; outline:none; }
+.seg input[type=search]::-webkit-search-cancel-button { display:none; }
+.seg .cell:focus-within { z-index:1; box-shadow:0 0 0 2px var(--text); border-color:transparent; border-radius:10px; background:var(--card); }
+.cities { gap:8px; margin-top:12px; }
+.cities button { font-size:13px; padding:6px 14px; border-radius:999px; background:var(--card); border:1px solid var(--line); transition:border-color .15s, box-shadow .15s; }
+.cities button:hover { border-color:var(--text); box-shadow:0 2px 6px rgba(0,0,0,.18); }
+label.sec, .wishes legend { display:block; font-size:16px; font-weight:600; color:var(--text); margin:22px 0 10px; padding-top:20px; border-top:1px solid var(--line); width:100%; }
+.wishes { margin-top:0; gap:8px; }
+.wishes label { padding:2px 0; } .wishes input, .cmp input { accent-color:var(--text); width:18px; height:18px; margin-top:2px; }
+.wishes .sep { margin-top:6px; }
+#formBody > .row { margin-top:14px; padding-top:6px; border-top:1px solid var(--line); }
+#f button.link { font-weight:600; text-decoration:underline; text-underline-offset:3px; color:var(--text); }
+#f .person button, #formToggle { text-decoration:none; }
+button.primary { display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:10px; padding:14px; font-size:16px; font-weight:700; color:#fff;
+  background:linear-gradient(90deg,var(--cta1),var(--cta2)); transition:filter .15s; }
+button.primary:hover { filter:brightness(.94); }
+button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:3; stroke-linecap:round; }
+.stickybar { background:var(--card); }
 </style>
 <script>try { const t = localStorage.getItem('sm_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : ''); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
@@ -154,21 +184,19 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
   <form class="card" id="f" autocomplete="off" novalidate>
     <button type="button" class="link" id="formToggle" aria-expanded="false" aria-controls="formBody">Wünsche und Einstellungen ändern</button>
     <div id="formBody">
-    <label for="city">Wohin?</label>
-    <input id="city" type="search" spellcheck="false" autocapitalize="words" enterkeyhint="search" placeholder="z. B. Barcelona" value="Barcelona" autocomplete="off">
-    <div class="cities" id="cityChips" role="group" aria-label="Beliebte Ziele"></div>
-    <div class="row">
-      <div><label for="checkin">Anreise</label><input id="checkin" type="date"></div>
-      <div><label for="checkout">Abreise</label><input id="checkout" type="date"></div>
+    <div class="seg">
+      <div class="cell full"><label for="city">Wohin?</label>
+        <input id="city" type="search" spellcheck="false" autocapitalize="words" enterkeyhint="search" placeholder="Reiseziel suchen" value="Barcelona" autocomplete="off"></div>
+      <div class="cell"><label for="checkin">Anreise</label><input id="checkin" type="date"></div>
+      <div class="cell"><label for="checkout">Abreise</label><input id="checkout" type="date"></div>
+      <div class="cell"><label for="budget">Budget (€)</label><input id="budget" type="number" inputmode="numeric" min="0" step="50" value="800"></div>
+      <div class="cell"><label for="budgetMode">Budget gilt</label><select id="budgetMode"><option value="total">gesamt</option><option value="pp">pro Person</option><option value="night">pro Nacht</option></select></div>
     </div>
     <div class="hint" id="dateInfo" role="status" aria-live="polite"></div>
-    <div class="row">
-      <div><label for="budget">Budget (€)</label><input id="budget" type="number" inputmode="numeric" min="0" step="50" value="800"></div>
-      <div><label for="budgetMode">gilt</label><select id="budgetMode"><option value="total">gesamt</option><option value="pp">pro Person</option><option value="night">pro Nacht</option></select></div>
-    </div>
+    <div class="cities" id="cityChips" role="group" aria-label="Beliebte Ziele"></div>
     <div class="hint" id="budgetInfo"></div>
 
-    <label id="peopleLabel">Was ist dir in der Gegend wichtig?</label>
+    <label id="peopleLabel" class="sec">Was ist dir in der Gegend wichtig?</label>
     <div id="people"></div>
     <div class="tools">
       <button type="button" class="link" id="addPerson">+ Person hinzufügen</button>
@@ -229,7 +257,7 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
     </div>
 
     <div class="stickybar">
-      <button type="submit" class="primary" id="go">Passende Viertel finden</button>
+      <button type="submit" class="primary" id="go"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><span>Passende Viertel finden</span></button>
       <button type="button" class="link" id="cancel" hidden style="margin-top:6px">✕ Suche abbrechen</button>
     </div>
     <button type="button" class="link" id="share" style="display:block;margin-top:6px">🔗 Link zum Teilen kopieren</button>
