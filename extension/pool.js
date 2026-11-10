@@ -9,7 +9,7 @@
     // R5-94: gleiche Liste wie in parse.js (searchKey), damit sich der Pool-Schlüssel beim Blättern nicht ändert
     'page', 'federated_search_id', 'tab_id', 'source', 'search_mode', 'bbox', '_set_bev_on_new_domain'];
   const KEEP = ['id', 'title', 'kind', 'locality', 'rating', 'reviewCount', 'totalPrice', 'currency', 'isTotal',
-    'lat', 'lon', 'multiUnit', 'beds', 'bedrooms', 'baths', 'badges', 'pro', 'sleeps', 'priceWord', 'isNew', 'priceStale'];
+    'lat', 'lon', 'multiUnit', 'beds', 'bedrooms', 'baths', 'badges', 'pro', 'sleeps', 'priceWord', 'isNew', 'priceStale', 'image'];
 
   function poolKey(url) {
     const u = new URL(url);
