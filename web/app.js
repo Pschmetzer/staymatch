@@ -236,6 +236,10 @@ $('typeInfo').innerHTML = '<ul>' + Object.values(SM.PRESETS).map(v => {
 }).join('') + '</ul><p>Mit ⚙️ an jeder Person stellst du alles einzeln ein oder mischst zwei Typen.</p>';
 // Schnellwahl beliebter Ziele
 $('cityChips').innerHTML = CITIES.map(c => `<button type="button">${c}</button>`).join('');
+const DEST_SUB = { Barcelona: 'Strand, Tapas, Altstadt', Lissabon: 'Hügel, Aussichtspunkte, Fado', Rom: 'Piazzas, Trattorien, Antike', Wien: 'Kaffeehäuser, Parks, Kultur', Berlin: 'Kieze, Bars, Spreeufer', Paris: 'Cafés, Museen, Seine', Madrid: 'Dachterrassen, Tapas, Parks', Prag: 'Altstadt, Brücken, Bier', Amsterdam: 'Grachten, Fahrrad, Cafés', Budapest: 'Donau, Thermen, Ruinenbars' };
+const slug = c => c.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '');
+$('destGrid').innerHTML = CITIES.map(c => `<button type="button" class="dcard" data-city="${c}" aria-label="Viertel in ${c} finden"><span class="ph"><img src="media/staedte/${slug(c)}.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>${c}</b><span class="s">${DEST_SUB[c] || ''}</span></button>`).join('');
+$('destGrid').onclick = e => { const b = e.target.closest('.dcard'); if (b) { $('city').value = b.dataset.city; saveForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); run(); } };
 $('cityChips').onclick = e => { const b = e.target.closest('button'); if (b) { $('city').value = b.textContent; saveForm(); run(); } };
 
 async function geocode(city, signal) {
@@ -465,7 +469,7 @@ function compute() {
     return;
   }
   $('status').textContent = `${okAreas.length} Viertel und ${pois.length} Orte ausgewertet.${vetoNote} Die besten ${solo() ? 'für dich' : 'für eure Gruppe'}:`;
-  $('intro').hidden = true;
+  $('intro').hidden = true; $('dest').hidden = true;
   if (/Chrome\//.test(navigator.userAgent) && !/Edg|OPR|Mobile|Android/.test(navigator.userAgent)) $('extHint').hidden = false;
   saveTrip(geo, byTotal, ppl);
   renderHead();
