@@ -1,0 +1,3 @@
+
+## Städtebilder (media/staedte/)
+KI-generiert mit BytePlus Lumina (GPT Image 2.5), November 2026. Keine Fotos realer Personen, keine Marken. Auf 680×512 WebP verkleinert.
