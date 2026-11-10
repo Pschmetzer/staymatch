@@ -1,38 +1,65 @@
 name: Release
-# Bei einem Tag wie v0.3.0: Tests laufen, das Plugin-ZIP wird gebaut und an ein GitHub-Release gehängt.
-# Es wird nichts deployt.
+# Bei einem Tag wie v0.5.1: Prüfungen und Tests laufen, das Plugin-ZIP wird gebaut und an ein GitHub-Release gehängt
+# (mit SHA-256-Prüfsumme und Herkunftsnachweis). Es wird nichts deployt.
 on:
   push:
     tags: ["v*"]
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
-        with: { node-version: 22 }
-      - name: Tag passt zur Manifest-Version
+        with: { node-version: 22, cache: npm, cache-dependency-path: tests/package-lock.json }
+      - name: Tag passt zu Manifest- und package.json-Version
         env:
           TAG: ${{ github.ref_name }}
         run: |
           v=$(node -p "require('./extension/manifest.json').version")
-          if [ "$TAG" != "v$v" ]; then
-            echo "Tag $TAG passt nicht zur Manifest-Version v$v" >&2
+          p=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$v" ] || [ "$v" != "$p" ]; then
+            echo "Tag $TAG, Manifest v$v und package.json v$p müssen übereinstimmen" >&2
             exit 1
           fi
+      - name: CHANGELOG-Abschnitt für diese Version vorhanden
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          v="${TAG#v}"
+          node -e '
+            const fs=require("fs"),v=process.argv[1];
+            const t=fs.readFileSync("CHANGELOG.md","utf8");
+            const m=t.match(new RegExp("^## \\[" + v.replace(/\./g,"\\.") + "\\][^\\n]*\\n([\\s\\S]*?)(?=^## \\[|(?![\\s\\S]))","m"));
+            if(!m||!m[1].trim()){console.error("CHANGELOG.md hat keinen Abschnitt für "+v);process.exit(1)}
+            fs.writeFileSync("release-notes.md",m[1].trim()+"\n");
+          ' "$v"
+      - name: jsdom für die DOM-Tests des Plugins
+        run: npm ci --prefix tests --no-audit --no-fund
+      - name: jsdom ist wirklich da (sonst würden DOM-Tests still übersprungen)
+        run: node -e "require('./tests/node_modules/jsdom')"
       - name: Tests
-        run: node --test tests/*.test.js
+        run: npm test
+      - name: Alle Prüfungen
+        run: npm run check
       - name: ZIP bauen und prüfen
         env:
           TAG: ${{ github.ref_name }}
         run: |
           ./scripts/build-plugin-zip.sh "staymatch-plugin-$TAG.zip"
           node .github/scripts/check-zip.mjs "staymatch-plugin-$TAG.zip"
+          sha256sum "staymatch-plugin-$TAG.zip" > "staymatch-plugin-$TAG.zip.sha256"
+      - name: Herkunftsnachweis (Provenance)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: staymatch-plugin-${{ github.ref_name }}.zip
       - name: Release anlegen
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" "staymatch-plugin-$TAG.zip" --title "StayMatch $TAG" --generate-notes --verify-tag
+          gh release create "$TAG" "staymatch-plugin-$TAG.zip" "staymatch-plugin-$TAG.zip.sha256" --title "StayMatch $TAG" --notes-file release-notes.md --verify-tag

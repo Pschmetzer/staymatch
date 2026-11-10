@@ -10,7 +10,7 @@ Du brauchst nur Node 22 oder neuer. Für die DOM-Tests des Plugins einmal `npm c
 npm test          # Tests (node --test tests/*.test.js)
 npm run check     # Syntax, shared/-Kopien, HTML, Manifest-Domains, Größen, Links, ZIP-Inhalt
 npm run build     # Plugin-ZIP nach web/staymatch-plugin.zip
-npm run dev       # Web-App auf http://localhost:8765 (braucht python3)
+npm run dev       # Web-App auf http://localhost:8765 (Node-Server, setzt die Header aus web/vercel.json)
 ```
 
 `npm run check:links` prüft lokale Links. Mit `node .github/scripts/check-links.mjs --online` werden auch externe Links geprüft (CI macht das).
@@ -26,11 +26,22 @@ npm run dev       # Web-App auf http://localhost:8765 (braucht python3)
 - Kleine, thematisch getrennte PRs. Bitte die Nummern aus IDEEN.md nennen.
 - Keine neuen Abhängigkeiten ohne guten Grund. Neue Fremdhosts nur zusammen mit Anpassung der CSP in `web/vercel.json` und `PRIVACY.md`.
 - Keine persönlichen Daten in Code, Tests oder Beschreibungen.
-- Vercel-Auto-Deploy ist absichtlich aus. Deployt wird nur manuell mit `scripts/deploy.sh` durch die Projektinhaberin bzw. den Projektinhaber.
+- Mit dem Merge wird nichts veröffentlicht: Die Website wird nicht automatisch ausgeliefert, das erledigt die Projektinhaberin bzw. der Projektinhaber von Hand mit `scripts/deploy.sh`. Dafür musst du nichts tun.
 
 ## Releases (für Betreuende)
 
-Version in `extension/manifest.json` und `package.json` erhöhen, in [CHANGELOG.md](CHANGELOG.md) eintragen, dann Tag setzen (`git tag v0.3.1 && git push origin v0.3.1`). Der Release-Workflow baut das ZIP und hängt es an das Release. Der Tag muss zur Manifest-Version passen.
+Version in `extension/manifest.json` und `package.json` erhöhen, in [CHANGELOG.md](CHANGELOG.md) eintragen, dann Tag setzen (`git tag v0.5.1 && git push origin v0.5.1`). Der Release-Workflow baut das ZIP und hängt es an das Release. Der Tag muss zur Manifest-Version passen.
+
+## Begriffe und Datenfluss
+
+- **Viertel**: Stadtteil, den die App nach Orten in der Nähe (Cafés, Haltestellen, Parks …) bewertet.
+- **Typ**: Art der Reise bzw. Gewichtung der Orte (z. B. Ruhe, Nachtleben).
+- **Direkt-Modus**: Das Plugin bewertet Airbnb-Seiten allein anhand von Budget und Wunsch-Chips, ohne Viertel-Finder.
+- **Pool**: Unterkünfte der Suchseiten, die du nacheinander öffnest; sie werden gemeinsam gerankt (`extension/pool.js`).
+
+Datenfluss: Web-App → `bridge.js` (nur auf der StayMatch-Seite) → `chrome.storage.local` → `rank.js` im Plugin. Es gibt keinen Server dazwischen.
+
+English summary: StayMatch is a static web app (`web/`) plus a Chrome extension (`extension/`); shared code lives only in `shared/` and is copied with `node scripts/sync-core.mjs`. Run `npm test` and `npm run check` before opening a pull request. Contributions in German or English are welcome.
 
 ## Projektstruktur und Regeln für Mitwirkende
 

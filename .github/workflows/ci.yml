@@ -2,6 +2,8 @@ name: CI
 on:
   push: { branches: [main] }
   pull_request:
+  schedule: [{ cron: "17 5 * * 1" }]
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -10,6 +12,8 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -17,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
-        with: { node-version: "${{ matrix.node }}" }
+        with: { node-version: "${{ matrix.node }}", cache: npm, cache-dependency-path: tests/package-lock.json }
       - name: Syntax aller JavaScript-Dateien
         run: |
           for f in shared/*.js web/*.js extension/*.js scripts/*.mjs .github/scripts/*.mjs; do node --check "$f"; done
@@ -34,6 +38,8 @@ jobs:
         run: node .github/scripts/check-size.mjs
       - name: jsdom für die DOM-Tests des Plugins
         run: npm ci --prefix tests --no-audit --no-fund
+      - name: jsdom ist wirklich da (sonst würden DOM-Tests still übersprungen)
+        run: node -e "require('./tests/node_modules/jsdom')"
       - name: Tests
         run: node --test tests/*.test.js
       - name: Plugin-ZIP lässt sich bauen
@@ -42,7 +48,10 @@ jobs:
         run: node .github/scripts/check-zip.mjs
 
   links:
+    # Online-Linkcheck nur wöchentlich und von Hand: fremde 5xx sollen keine PRs blockieren.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

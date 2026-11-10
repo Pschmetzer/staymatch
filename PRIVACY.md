@@ -4,8 +4,8 @@ Stand: 09.11.2026 (Webfassung: https://staymatch-tau.vercel.app/datenschutz). St
 
 ## Plugin (Chrome-Erweiterung)
 - Liest nur Airbnb-Seiten, die du selbst öffnest. Es stellt keine eigenen Anfragen an Airbnb und fängt keine Netzwerkdaten ab.
-- Gespeichert wird lokal in `chrome.storage.local`: angesehene Unterkünfte (Titel, Preis, Bewertung, Lage, Bild-Adresse), deine 👍/👎, Notizen, Preisverlauf und die Reise (Personen, Wünsche, Budget, bewertete Viertel).
-- Das Plugin sammelt die Suchseiten, die du nacheinander selbst öffnest, bis zu 2 Stunden lokal in `chrome.storage.local`, damit alle gemeinsam bewertet werden. Es lädt keine Seite von selbst nach. In die Zwischenablage schreibt es nur, wenn du auf „Kopieren“ klickst. „Fehler melden“ öffnet ein GitHub-Formular mit Versionsnummer und Zählwerten (keine Adresse, keine Seiteninhalte); gesendet wird erst, wenn du es dort selbst abschickst.
+- Gespeichert wird lokal in `chrome.storage.local`: angesehene Unterkünfte (Titel, Preis, Bewertung, Lage, Bild-Adresse), deine 👍/👎, Notizen, Preisverlauf und die Reise (Personen, Wünsche, Budget, bewertete Viertel), die zuletzt geöffnete Such-Adresse (`lastSearch`), Filter (`filters`), Schnellwahl (`quick`), Einstellungen (`settings`) und den Ein-/Ausklapp-Zustand der Box (`min:*`).
+- Das Plugin sammelt die Suchseiten, die du nacheinander selbst öffnest, lokal in `chrome.storage.local` (die Frist von 2 Stunden beginnt bei jeder neu gesammelten Seite von vorn), damit alle gemeinsam bewertet werden. Es lädt keine Seite von selbst nach. In die Zwischenablage schreibt es nur, wenn du auf „Kopieren“ klickst. „Fehler melden“ öffnet ein GitHub-Formular mit Versionsnummer und Zählwerten (keine Adresse, keine Seiteninhalte); gesendet wird erst, wenn du es dort selbst abschickst.
 - Nichts davon wird an uns oder Dritte gesendet. Löschen: Popup → „Löschen…“ (Verlauf, Zwischenspeicher, Reise oder alles), oder die Erweiterung entfernen.
 - Das Popup lädt keine Bilder und stellt keine Netzwerkanfragen. Im Inkognito-Fenster ist das Plugin nicht aktiv, dort wird nichts gespeichert. Auf Buchungs-, Konto-, Gastgeber-, Nachrichten- und Zahlungsseiten läuft es nicht.
 - Speicherdauer: Die Daten bleiben, bis du sie löschst. Eine automatische Löschung (z. B. nach 12 Monaten) gibt es noch nicht.
@@ -18,7 +18,7 @@ Stand: 09.11.2026 (Webfassung: https://staymatch-tau.vercel.app/datenschutz). St
   - einen der Overpass-Server (`overpass-api.de`, `overpass.kumi.systems`, `overpass.private.coffee`) für die Orte,
   - die OpenStreetMap-Kartenkacheln (`tile.openstreetmap.org`) für die Karte. Die Kacheln werden **immer** von dort geladen.
   Deren Datenschutzhinweise gelten dort.
-- Optional (noch nicht aktiv): Städte können vorab geladen werden (`web/data/`, Skript `scripts/prefetch-cities.mjs`). Für sie entfallen Nominatim und Overpass, die Kartenkacheln bleiben.
+- Vorab geladene Städte (`web/data/`, Skript `scripts/prefetch-cities.mjs`, derzeit zehn): Für sie entfallen Nominatim und Overpass, die Kartenkacheln bleiben.
 - Schrift (Inter) und Karten-Bibliothek (Leaflet) werden von der eigenen Seite geladen, nicht von Google oder unpkg.
 - Hosting: Vercel. Dabei fallen die üblichen Server-Protokolle an (IP-Adresse, Zeitpunkt, abgerufene Datei).
 - Keine Cookies. `localStorage` wird nur für eigene Funktionen genutzt (Personen, Wünsche, Reise, Design, Zwischenspeicher der Stadtdaten, 24 Stunden). `sessionStorage` hält Stadtdaten bis der Tab schließt, wenn der dauerhafte Speicher voll ist. Beides wird nicht gesendet. Darum ist kein Cookie-Banner nötig.
@@ -26,6 +26,6 @@ Stand: 09.11.2026 (Webfassung: https://staymatch-tau.vercel.app/datenschutz). St
 ## Kontakt
 Fragen oder Löschwünsche: Issue im Repository https://github.com/Pschmetzer/staymatch/issues (bitte keine persönlichen Daten in öffentliche Issues schreiben).
 
-> **TODO Nutzer:** E-Mail-Adresse für Datenschutzfragen und verantwortliche Stelle eintragen. Beides fehlt absichtlich und wird nicht erfunden.
+> **Hinweis:** Eine E-Mail-Adresse für Datenschutzfragen und die verantwortliche Stelle sind noch nicht angegeben und werden nicht erfunden. Bis dahin: Issue im Repository (ohne persönliche Daten) oder, für Sicherheitsfragen, die vertrauliche GitHub-Meldung (siehe SECURITY.md).
 
 Hinweis: StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden.
