@@ -100,7 +100,7 @@ h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), va
 .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
 .note { font-size: 14px; color: var(--dim); margin-top: 22px; }
 .quick { display: grid; grid-template-columns: 1.4fr 1fr 1fr .6fr auto; gap: 8px; margin-top: 22px; max-width: 640px; }
-.quick input { min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: var(--bg2); color: var(--fg); font: inherit; font-size: 15px; }
+.quick input { min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: var(--bg2); color: var(--text); font: inherit; font-size: 15px; }
 .quick .btn { padding: 11px 16px; font-size: 15px; }
 @media (max-width: 640px) { .quick { grid-template-columns: 1fr 1fr; } .quick input[name=city], .quick .btn { grid-column: 1 / -1; } }
 .mobile-hint { display: none; font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 16px; }
@@ -182,6 +182,20 @@ h2 { font-size: clamp(32px, 4.4vw, 52px); line-height: 1.08; letter-spacing: -.0
 .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 520px) { .vs { grid-template-columns: 1fr; } }
 
+/* Fotos (KI-generiert mit Lumina, reine Stimmungsbilder, siehe LUMINA-PROMPTS.md) */
+.photo { display: block; margin: 0; border-radius: 24px; overflow: hidden; border: 1px solid var(--line); background: var(--card); box-shadow: 0 24px 60px rgba(0,0,0,.28); }
+.photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.photo.wide { aspect-ratio: 21 / 8; margin-bottom: 18px; }
+.photo.side { aspect-ratio: 16 / 10; margin-top: 32px; }
+@media (max-width: 700px) { .photo.wide { aspect-ratio: 16 / 10; } .photo { border-radius: 18px; } }
+/* Schluss mit Foto im Hintergrund, Overlay hält den Text lesbar (hell und dunkel) */
+.final.has-photo { position: relative; isolation: isolate; overflow: hidden; color: #f4f4f6; }
+.final.has-photo .bgimg { position: absolute; inset: 0; z-index: -2; }
+.final.has-photo .bgimg img { width: 100%; height: 100%; object-fit: cover; }
+.final.has-photo::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(11,11,13,.82), rgba(11,11,13,.62) 45%, rgba(11,11,13,.86)); }
+.final.has-photo .intro { color: #d6d6dc; }
+.final.has-photo .btn.primary { background: #f4f4f6; color: #0b0b0d; border-color: #f4f4f6; }
+.final.has-photo .btn.ghost { background: rgba(11,11,13,.55); border-color: rgba(244,244,246,.35); color: #f4f4f6; }
 /* Plugin */
 .plugin { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)), var(--card)); border: 1px solid var(--line); border-radius: 28px; padding: 48px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
 @media (max-width: 900px) { .plugin { grid-template-columns: 1fr; padding: 30px 22px; } }
@@ -305,6 +319,10 @@ footer a { color: var(--muted); }
     <span class="eyebrow">So geht's</span>
     <h2>Von der Suche zur passenden Wohnung in drei Schritten.</h2>
     <p class="intro">Statt jede Wohnung einzeln anzuklicken, siehst du auf einen Blick, welche passt und warum.</p>
+    <picture class="photo wide">
+      <source type="image/webp" srcset="media/laptop-640.webp 640w, media/laptop-1280.webp 1280w" sizes="(max-width: 1180px) 100vw, 1132px">
+      <img src="media/laptop-1280.jpg" srcset="media/laptop-640.jpg 640w, media/laptop-1280.jpg 1280w" sizes="(max-width: 1180px) 100vw, 1132px" width="1280" height="719" alt="" loading="lazy" decoding="async">
+    </picture>
     <div class="steps">
       <div class="step"><h3>Plugin installieren</h3><p>Einmal in Chrome, Edge oder Brave einrichten. Kein Konto, keine Anmeldung.</p></div>
       <div class="step"><h3>Ganz normal suchen</h3><p>Stadt und Datum auf Airbnb eingeben. Im StayMatch-Panel Budget pro Nacht und Wünsche wählen, etwa ganze Unterkunft oder Superhost.</p></div>
@@ -354,6 +372,10 @@ footer a { color: var(--muted); }
       <span class="eyebrow">Auch für Gruppen</span>
       <h2>Mit Freunden unterwegs? Dann fair für alle.</h2>
       <p class="intro" style="margin-bottom:0">Füg im Viertel-Finder Mitreisende hinzu, jede Person wählt ihren Typ. StayMatch schaut dann zuerst, wem es am schlechtesten ginge (60 %), und nimmt den Schnitt dazu (40 %). So landet die Gruppe nicht automatisch auf der Partymeile, nur weil zwei feiern wollen.</p>
+      <picture class="photo side">
+        <source type="image/webp" srcset="media/gepaeck-640.webp 640w, media/gepaeck-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 560px">
+        <img src="media/gepaeck-1280.jpg" srcset="media/gepaeck-640.jpg 640w, media/gepaeck-1280.jpg 1280w" sizes="(max-width: 900px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async">
+      </picture>
     </div>
     <div class="vs">
       <div class="bars">
@@ -446,7 +468,11 @@ footer a { color: var(--muted); }
   </div>
 </section>
 
-<section class="final">
+<section class="final has-photo">
+  <picture class="bgimg" aria-hidden="true">
+    <source type="image/webp" srcset="media/wohnung-640.webp 640w, media/wohnung-1280.webp 1280w" sizes="100vw">
+    <img src="media/wohnung-1280.jpg" srcset="media/wohnung-640.jpg 640w, media/wohnung-1280.jpg 1280w" sizes="100vw" width="1280" height="719" alt="" loading="lazy" decoding="async">
+  </picture>
   <div class="wrap">
     <h2>Weniger klicken, schneller buchen.</h2>
     <p class="intro" style="margin:0 auto 34px">In zwei Minuten weißt du, welche Unterkunft passt.</p>
