@@ -5,10 +5,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/). Versionssc
 ## [Unveröffentlicht]
 
 ### Hinzugefügt
+- Startseite (DE und EN): Abschnitte „Wie wir rechnen“ und „Beliebte Städte“ (Links auf die Stadtseiten), acht neue Stimmungsbilder, Szenario-Karten mit Bild, FAQ-Auszeichnung (`FAQPage`), Kopier-Knopf und browserabhängiger Erweiterungs-Pfad bei der Installation, ZIP-Größe am Download-Knopf, Nächte-Anzeige im Schnellstart, aktiver Navigationspunkt. Test `tests/startseite.test.js`.
 - `/.well-known/security.txt`, SHA-256-Prüfsumme neben dem Plugin-ZIP, Herkunftsnachweis (Provenance) im Release-Workflow.
 - `scripts/cities.json` (Städteliste), `scripts/check-syntax.mjs`, `scripts/dev-server.mjs` (setzt die Header aus `web/vercel.json`), `.nvmrc`, `.editorconfig`, `.githooks/`, `THIRD_PARTY.md`.
 
 ### Geändert
+- Website-Adresse in canonical, Open Graph, hreflang, Sitemap, `robots.txt` und Stadtseiten ist jetzt `https://staymatch.pro` (das Plugin nutzt weiter die alte Vercel-Adresse). Sitemap enthält die Stadtseiten.
+- Startseite: Plugin-Abschnitt direkt nach „So geht's“, Schnellstart mit sichtbaren Feldnamen und Städte-Vorschlägen, FAQ zusammengelegt, Hero-Beispiel ohne verdecktes Viertel-Label, Navigation auf dem Handy kompakter. Hero-Platzhalter `sm-lumina` entfernt.
 - CI: Online-Linkcheck nur wöchentlich, Zeitlimits, npm-Cache, jsdom-Prüfung. Release-Workflow führt `npm run check` aus und nimmt den CHANGELOG-Abschnitt als Release-Text. Dependabot beobachtet `tests/`.
 - `deploy.sh` prüft Stand und alle Checks und testet nach dem Deploy. `prefetch-cities.mjs` bricht bei Fehlern mit Exit-Code 1 ab und überschreibt keine Datei mit einer Teilantwort.
 - Datenschutz-Texte: gespeicherte Felder des Plugins vollständig, vorab geladene Städte als aktiv beschrieben.
