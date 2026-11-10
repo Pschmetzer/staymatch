@@ -6,7 +6,7 @@
 
   // Gewichte einer Person: eigene Schieberegler (custom) gehen vor dem Typ. Unbekanntes wird verworfen, Werte auf -1..1 begrenzt.
   function cleanWeights(raw) {
-    if (!raw || typeof raw !== 'object') return null;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !Object.keys(CATEGORIES).some(k => k in raw)) return null; // {} oder [] = nicht gesetzt
     const w = {};
     for (const k of Object.keys(CATEGORIES)) {
       const v = Number(raw[k]);
@@ -40,9 +40,10 @@
   }
   // Harte Grenze („auf keinen Fall Partymeile“): welche Personen legen gegen dieses Viertel ein Veto ein?
   const VETO_LIMIT = 0.5; // normierter Wert ab dem eine Kategorie als „zu viel“ gilt
-  function vetoes(norm, people) {
+  const VETO_MIN = 5; // mindestens so viele Orte, sonst ist „viel“ nur relativ zu einer ruhigen Stadt
+  function vetoes(norm, people, counts) {
     const out = [];
-    for (const p of people) for (const k of (p.veto || [])) if ((norm[k] || 0) >= VETO_LIMIT) out.push({ name: p.name, cat: k, label: CATEGORIES[k].label });
+    for (const p of people) for (const k of (p.veto || [])) if ((norm[k] || 0) >= VETO_LIMIT && (!counts || (counts[k] || 0) >= VETO_MIN)) out.push({ name: p.name, cat: k, label: CATEGORIES[k].label });
     return out;
   }
   // Viertel mit sehr wenigen OSM-Orten: Wertung wackelig
@@ -51,7 +52,9 @@
   }
   // Zwei Viertel nebeneinander: je Kategorie Anzahl und wer vorn liegt
   function compareAreas(a, b, people) {
-    const cats = Object.keys(CATEGORIES).map(k => ({ key: k, label: CATEGORIES[k].label, a: a.counts[k], b: b.counts[k], win: a.counts[k] === b.counts[k] ? 0 : a.counts[k] > b.counts[k] ? 1 : 2 }));
+    // Wer insgesamt etwas nicht will (Summe der Gewichte < 0), für den ist weniger davon der Sieg
+    const sign = k => people.reduce((x, p) => x + ((p.w || weightsOf(p))[k] || 0), 0) < 0 ? -1 : 1;
+    const cats = Object.keys(CATEGORIES).map(k => { const d = ((a.counts[k] || 0) - (b.counts[k] || 0)) * sign(k); return { key: k, label: CATEGORIES[k].label, a: a.counts[k], b: b.counts[k], win: d === 0 ? 0 : d > 0 ? 1 : 2 }; });
     const persons = people.map((p, i) => { const x = a.group.scores[i], y = b.group.scores[i]; return { name: p.name, a: x, b: y, win: x === y ? 0 : x > y ? 1 : 2 }; });
     const t = a.group.total === b.group.total ? 0 : a.group.total > b.group.total ? 1 : 2;
     return { cats, persons, total: { a: a.group.total, b: b.group.total, win: t } };
@@ -170,7 +173,7 @@
     let s = 0, t = 0, neg = 0;
     for (const [k, w] of Object.entries(weights)) { s += w * (norm[k] || 0); if (w > 0) t += w; else neg -= w; }
     // Nur Abneigungen (Regler alle ≤ 0): 100 = nichts davon in der Nähe, 0 = alles voll davon
-    if (!t) return neg ? Math.max(0, Math.min(100, Math.round(100 + (s / neg) * 100))) : 100;
+    if (!t) return neg ? Math.max(0, Math.min(100, Math.round(100 + (s / neg) * 100))) : 0; // nichts gewählt = kein Treffer
     return Math.max(0, Math.min(100, Math.round((s / t) * 100)));
   }
 
@@ -191,6 +194,7 @@
   function summary(a, people) {
     const { scores, min } = a.group;
     if (!people.length) return '';
+    if (people.every(p => !Object.values(p.w || weightsOf(p)).some(Boolean))) return 'Nichts gewählt: Wähle Wünsche, damit die Wertung etwas aussagt.';
     if (people.length === 1) { // eine Person: direkt ansprechen
       if (min >= 70) return 'Passt gut zu dir.';
       const w = min < 60 ? weakness(a.norm, a.counts, people[0].w || weightsOf(people[0])) : null;
@@ -201,7 +205,7 @@
     const weak = low && min < 60 ? weakness(a.norm, a.counts, low.w || weightsOf(low)) : null;
     if (!weak) return 'Solide für die ganze Gruppe.';
     const who = people.filter((_, i) => scores[i] < 60).length;
-    const lead = who > 1 ? `Für ${who} Personen knapp` : 'Gut für die meisten';
+    const lead = who > 1 ? `Für ${who} Personen knapp` : people.length > 2 ? 'Gut für die meisten' : 'Nicht für beide ideal';
     return `${lead}: ${low.name} (${min}) ${weak.kind === 'missing' ? `vermisst ${weak.label}` : `stört sich an viel ${weak.label}`}.`;
   }
 
@@ -232,17 +236,18 @@
   function awards(ranked, people) {
     const out = ranked.map(() => []);
     if (!ranked.length) return out;
-    out[0].push('Bester Kompromiss');
+    let b0 = 0; ranked.forEach((a, i) => { if (a.group.total > ranked[b0].group.total) b0 = i; });
+    out[b0].push('Bester Kompromiss');
     const types = [...new Set(people.map(p => p.type))];
     if (types.length > 1) for (const t of types) {
       const idx = people.map((p, i) => p.type === t ? i : -1).filter(i => i >= 0);
       let bi = 0, bv = -1;
       ranked.forEach((a, i) => { const v = idx.reduce((x, j) => x + a.group.scores[j], 0) / idx.length; if (v > bv) { bv = v; bi = i; } });
-      if (bi !== 0 && out[bi].length < 2) out[bi].push(`Beste Wahl für ${(PRESETS[t] || {}).label || t}`);
+      if (bi !== b0 && out[bi].length < 2) out[bi].push(`Beste Wahl für ${(PRESETS[t] || {}).label || t}`);
     }
     let ti = -1, tv = Infinity;
     ranked.forEach((a, i) => { const d = a.nearest && a.nearest.transit; if (d != null && d < tv) { tv = d; ti = i; } });
-    if (ti >= 0 && out[ti].length < 2) out[ti].push('Kürzester Weg zur Bahn');
+    if (ti >= 0 && tv <= 300 && out[ti].length < 2) out[ti].push('Kürzester Weg zur Bahn');
     return out;
   }
 
@@ -265,16 +270,16 @@
 
   // Gruppe aus Text: „Lena Party, Mia Chill“ oder eine Person pro Zeile („Tom: Sightseeing“)
   const TYPE_WORDS = [
-    ['party', /party|feier|club|nacht/], ['chill', /chill|ruhe|entspann/], ['sights', /sight|besicht|stadt/], ['foodie', /food|essen|kulinar/],
-    ['family', /famil|kind/], ['nature', /natur|wander/], ['shopping', /shop|einkauf/], ['sport', /sport|fitness|lauf/], ['culture', /kultur|museum|theater/],
-  ];
+    ['party', /^(party|feier|club|nacht)/], ['chill', /^(chill|ruhe|entspann)/], ['sights', /^(sight|besicht|stadt)/], ['foodie', /^(food|essen|kulinar)/],
+    ['family', /^(famil|kind)/], ['nature', /^(natur|wander)/], ['shopping', /^(shop|einkauf)/], ['sport', /^(sport|fitness|lauf)/], ['culture', /^(kultur|museum|theater)/],
+  ]; // am Wortanfang verankert: „Jessen“ ist kein Foodie
   function parseGroup(text) {
     const parts = String(text || '').split(/[\n,;]+|\s+und\s+/i).map(x => x.trim()).filter(Boolean).slice(0, 30);
     const out = [];
     for (const part of parts) {
-      const low = part.toLowerCase();
-      const hit = TYPE_WORDS.find(([, re]) => re.test(low));
-      const name = part.replace(/[:()\-–]/g, ' ').split(/\s+/).filter(w => !hit || !hit[1].test(w.toLowerCase())).join(' ').trim().slice(0, 40);
+      const words = part.replace(/[:()–]|\s-\s/g, ' ').split(/\s+/).filter(Boolean); // Bindestrich im Namen bleibt („Hans-Peter“)
+      const hit = TYPE_WORDS.find(([, re]) => words.some(w => re.test(w.toLowerCase())));
+      const name = words.filter(w => !hit || !hit[1].test(w.toLowerCase())).join(' ').trim().slice(0, 40);
       out.push({ name: name || `Person ${out.length + 1}`, type: hit ? hit[0] : 'chill' });
     }
     return out;
@@ -291,9 +296,10 @@
     const q = new URLSearchParams();
     if (checkin) q.set('checkin', checkin);
     if (checkout) q.set('checkout', checkout);
-    if (adults) q.set('adults', adults);
-    if (children) q.set('children', children);
-    if (infants) q.set('infants', infants);
+    const cap = (v, max) => Math.max(0, Math.min(max, Math.floor(+v) || 0));
+    if (cap(adults, 16)) q.set('adults', cap(adults, 16)); // Airbnb: höchstens 16 Gäste, Kinder ≤ 15, Babys ≤ 5
+    if (cap(children, 15)) q.set('children', cap(children, 15));
+    if (cap(infants, 5)) q.set('infants', cap(infants, 5));
     if (minBedrooms) q.set('min_bedrooms', minBedrooms);
     if (priceMaxNight) q.set('price_max', Math.round(priceMaxNight));
     q.set('ne_lat', (lat + dLat).toFixed(5)); q.set('ne_lng', (lon + dLon).toFixed(5));

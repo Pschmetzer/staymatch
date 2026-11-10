@@ -56,7 +56,7 @@ test('personScore: nur Abneigungen ergibt sinnvolle Werte statt immer 0', () => 
   assert.equal(SM.personScore({ party: 0 }, w), 100);
   assert.equal(SM.personScore({ party: 1 }, w), 0);
   assert.equal(SM.personScore({ party: 0.5 }, w), 50);
-  assert.equal(SM.personScore({ party: 1 }, { party: 0, chill: 0, sights: 0, food: 0, transit: 0 }), 100, 'alles egal = zufrieden');
+  assert.equal(SM.personScore({ party: 1 }, { party: 0, chill: 0, sights: 0, food: 0, transit: 0 }), 0, 'nichts gewählt = kein Treffer (R5-37)');
 });
 
 test('Veto: greift ab Schwelle, nennt Person und Kategorie', () => {
@@ -77,8 +77,10 @@ test('thinData: wenig Orte = wackelige Wertung', () => {
 test('compareAreas: Gewinner je Kategorie, je Person und gesamt', () => {
   const A = { counts: { party: 10, chill: 3, sights: 5, food: 8, transit: 1 }, group: { total: 70, scores: [80, 60] } };
   const B = { counts: { party: 4, chill: 3, sights: 9, food: 8, transit: 2 }, group: { total: 55, scores: [50, 60] } };
-  const c = SM.compareAreas(A, B, [{ name: 'L' }, { name: 'M' }]);
+  const c = SM.compareAreas(A, B, [{ name: 'L', type: 'party' }, { name: 'M', type: 'party' }]);
   assert.deepEqual(c.cats.map(x => x.win), [1, 0, 2, 0, 2, 0, 0, 0]);
+  const neg = SM.compareAreas(A, B, [{ name: 'L', type: 'chill' }]); // Chill-Typ: mehr Party ist kein Sieg (R5-35)
+  assert.equal(neg.cats[0].win, 2);
   assert.deepEqual(c.persons.map(x => x.win), [1, 0]);
   assert.equal(c.total.win, 1);
   assert.equal(c.persons[0].name, 'L');

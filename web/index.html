@@ -20,7 +20,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="StayMatch: Das passende Airbnb. In 2 Minuten.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="StayMatch – das Viertel, in dem alle glücklich sind">
+<meta name="twitter:title" content="StayMatch – das passende Airbnb in 2 Minuten">
 <meta name="twitter:description" content="Der Kompromiss für eure Reisegruppe, fair gerechnet. Kostenlos und Open Source.">
 <meta name="twitter:image" content="https://staymatch-tau.vercel.app/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -255,8 +255,8 @@ footer a { color: var(--muted); }
       </div>
       <form class="quick" id="quick" aria-label="Schnellstart: direkt auf Airbnb suchen">
         <input name="city" required placeholder="Stadt, z. B. Lissabon" aria-label="Stadt" autocomplete="off">
-        <input name="checkin" type="date" aria-label="Anreise">
-        <input name="checkout" type="date" aria-label="Abreise">
+        <input name="checkin" type="date" aria-label="Anreise" id="qci">
+        <input name="checkout" type="date" aria-label="Abreise" id="qco">
         <input name="adults" type="number" min="1" max="16" value="2" aria-label="Gäste">
         <button class="btn primary" type="submit">Suchen</button>
       </form>
@@ -475,6 +475,21 @@ footer a { color: var(--muted); }
     try { localStorage.setItem('sm_theme', next); } catch {}
   };
   // Schnellstart: öffnet die normale Airbnb-Suche. Das URL-Format ist nicht offiziell dokumentiert.
+  // Eingaben auch an die App übergeben (Deeplink /app?c=…&i=…&o=…&n=…)
+  {
+    const form = document.getElementById('quick'), ci = document.getElementById('qci'), co = document.getElementById('qco');
+    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+    ci.min = today; co.min = today;
+    const link = document.querySelector('a[href="/app"]');
+    form.addEventListener('input', () => {
+      if (ci.value) co.min = ci.value;
+      if (co.value && ci.value && co.value <= ci.value) co.value = '';
+      const f = new FormData(form), q = new URLSearchParams();
+      if (String(f.get('city')).trim()) q.set('c', String(f.get('city')).trim()); if (ci.value) q.set('i', ci.value); if (co.value) q.set('o', co.value);
+      if (Number(f.get('adults')) > 1) q.set('n', String(f.get('adults')));
+      if (link) link.href = '/app' + (q.size ? '?' + q : '');
+    });
+  }
   document.getElementById('quick').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target), q = new URLSearchParams();

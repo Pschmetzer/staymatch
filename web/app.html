@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StayMatch – dein passendes Airbnb finden</title>
 <meta name="description" content="Sag, was dir wichtig ist. StayMatch findet das passende Viertel und bewertet die Airbnb-Unterkünfte dort für dich.">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="canonical" href="https://staymatch-tau.vercel.app/app">
+<meta property="og:title" content="StayMatch – dein passendes Airbnb finden">
+<meta property="og:description" content="Sag, was dir wichtig ist. StayMatch findet das passende Viertel.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
 <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23e0475b%22/><path d=%22M50 25 78 52H68v23H32V52H22z%22 fill=%22white%22/></svg>">
@@ -12,7 +18,11 @@
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 :root { --bg:#0b0b0d; --bg2:#121216; --card:#17171c; --line:#26262d; --text:#f4f4f6; --muted:#9a9aa4; --dim:#6c6c76; --accent:#e0475b; --accent2:#ff8a5c; --good:#2fbf85; --warn:#e6a23c; --btn:#f4f4f6; --btnText:#0b0b0d; }
-:root[data-theme="light"] { --bg:#fbfaf8; --bg2:#f3f1ed; --card:#fff; --line:#e6e3dd; --text:#141416; --muted:#5d5d66; --dim:#8a8a93; --btn:#141416; --btnText:#fff; }
+:root { color-scheme:dark; }
+:root[data-theme="light"] { color-scheme:light; --bg:#fbfaf8; --bg2:#f3f1ed; --card:#fff; --line:#e6e3dd; --text:#141416; --muted:#5d5d66; --dim:#6b6b74; --accent:#c9304a; --good:#17744f; --warn:#8f5a00; --btn:#141416; --btnText:#fff; }
+.skip { position:absolute; left:-999px; top:8px; z-index:50; background:var(--btn); color:var(--btnText); padding:8px 14px; border-radius:8px; } .skip:focus { left:8px; }
+.fav { min-width:28px; min-height:28px; }
+.result, #status, #results { scroll-margin-top:80px; }
 * { box-sizing:border-box; }
 [hidden] { display:none !important; }
 main > * { min-width:0; }
@@ -125,6 +135,8 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
 <script>try { const t = localStorage.getItem('sm_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : ''); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
 <body>
+<a class="skip" href="#status">Zu den Ergebnissen springen</a>
+<noscript><p style="padding:16px">StayMatch braucht JavaScript, um Viertel zu bewerten.</p></noscript>
 <nav class="top" aria-label="Hauptnavigation">
   <div class="wrap">
     <a class="logo" href="/"><i><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg></i>StayMatch</a>
@@ -143,7 +155,7 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
     <button type="button" class="link" id="formToggle" aria-expanded="false" aria-controls="formBody">Wünsche und Einstellungen ändern</button>
     <div id="formBody">
     <label for="city">Wohin?</label>
-    <input id="city" type="search" enterkeyhint="search" placeholder="z. B. Barcelona" value="Barcelona" autocomplete="off">
+    <input id="city" type="search" spellcheck="false" autocapitalize="words" enterkeyhint="search" placeholder="z. B. Barcelona" value="Barcelona" autocomplete="off">
     <div class="cities" id="cityChips" role="group" aria-label="Beliebte Ziele"></div>
     <div class="row">
       <div><label for="checkin">Anreise</label><input id="checkin" type="date"></div>

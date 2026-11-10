@@ -10,7 +10,7 @@
     chill: { label: 'Chillen', tags: [['leisure', 'park'], ['amenity', 'cafe'], ['leisure', 'garden'], ['natural', 'beach'], ['leisure', 'spa']] },
     sights: { label: 'Sightseeing', tags: [['tourism', 'attraction'], ['tourism', 'museum'], ['tourism', 'viewpoint'], ['historic', 'monument'], ['tourism', 'gallery']] },
     food: { label: 'Essen', tags: [['amenity', 'restaurant'], ['amenity', 'fast_food']] },
-    transit: { label: 'ÖPNV', tags: [['railway', 'station'], ['railway', 'subway_entrance'], ['public_transport', 'station']] },
+    transit: { label: 'ÖPNV', tags: [['railway', 'station'], ['railway', 'subway_entrance'], ['railway', 'tram_stop'], ['public_transport', 'station']] },
     shop: { label: 'Einkaufen', tags: [['shop', 'mall'], ['shop', 'department_store'], ['amenity', 'marketplace']] },
     sport: { label: 'Sport', tags: [['leisure', 'fitness_centre'], ['leisure', 'sports_centre']] },
     kids: { label: 'Kinder', tags: [['leisure', 'playground'], ['tourism', 'zoo'], ['tourism', 'theme_park']] },
