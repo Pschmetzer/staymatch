@@ -253,7 +253,7 @@ async function geocode(city, signal) {
 const geoFrom = res => C.geoFromNominatim(res);
 
 // CSV statt JSON: ca. 6x kleiner. Abfrage und Spalten kommen aus dem gemeinsamen Kern (gleich wie beim Vorladen der Städte).
-async function overpass(bbox, outer) {
+async function overpass(bbox, outer, onTry) {
   const FIELDS = C.FIELDS, q = C.overpassQuery(bbox);
   // Fair zu den freiwilligen Servern: erst einer, der nächste erst nach 20 s ohne Antwort oder bei Fehler.
   const ctrl = new AbortController();
@@ -265,7 +265,7 @@ async function overpass(bbox, outer) {
     let release;
     next = new Promise(r => { release = r; });
     return (async () => {
-      if (i) await Promise.race([prev, new Promise(r => setTimeout(r, 20000 * i))]);
+      if (i) { await Promise.race([prev, new Promise(r => setTimeout(r, 20000 * i))]); if (onTry && !ctrl.signal.aborted) onTry(i); }
       try {
         const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
         const text = await r.text();
@@ -336,17 +336,54 @@ function radius() {
   return +v || 800;
 }
 
-let runCtrl = null, tick = null;
+let runCtrl = null, tick = null, ldShow = null, ldPrev = null;
+const LD_TIPS = [
+  'Gezählt werden Bars, Cafés, Parks, Sehenswürdigkeiten und Haltestellen im Umkreis jedes Viertels.',
+  'Mit Mitreisenden zählt die am wenigsten zufriedene Person am meisten, so gewinnt nicht einfach die Mehrheit.',
+  'Die Daten kommen live von OpenStreetMap, gepflegt von Freiwilligen. Große Städte brauchen etwas länger.',
+  'Die Städte unter „Beliebte Ziele“ sind vorgeladen und erscheinen sofort.',
+  'Ist eine Stadt einmal geladen, geht jede weitere Suche dort heute ohne Wartezeit.',
+  'Mit dem Plugin für Chrome siehst du auf Airbnb direkt die drei besten Unterkünfte.'
+];
+const LD_EST = 75; // grobe Schätzung für das Laden aus OpenStreetMap in Sekunden
 function setBusy(on, msg) {
-  $('go').disabled = on; $('cancel').hidden = !on; clearInterval(tick);
+  $('go').disabled = on; $('cancel').hidden = !on; clearInterval(tick); clearTimeout(ldShow);
   $('results').setAttribute('aria-busy', String(on)); $('results').classList.toggle('dim', on && !!$('results').innerHTML);
-  if (on) {
-    const t0 = Date.now(); let base = msg;
-    setBusy.set = m => { base = m; draw(); };
-    // Sekunden nur alle 15 s in die Live-Region: Screenreader lesen sonst jede Sekunde vor
-    const draw = () => { const s = Math.round((Date.now() - t0) / 1000); $('status').textContent = s % 15 === 0 ? `${base} (${s} s)` : base; };
-    draw(); tick = setInterval(draw, 1000);
+  if (!on) {
+    $('loader').hidden = true; $('status').classList.remove('sr');
+    if (ldPrev && !$('results').innerHTML.trim()) { $('intro').hidden = ldPrev[0]; $('dest').hidden = ldPrev[1]; }
+    ldPrev = null; return;
   }
+  const t0 = Date.now(); let base = msg, step = 1, t2 = 0, slow = false, tipI = Math.floor(Math.random() * LD_TIPS.length);
+  setBusy.set = m => { base = m; const n = +(/Schritt (\d)/.exec(m) || [])[1]; if (n && n !== step) { step = n; if (n === 2) { t2 = Date.now(); slow = /aus OpenStreetMap/.test(m); } } draw(); };
+  setBusy.note = m => { $('ldNote').textContent = m; };
+  $('ldNote').textContent = '';
+  const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const draw = () => {
+    const s = Math.round((Date.now() - t0) / 1000);
+    // Sekunden nur alle 15 s in die Live-Region: Screenreader lesen sonst jede Sekunde vor
+    $('status').textContent = s % 15 === 0 ? `${base} (${s} s)` : base;
+    $('ldTitle').textContent = base.replace(/^Schritt \d von 3: /, '').replace(/, kann bis zu 2 Minuten dauern$/, '');
+    [...$('ldSteps').children].forEach((li, i) => { li.className = i + 1 < step ? 'ok' : i + 1 === step ? 'on' : ''; });
+    let p, time, unit;
+    if (step === 2 && slow) {
+      const e = (Date.now() - t2) / 1000;
+      p = 12 + 80 * (1 - Math.exp(-e / 35)); // nähert sich an, erreicht 100 % erst, wenn die Daten da sind
+      const left = Math.round(LD_EST - e);
+      if (left > 0) { time = fmt(left); unit = 'noch ca.'; }
+      else { time = 'gleich'; unit = 'dauert länger als sonst'; if (!$('ldNote').textContent) $('ldNote').textContent = 'OpenStreetMap ist gerade gut ausgelastet. Die Daten kommen gleich.'; }
+    } else { p = step === 1 ? 6 : step === 2 ? 50 : 95; time = fmt(s); unit = 'vergangen'; }
+    $('ldRing').style.strokeDashoffset = String(100 - Math.min(p, 99));
+    $('ldTime').textContent = time; $('ldUnit').textContent = unit;
+    if (s % 7 === 0) { const el = $('ldTip'); el.textContent = '💡 ' + LD_TIPS[tipI++ % LD_TIPS.length]; }
+  };
+  draw(); tick = setInterval(draw, 1000);
+  // Erst nach kurzer Zeit zeigen: vorgeladene Städte sind sofort fertig und sollen nicht flackern
+  ldShow = setTimeout(() => {
+    ldPrev = [$('intro').hidden, $('dest').hidden];
+    $('intro').hidden = true; $('dest').hidden = true; $('loader').hidden = false; $('status').classList.add('sr');
+    $('loader').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, 400);
 }
 $('cancel').onclick = () => { if (runCtrl) runCtrl.abort(); };
 function showError(msg, retry = true) { $('status').textContent = 'Fehler: ' + msg; $('retry').hidden = !retry; }
@@ -380,7 +417,7 @@ async function run(pick) {
       const hit = cacheGet(cacheKey);
       rows = hit && hit.rows; if (hit) at = hit.t;
       setBusy.set(rows ? `Schritt 2 von 3: Nutze gespeicherte Daten für ${geo.name}` : `Schritt 2 von 3: Lade Orte in ${geo.name} aus OpenStreetMap, kann bis zu 2 Minuten dauern`);
-      if (!rows) { rows = await overpass(geo.bbox, signal); cacheSet(cacheKey, rows); at = Date.now(); }
+      if (!rows) { rows = await overpass(geo.bbox, signal, i => setBusy.note && setBusy.note(`Server ${i} antwortet langsam, frage zusätzlich Server ${i + 1} an.`)); cacheSet(cacheKey, rows); at = Date.now(); }
     }
 
     setBusy.set('Schritt 3 von 3: Bewerte Viertel');
