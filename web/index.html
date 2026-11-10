@@ -508,7 +508,20 @@ footer a { color: var(--muted); }
     const next = cur === 'light' ? 'dark' : 'light';
     root.dataset.theme = next;
     try { localStorage.setItem('sm_theme', next); } catch {}
+    themeImages();
   };
+  // Helle Seite: helle Fotos (media/*-hell-*), dunkle Seite: die abendlichen Originale
+  function themeImages() {
+    const light = document.documentElement.dataset.theme !== 'dark';
+    document.querySelectorAll('picture.photo, picture.bgimg').forEach(pic => pic.querySelectorAll('source, img').forEach(el => {
+      for (const a of ['srcset', 'src']) {
+        const v = el.getAttribute(a); if (!v) continue;
+        const plain = v.replace(/media\/(laptop|gepaeck|wohnung)-hell-/g, 'media/$1-');
+        el.setAttribute(a, light ? plain.replace(/media\/(laptop|gepaeck|wohnung)-/g, 'media/$1-hell-') : plain);
+      }
+    }));
+  }
+  themeImages();
   // Schnellstart: öffnet die normale Airbnb-Suche. Das URL-Format ist nicht offiziell dokumentiert.
   // Eingaben auch an die App übergeben (Deeplink /app?c=…&i=…&o=…&n=…)
   {
