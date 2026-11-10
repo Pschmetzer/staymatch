@@ -4,3 +4,7 @@ updates:
     directory: /
     schedule: { interval: monthly }
     commit-message: { prefix: "CI" }
+  - package-ecosystem: npm
+    directory: /tests
+    schedule: { interval: monthly }
+    commit-message: { prefix: "Tests" }
