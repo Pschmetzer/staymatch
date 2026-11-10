@@ -671,18 +671,18 @@ function renderMap(ranked, geo, r = 800, pois = []) {
   // Kreis = Wertungsradius (gleich wie in der Wertung und im Airbnb-Ausschnitt)
   circles = ranked.map((a, i) => {
     const c = L.circle([a.lat, a.lon], { radius: r, color: color(a, i), weight: 2, fillOpacity: 0.12 })
-      .bindTooltip(`${i + 1}. ${a.name} (${pi < 0 ? '' : lastView.ppl[pi].name + ': '}${score(a)})`);
+      .bindTooltip(`${i + 1}. ${escapeHtml(a.name)} (${pi < 0 ? '' : escapeHtml(lastView.ppl[pi].name) + ': '}${score(a)})`);
     c.on('click', () => goto(i)); c.on('mouseover', () => mark(i, true)); c.on('mouseout', () => mark(i, false));
     return c;
   });
   const pins = ranked.map((a, i) => {
     const m = L.marker([a.lat, a.lon], { icon: L.divIcon({ className: '', html: `<div class="numpin ${i ? 'n' : ''}">${i + 1}</div>`, iconSize: [24, 24] }), keyboard: false })
-      .bindTooltip(`${i + 1}. ${a.name} (${score(a)})`);
+      .bindTooltip(`${i + 1}. ${escapeHtml(a.name)} (${score(a)})`);
     m.on('click', () => goto(i)); return m;
   });
   // Weitere bewertete Viertel als kleine Punkte (grün gut, rot schwach)
   const others = (lastView ? lastView.okAreas : []).filter(a => !ranked.includes(a)).slice(0, 150).map(a =>
-    L.circleMarker([a.lat, a.lon], { radius: 5, weight: 1, color: `hsl(${Math.round(Math.max(0, Math.min(100, score(a))) * 1.2)},65%,45%)`, fillOpacity: 0.7 }).bindTooltip(`${a.name} (${score(a)})`));
+    L.circleMarker([a.lat, a.lon], { radius: 5, weight: 1, color: `hsl(${Math.round(Math.max(0, Math.min(100, score(a))) * 1.2)},65%,45%)`, fillOpacity: 0.7 }).bindTooltip(`${escapeHtml(a.name)} (${score(a)})`));
   // Suchausschnitt der Airbnb-Suche für Platz 1
   const a0 = ranked[0], dLat = r / 111320, dLon = r / (111320 * Math.cos(a0.lat * Math.PI / 180));
   const box = L.rectangle([[a0.lat - dLat, a0.lon - dLon], [a0.lat + dLat, a0.lon + dLon]], { color: '#e0475b', weight: 1, dashArray: '4 4', fill: false, interactive: false }).bindTooltip('Airbnb-Suchausschnitt für Platz 1');
@@ -696,7 +696,7 @@ function renderMap(ranked, geo, r = 800, pois = []) {
       if (!on.includes(p.cat) || dots.length >= 1500) continue;
       if (!ranked.some(a => SM.distM(a, p) <= r)) continue;
       const m = L.circleMarker([p.lat, p.lon], { renderer: canvas, radius: 4, color: POI_COLORS[p.cat], weight: 1, fillOpacity: 0.8 });
-      if (p.name) m.bindTooltip(p.name);
+      if (p.name) m.bindTooltip(escapeHtml(p.name));
       dots.push(m);
     }
     poiLayer = L.layerGroup(dots).addTo(map);

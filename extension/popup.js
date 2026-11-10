@@ -10,7 +10,12 @@ function h(tag, attrs = {}, ...kids) {
   return e;
 }
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
-const safeUrl = u => /^https:\/\/www\.airbnb\.[a-z.]+\/rooms\//.test(u || '') ? u : '#';
+const parseUrl = u => { try { return new URL(String(u || '')); } catch { return null; } };
+// Nur echte Airbnb-Unterkunftsseiten (Host exakt aus der Domainliste, nicht per Regex)
+const isRoomUrl = u => { const x = parseUrl(u); const d = StayMatchCore.AIRBNB_DOMAINS; return !!x && x.protocol === 'https:' && d.some(h => x.hostname === h || x.hostname === 'www.' + h) && x.pathname.startsWith('/rooms/'); };
+const safeUrl = u => isRoomUrl(u) ? u : '#';
+// Bilder nur vom Airbnb-CDN (verhindert Tracking-Pixel über importierte Dateien)
+const isCdnImage = u => { const x = parseUrl(u); return !!x && x.protocol === 'https:' && (x.hostname === 'muscache.com' || x.hostname.endsWith('.muscache.com')); };
 
 async function load() {
   const all = await chrome.storage.local.get(null);
@@ -35,7 +40,7 @@ function profile(items) {
 
 function itemRow(i) {
   return h('a', { class: 'item', href: safeUrl(i.url), target: '_blank' },
-    i.image ? h('img', { src: i.image, alt: '', onerror: e => e.target.style.visibility = 'hidden' }) : h('img', { alt: '' }),
+    i.image && isCdnImage(i.image) ? h('img', { src: i.image, alt: '', onerror: e => e.target.style.visibility = 'hidden' }) : h('img', { alt: '' }),
     h('div', {},
       h('div', {}, (i.vote === 1 ? '👍 ' : i.vote === -1 ? '👎 ' : '') + (i.title || 'Unterkunft')),
       h('div', { class: 'muted' }, [i.rating && '⭐ ' + i.rating, i.pricePerNight && i.pricePerNight + ' ' + (i.currency || '€') + '/Nacht', i.locality, (i.visits || 1) + '× angesehen', i.lastSeen && new Date(i.lastSeen).toLocaleDateString('de-DE')].filter(Boolean).join(' · ')),
@@ -80,15 +85,16 @@ function download(name, text, type) {
 $('export').onclick = () => download('staymatch.json', JSON.stringify({ listings, trip }, null, 2), 'application/json');
 $('csv').onclick = () => {
   const cols = ['title', 'locality', 'rating', 'reviewCount', 'pricePerNight', 'currency', 'vote', 'visits', 'note', 'url'];
-  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  download('staymatch.csv', [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(i[c])).join(';'))].join('\n'), 'text/csv');
+  const esc = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; };
+  download('staymatch.csv', '\ufeff' + [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(i[c])).join(';'))].join('\n'), 'text/csv;charset=utf-8');
 };
 $('import').onclick = () => $('file').click();
 $('file').onchange = async e => {
   try {
     const j = JSON.parse(await e.target.files[0].text());
     const src = j.listings || j;
-    const entries = Object.values(src).filter(v => v && v.id && /^\d+$/.test(String(v.id)));
+    const entries = Object.values(src).filter(v => v && v.id && /^\d+$/.test(String(v.id)))
+      .map(v => ({ ...v, image: isCdnImage(v.image) ? v.image : undefined, url: isRoomUrl(v.url) ? v.url : undefined }));
     await chrome.storage.local.set(Object.fromEntries(entries.map(v => ['l:' + v.id, v])));
     load();
   } catch { alert('Datei konnte nicht gelesen werden.'); }
