@@ -39,7 +39,8 @@
   async function handleSearch() {
     const current = P.parseSearch(document);
     if (!current.length) return; // leeres Ergebnis meldet checkEmpty() nach einer Wartezeit
-    const sig = location.href + '|' + current.map(l => l.id).join(',');
+    // Signatur: auch nachgeladene Preise und Sterne ändern sie, sonst bleibt das Panel veraltet
+    const sig = SMC.searchKey() + '|' + current.map(l => [l.id, l.totalPrice ?? l.pricePerNight ?? '', l.rating ?? ''].join(':')).join(',');
     if (sig === lastSig) { if (lastView) applyBadges(); return; } // Panel nicht neu bauen, aber Plaketten nach Airbnb-Neuaufbau wieder setzen
     lastSig = sig;
     document.getElementById('sm-error')?.remove();
@@ -175,7 +176,7 @@
       const pp = l.rank.ppn?.person;
       b.textContent = `StayMatch ${s}${pp ? ` · ${pp} ${l.currency || '€'} p. P./Nacht` : ''}`;
       b.title = [...l.rank.why, ...l.rank.warn].join(' · ');
-      card.style.opacity = l.rank.warn.some(w => w.includes('👎')) ? '0.45' : !passes(l) ? '0.35' : '';
+      card.style.opacity = l.rank.disliked ? '0.45' : !passes(l) ? '0.35' : '';
     }
   }
   SMC.settingsListeners.push(() => applyBadges());

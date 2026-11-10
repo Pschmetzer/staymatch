@@ -1,6 +1,8 @@
 const { APP_URL } = window.StayMatchCore;
 document.getElementById('app').href = APP_URL;
-let tab = 'top', listings = {}, lastSearch = null, trip = null;
+let tab = 'top', listings = {}, lastSearch = null, trip = null, query = '';
+const LIMIT = 100, STALE_MS = 24 * 3600 * 1000;
+const safeSearchUrl = u => /^https:\/\/www\.airbnb\.[a-z.]+\/s\//.test(u || '') ? u : null;
 
 const $ = id => document.getElementById(id);
 function h(tag, attrs = {}, ...kids) {
@@ -40,10 +42,10 @@ function profile(items) {
 
 function itemRow(i) {
   return h('a', { class: 'item', href: safeUrl(i.url), target: '_blank' },
-    i.image && isCdnImage(i.image) ? h('img', { src: i.image, alt: '', onerror: e => e.target.style.visibility = 'hidden' }) : h('img', { alt: '' }),
     h('div', {},
       h('div', {}, (i.vote === 1 ? '👍 ' : i.vote === -1 ? '👎 ' : '') + (i.title || 'Unterkunft')),
       h('div', { class: 'muted' }, [i.rating && '⭐ ' + i.rating, i.pricePerNight && i.pricePerNight + ' ' + (i.currency || '€') + '/Nacht', i.locality, (i.visits || 1) + '× angesehen', i.lastSeen && new Date(i.lastSeen).toLocaleDateString('de-DE')].filter(Boolean).join(' · ')),
+      i.lastSeen && Date.now() - i.lastSeen > STALE_MS && i.pricePerNight ? h('div', { class: 'muted warn' }, 'Preis älter als 24 h, auf der Seite neu prüfen') : null,
       i.hints?.length ? h('div', { class: 'muted' }, i.hints.slice(0, 4).join(' · ')) : null,
       i.note ? h('div', { class: 'muted' }, '📝 ' + i.note) : null));
 }
@@ -66,23 +68,46 @@ function render() {
   let rows;
   if (tab === 'top') {
     rows = lastSearch?.top?.length
-      ? [h('div', { class: 'item muted', style: 'display:block' }, `Letzte Suche vom ${new Date(lastSearch.at).toLocaleString('de-DE')}`), ...lastSearch.top.map((l, n) => topRow(l, n + 1))]
+      ? [h('div', { class: 'item muted', style: 'display:block' }, `Letzte Suche vom ${new Date(lastSearch.at).toLocaleString('de-DE')}`,
+          safeSearchUrl(lastSearch.url) ? [' · ', h('a', { href: safeSearchUrl(lastSearch.url), target: '_blank', rel: 'noopener' }, 'Suche wieder öffnen')] : null), ...lastSearch.top.map((l, n) => topRow(l, n + 1))]
       : [h('div', { class: 'item muted' }, 'Öffne im Viertel-Finder „Unterkünfte ansehen“. StayMatch bewertet die Seite automatisch.')];
   } else {
-    const shown = items.filter(i => tab === 'all' || (tab === 'liked' ? i.vote === 1 : i.vote === -1));
-    rows = shown.length ? shown.map(itemRow) : [h('div', { class: 'item muted' }, 'Noch nichts hier.')];
+    const q = query.trim().toLowerCase();
+    const shown = items.filter(i => (tab === 'all' || (tab === 'liked' ? i.vote === 1 : i.vote === -1)) &&
+      (!q || [i.title, i.locality, i.note].some(t => (t || '').toLowerCase().includes(q))));
+    rows = shown.length ? shown.slice(0, LIMIT).map(itemRow) : [h('div', { class: 'item muted' }, 'Noch nichts hier.')];
+    if (shown.length > LIMIT) rows.push(h('div', { class: 'item muted' }, `${shown.length - LIMIT} weitere, Suche verfeinern`));
   }
+  $('search').hidden = tab === 'top';
   $('list').replaceChildren(...rows);
 }
 
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('nav button').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b); });
-  tab = b.dataset.tab; render();
+const tabs = [...document.querySelectorAll('nav button')];
+function selectTab(b, focus) {
+  tabs.forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', String(x === b)); x.tabIndex = x === b ? 0 : -1; });
+  $('list').setAttribute('aria-labelledby', b.id);
+  tab = b.dataset.tab; render(); if (focus) b.focus();
+}
+tabs.forEach((b, i) => {
+  b.onclick = () => selectTab(b);
+  b.onkeydown = e => { // Pfeiltasten wechseln die Tabs
+    const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+    if (d) { e.preventDefault(); selectTab(tabs[(i + d + tabs.length) % tabs.length], true); }
+    else if (e.key === 'Home') { e.preventDefault(); selectTab(tabs[0], true); }
+    else if (e.key === 'End') { e.preventDefault(); selectTab(tabs.at(-1), true); }
+  };
 });
+$('search').oninput = e => { query = e.target.value; render(); };
 function download(name, text, type) {
   const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name }); a.click();
 }
-$('export').onclick = () => download('staymatch.json', JSON.stringify({ listings, trip }, null, 2), 'application/json');
+$('export').onclick = () => {
+  // Notizen und Namen der Mitreisenden sind persönlich: nur auf Wunsch mitnehmen
+  const withPrivate = confirm('Notizen und Namen der Mitreisenden mit exportieren?\n\nOK = mit, Abbrechen = ohne (gut zum Teilen).');
+  const ls = withPrivate ? listings : Object.fromEntries(Object.entries(listings).map(([k, v]) => [k, (({ note, ...r }) => r)(v)]));
+  const t = trip && !withPrivate ? { ...trip, people: (trip.people || []).map(p => ({ type: p?.type })), areas: (trip.areas || []).map(a => ({ ...a, minName: undefined })) } : trip;
+  download('staymatch.json', JSON.stringify({ listings: ls, trip: t }, null, 2), 'application/json');
+};
 $('csv').onclick = () => {
   const cols = ['title', 'locality', 'rating', 'reviewCount', 'pricePerNight', 'currency', 'vote', 'visits', 'note', 'url'];
   const esc = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; };
@@ -118,8 +143,19 @@ $('share').onclick = async () => {
   try { await navigator.clipboard.writeText(text); $('share').textContent = 'Kopiert ✓'; } catch { $('share').textContent = 'Nicht möglich'; }
   setTimeout(() => { $('share').textContent = 'Merkliste kopieren'; }, 2500);
 };
+// Löschen getrennt nach Art; Einstellungen bleiben immer erhalten
 $('wipe').onclick = async () => {
-  if (!confirm('Alle gespeicherten Unterkünfte, Likes, Notizen und die Reise löschen? Das kann nicht rückgängig gemacht werden.')) return;
-  await chrome.storage.local.clear(); load();
+  const kind = prompt('Was löschen? Tippe: verlauf (Unterkünfte, Likes, Notizen), zwischenspeicher (letzte Suche, gesammelte Seiten), reise oder alles. Das kann nicht rückgängig gemacht werden.', 'verlauf');
+  if (!kind) return;
+  const k = kind.trim().toLowerCase();
+  const keys = Object.keys(await chrome.storage.local.get(null));
+  const pick = {
+    verlauf: x => x.startsWith('l:') || x === 'listings',
+    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters'].includes(x),
+    reise: x => x === 'trip',
+    alles: x => x !== 'settings',
+  }[k];
+  if (!pick) { alert('Nichts gelöscht: bitte verlauf, zwischenspeicher, reise oder alles eingeben.'); return; }
+  await chrome.storage.local.remove(keys.filter(pick)); load();
 };
 load();

@@ -53,7 +53,7 @@
   }
 
   function roomPanel(item, area, ctx = {}) {
-    const setVote = async v => roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v }), area, ctx); // 2. Klick hebt auf
+    const setVote = async v => { clearTimeout(roomTimers.get(item.id)); roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v, note: note.value }), area, ctx); }; // 2. Klick hebt auf
     currentRoom = { item, setVote };
     const conflicts = R.reviewConflicts(item.hints, ctx.wishes);
     // Warnungen, die schon als Konflikt mit deinen Wünschen genannt sind, nicht doppelt zeigen
