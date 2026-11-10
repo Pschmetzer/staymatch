@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StayMatch – the right Airbnb in 2 minutes</title>
 <meta name="description" content="StayMatch scores every listing on your Airbnb search by budget, stars and your must-haves and shows the top 3 right away. Free, no account.">
-<meta name="theme-color" content="#0b0b0d" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#ffffff">
 <link rel="canonical" href="https://staymatch.pro/en">
 <link rel="alternate" hreflang="de" href="https://staymatch.pro/">
 <link rel="alternate" hreflang="en" href="https://staymatch.pro/en">
@@ -592,14 +591,22 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
   const T = { nights: n => n === 1 ? '1 night' : n + ' nights', newTab: 'Opens the regular Airbnb search in a new tab.', toLight: 'Switch to light mode', toDark: 'Switch to dark mode', copy: 'Copy', copied: 'Copied ✓', airbnb: 'https://www.airbnb.com' };
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-  // Hell/Dunkel: eigene Wahl merken, Beschriftung und Browserleisten-Farbe mitziehen
+  // Hell/Dunkel: eigene Wahl merken, Beschriftung, Browserleisten-Farbe und Fotos mitziehen
   (() => {
     const root = document.documentElement, btn = $('#theme');
     const cur = () => root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     const paint = () => {
       const t = cur();
       btn.setAttribute('aria-label', t === 'light' ? T.toDark : T.toLight);
-      if (root.dataset.theme) $$('meta[name="theme-color"]').forEach(m => { m.content = t === 'light' ? '#fbfaf8' : '#0b0b0d'; });
+      $$('meta[name="theme-color"]').forEach(m => { m.content = t === 'light' ? '#ffffff' : '#0b0b0d'; });
+      // Helle Seite: helle Fotos (media/*-hell-*), dunkle Seite: die abendlichen Originale
+      $$('picture.photo, picture.bgimg').forEach(pic => $$('source, img', pic).forEach(el => {
+        for (const a of ['srcset', 'src']) {
+          const v = el.getAttribute(a); if (!v) continue;
+          const plain = v.replace(/media\/(laptop|gepaeck|wohnung)-hell-/g, 'media/$1-');
+          el.setAttribute(a, t === 'light' ? plain.replace(/media\/(laptop|gepaeck|wohnung)-/g, 'media/$1-hell-') : plain);
+        }
+      }));
     };
     btn.addEventListener('click', () => {
       root.dataset.theme = cur() === 'light' ? 'dark' : 'light';
