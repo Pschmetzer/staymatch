@@ -3,6 +3,8 @@
   "name": "StayMatch – Unterkunfts-Merkzettel",
   "version": "0.5.0",
   "description": "Bewertet jede Unterkunft auf der Suchseite nach Budget, Sternen und Wünschen und zeigt die Top 3. Alles lokal.",
+  "minimum_chrome_version": "110",
+  "incognito": "not_allowed",
   "permissions": [
     "storage"
   ],
@@ -41,6 +43,13 @@
         "https://www.airbnb.co.nz/*",
         "https://www.airbnb.mx/*",
         "https://www.airbnb.com.br/*"
+      ],
+      "exclude_matches": [
+        "https://*/book/*",
+        "https://*/account-settings/*",
+        "https://*/hosting/*",
+        "https://*/messaging/*",
+        "https://*/payments/*"
       ],
       "js": [
         "core.js",

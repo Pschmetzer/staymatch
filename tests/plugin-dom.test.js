@@ -83,7 +83,7 @@ test('Seitenaufbau unbekannt: klare Fehlermeldung statt leerem Panel, nur Zahlen
   assert.match(box.textContent, /Karten: 0 · Links zu Unterkünften: 2/);
   assert.equal(doc.getElementById('sm-search'), null);
   const a = box.querySelector('a.btn');
-  assert.match(a.href, /^https:\/\/github\.com\/pschmetzer\/staymatch\/issues\/new\?/);
+  assert.match(a.href, /^https:\/\/github\.com\/pschmetzer\/staymatch\/issues\/new\?/i);
   const body2 = decodeURIComponent(a.href);
   assert.match(body2, new RegExp(`StayMatch ${require('../extension/manifest.json').version.replace(/\./g, '\\.')}`));
   assert.ok(!body2.includes('airbnb.de'), 'keine Adresse im Bericht');

@@ -8,7 +8,7 @@
 (() => {
   const P = window.StayMatchParse;
   const T = window.__STAYMATCH_TEST__ || {}; // nur in Tests gesetzt (Zeiten kürzen, Funktionen erreichen)
-  const REPORT_URL = 'https://github.com/pschmetzer/staymatch/issues/new';
+  const REPORT_URL = 'https://github.com/Pschmetzer/staymatch/issues/new';
   const KEY = id => 'l:' + id;
 
   // ---------- Speicher (ein Schlüssel pro Unterkunft, damit Tabs sich nicht überschreiben) ----------
@@ -16,7 +16,8 @@
   async function saveListing(id, patch) {
     const old = (await getListing(id)) || { id, firstSeen: Date.now(), visits: 0 };
     const item = { ...old, ...patch, id, lastSeen: Date.now() };
-    await chrome.storage.local.set({ [KEY(id)]: item });
+    try { await chrome.storage.local.set({ [KEY(id)]: item }); }
+    catch (e) { console.debug('StayMatch: Speichern fehlgeschlagen (Speicher voll?)', e); SMC.saveFailed = true; }
     return item;
   }
   async function allListings() {
@@ -58,7 +59,11 @@
   }
   const settingsListeners = [];
   function setSettings(v) { Object.assign(settings, { showBadges: true, theme: 'auto' }, v || {}); applyTheme(); settingsListeners.forEach(f => f(settings)); }
-  chrome.storage.onChanged?.addListener(ch => { if (ch.settings) setSettings(ch.settings.newValue); });
+  chrome.storage.onChanged?.addListener(ch => {
+    if (ch.settings) setSettings(ch.settings.newValue);
+    // Neue Reise aus dem Viertel-Finder wirkt sofort, ohne die Airbnb-Seite neu zu laden
+    if (ch.trip && SMC.route) { SMC.search?.reset(); SMC.route(); }
+  });
   chrome.storage.local.get('settings').then(r => setSettings(r.settings)).catch(() => {});
 
   async function copyText(text) {
@@ -136,14 +141,20 @@
   keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) document.getElementById(id)?.shadowRoot?.querySelector('.box')?.classList.toggle('min'); };
   document.addEventListener('keydown', onKey, true);
 
-  const SMC = window.StayMatchContent = { getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, search: null, room: null, start };
+    // Kartenverschieben und Zoomen ändert nur diese Parameter; das ist keine neue Suche (Panel und Budgeteingabe bleiben)
+  const MAP_PARAMS = ['ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'center_lat', 'center_lng', 'search_by_map', 'map_toggle', 'viewport_width', 'viewport_height', 'update_selected_filters'];
+  const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
+  const SMC = window.StayMatchContent = { searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, search: null, room: null, start };
   function start() {
-    let lastUrl = '', debounce = null, emptyTimer = null;
+    let lastUrl = '', lastKey = '', debounce = null, emptyTimer = null;
+    const relevant = () => /^\/s\//.test(location.pathname) || P.ROOM_RE.test(location.pathname);
     function route() {
       const path = location.pathname;
       const roomId = path.match(P.ROOM_RE)?.[1];
       if (location.href !== lastUrl) {
-        lastUrl = location.href; SMC.search.reset();
+        const key = searchKey();
+        lastUrl = location.href;
+        if (key !== lastKey) { lastKey = key; SMC.search.reset(); } else if (/^\/s\//.test(path)) { SMC.search.handle().catch(e => console.debug('StayMatch:', e)); return; }
         clearTimeout(emptyTimer);
         if (!roomId) document.getElementById('sm-room')?.remove();
         if (!/^\/s\//.test(path)) { document.getElementById('sm-search')?.remove(); document.getElementById('sm-error')?.remove(); }
@@ -156,10 +167,14 @@
     new MutationObserver(muts => {
       // eigene Änderungen ignorieren
       const ours = n => n?.nodeType === 1 && !!n.closest('[data-staymatch]');
+      if (!relevant() && location.href === lastUrl) return; // andere Airbnb-Seiten: nichts tun
       if (muts.every(m => ours(m.target) || (m.addedNodes.length && [...m.addedNodes].every(ours)))) return;
       clearTimeout(debounce); debounce = setTimeout(route, T.debounce ?? 700);
     }).observe(document.body, { childList: true, subtree: true });
-    setInterval(() => { if (location.href !== lastUrl) route(); }, 1000);
+    // Seitenwechsel ohne Neuladen: Navigation API (Chrome 102+), sonst Rückfall auf langsames Abfragen
+    if (window.navigation?.addEventListener) window.navigation.addEventListener('navigatesuccess', () => route());
+    else setInterval(() => { if (location.href !== lastUrl) route(); }, 1000);
+    window.addEventListener('popstate', () => route());
     T.api = { route, handleSearch: () => SMC.search.handle(), handleRoom: id => SMC.room.handle(id), checkEmpty: () => SMC.search.checkEmpty(), onKey };
     route();
   }
