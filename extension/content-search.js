@@ -2,7 +2,7 @@
 (() => {
   const P = window.StayMatchParse, R = window.StayMatchRank, POOL = window.StayMatchPool;
   const SMC = window.StayMatchContent;
-  const { getTrip, allListings, tasteFrom, h, panel, copyText, settings, keys, REPORT_URL } = SMC;
+  const { getTrip, allListings, h, panel, copyText, settings, keys, REPORT_URL } = SMC;
 
   const FILTERS = [['rating', '⭐ ab 4,7'], ['budget', '💶 im Budget'], ['beds', '🛏️ genug Betten'], ['fav', '🏅 Favorit/Superhost']];
   let lastSig = '', lastView = null, filters = {}, quick = { budgetNight: null, wishes: [] };
@@ -70,7 +70,8 @@
       quick = { ...quick, wishes: savedTrip.wishes.filter(k => R.WISHES[k] || R.REVIEW_WISHES[k]), tripAt: savedTrip.savedAt };
       chrome.storage.local.set({ quick });
     }
-    const ctx = { people, nights, budget: trip?.budget || null, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: tasteFrom(items), seen, disliked, known, wishes: quick.wishes };
+    // R5-101: Gästezahl der Airbnb-Suche. R5-100: Reise-Budget ist immer in €. R5-92: flexible Daten/Monatsmiete → kein Preisvergleich. R5-102: Median-Profil je Währung
+    const ctx = { people, adults: sp.adults || null, nights, budget: trip?.budget || null, budgetCurrency: trip?.budget ? '€' : (quick.budgetCurrency || null), priceUnsure: !!sp.flexible, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: R.buildTaste(items), seen, disliked, known, wishes: quick.wishes };
     const ranked = R.rankListings(listings, ctx);
 
     filters = stored.filters || {};
