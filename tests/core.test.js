@@ -69,7 +69,7 @@ test('Overpass-Abfrage aus CATEGORIES ist gleich der eingefrorenen Abfrage', () 
     nwr["tourism"~"^(attraction|museum|viewpoint|gallery|zoo|theme_park)$"](${b});
     node["historic"="monument"](${b});
     nwr["natural"="beach"](${b});
-    node["railway"~"^(station|subway_entrance)$"](${b});
+    node["railway"~"^(station|subway_entrance|tram_stop)$"](${b});
     node["public_transport"="station"](${b});
     nwr["shop"~"^(mall|department_store)$"](${b});
   );out center;`;

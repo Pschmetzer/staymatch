@@ -47,7 +47,7 @@ test('verdict, summary, breakdown', () => {
   const norm = { party: 0.2, chill: 1, sights: 0, food: 0.5, transit: 0.5, shop: 0, sport: 0, kids: 0 };
   const ppl = [{ name: 'L', w: SM.PRESETS.party.w }, { name: 'J', w: SM.PRESETS.chill.w }];
   const a = { norm, counts: { party: 3, chill: 20, sights: 0, food: 5, transit: 4, shop: 0, sport: 0, kids: 0 }, group: SM.groupScore(norm, ppl) };
-  assert.match(SM.summary(a, ppl), /^(Gut für die meisten|Für \d)/);
+  assert.match(SM.summary(a, ppl), /^(Nicht für beide ideal|Für \d)/);
   const parts = SM.breakdown(norm, SM.PRESETS.chill.w);
   assert.equal(parts[0].key, 'chill'); assert.ok(parts.some(x => x.pts < 0), 'Party stört');
   assert.ok(Math.abs(parts.reduce((s, x) => s + x.pts, 0) - SM.personScore(norm, SM.PRESETS.chill.w)) <= 3, 'Teile ergeben den Wert');
@@ -115,4 +115,27 @@ test('Airbnb-Link: Kinder, Babys, Schlafzimmer', () => {
 test('Kleine Treffer werden auf Mindestgröße aufgeweitet', () => {
   const g = C.geoFromNominatim({ lat: '41.40', lon: '2.15', boundingbox: ['41.398', '41.402', '2.148', '2.152'], display_name: 'Gràcia, Barcelona' });
   assert.ok(g.bbox[2] - g.bbox[0] >= 2 * 0.04 - 1e-9 && g.bbox[3] - g.bbox[1] >= 2 * 0.04 - 1e-9);
+});
+
+test('R5-32..38: Auszeichnungen, Gewichte, parseGroup', () => {
+  const mk = (total, transit) => ({ group: { total, scores: [total] }, nearest: { transit } });
+  const ranked = [mk(60, 900), mk(80, 900)]; // z. B. nach „Nächste Bahn“ sortiert
+  const aw = SM.awards(ranked, [{ name: 'A', type: 'party' }]);
+  assert.ok(aw[1].includes('Bester Kompromiss') && !aw[0].includes('Bester Kompromiss'));
+  assert.ok(!aw.flat().includes('Kürzester Weg zur Bahn'), '900 m ist kein kurzer Weg');
+  assert.ok(SM.awards([mk(60, 250)], [{ name: 'A', type: 'party' }])[0].includes('Kürzester Weg zur Bahn'));
+  assert.deepEqual(SM.weightsOf({ type: 'party', custom: {} }), SM.PRESETS.party.w);
+  assert.deepEqual(SM.weightsOf({ type: 'party', custom: [] }), SM.PRESETS.party.w);
+  const zero = { name: 'Z', w: Object.fromEntries(Object.keys(SM.CATEGORIES).map(k => [k, 0])) };
+  assert.equal(SM.personScore({ party: 1 }, zero.w), 0);
+  assert.match(SM.summary({ norm: {}, counts: {}, group: { scores: [0], min: 0 } }, [zero]), /^Nichts gewählt/);
+  assert.deepEqual(SM.parseGroup('Jessen, Stadler Party, Hans-Peter Sport').map(x => [x.name, x.type]), [['Jessen', 'chill'], ['Stadler', 'party'], ['Hans-Peter', 'sport']]);
+  const n = { party: 0.9 };
+  assert.equal(SM.vetoes(n, [{ name: 'A', veto: ['party'] }], { party: 3 }).length, 0, 'zu wenige Orte für ein Veto');
+  assert.equal(SM.vetoes(n, [{ name: 'A', veto: ['party'] }], { party: 30 }).length, 1);
+});
+
+test('R5-43: airbnbUrl begrenzt Gäste auf Airbnb-Grenzen', () => {
+  const u = new URL(SM.airbnbUrl({ lat: 41, lon: 2, name: 'X', city: 'Y', adults: 40, children: 99, infants: 1.5 }));
+  assert.equal(u.searchParams.get('adults'), '16'); assert.equal(u.searchParams.get('children'), '15'); assert.equal(u.searchParams.get('infants'), '1');
 });

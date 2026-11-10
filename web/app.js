@@ -12,7 +12,9 @@ const CITIES = ['Barcelona', 'Lissabon', 'Rom', 'Wien', 'Berlin', 'Paris', 'Madr
 const TIERS = ['', '€', '€€', '€€€'];
 
 // Standard: eine Person (du). Mitreisende sind optional.
-let people = store.get('sm_people', [{ name: 'Du', type: 'sights' }]).map(SM.cleanPerson).filter(Boolean);
+const arr = (v, n = 30) => Array.isArray(v) ? v.slice(0, n) : []; // gespeicherte Listen nie blind benutzen
+let people = arr(store.get('sm_people', null)).map(SM.cleanPerson).filter(Boolean);
+if (!people.length) people = [{ name: 'Du', type: 'sights' }];
 const solo = () => people.length === 1;
 // Wünsche an die Unterkunft (Schlüssel wie extension/rank.js: WISHES und REVIEW_WISHES)
 const WISH_KEYS = ['whole', 'private', 'trusted', 'reviews', 'quiet', 'clean', 'wifi'];
@@ -32,8 +34,12 @@ let sortMode = 'fair', shown = 8;
 let undoSnap = null, undoTimer = null;
 function offerUndo(msg) {
   undoSnap = clone(people); $('undoMsg').textContent = msg; $('undo').hidden = false;
-  clearTimeout(undoTimer); undoTimer = setTimeout(() => { $('undo').hidden = true; }, 15000);
+  armUndo();
 }
+const armUndo = () => { clearTimeout(undoTimer); undoTimer = setTimeout(() => { $('undo').hidden = true; }, 15000); };
+// Toast bleibt, solange Maus oder Fokus darauf liegen (WCAG 2.2.1)
+$('undo').addEventListener('mouseenter', () => clearTimeout(undoTimer)); $('undo').addEventListener('focusin', () => clearTimeout(undoTimer));
+$('undo').addEventListener('mouseleave', armUndo); $('undo').addEventListener('focusout', armUndo);
 $('undoBtn').onclick = () => {
   if (!undoSnap) return;
   people = undoSnap.map(SM.cleanPerson).filter(Boolean); undoSnap = null; $('undo').hidden = true;
@@ -50,7 +56,7 @@ $('checkin').min = ymd(new Date());
 // ---- Formular merken (Stadt, Zeitraum, Budget, Umkreis …) ----
 function formState() {
   return { c: $('city').value.trim(), i: $('checkin').value, o: $('checkout').value, b: +$('budget').value || 0, bm: $('budgetMode').value,
-    r: $('radius').value, mc: $('maxcenter').value, k: +$('kids').value || 0, y: +$('babys').value || 0, bd: $('beds').checked };
+    r: $('radius').value, mc: $('maxcenter').value, k: Math.max(0, Math.min(10, Math.floor(+$('kids').value || 0))), y: Math.max(0, Math.min(5, Math.floor(+$('babys').value || 0))), bd: $('beds').checked };
 }
 const saveForm = () => store.set('sm_form', formState());
 function applyForm(f, { dates = true } = {}) {
@@ -66,18 +72,21 @@ function applyForm(f, { dates = true } = {}) {
 }
 applyForm(store.get('sm_form', null));
 
-const wd = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+const wd = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' }); // new Date('YYYY-MM-DD') ist UTC
 function updateDates(msg) {
   const a = new Date($('checkin').value), b = new Date($('checkout').value);
   $('dateInfo').className = 'hint' + (msg ? ' warn' : '');
   $('dateInfo').textContent = msg || (isNaN(a) || isNaN(b) ? '' : `${wd.format(a)} → ${wd.format(b)}`);
 }
+let stayN = 1; // zuletzt gültige Aufenthaltsdauer: bleibt erhalten, wenn die Anreise verschoben wird
+const addDays = (s, n) => ymd(new Date(new Date(s + 'T12:00:00').getTime() + n * 864e5));
 function syncMin(fixed) {
   const c = new Date($('checkin').value);
   if (isNaN(c)) return;
-  $('checkout').min = ymd(new Date(c.getTime() + 864e5));
+  $('checkout').min = addDays($('checkin').value, 1);
   let msg = '';
-  if ($('checkout').value <= $('checkin').value) { $('checkout').value = ymd(new Date(c.getTime() + 864e5)); msg = 'Die Abreise lag nicht nach der Anreise. Wir haben den Folgetag eingesetzt.'; }
+  if ($('checkout').value <= $('checkin').value) { $('checkout').value = addDays($('checkin').value, fixed ? stayN : 1); msg = `Die Abreise lag nicht nach der Anreise. Wir haben ${fixed && stayN > 1 ? `${stayN} Nächte` : 'den Folgetag'} eingesetzt.`; }
+  stayN = Math.max(1, SM.nights($('checkin').value, $('checkout').value) || 1);
   updateDates(fixed ? msg : '');
 }
 $('checkin').addEventListener('change', () => syncMin(true));
@@ -102,7 +111,7 @@ function renderPeople() {
     row.children[0].onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addPerson(); } };
     row.children[1].onchange = e => { p.type = e.target.value; if (p.type2 === p.type) delete p.type2; delete p.custom; save(); renderPeople(); };
     row.children[2].onclick = () => { openTune.has(p) ? openTune.delete(p) : openTune.add(p); renderPeople(); };
-    row.children[3].onclick = () => { offerUndo(`${p.name} entfernt.`); people.splice(i, 1); save(); renderPeople(); };
+    row.children[3].onclick = () => { offerUndo(`${p.name} entfernt.`); people.splice(i, 1); save(); renderPeople(); $('addPerson').focus(); };
     if (solo()) { row.classList.add('solo'); row.children[0].hidden = row.children[3].hidden = true; }
     box.appendChild(row);
     if (openTune.has(p)) box.appendChild(tunePanel(p, i));
@@ -111,6 +120,7 @@ function renderPeople() {
   updateBudget();
 }
 // Schieberegler pro Person (-10..+10 je Kategorie) und „auf keinen Fall“ (Veto)
+const vt = v => `${Math.round(v)} von 10: ${v > 0 ? 'wichtig' : v < 0 ? 'stört' : 'egal'}`;
 function tunePanel(p, n) {
   const w = SM.weightsOf(p);
   const el = document.createElement('div');
@@ -120,15 +130,15 @@ function tunePanel(p, n) {
     <select id="mix-${n}" data-mix><option value="">kein zweiter Typ</option>${Object.entries(SM.PRESETS).filter(([k]) => k !== p.type).map(([k, v]) => `<option value="${k}" ${k === p.type2 ? 'selected' : ''}>halb ${v.label}</option>`).join('')}</select></div>` +
     Object.entries(SM.CATEGORIES).map(([k, c]) => `<div class="trow">
       <label for="t-${k}-${n}">${c.label}</label>
-      <input type="range" id="t-${k}-${n}" data-k="${k}" min="-10" max="10" step="1" value="${Math.round(w[k] * 10)}" aria-valuetext="${Math.round(w[k] * 10)} von 10">
+      <input type="range" id="t-${k}-${n}" data-k="${k}" min="-10" max="10" step="1" value="${Math.round(w[k] * 10)}" aria-valuetext="${vt(w[k] * 10)}">
       <output>${Math.round(w[k] * 10)}</output>
-      <label class="veto"><input type="checkbox" data-veto="${k}" ${(p.veto || []).includes(k) ? 'checked' : ''}> Nie</label>
+      <label class="veto"><input type="checkbox" data-veto="${k}" aria-label="Nie ${c.label} für ${escapeHtml(p.name)}" ${(p.veto || []).includes(k) ? 'checked' : ''}> Nie</label>
     </div>`).join('');
   el.querySelector('[data-mix]').onchange = e => { e.target.value ? p.type2 = e.target.value : delete p.type2; delete p.custom; save(); renderPeople(); };
   el.querySelectorAll('input[type=range]').forEach(r => {
     r.oninput = () => {
       p.custom = SM.cleanWeights(Object.fromEntries([...el.querySelectorAll('input[type=range]')].map(x => [x.dataset.k, +x.value / 10])));
-      r.nextElementSibling.textContent = r.value; r.setAttribute('aria-valuetext', `${r.value} von 10`);
+      r.nextElementSibling.textContent = r.value; r.setAttribute('aria-valuetext', vt(+r.value));
       save();
     };
   });
@@ -198,11 +208,11 @@ $('pasteGo').onclick = () => {
 };
 // ---- Gespeicherte Gruppen ----
 function renderTpl() {
-  const l = store.get('sm_groups', []);
+  const l = arr(store.get('sm_groups', []), 8);
   $('tpl').innerHTML = '<option value="">Auswahl …</option>' + l.map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.people.length})</option>`).join('');
 }
 $('tpl').onchange = () => {
-  const g = store.get('sm_groups', [])[+$('tpl').value];
+  const g = arr(store.get('sm_groups', []), 8)[+$('tpl').value];
   if (!g) return;
   const list = (g.people || []).map(SM.cleanPerson).filter(Boolean);
   if (!list.length) return;
@@ -211,11 +221,11 @@ $('tpl').onchange = () => {
 $('tplSave').onclick = () => {
   const name = (prompt('Name für diese Auswahl?', people.slice(0, 3).map(p => p.name).join(', ')) || '').trim().slice(0, 40);
   if (!name) return;
-  store.set('sm_groups', [...store.get('sm_groups', []), { name, people: clone(people) }].slice(-8)); renderTpl();
+  store.set('sm_groups', [...arr(store.get('sm_groups', []), 8), { name, people: clone(people) }].slice(-8)); renderTpl();
 };
 $('tplDel').onclick = () => {
-  const i = +$('tpl').value; const l = store.get('sm_groups', []);
-  if ($('tpl').value === '' || !l[i]) return;
+  const i = +$('tpl').value; const l = arr(store.get('sm_groups', []), 8);
+  if ($('tpl').value === '' || !l[i] || !confirm(`Auswahl „${l[i].name}“ löschen?`)) return;
   l.splice(i, 1); store.set('sm_groups', l); renderTpl();
 };
 renderTpl();
@@ -329,7 +339,8 @@ function setBusy(on, msg) {
   if (on) {
     const t0 = Date.now(); let base = msg;
     setBusy.set = m => { base = m; draw(); };
-    const draw = () => { $('status').textContent = `${base} (${Math.round((Date.now() - t0) / 1000)} s)`; };
+    // Sekunden nur alle 15 s in die Live-Region: Screenreader lesen sonst jede Sekunde vor
+    const draw = () => { const s = Math.round((Date.now() - t0) / 1000); $('status').textContent = s % 15 === 0 ? `${base} (${s} s)` : base; };
     draw(); tick = setInterval(draw, 1000);
   }
 }
@@ -423,9 +434,9 @@ function compute() {
   SM.scoreAreas(areas, pois, r);
   SM.annotateCentre(areas, geo);
   const ppl = people.map(p => ({ ...p, w: SM.weightsOf(p) }));
-  for (const a of areas) { a.group = SM.groupScore(a.norm, ppl, fairness); a.vetoes = SM.vetoes(a.norm, ppl); }
+  for (const a of areas) { a.group = SM.groupScore(a.norm, ppl, fairness); a.vetoes = SM.vetoes(a.norm, ppl, a.counts); }
   // Viertel ohne nennenswerte Infrastruktur ausblenden, auch ohne die Orte, die die Gruppe sucht. Viertel mit Veto und zu weit vom Zentrum ebenso.
-  const relevant = Object.keys(SM.CATEGORIES).filter(k => k !== 'transit' && k !== 'food' && ppl.some(p => p.w[k] >= 0.5));
+  const relevant = Object.keys(SM.CATEGORIES).filter(k => k !== 'transit' && k !== 'food' && ppl.some(p => p.w[k] >= 0.3));
   const maxC = (+$('maxcenter').value || 0) * 1000;
   const withData = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10
     && (!relevant.length || relevant.reduce((x, k) => x + a.counts[k], 0) >= 2) && (!maxC || a.centerDist <= maxC));
@@ -438,7 +449,7 @@ function compute() {
   const favs = favSet(), onlyFav = $('onlyFav').checked;
   const pool = onlyFav ? sorted.filter(a => favs.has(areaKey(a))) : sorted;
   const minDist = Math.max(1200, r * 1.5);
-  const ranked = SM.pickDiverse(pool, shown, minDist);
+  const ranked = onlyFav ? pool.slice(0, shown) : SM.pickDiverse(pool, shown, minDist); // Favoriten nicht zusammenfassen
   // Platzwechsel gegenüber der letzten Rechnung (nur bei gleichen Daten)
   const prev = lastView && lastView.data === lastData && lastView.sortMode === sortMode ? new Map(lastView.ranked.map((a, i) => [areaKey(a), i])) : null;
   ranked.forEach((a, i) => { a.delta = prev && prev.has(areaKey(a)) ? prev.get(areaKey(a)) - i : null; });
@@ -446,6 +457,8 @@ function compute() {
     awards: SM.awards(ranked, ppl), relevant };
   if (!ranked.length) {
     $('results').innerHTML = ''; $('compare').innerHTML = ''; $('whatif').innerHTML = ''; $('more').hidden = true; $('reshead').hidden = false; renderHead();
+    for (const l of [layer, poiLayer]) if (l) l.remove(); // alte Kreise, Pins und Orte weg
+    layer = poiLayer = null; circles = []; renderMap.key = null;
     $('status').textContent = onlyFav ? 'Noch keine Favoriten. Markiere Viertel mit dem Herz.'
       : vetoed ? `Alle Viertel sind durch ein Veto ausgeschlossen.${vetoNote} Nimm ein „Nie“ heraus.`
       : 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis, weniger strenge Entfernung zum Zentrum oder einen anderen Ortsnamen.';
@@ -485,7 +498,7 @@ $('sort').addEventListener('change', () => { sortMode = $('sort').value; shown =
 // „Ohne Tom wäre …“: zeigt, wo der Kompromiss steckt
 function renderWhatIf(byTotal, ppl) {
   const el = $('whatif');
-  if (ppl.length < 3 || !byTotal.length) { el.innerHTML = ''; return; }
+  if (ppl.length < 2 || !byTotal.length) { el.innerHTML = ''; return; }
   const list = SM.whatIfWithout(byTotal.slice(0, 250), ppl, fairness, byTotal[0].name).slice(0, 3);
   el.innerHTML = list.length ? '💡 ' + list.map(x => `Ohne <b>${escapeHtml(x.name)}</b> wäre <b>${escapeHtml(x.area)}</b> Platz 1.`).join(' ') : '💡 Das beste Viertel ändert sich nicht, wenn eine einzelne Person fehlt. Die Wahl ist stabil.';
 }
@@ -543,8 +556,8 @@ function renderResults() {
       <div class="muted">${where}</div>
       ${hl.length ? `<div class="muted">In der Nähe: ${hl.map(p => `<a class="sub2" href="https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=18/${p.lat}/${p.lon}" target="_blank" rel="noopener">${escapeHtml(p.name)}</a>`).join(', ')}</div>` : ''}
       ${neigh.length ? `<div class="muted">Gehört zur selben Gegend: ${neigh.join(', ')}</div>` : ''}
-      <div class="actions"><a class="btn" href="${url}" target="_blank" rel="noopener">Unterkünfte hier auf Airbnb ansehen →</a>
-      <a class="sub2" href="${osm}" target="_blank" rel="noopener">Auf Karte ansehen</a>
+      <div class="actions"><a class="btn" href="${url}" target="_blank" rel="noopener" aria-label="Unterkünfte in ${escapeHtml(a.name)} auf Airbnb ansehen (neuer Tab)">Unterkünfte hier auf Airbnb ansehen →</a>
+      <a class="sub2" href="${osm}" target="_blank" rel="noopener" aria-label="${escapeHtml(a.name)} auf der Karte ansehen">Auf Karte ansehen</a>
       <label class="cmp"><input type="checkbox" data-k="${escapeHtml(k)}" ${cmp.includes(k) ? 'checked' : ''}> Vergleichen</label></div>
     </article>`;
   }).join('');
@@ -659,7 +672,7 @@ function renderMap(ranked, geo, r = 800, pois = []) {
     let bounds = L.latLngBounds(ranked.map(a => [a.lat, a.lon]));
     // Weit gestreut: auf die Top 3 zoomen
     if (ranked.length > 3 && bounds.getNorthEast().distanceTo(bounds.getSouthWest()) > 12000) bounds = L.latLngBounds(ranked.slice(0, 3).map(a => [a.lat, a.lon]));
-    map.fitBounds(bounds.pad(0.3));
+    map.fitBounds(bounds.pad(0.3), { maxZoom: 14 });
   }
   if (layer) layer.remove();
   if (poiLayer) poiLayer.remove();
@@ -715,12 +728,14 @@ function shareState() {
   return { c: f.c, i: f.i, o: f.o, b: f.b, bm: f.bm, r: f.r, mc: f.mc, k: f.k, y: f.y, bd: f.bd, f: Math.round(fairness * 100),
     p: people.map(p => [p.name, p.type, p.custom ? Object.keys(SM.CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: wishes };
 }
+let sharedPast = false;
 function applyShared(h) {
   try {
     const s = b64.dec(h);
     const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
     const day = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
     if (!Array.isArray(s.p) || !s.p.length || s.p.length > 30) return false;
+    offerUndo('Reise aus dem Link geladen. Deine bisherige Gruppe ist nicht verloren.'); // R5-24: vorherige Gruppe wiederherstellbar
     const keys = Object.keys(SM.CATEGORIES);
     people = s.p.filter(Array.isArray).map(([n, t, c, v, t2]) => SM.cleanPerson({
       name: str(n, 40) || 'Person', type: t, type2: t2 || undefined,
@@ -731,6 +746,7 @@ function applyShared(h) {
     if (Array.isArray(s.w)) { wishes = cleanWishes(s.w); store.set('sm_wishes', wishes); renderWishes(); } // alte Links ohne Wünsche bleiben gültig
     if (s.f != null) { fairness = SM.cleanFairness(+s.f / 100); store.set('sm_fair', fairness); updateFair(); }
     applyForm({ c: str(s.c, 80), i: day(s.i), o: day(s.o), b: Math.max(0, Math.min(1e6, +s.b || 0)), bm: s.bm, r: s.r, mc: s.mc, k: s.k, y: s.y, bd: s.bd });
+    if (day(s.i) && day(s.i) < ymd(new Date())) sharedPast = true;
     syncMin(false);
     save(); renderPeople(); updateBudget(); saveForm();
     return true;
@@ -749,9 +765,18 @@ $('city').addEventListener('input', () => {
   $('stale').hidden = !stale;
   if (stale) $('stale').textContent = `Die Ergebnisse unten gehören zu „${lastData.geo.name}“. Mit „Passende Viertel finden“ suchst du die neue Stadt.`;
 });
+// Deeplink von der Startseite: ?c=Lissabon&i=2026-05-01&o=2026-05-05&n=2
+{
+  const q = new URLSearchParams(location.search), n = Math.floor(+q.get('n'));
+  if (!location.hash.startsWith('#t=') && q.get('c')) {
+    applyForm({ c: q.get('c'), i: q.get('i'), o: q.get('o') }); syncMin(false);
+    if (n > 1 && n <= 16 && people.length === 1) people = Array.from({ length: n }, (_, i) => i ? { name: `Person ${i + 1}`, type: 'chill' } : people[0]);
+  }
+}
 if (location.hash.startsWith('#t=')) {
   if (applyShared(location.hash.slice(3))) {
     $('status').textContent = 'Reise aus dem Link geladen. Die Suche startet gleich, du kannst dich danach selbst eintragen.';
+    if (sharedPast) $('status').textContent += ' Die Reisedaten im Link lagen in der Vergangenheit, wir haben Standarddaten eingesetzt.';
     if ($('city').value.trim()) setTimeout(() => run(), 0);
   } else { $('status').textContent = 'Der Link ist beschädigt oder zu alt.'; }
 }
@@ -761,7 +786,7 @@ function saveTrip(geo, areas, ppl) {
   const b = budgetNums();
   const trip = {
     savedAt: Date.now(), city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value,
-    nights: b.n, budget: b.total, people: ppl.map(p => ({ name: p.name, type: p.type })), wishes,
+    nights: b.n, budget: b.total, people: ppl.map(p => SM.cleanPerson(p)), wishes, // mit type2, custom, veto: Plugin bewertet dieselbe Person wie die App
     areas: areas.map(a => {
       const j = a.group.scores.indexOf(a.group.min);
       return { name: a.name, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: ppl[j]?.name || null };
@@ -775,8 +800,11 @@ function saveTrip(geo, areas, ppl) {
   window.dispatchEvent(new Event('staymatch:trip'));
 }
 // Hinweis, ob das Plugin installiert ist (setzt bridge.js)
-setTimeout(() => {
+const extCheck = () => {
   if (document.documentElement.dataset.staymatchExtension) { $('extHint').hidden = false; $('extHint').textContent = `✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 ${solo() ? 'für dich' : 'für euch'}.`; }
-}, 800);
+};
+// Nicht auf ein festes Zeitfenster verlassen: auch spätes Setzen des Attributs erkennen
+new MutationObserver(extCheck).observe(document.documentElement, { attributes: true, attributeFilter: ['data-staymatch-extension'] });
+extCheck(); setTimeout(extCheck, 800);
 renderWishes();
 renderPeople();
