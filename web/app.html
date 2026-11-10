@@ -161,6 +161,7 @@ button.primary { display:flex; align-items:center; justify-content:center; gap:8
 button.primary:hover { filter:brightness(.94); }
 button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:3; stroke-linecap:round; }
 .stickybar { background:var(--card); }
+@media (min-width:901px) { main > section { align-self:stretch; } #intro { position:sticky; top:84px; } }
 </style>
 <script>try { const t = localStorage.getItem('sm_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : ''); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
