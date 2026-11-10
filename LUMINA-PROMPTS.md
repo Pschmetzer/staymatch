@@ -1,28 +1,14 @@
-# Lumina: Bild- und Videoplätze
+# Lumina: Bilder der Startseite
 
-„Lumina“ ist der interne Name für die optionalen Hero-Medien (Bild oder Kurzvideo) der Landingpage. Es gibt sie noch nicht; `web/media/` ist absichtlich leer, und die Seite funktioniert ohne. Die Prompts unten sind Vorschläge, kein offener Fehler.
+Alle Fotos auf der Startseite sind KI-generiert mit BytePlus Lumina (GPT Image 2.5 Sunburst, 16:9). Reine Stimmungsbilder, `alt=""`, selbst gehostet unter `web/media/`, je 1280 und 640 px breit als WebP und JPG, jede Datei unter 150 KB.
 
-Platzhalter-Struktur. Die Landingpage hat im Hero einen Platz für ein Bild oder ein kurzes Video. **Solange keine Datei freigeschaltet ist, bleibt der Platz unsichtbar** und es gibt keine Anfrage und kein kaputtes Bild.
-
-## Freischalten
-1. Dateien in `web/media/` ablegen:
-   - `lumina-hero.webp` und `lumina-hero.jpg` (16:9, 1280×720, je unter 150 KB)
-   - optional `lumina-hero.mp4` (15–20 s, ohne Ton, unter 2 MB; wird bei „reduzierte Bewegung“ nicht abgespielt)
-2. In `web/index.html` `<meta name="sm-lumina" content="off">` auf `on` setzen.
-3. Lokal prüfen (`npm run dev`), hell und dunkel, Handy-Breite.
-
-Alles wird selbst gehostet (keine externe Quelle). Das Bild ist Schmuck (`alt=""`). Wird es ein echter Screenshot, mit „Beispiel“ kennzeichnen und eine Beschreibung ergänzen.
+Der frühere Hero-Platzhalter (`sm-lumina`, `media/lumina-hero.*`) ist entfernt: Ein Bild im Hero hätte die Knöpfe nach unten geschoben.
 
 ## Regeln für alle Prompts
 - Kein Airbnb-Logo, keine Marken, keine erkennbaren Personen, keine Schrift im Bild.
 - Keine Zahlen, Zitate oder Nutzerstimmen im Bild.
 - Farben passend zur Seite: Rot `#e0475b`, Orange `#ff8a5c`, dunkler Grund `#0b0b0d`.
 
-## Prompts (Entwurf, vom Nutzer zu prüfen)
-| Platz | Datei | Prompt |
-|---|---|---|
-| Hero | `lumina-hero.webp/.jpg` | Vorschlag (noch nicht erzeugt): „Abstrakte Stadtkarte von oben mit weichen farbigen Kreisen (Viertel), fünf kleine Punkte in drei Farben, dunkler Hintergrund, rot-oranger Schein, ohne Schrift, 16:9“ |
-| Hero-Video | `lumina-hero.mp4` | Vorschlag (noch nicht erzeugt): „Langsamer Zoom auf eine abstrakte Stadtkarte, ein Kreis leuchtet auf, 15 Sekunden, ohne Schrift, nahtlose Schleife“ |
 
 ## Eingebaute Bilder (10.11.2026, Lumina, GPT Image 2.5 Sunburst, 16:9)
 Reine Stimmungsbilder, KI-generiert, `alt=""`. Der Laptop-Bildschirm zeigt keine echte App-Oberfläche. Je 1280 und 640 px breit als WebP und JPG, jede Datei unter 150 KB.
@@ -33,4 +19,16 @@ Reine Stimmungsbilder, KI-generiert, `alt=""`. Der Laptop-Bildschirm zeigt keine
 | „Auch für Gruppen“ (unter dem Text) | `media/gepaeck-*` | „Four colourful suitcases and backpacks standing together in the sunny entrance hall of a stylish holiday apartment, keys on a small wooden table, view into a living room with a big dining table for a group of friends, warm coral and orange afternoon light, editorial travel photography, 35mm, no people, no text, no logos“ |
 | Schluss-Abschnitt (Hintergrund mit dunklem Verlauf) | `media/wohnung-*` | „Bright, airy holiday apartment in a European old town at golden hour, wide view from the living room through open French balcony doors onto terracotta rooftops and a distant river, linen sofa, wooden floor, plants, warm coral and orange sunset light, editorial travel photography, 35mm, shallow depth of field, no people, no text, no logos“ |
 
-Der Hero-Platz (`sm-lumina`) bleibt aus: dort würde ein Bild die Knöpfe nach unten schieben.
+
+## Weitere Bilder (10.11.2026, Lumina, GPT Image 2.5 Sunburst, 16:9, 1824×1024)
+
+| Platz | Datei | Prompt |
+|---|---|---|
+| „Funktionen“ (Band über den Karten) | `media/wuensche-*` | „Top-down flat lay on a light oak table in a holiday apartment: an open notebook with a hand-drawn checklist of simple tick marks (no readable words), a folded paper city map, a cappuccino, a passport and a single brass key, soft morning window light with warm coral and orange accents, editorial travel photography, 35mm, shallow depth of field, no people, no text, no logos, no watermark“ |
+| „Für wen?“ Städtetrip allein | `media/allein-*` | „Back view of a solo traveller with a small backpack waiting at a tram stop on a sunny old-town street in a European city, yellow tram approaching, pastel facades, warm coral and orange afternoon light, person seen only from behind and slightly out of focus, editorial travel photography, 35mm, no faces, no text, no logos, no watermark“ |
+| „Für wen?“ Wochenende zu zweit | `media/zuzweit-*` | „Breakfast for two on a small sunny balcony of a holiday apartment: two coffee cups, croissants, fresh fruit, a linen napkin, wrought-iron railing with flower pots, view over terracotta rooftops, warm coral and orange morning light, editorial travel photography, 35mm, shallow depth of field, no people, no text, no logos, no watermark“ |
+| „Für wen?“ Workation | `media/workation-*` | „Calm workation desk in a bright holiday apartment: closed laptop, notebook, glass of water, green plant and noise-cancelling headphones on a wooden desk in front of a large window with a quiet tree-lined street outside, soft daylight with warm coral and orange accents, editorial interior photography, 35mm, no people, no text, no logos, no watermark“ |
+| „Für wen?“ Mit Freunden | `media/gruppe-*` | „Long wooden dining table set for six friends in a spacious holiday apartment at dusk: wine glasses, shared plates of tapas, candles, string lights, open terrace doors to a city view, warm coral and orange evening glow, editorial travel photography, 35mm, shallow depth of field, no people, no text, no logos, no watermark“ |
+| „Chrome-Plugin“ (unter den Knöpfen) | `media/plugin-*` | „Laptop seen from a high angle on a dark wooden desk at night, the screen shows an abstract dark interface with a grid of blurred listing cards where exactly three cards glow with a soft red-to-orange gradient border, no readable text anywhere on screen, a cup of tea beside it, moody cinematic light, deep dark background #0b0b0d with red #e0475b and orange #ff8a5c accents, product photography, 35mm, no people, no text, no logos, no watermark“ (Stimmungsbild, kein Screenshot der echten Oberfläche) |
+| „Warum nicht einfach sortieren?“ | `media/vergleich-*` | „Split composition: on the left a cluttered desk with a laptop showing dozens of tiny overlapping browser windows as abstract grey rectangles, crumpled sticky notes and cold coffee in harsh blue light; on the right the same desk tidy and calm with a single laptop glowing warm coral and orange, a plant and a fresh coffee, no readable text, editorial photography, 35mm, no people, no text, no logos, no watermark“ |
+| „Wie wir rechnen“ | `media/sterne-*` | „Macro still life of five small brass star-shaped tokens arranged in a row on a dark walnut surface, one star larger and more polished than the others, a soft red and orange rim light, shallow depth of field with creamy bokeh, dark background #0b0b0d, minimal premium product photography, no text, no logos, no watermark“ |

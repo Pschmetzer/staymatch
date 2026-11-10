@@ -19,11 +19,11 @@ test('Stadtseite: Titel, canonical, ODbL-Hinweis, keine Fremdhosts außer OSM-Li
   for (const f of pages) {
     const h = fs.readFileSync(path.join(dir, f), 'utf8');
     assert.match(h, /<title>Beste Viertel in .+<\/title>/);
-    assert.ok(h.includes(`rel="canonical" href="https://staymatch-tau.vercel.app/staedte/${f.replace('.html', '')}"`), f);
+    assert.ok(h.includes(`rel="canonical" href="https://staymatch.pro/staedte/${f.replace('.html', '')}"`), f);
     assert.ok(h.includes('OpenStreetMap') && h.includes('ODbL'), f + ' ohne Quellenangabe');
     assert.equal((h.match(/<li><b>/g) || []).length, 25, f + ': 5 Typen × 5 Viertel');
     assert.ok(!/<script/i.test(h), f + ' ohne Skripte');
     const hosts = new Set([...h.matchAll(/https?:\/\/([^/"' ]+)/g)].map(m => m[1]));
-    for (const x of hosts) assert.ok(['staymatch-tau.vercel.app', 'opendatacommons.org', 'www.openstreetmap.org'].includes(x), `${f}: Fremdhost ${x}`);
+    for (const x of hosts) assert.ok(['staymatch.pro', 'opendatacommons.org', 'www.openstreetmap.org'].includes(x), `${f}: Fremdhost ${x}`);
   }
 });
