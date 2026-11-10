@@ -19,7 +19,25 @@
     const nightM = priceText.match(/(\d[\d.,  ]*)\s?(€|CHF|£|\$)\s?(?:pro Nacht|Nacht|night)/i);
     const totalM = priceText.match(/(\d[\d.,  ]*)\s?(€|CHF|£|\$)\s?(?:insgesamt|gesamt|total)/i);
     const reviews = [...document.querySelectorAll('[data-review-id], [data-testid*="review"], [data-section-id*="REVIEWS"] [role="listitem"]')].map(e => e.innerText).join('\n');
+    // R5-99: fertige Textparser aus parse.js anwenden (ungeprüft live: wo diese Abschnitte im echten Seitenaufbau stehen)
+    const sec = sel => [...document.querySelectorAll(sel)].map(e => e.innerText || '').join('\n').slice(0, 20000);
+    const rulesText = sec('[data-section-id*="POLICIES"], [data-section-id*="HOUSE_RULES"], [data-section-id*="CANCELLATION"]');
+    const descText = sec('[data-section-id*="DESCRIPTION"]');
+    const amenText = sec('[data-section-id*="AMENITIES"]');
+    const hostText = sec('[data-section-id*="MEET_YOUR_HOST"], [data-section-id*="HOST_PROFILE"]');
+    const all = (descText + '\n' + rulesText);
+    const reviewTexts = [...document.querySelectorAll('[data-review-id], [data-section-id*="REVIEWS"] [role="listitem"]')].map(e => (e.innerText || '').slice(0, 600)).filter(Boolean).slice(0, 30);
+    const found = {
+      houseRules: rulesText ? P.houseRules(rulesText) : null,
+      amenities: amenText ? P.amenities(amenText) : null,
+      cancellation: rulesText ? P.cancellation(rulesText) : null,
+      hostInfo: hostText ? P.hostInfo(hostText) : null,
+      touristTax: all.trim() ? P.touristTax(all) : null,
+      scamSignals: descText ? P.scamSignals(descText) : null,
+      reviewTexts: reviewTexts.length ? reviewTexts : null,
+    };
     return {
+      ...found,
       id, url: location.origin + location.pathname,
       title: ld.name || meta('og:title') || document.title,
       image: meta('og:image') || null,

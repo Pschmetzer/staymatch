@@ -5,9 +5,11 @@
   const TTL = 2 * 3600e3, MAX = 300;
   // Diese Parameter ändern nur Seite oder Kartenausschnitt, nicht die Suche selbst
   const PAGING = ['items_offset', 'cursor', 'pagination_search', 'section_offset', 'federated_search_session_id', 'search_type',
-    'ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'search_by_map', 'map_toggle', 'screen_size'];
+    'ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'search_by_map', 'map_toggle', 'screen_size',
+    // R5-94: gleiche Liste wie in parse.js (searchKey), damit sich der Pool-Schlüssel beim Blättern nicht ändert
+    'page', 'federated_search_id', 'tab_id', 'source', 'search_mode', 'bbox', '_set_bev_on_new_domain'];
   const KEEP = ['id', 'title', 'kind', 'locality', 'rating', 'reviewCount', 'totalPrice', 'currency', 'isTotal',
-    'lat', 'lon', 'multiUnit', 'beds', 'bedrooms', 'baths', 'badges', 'pro', 'sleeps'];
+    'lat', 'lon', 'multiUnit', 'beds', 'bedrooms', 'baths', 'badges', 'pro', 'sleeps', 'priceWord', 'isNew', 'priceStale'];
 
   function poolKey(url) {
     const u = new URL(url);

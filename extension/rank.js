@@ -90,6 +90,8 @@
   // Schlafplätze: getypte Betten (Doppelbett = 2) wenn bekannt, sonst Bettenzahl. Schlafzimmer zählen NICHT als Betten.
   function bedScore(l, people) {
     if (!people) return null;
+    // R5-106: ein Paar teilt sich ein Bett
+    if (people <= 2 && (l.sleeps >= 1 || l.beds >= 1)) return 1;
     if (l.sleeps != null) {
       if (l.sleeps >= people) return 1;
       return l.sleeps * 1.5 >= people ? 0.65 : 0.25;
@@ -205,23 +207,61 @@
   }
 
   const ROOM_ONLY = /\bzimmer in\b|hotelzimmer|\broom in\b|hotel room|chambre d'hôtel|habitación en|stanza in/i;
-  const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|\bhaus\b|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
+  const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|entire|logement entier|intero|hele |ganze|alojamento inteiro|cały|\bhaus\b|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
   const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|kamer/i;
   const SHARED_ROOM = /gemeinsch|geteilt\w* zimmer|shared room|chambre partagée|habitación compartida|camera condivisa|hostel|schlafsaal|dorm/i;
   const sepNum = (n, d = 1) => String(Math.round(n * 10 ** d) / 10 ** d).replace('.', ',');
 
+  // R5-100: Währungen vergleichbar machen („€“ = „EUR“)
+  const CUR_ALIAS = { EUR: '€', GBP: '£', USD: '$', 'US$': '$' };
+  const normCur = c => (c ? CUR_ALIAS[String(c).trim().toUpperCase()] || String(c).trim() : null);
+
+  const median = a => { const x = a.filter(v => v != null && isFinite(v)).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
+
+  // R5-83 / R5-110: Einheit und Plausibilität gegen den Median der Seite prüfen.
+  // Fehlt in der Preiszeile jedes Wort für „gesamt“ / „pro Nacht“ (priceWord === false), wird sie als Nachtpreis
+  // geraten. Liegt der Betrag aber etwa bei Nächte × Median, ist es wohl ein Gesamtpreis.
+  // Preise unter 20 % des Medians sind eher ein Lesefehler als ein Schnäppchen.
+  function normalizePrices(listings, ctx) {
+    const nights = ctx.nights;
+    const per = l => (l.totalPrice == null ? null : l.isTotal ? (nights ? l.totalPrice / nights : null) : l.totalPrice);
+    const byCur = {};
+    for (const l of listings) {
+      if (l.priceWord === false) continue; // unsichere Einheit zählt nicht für den Median
+      const v = per(l); if (v == null) continue;
+      (byCur[normCur(l.currency) || '€'] ||= []).push(v);
+    }
+    const med = {};
+    for (const [c, v] of Object.entries(byCur)) if (v.length >= 3) med[c] = median(v);
+    return listings.map(l => {
+      const m = med[normCur(l.currency) || '€'];
+      if (!m || l.totalPrice == null) return l;
+      let out = l;
+      if (l.priceWord === false && !l.isTotal && nights >= 2 && l.totalPrice >= m * nights * 0.6 && l.totalPrice >= m * 1.8) out = { ...out, isTotal: true, unitGuessed: true };
+      const v = per(out);
+      if (v != null && v < m * 0.2) out = { ...out, priceImplausible: true };
+      return out;
+    });
+  }
+
   // ctx: { people, adults?, budget, budgetPerNight?, tripNights?, nights, areas, taste, seen, disliked, wishes? }
   function scoreListing(l, ctx) {
     const pe = resolvePeople(ctx), people = pe.people, solo = people === 1;
+    // R5-99: Befunde von der Unterkunftsseite (Betrugs-Signale, Bewertungstexte, datierte Bewertungen) gelten auch in der Suche
+    const kn = ctx.known?.get?.(l.id);
+    if (kn) l = { ...l, scamSignals: l.scamSignals || kn.scamSignals, reviewTexts: l.reviewTexts || kn.reviewTexts, reviews: l.reviews || kn.reviews };
     const wish = wishScore(l, ctx.wishes);
     const area = areaFor(l, ctx.areas);
     const budget = effectiveBudget(ctx);
     const total = tripTotal(l, ctx.nights);
+    // R5-100: Budget und Preis nur vergleichen, wenn die Währung stimmt. R5-92: nicht bei flexiblen Daten / Monatsmiete.
+    const curMismatch = !!(ctx.budgetCurrency && l.currency && normCur(l.currency) !== normCur(ctx.budgetCurrency));
+    const priceBlocked = curMismatch || !!ctx.priceUnsure || !!l.priceImplausible;
     const parts = {
       area: area ? area.total / 100 : null,
       rating: ratingScore(effectiveRating(l), l.reviewCount),
       // ohne Nächtezahl bei Nachtpreis: nur mit Budget pro Nacht vergleichbar (Direkt-Modus), sonst kein Preis-Teil
-      price: total != null ? priceScore(total, budget) : (!l.isTotal && ctx.budgetPerNight ? priceScore(l.totalPrice, ctx.budgetPerNight) : null),
+      price: priceBlocked ? null : total != null ? priceScore(total, budget) : (!l.isTotal && ctx.budgetPerNight ? priceScore(l.totalPrice, ctx.budgetPerNight) : null),
       wishes: wish.value,
       beds: solo ? null : bedScore(l, people), // eine Person: keine Betten-Wertung
       taste: tasteScore({ ...l, nights: ctx.nights }, ctx.taste),
@@ -250,7 +290,8 @@
       const txt = `⭐ ${sepNum(l.rating, 2)} bei ${l.reviewCount || 0} Bewertungen`;
       (parts.rating >= 0.7 ? why : parts.rating < 0.35 ? warn : why).push(txt);
       (parts.rating < 0.35 ? short.warn : short.why).push(`⭐ ${sepNum(l.rating, 2)}`);
-    } else { warn.push('noch keine Bewertungen'); short.warn.push('keine Bewertungen'); }
+    } else if (l.isNew) { warn.push('neu, noch keine Bewertungen'); short.warn.push('neu'); }
+    else { warn.push('Bewertung nicht gelesen'); short.warn.push('Bewertung unklar'); }
     for (const x of wish.hit) why.push(`✓ ${x}`);
     for (const x of wish.miss) { warn.push(`Wunsch nicht erfüllt: ${x}`); short.warn.push(x); }
     const fake = fakeReviewHint(l);
@@ -272,14 +313,19 @@
       } else {
         warn.push(`${l.totalPrice} ${cur} pro Nacht${ctx.nights ? '' : ' (Nächtezahl fehlt, Preis nicht bewertet)'}${unsure}`);
       }
+      if (curMismatch) warn.push(`Preis in ${l.currency}, Budget in ${ctx.budgetCurrency}: Preis nicht bewertet`);
+      if (ctx.priceUnsure) warn.push('Flexible Daten oder Monatsmiete: Preis nicht bewertet');
+      if (l.priceImplausible) warn.push('Preis auffällig niedrig, vermutlich falsch gelesen: nicht bewertet');
+      if (l.unitGuessed) warn.push('Einheit des Preises geraten: als Gesamtpreis gedeutet');
+      if (l.priceStale) warn.push('Preis aus den Seitendaten, kann nach Datumswechsel veraltet sein');
       if (l.multiUnit) warn.push('Mehrere Unterkünfte im Angebot: Preis ist ein „ab“-Preis und kann höher sein');
     }
 
     // Betten
     if (parts.beds != null) {
-      const cap = l.sleeps != null ? `${l.sleeps} Schlafplätze` : `${l.beds} Betten`;
+      const cap = l.sleeps != null ? `${l.sleeps} ${l.sleeps === 1 ? 'Schlafplatz' : 'Schlafplätze'}` : `${l.beds} ${l.beds === 1 ? 'Bett' : 'Betten'}`;
       (parts.beds >= 1 ? why : warn).push(`${cap}${l.bedrooms != null ? `, ${l.bedrooms} Schlafzimmer` : ''} für ${people}`);
-      if (parts.beds < 1) short.warn.push(`${l.sleeps ?? l.beds} Betten für ${people}`);
+      if (parts.beds < 1) short.warn.push(`${l.sleeps ?? l.beds} ${(l.sleeps ?? l.beds) === 1 ? 'Bett' : 'Betten'} für ${people}`);
       if (parts.beds <= 0.25) unsuitableReasons.push(`zu wenige Betten für ${people}`);
     } else if (!solo && people && l.bedrooms != null && l.bedrooms * 3 < people) {
       warn.push(`Nur ${l.bedrooms} Schlafzimmer für ${people} (Betten unbekannt)`);
@@ -303,7 +349,7 @@
     if (hintWarn.length) adjust -= Math.min(8, 4 * hintWarn.length);
 
     let score = Math.round(base) + adjust;
-    if (l.badges?.some(b => /favorit|superhost/i.test(b))) score += 3; // kleiner Vertrauensbonus
+    // R5-107: kein Extra-Bonus für Favorit/Superhost: steckt schon in der Note und würde doppelt zählen
     score = Math.max(0, Math.min(100, score));
     if (disliked) score = Math.min(score, 20);
 
@@ -321,7 +367,7 @@
   }
 
   function rankListings(listings, ctx) {
-    return listings.map(l => ({ ...l, rank: scoreListing(l, ctx) })).sort((a, b) => b.rank.score - a.rank.score);
+    return normalizePrices(listings, ctx).map(l => ({ ...l, rank: scoreListing(l, ctx) })).sort((a, b) => b.rank.score - a.rank.score);
   }
 
   // Nr. 399: Filter. minRating: Zahl oder true (= 4,7). Reihenfolge der Liste bleibt.
@@ -374,6 +420,6 @@
 
   root.StayMatchRank = {
     rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, reviewConflicts, REVIEW_WISHES,
-    weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText,
+    weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
