@@ -177,17 +177,16 @@
     } },
     trusted: { label: '🏅 Superhost/Favorit', ok: 'Superhost oder Gäste-Favorit', no: 'kein Superhost/Gäste-Favorit', check: l => (l.badges || []).some(b => /favorit|superhost/i.test(b)) },
     reviews: { label: '💬 ab 20 Bewertungen', ok: 'viele Bewertungen', no: 'weniger als 20 Bewertungen', check: l => l.reviewCount == null ? null : l.reviewCount >= 20 },
-    luxury: { label: '✨ Luxus', ok: 'Luxus-Unterkunft', no: 'eher einfache Unterkunft', check: l => {
-      const k = `${l.kind || ''} ${l.title || ''}`;
-      return PRIVATE_ROOM.test(k) || SHARED_ROOM.test(k) ? false : LUXURY.test(k) ? true : null; // sonst unbekannt, nie geraten
-    } },
+    luxury: { label: '✨ Luxus', ok: (l, ctx) => { const w = luxuryInfo(l, ctx).words; return `Luxus-Unterkunft${w.length ? ` (${w.slice(0, 3).join(', ')})` : ''}`; }, no: 'eher einfache Unterkunft',
+      check: (l, ctx) => luxuryInfo(l, ctx).state },
     private: { label: '🙋 kein Gewerbe', ok: null, no: 'gewerblicher Anbieter', check: l => l.pro === true ? false : null }, // „privat“ ist nie sicher
   };
-  function wishScore(l, wishes) {
+  function wishScore(l, wishes, ctx) {
     const hit = [], miss = [];
     for (const k of (wishes || []).filter(k => WISHES[k])) {
-      const r = WISHES[k].check(l);
-      if (r === true && WISHES[k].ok) hit.push(WISHES[k].ok); else if (r === false) miss.push(WISHES[k].no);
+      const r = WISHES[k].check(l, ctx);
+      const ok = typeof WISHES[k].ok === 'function' ? WISHES[k].ok(l, ctx) : WISHES[k].ok;
+      if (r === true && ok) hit.push(ok); else if (r === false) miss.push(WISHES[k].no);
     }
     const known = hit.length + miss.length;
     return { value: known ? hit.length / known : null, hit, miss };
@@ -204,13 +203,36 @@
     return out;
   }
   // Nr. 653: Bei großen Gruppen zählen Betten mehr, bei Paaren/Solo weniger. Summe wird ohnehin neu normiert.
-  function weightsFor(people) {
+  function weightsFor(people, wishes) {
     const w = { ...WEIGHTS };
+    if ((wishes || []).includes('luxury')) w.wishes = 0.3; // wer Luxus will, soll ihn in der Wertung merken
     if (people >= 6) w.beds = 0.22; else if (people >= 4) w.beds = 0.15; else if (people && people <= 2) w.beds = 0.08;
     return w;
   }
 
-  const LUXURY = /luxus|luxur|penthouse|\bvilla\b|boutique|resort|\bsuite\b|rooftop|dachterrasse|infinity|5.?sterne|5.?star|designer|exklusiv|exclusive|prestige|palace|schloss|chateau|château|\bspa\b|premium/i;
+  // Luxus: starke Stichwörter genügen allein, schwache zählen erst zu zweit oder mit hoher Preislage
+  const LUX_STRONG = /luxus|luxur|lujo|lusso|luxueux|penthouse|\bvilla\b|mansion|manoir|herrenhaus|riad|palazzo|schloss|ch[aâ]teau|yacht|boutique[- ]?hotel|resort|infinity|rooftop|dachterrasse|privatpool|private pool|piscine priv|whirlpool|jacuzzi|butler|concierge|5[- ]?sterne|f[üu]nf[- ]?sterne|5[- ]?stars?\b|5\s?\*|beachfront|oceanfront|seafront|strandnah|meerblick|seeblick|sea view|ocean view|[áa]tico|attico/i;
+  const LUX_WEAK = /\bsuite\b|\bspa\b|sauna|\bpool\b|duplex|maisonette/i;
+  const LUX_SOFT = /premium|designer|exklusiv|exclusive|prestige|skyline|panorama|k[üu]stenlage|waterfront/i; // Werbewörter, auch bei billigen Zimmern
+  // Treffer-Wörter für die Anzeige, ohne Doppelungen und in Originalschreibweise des Titels
+  const hits = (re, txt) => { const g = new RegExp(re.source, 'gi'); const out = []; for (const m of txt.matchAll(g)) { const w = m[0].trim(); if (w && !out.some(x => x.toLowerCase() === w.toLowerCase())) out.push(w); } return out; };
+  // state: true = Luxus erkannt, false = klar kein Luxus (Zimmer), null = unbekannt (nie geraten)
+  function luxuryInfo(l, ctx) {
+    const txt = `${l.kind || ''} ${l.title || ''}`;
+    if (PRIVATE_ROOM.test(txt) || SHARED_ROOM.test(txt)) return { state: false, words: [], level: 0 };
+    const soft = hits(LUX_SOFT, txt), strong = hits(LUX_STRONG, txt), weak = hits(LUX_WEAK, txt).filter(w => !strong.some(x => x.toLowerCase() === w.toLowerCase()));
+    const badge = (l.badges || []).some(b => /luxe|luxury|luxus/i.test(b));
+    const med = ctx?.medianNight?.[normCur(l.currency) || '€'];
+    const pn = perNight(l, ctx?.nights ?? l.nights);
+    const pricey = !!(med && pn && pn >= med * 1.8);
+    const bath = l.baths != null && l.baths >= 3 && l.bedrooms != null && l.baths >= l.bedrooms;
+    const words = [...(badge ? ['Luxe'] : []), ...strong, ...weak, ...soft];
+    if (pricey) words.push('hohe Preislage');
+    if (bath) words.push(`${sepNum(l.baths)} Bäder`);
+    // Stufe 0–1: stark 1, sonst Summe aus schwachen Hinweisen
+    const level = badge || strong.length ? 1 : Math.min(1, weak.length * 0.45 + soft.length * 0.2 + (pricey ? 0.35 : 0) + (bath ? 0.25 : 0));
+    return { state: level >= 0.7 ? true : null, words, level };
+  }
   const ROOM_ONLY = /\bzimmer in\b|hotelzimmer|\broom in\b|hotel room|chambre d'hôtel|habitación en|stanza in/i;
   const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|entire|logement entier|intero|hele |ganze|alojamento inteiro|cały|\bhaus\b|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
   const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|kamer/i;
@@ -255,7 +277,7 @@
     // R5-99: Befunde von der Unterkunftsseite (Betrugs-Signale, Bewertungstexte, datierte Bewertungen) gelten auch in der Suche
     const kn = ctx.known?.get?.(l.id);
     if (kn) l = { ...l, scamSignals: l.scamSignals || kn.scamSignals, reviewTexts: l.reviewTexts || kn.reviewTexts, reviews: l.reviews || kn.reviews };
-    const wish = wishScore(l, ctx.wishes);
+    const wish = wishScore(l, ctx.wishes, ctx);
     const area = areaFor(l, ctx.areas);
     const budget = effectiveBudget(ctx);
     const total = tripTotal(l, ctx.nights);
@@ -271,7 +293,7 @@
       beds: solo ? null : bedScore(l, people), // eine Person: keine Betten-Wertung
       taste: tasteScore({ ...l, nights: ctx.nights }, ctx.taste),
     };
-    const weights = weightsFor(people);
+    const weights = weightsFor(people, ctx.wishes);
     // fehlende Teile weglassen und Gewichte neu verteilen
     let s = 0, w = 0;
     for (const [k, v] of Object.entries(parts)) if (v != null) { s += v * weights[k]; w += weights[k]; }
@@ -372,7 +394,13 @@
   }
 
   function rankListings(listings, ctx) {
-    return normalizePrices(listings, ctx).map(l => ({ ...l, rank: scoreListing(l, ctx) })).sort((a, b) => b.rank.score - a.rank.score);
+    const norm = normalizePrices(listings, ctx);
+    const byCur = {};
+    for (const l of norm) { const v = l.priceImplausible ? null : perNight(l, ctx.nights); if (v) (byCur[normCur(l.currency) || '€'] ||= []).push(v); }
+    const medianNight = {};
+    for (const [c, v] of Object.entries(byCur)) if (v.length >= 5) medianNight[c] = median(v);
+    const ctx2 = { ...ctx, medianNight };
+    return norm.map(l => ({ ...l, rank: { ...scoreListing(l, ctx2), luxury: luxuryInfo(l, ctx2) } })).sort((a, b) => b.rank.score - a.rank.score || b.rank.luxury.level - a.rank.luxury.level);
   }
 
   // Nr. 399: Filter. minRating: Zahl oder true (= 4,7). Reihenfolge der Liste bleibt.
@@ -424,7 +452,7 @@
   }
 
   root.StayMatchRank = {
-    rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, reviewConflicts, REVIEW_WISHES,
+    rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
     weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
