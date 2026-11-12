@@ -235,8 +235,8 @@
   }
   const ROOM_ONLY = /\bzimmer in\b|hotelzimmer|\broom in\b|hotel room|chambre d'hôtel|habitación en|stanza in/i;
   const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|entire|logement entier|intero|hele |ganze|alojamento inteiro|cały|\bhaus\b|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
-  const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|kamer/i;
-  const SHARED_ROOM = /gemeinsch|geteilt\w* zimmer|shared room|chambre partagée|habitación compartida|camera condivisa|hostel|schlafsaal|dorm/i;
+  const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|\bkamer\b/i;
+  const SHARED_ROOM = /gemeinsch|geteilt\w* zimmer|shared room|chambre partagée|habitación compartida|camera condivisa|hostel|schlafsaal|\bdorm\b|dormitory/i;
   const sepNum = (n, d = 1) => String(Math.round(n * 10 ** d) / 10 ** d).replace('.', ',');
 
   // R5-100: Währungen vergleichbar machen („€“ = „EUR“)

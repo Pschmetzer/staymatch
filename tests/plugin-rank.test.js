@@ -92,3 +92,10 @@ test('Wunsch „Luxus“: stark/schwach, Zimmer nie, unbekannt bleibt unbekannt'
   assert.ok(luxuryInfo({ title: 'Villa am Meerblick' }).words.includes('Villa'));
   assert.equal(luxuryInfo({ kind: 'Wohnung', title: 'Schöne Wohnung', totalPrice: 500, currency: '€' }, { medianNight: { '€': 100 } }).state, null, 'Preis allein genügt nie');
 });
+
+test('Zimmer-Erkennung: Wortgrenzen bei „kamer“ und „dorm“', () => {
+  const w = R.WISHES.whole;
+  assert.equal(w.check({ kind: 'Appartement met 2 slaapkamers' }), true, '„slaapkamers“ ist kein Privatzimmer');
+  assert.equal(w.check({ kind: 'Kamer in Amsterdam' }), false);
+  assert.equal(w.check({ kind: 'Dorm bed in Hostel' }), false);
+});
