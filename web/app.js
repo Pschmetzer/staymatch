@@ -17,7 +17,7 @@ let people = arr(store.get('sm_people', null)).map(SM.cleanPerson).filter(Boolea
 if (!people.length) people = [{ name: 'Du', type: 'sights' }];
 const solo = () => people.length === 1;
 // Wünsche an die Unterkunft (Schlüssel wie extension/rank.js: WISHES und REVIEW_WISHES)
-const WISH_KEYS = ['whole', 'private', 'trusted', 'reviews', 'quiet', 'clean', 'wifi'];
+const WISH_KEYS = ['whole', 'luxury', 'private', 'trusted', 'reviews', 'quiet', 'clean', 'wifi'];
 const cleanWishes = w => Array.isArray(w) ? WISH_KEYS.filter(k => w.includes(k)) : [];
 let wishes = cleanWishes(store.get('sm_wishes', ['whole']));
 function renderWishes() {

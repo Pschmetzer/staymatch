@@ -28,6 +28,8 @@ for p in / /app /datenschutz /staymatch-plugin.zip.sha256; do
   [ "$code" = 200 ] || { echo "Fehler: $p liefert $code" >&2; exit 1; }
 done
 want=$(node -p "require('./extension/manifest.json').version")
-got=$(curl -s "$SITE/staymatch-plugin.zip" | unzip -p /dev/stdin manifest.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "?")
+zip=$(mktemp); trap 'rm -f "$zip"' EXIT # unzip braucht eine Datei, keine Pipe
+curl -s -o "$zip" "$SITE/staymatch-plugin.zip"
+got=$(unzip -p "$zip" manifest.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "?")
 [ "$got" = "$want" ] || { echo "Fehler: ZIP hat Version $got, erwartet $want" >&2; exit 1; }
 echo "Deploy ok (Plugin $want)"
