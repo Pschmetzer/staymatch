@@ -303,7 +303,7 @@ $('destGrid').onclick = e => { const b = e.target.closest('.dcard'); if (b) { $(
 $('cityChips').onclick = e => { const b = e.target.closest('button'); if (b) { $('city').value = b.textContent; saveForm(); run(); } };
 
 async function geocode(city, signal) {
-  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(city)}`, { headers: { 'Accept-Language': LANG }, signal });
+  const r = await fetch(C.nominatimUrl(city, null, 5), { headers: { 'Accept-Language': LANG }, signal });
   if (!r.ok) throw new Error(`Ortssuche gerade nicht erreichbar (${r.status}) – bitte gleich nochmal versuchen.`);
   const choices = SM.placeChoices(await r.json());
   if (!choices.length) throw new Error('Stadt nicht gefunden');
@@ -337,7 +337,7 @@ const CACHE = 'sm_osm4_'; // Version 4: Zeilen als Arrays wie in web/data (etwa 
 function cacheGet(k) {
   try {
     const c = JSON.parse(sessionStorage.getItem(k) || localStorage.getItem(k));
-    return c && Date.now() - c.t < 864e5 && Array.isArray(c.rows) ? { t: c.t, rows: SM.fromFile({ ...c, bbox: [0, 0, 0, 0] }).rows } : null;
+    return c && Date.now() - c.t < 864e5 && Array.isArray(c.rows) ? { t: c.t, rows: C.rowsToTags(c.fields, c.rows) } : null;
   } catch { return null; }
 }
 function cacheSet(k, rows) {

@@ -356,31 +356,16 @@
     const n = C.normCity, full = String(s || '');
     return [...new Set([n(full), n(full.split(',')[0]), n(full.replace(/\(.*?\)/g, '').split(',')[0])])].filter(Boolean);
   }
-  // Overpass-CSV (Kopfzeile + |-getrennte Zeilen) → Objekte
-  function parseCsv(text, fields = C.FIELDS) {
-    return String(text).split('\n').slice(1).filter(Boolean).map(line => {
-      const v = line.split('|'), t = {};
-      if (v.length !== fields.length) return null; // Name mit | → Zeile verwerfen
-      fields.forEach((f, i) => { if (v[i]) t[f] = v[i]; });
-      return t;
-    }).filter(Boolean);
-  }
   // Vorab-Datei (web/data/*.json) → Zeilen und Stadtzentrum. Zentrum aus der Datei, sonst Mitte der Box (ungenau).
   function fromFile(d) {
-    const rows = d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
+    const rows = C.rowsToTags(d.fields, d.rows);
     const [s, w, n, e] = d.bbox, c = Array.isArray(d.center) ? { lat: +d.center[0], lon: +d.center[1] } : d.center || {};
     const ok = Number.isFinite(+c.lat) && Number.isFinite(+c.lon) && +c.lat >= s && +c.lat <= n && +c.lon >= w && +c.lon <= e;
     return { geo: { name: d.city, bbox: d.bbox, lat: ok ? +c.lat : (s + n) / 2, lon: ok ? +c.lon : (w + e) / 2 }, rows, at: d.t };
   }
-  // Zeilen → Viertel (benannte Orte) und Orte je Kategorie (ohne Doppelte)
+  // Zeilen → Viertel (nur PLACE_TYPES mit Namen, Plätze zählen als Orte) und Orte je Kategorie (ohne Doppelte); Logik im Kern
   function buildData(rows) {
-    const areas = [], raw = [];
-    for (const t of rows) {
-      const lat = +t.lat, lon = +t.lon;
-      if (!lat) continue;
-      if (t.place && t.name) { if (!areas.some(a => a.name === t.name && distM(a, { lat, lon }) < 1500)) areas.push({ name: t.name, lat, lon }); continue; }
-      for (const cat of categoriesOf(t)) raw.push({ lat, lon, cat, name: t.name, tags: t });
-    }
+    const { areas, raw } = C.splitRows(rows, categoriesOf);
     return { areas, pois: dedupePois(raw) };
   }
   // Budget aufteilen: gesamt, pro Nacht, pro Person (v in Euro, m = total | pp | night)
@@ -462,7 +447,7 @@
     });
     try {
       const text = await Promise.any(tries);
-      return parseCsv(text);
+      return C.rowsToTags(C.FIELDS, C.parseOverpassCsv(text).rows); // ohne CSV-Anführungszeichen
     } catch (e) {
       if (outer && outer.aborted) throw new DOMException('Abgebrochen', 'AbortError');
       const codes = (e.errors || []).map(x => String(x.message).split(': ').pop());
@@ -550,7 +535,7 @@
     </article>`;
   }
 
-  root.StayMatch = { escapeHtml, LABELS, cardHtml, budgetSplit, typeSummary, overpassFetch, tripOf, shareEncode, shareDecode, eligibleAreas, cityKeys, parseCsv, fromFile, buildData, convertBudget, dedupePois, annotateCentre, isSecretTip, median, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
+  root.StayMatch = { escapeHtml, LABELS, cardHtml, budgetSplit, typeSummary, overpassFetch, tripOf, shareEncode, shareDecode, eligibleAreas, cityKeys, fromFile, buildData, convertBudget, dedupePois, annotateCentre, isSecretTip, median, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
   // ---- Runde 7: Zusatzfunktionen des Viertel-Finders (reine Rechnung; Anzeige in app-extra.js) ----
   const KEYS = Object.keys(CATEGORIES);
   const wOf = p => p.w || weightsOf(p);
