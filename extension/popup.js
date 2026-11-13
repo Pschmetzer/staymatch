@@ -213,7 +213,12 @@ $('pause').onclick = async () => {
   const pu = settings.pauseUntil > Date.now() ? 0 : Date.now() + 3600e3;
   await setSetting({ pauseUntil: pu }); extraKeys.settings = { ...settings, pauseUntil: pu }; render();
 };
-$('linkCheck').oninput = e => { const v = e.target.value.trim(); $('linkResult').textContent = v && X ? X.linkCheck(v, StayMatchCore.AIRBNB_DOMAINS).text : ''; };
+$('linkCheck').oninput = e => {
+  const v = e.target.value.trim(), r = v && X ? X.linkCheck(v, StayMatchCore.AIRBNB_DOMAINS) : null;
+  // Nachbau-Verdacht: Hilfe auf der Startseite verlinken (nur ein Link, nichts wird geladen)
+  const help = r && /KEINE Airbnb-Adresse/.test(r.text) ? [' ', h('a', { href: 'https://staymatch.pro/#verdacht', target: '_blank', rel: 'noopener' }, 'Verdacht auf Betrug? So reagierst du')] : [];
+  $('linkResult').replaceChildren(r ? r.text : '', ...help);
+};
 $('friendAdd').onclick = async () => {
   const ids = X ? X.friendIds($('friendText').value) : [];
   if (!ids.length) { $('friendInfo').textContent = 'Keine Airbnb-Links gefunden.'; return; }

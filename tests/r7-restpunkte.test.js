@@ -46,6 +46,13 @@ test('Betrugsverdacht: Unterkunftsseite verlinkt die Hilfe auf der Startseite', 
   assert.ok(a, 'Link fehlt');
   assert.equal(a.getAttribute('href'), 'https://staymatch.pro/#verdacht');
   assert.equal(a.getAttribute('rel'), 'noopener');
+  // Popup: Link-Prüfung mit Nachbau-Verdacht verlinkt dieselbe Hilfe
+  const p = popup({});
+  const inp = p.doc.getElementById('linkCheck');
+  inp.value = 'https://airbnb-secure-pay.com/x'; inp.dispatchEvent(new p.w.Event('input'));
+  assert.equal(p.doc.querySelector('#linkResult a')?.getAttribute('href'), 'https://staymatch.pro/#verdacht');
+  inp.value = 'https://www.airbnb.de/rooms/1'; inp.dispatchEvent(new p.w.Event('input'));
+  assert.equal(p.doc.querySelector('#linkResult a'), null);
   // Ziel existiert auf beiden Startseiten
   for (const f of ['index.html', 'en.html']) assert.match(fs.readFileSync(path.join(ROOT, 'web', f), 'utf8'), /<details id="verdacht"/);
 });
@@ -74,10 +81,14 @@ test('Viertel-Finder übernimmt ?k= und ?b= aus der Startseite (Budget pro Nacht
   await untilApp(() => JSON.parse(w.localStorage.getItem('sm_form') || '{}').b === 140);
   const f = JSON.parse(w.localStorage.getItem('sm_form'));
   assert.equal(f.bm, 'night'); assert.equal(f.k, 3);
-  // Geteilter Link hat Vorrang, Unsinn wird ignoriert
+  // Unsinn wird ignoriert
   const w2 = bootExtra({ url: 'http://localhost/app?c=Rom&k=abc&b=-5' });
   assert.equal(w2.document.getElementById('kids').value, '0');
   assert.notEqual(w2.document.getElementById('budget').value, '-5');
+  // Geteilter Link (#t=) hat Vorrang: k und b aus der Adresse bleiben dann unbeachtet
+  const w3 = bootExtra({ url: 'http://localhost/app?c=Rom&k=4&b=333#t=kaputt' });
+  assert.notEqual(w3.document.getElementById('kids').value, '4');
+  assert.notEqual(w3.document.getElementById('budget').value, '333');
 });
 
 test('R7-742 Stadtseiten: „Kurz und einfach“ nennt genau Platz 1 je Reisetyp und die Zahl der Viertel', async () => {
@@ -92,4 +103,26 @@ test('R7-742 Stadtseiten: „Kurz und einfach“ nennt genau Platz 1 je Reisetyp
     assert.match(sec, new RegExp(`Wir haben ${r.areas} Viertel`));
     assert.ok(html.indexOf('Kurz und einfach') < html.indexOf('<h2>Party und Nachtleben</h2>'), 'steht vor den Listen');
   }
+});
+
+// ---------- Atom-Feed (R7-731) ----------
+test('R7-731 Feed: aktuell, wohlgeformt, ein Eintrag je CHANGELOG-Abschnitt, ohne Tracking, auf beiden Startseiten verlinkt', async () => {
+  const F = await import('../scripts/build-feed.mjs');
+  const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+  const feed = fs.readFileSync(path.join(ROOT, 'web', 'feed.xml'), 'utf8');
+  assert.equal(feed, F.renderFeed(changelog), 'web/feed.xml veraltet: node scripts/build-feed.mjs');
+  const heads = [...changelog.matchAll(/^## \[([^\]]+)\]/gm)].map(m => m[1]);
+  assert.equal((feed.match(/<entry>/g) || []).length, heads.length);
+  assert.ok(!/utm_|[?&](ref|source)=/.test(feed), 'keine Tracking-Parameter');
+  if (D.JSDOM) {
+    const doc = new (new D.JSDOM('').window.DOMParser)().parseFromString(feed, 'application/xml');
+    assert.equal(doc.getElementsByTagName('parsererror').length, 0);
+    const ns = 'http://www.w3.org/2005/Atom';
+    assert.equal(doc.documentElement.namespaceURI, ns);
+    for (const e of doc.getElementsByTagNameNS(ns, 'entry')) for (const k of ['id', 'title', 'updated']) assert.ok(e.getElementsByTagNameNS(ns, k)[0]?.textContent, k);
+  }
+  for (const f of ['index.html', 'en.html']) assert.match(fs.readFileSync(path.join(ROOT, 'web', f), 'utf8'), /<link rel="alternate" type="application\/atom\+xml"[^>]*href="\/feed\.xml"/);
+  // Abschnitt ohne Datum fällt auf, statt still ein Datum zu erfinden
+  assert.throws(() => F.renderFeed('## [1.0.0]\n- x\n'), /ohne Datum/);
+  assert.match(F.mdToHtml('### A\n- `x` & <y>\n  weiter'), /<h3>A<\/h3>\n<ul>\n<li><code>x<\/code> &amp; &lt;y&gt; weiter<\/li>\n<\/ul>/);
 });
