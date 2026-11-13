@@ -641,7 +641,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       const s = JSON.parse(sessionStorage.getItem('sm_quick') || '{}');
       if (s.c) city.value = s.c;
       if (s.i >= today) ci.value = s.i;
-      if (s.o > ci.value) co.value = s.o;
+      if (s.o > (ci.value || today)) co.value = s.o;
       if (s.n) ad.value = s.n;
     } catch {}
     const plusDays = (v, n) => { const d = new Date(v + 'T12:00'); d.setDate(d.getDate() + n); return iso(d); };
@@ -697,7 +697,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     const chromium = /Chrome|Chromium|Edg\//.test(ua) && !mobile;
     if (!chromium) { const h = $('#browserhint'); if (h) h.hidden = false; }
     // Chromium am Computer: Hero-Knopf lädt direkt herunter und springt danach zu den Schritten
-    if (chromium) $$('.hero .ctas a[href="#plugin"]').forEach(a => { a.href = 'staymatch-plugin.zip'; a.setAttribute('download', 'staymatch-0.5.0.zip'); });
+    if (chromium) $$('.hero .ctas a[href="#plugin"]').forEach(a => { a.href = 'staymatch-plugin.zip'; a.setAttribute('download', $('a[download]').getAttribute('download')); });
     if (mobile) $$('.mobile-hint').forEach(h => { h.hidden = false; });
     const b = /Edg\//.test(ua) ? ['Edge', 'edge://extensions'] : navigator.brave ? ['Brave', 'brave://extensions'] : /OPR\//.test(ua) ? ['Opera', 'opera://extensions'] : /Vivaldi/.test(ua) ? ['Vivaldi', 'vivaldi://extensions'] : null;
     if (b && chromium) { $('#extbrowser').textContent = b[0]; $('#extpath').textContent = b[1]; $('#extcopy').dataset.copy = b[1]; }
