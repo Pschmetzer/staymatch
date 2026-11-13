@@ -15,9 +15,8 @@
     const sp = P.searchParams(location.href);
     // Preis nur aus dem Buchungsbereich, nicht aus "ähnliche Unterkünfte"
     const book = document.querySelector('[data-testid="book-it-default"], [data-section-id="BOOK_IT_SIDEBAR"], [data-plugin-in-point-id="BOOK_IT_SIDEBAR"]');
-    const priceText = book?.innerText || '';
-    const nightM = priceText.match(/(\d[\d.,  ]*)\s?(€|CHF|£|\$)\s?(?:pro Nacht|Nacht|night)/i);
-    const totalM = priceText.match(/(\d[\d.,  ]*)\s?(€|CHF|£|\$)\s?(?:insgesamt|gesamt|total)/i);
+    // R7: Währung vorn oder hinten, alle Währungen aus parse.js, bei Rabatt der aktuelle Preis
+    const bp = P.bookPrice(book?.innerText || '');
     const reviews = [...document.querySelectorAll('[data-review-id], [data-testid*="review"], [data-section-id*="REVIEWS"] [role="listitem"]')].map(e => e.innerText).join('\n');
     // R5-99: fertige Textparser aus parse.js anwenden (ungeprüft live: wo diese Abschnitte im echten Seitenaufbau stehen)
     const sec = sel => [...document.querySelectorAll(sel)].map(e => e.innerText || '').join('\n').slice(0, 20000);
@@ -45,8 +44,8 @@
       reviewCount: +(ld.aggregateRating?.ratingCount || ld.aggregateRating?.reviewCount || 0) || null,
       lat: ld.geo?.latitude ?? null, lon: ld.geo?.longitude ?? null,
       locality: ld.address?.addressLocality || null,
-      pricePerNight: nightM ? P.num(nightM[1]) : totalM && sp.nights ? Math.round(P.num(totalM[1]) / sp.nights) : null,
-      currency: (nightM || totalM)?.[2] || null,
+      pricePerNight: bp.night != null ? bp.night : bp.total != null && sp.nights ? Math.round(bp.total / sp.nights) : null,
+      currency: bp.currency,
       checkin: sp.checkin, checkout: sp.checkout,
       hints: reviews ? reviewHints(reviews) : [],
     };
@@ -83,6 +82,8 @@
     const ph = item.priceHistory || [];
     const change = ph.length > 1 ? Math.round((ph.at(-1).p / ph[0].p - 1) * 100) : 0;
     panel('sm-room', item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier', [
+      // R7: Betrugshinweise dort, wo gebucht wird, ganz oben
+      item.scamSignals?.length ? h('div', { class: 'err', role: 'alert' }, h('b', {}, '⚠️ Vorsicht (Hinweis, kein Beweis): '), item.scamSignals.join(' · '), '. Nur über Airbnb zahlen und schreiben.') : null,
       h('div', {}, item.rating ? `⭐ ${item.rating}${item.reviewCount ? ` (${item.reviewCount})` : ''}` : 'Noch keine Sterne gefunden'),
       area ? h('div', {}, `Viertel ${area.name}: ${area.total}/100 ${ctx.solo ? 'für dich' : 'für eure Gruppe'}`) : null,
       ppn ? h('div', {}, h('b', {}, `${ppn} ${item.currency || '€'}`), ' pro Person und Nacht') : null,

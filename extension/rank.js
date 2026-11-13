@@ -10,8 +10,10 @@
   // Viertel-Wert: nächstes Viertel aus dem Viertel-Finder (Koordinaten), sonst Namensabgleich.
   // Namensabgleich: genau gleicher Name zuerst; Teilnamen nur als ganze Wörter und nur mit ≥ 4 Zeichen
   // ("sant" trifft nicht "santa"). Ein Teilname-Treffer zählt direkt, mehrere gelten als "ungefähr" (Mittelwert).
-  function areaFor(listing, areas) {
-    if (!areas?.length) return null;
+  function areaFor(listing, allAreas) {
+    // R7: Viertel ohne Wert (total) würden den Passt-Wert zu NaN machen
+    const areas = (allAreas || []).filter(a => a && Number.isFinite(a.total));
+    if (!areas.length) return null;
     if (listing.lat != null) {
       let best = null, bd = Infinity;
       for (const a of areas) { const d = distM(listing, a); if (d < bd) { bd = d; best = a; } }
@@ -24,7 +26,7 @@
       const hits = exact.length ? exact : areas.filter(a => { const n = norm(a.name); return n && (word(loc, n) || word(n, loc)); });
       if (hits.length === 1) return { ...hits[0], dist: null };
       if (hits.length > 1) {
-        const avg = k => Math.round(hits.reduce((s, a) => s + a[k], 0) / hits.length);
+        const avg = k => { const v = hits.map(a => a[k]).filter(Number.isFinite); return v.length ? Math.round(v.reduce((s, x) => s + x, 0) / v.length) : null; };
         return { name: listing.locality, lat: hits[0].lat, lon: hits[0].lon, total: avg('total'), min: avg('min'), minName: null, approx: true, dist: null };
       }
     }

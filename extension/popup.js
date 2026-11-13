@@ -50,11 +50,19 @@ function itemRow(i) {
       i.note ? h('div', { class: 'muted' }, '📝 ' + i.note) : null));
 }
 
+// R7: Einheit aus der Suche; ältere Einträge ohne isTotal: Reisesumme (stay) falls bekannt, sonst ohne Einheit
+function topPrice(l) {
+  const c = l.currency || '€';
+  if (l.isTotal === true) return `${l.totalPrice} ${c} gesamt`;
+  if (l.isTotal === false) return `${l.totalPrice} ${c} pro Nacht`;
+  return l.stay != null ? `${l.stay} ${c} gesamt` : `${l.totalPrice} ${c}`;
+}
+
 function topRow(l, n) {
   return h('a', { class: 'item', href: safeUrl(l.url), target: '_blank', style: 'display:block' },
     h('span', { class: 'score' }, l.score),
     h('div', {}, `${n}. ${l.title || l.kind || 'Unterkunft'}`),
-    h('div', { class: 'muted' }, [l.locality, l.rating && '⭐ ' + l.rating, l.totalPrice && `${l.totalPrice} ${l.currency || '€'} gesamt`].filter(Boolean).join(' · ')),
+    h('div', { class: 'muted' }, [l.locality, l.rating && '⭐ ' + l.rating, l.totalPrice && topPrice(l)].filter(Boolean).join(' · ')),
     h('div', { class: 'muted' }, (l.why || []).slice(0, 2).join(' · ')),
     (l.warn || []).length ? h('div', { class: 'muted warn' }, '⚠️ ' + l.warn.slice(0, 2).join(' · ')) : null);
 }

@@ -4,8 +4,8 @@
 (function (root) {
   const ROOM_RE = /\/rooms\/(?:[a-z]+\/)?(\d+)/;
 
-  // Zahl: "1.234", "1 234", "12,50", "702"
-  const AMT = '(?:\\d{1,3}(?:[.,\\u00a0\\u202f\\u2009 ]\\d{3})+|\\d+)(?:[.,]\\d{1,2})?';
+  // Zahl: "1.234", "1 234", "12,50", "702", indisch "1,23,456" (R7)
+  const AMT = '(?:\\d{1,2}(?:,\\d{2})+,\\d{3}|\\d{1,3}(?:[.,\\u00a0\\u202f\\u2009 ]\\d{3})+|\\d+)(?:[.,]\\d{1,2})?';
   // Währungen; Dollar-Arten zuerst, damit "US$" nicht als "$" zählt. Wortgrenze per Lookahead (\b geht bei "ł" nicht).
   const CUR = '(?:US\\$|CA\\$|AU\\$|NZ\\$|MX\\$|R\\$|A\\$|C\\$|€|CHF|£|¥|₹|\\$|zł|PLN|Kč|CZK|Ft|HUF|SEK|NOK|DKK|RON|lei|kr)(?![A-Za-z])';
   const CUR_RE = new RegExp(CUR);
@@ -16,7 +16,7 @@
   const NIGHT_RE = /pro nacht|per night|par nuit|por noche|por noite|a notte|per nacht|za noc|na noc|natt\b|pr\.? nat\b|per nat\b|\/ ?nat\b|\/ ?yö\b|gecelik|gece başına|ανά βράδυ|ανά νύχτα/i;
 
   function toNumber(s) {
-    const m = String(s).match(new RegExp(`^(\\d{1,3}(?:[.,\\u00a0\\u202f\\u2009 ]\\d{3})+|\\d+)(?:[.,](\\d{1,2}))?$`));
+    const m = String(s).match(new RegExp(`^(\\d{1,2}(?:,\\d{2})+,\\d{3}|\\d{1,3}(?:[.,\\u00a0\\u202f\\u2009 ]\\d{3})+|\\d+)(?:[.,](\\d{1,2}))?$`));
     if (!m) return null;
     return +(m[1].replace(/[.,    ]/g, '') + (m[2] ? '.' + m[2] : ''));
   }
@@ -334,6 +334,24 @@
     };
   }
 
+  // R7: Preis im Buchungsbereich der Unterkunftsseite. Währung vorn oder hinten („$120 night“, „200 € pro Nacht“).
+  // Nachtpreis = Betrag direkt vor dem Nacht-Wort (bei Rabatt steht der alte Preis davor), Gesamtpreis = Betrag am Gesamt-Wort.
+  const NIGHT_AFTER = /^\s*(?:\/\s*|pro\s+|per\s+|par\s+|por\s+|a\s+|za\s+|na\s+)?(?:nacht|night|nuit|noche|noite|notte|noc|natt|nat|yö|gece)(?![\p{L}])/iu;
+  const TOTAL_WORDS = '(?:insgesamt|gesamt\\w*|total|totaal|totalt|totale|łącznie|razem|celkem|i alt)';
+  const TOTAL_AFTER = new RegExp(`^\\s*${TOTAL_WORDS}(?![\\p{L}])`, 'iu');
+  const TOTAL_BEFORE = new RegExp(`${TOTAL_WORDS}[^\\d\\n]{0,24}$`, 'i');
+  function bookPrice(text) {
+    const t = String(text || '');
+    const all = [...t.matchAll(new RegExp(`(${AMT})\\s*(${CUR})|(${CUR})\\s*(${AMT})`, 'g'))].map(m => ({ v: toNumber(m[1] || m[4]), c: m[2] || m[3], i: m.index, e: m.index + m[0].length }));
+    let night = null, total = null;
+    for (const a of all) {
+      if (a.v == null) continue;
+      if (night == null && NIGHT_AFTER.test(t.slice(a.e, a.e + 24))) night = a;
+      else if (TOTAL_AFTER.test(t.slice(a.e, a.e + 24)) || TOTAL_BEFORE.test(t.slice(Math.max(0, a.i - 40), a.i))) total = a;
+    }
+    return { night: night ? night.v : null, total: total ? total.v : null, currency: (night || total)?.c || null };
+  }
+
   // Nr. 182 Ausstattung
   const AMENITIES = {
     wifi: /w-?lan|wifi|wi-fi|internet/i,
@@ -341,7 +359,8 @@
     ac: /klimaanlage|air conditioning|climatisation|aire acondicionado|aria condizionata|\bAC\b/i,
     parking: /parkplatz|parking|stellplatz|garage|aparcamiento|parcheggio/i,
     pool: /\bpool\b|schwimmbad|piscine|piscina|swimming/i,
-    washer: /waschmaschine|washer|washing machine|lave-linge|lavadora|lavatrice/i,
+    washer: /waschmaschine|(?<!dish)washer|washing machine|lave-linge|lavadora|lavatrice/i,
+    dishwasher: /geschirrspüler|spülmaschine|dishwasher|lave-vaisselle|lavavajillas|lavastoviglie|vaatwasser/i, // R7: eigenes Merkmal
     heating: /heizung|heating|chauffage|calefacción|riscaldamento/i,
     elevator: /aufzug|fahrstuhl|elevator|lift|ascenseur|ascensor|ascensore/i,
   };
@@ -352,13 +371,19 @@
   }
 
   // Nr. 185/409 Stornobedingung
+  const STRICT_WORD = '(?:streng\\w*|strict|stricte|estricta|rigida)';
+  const CANCEL_WORD = '(?:stornier\\w*|storno\\w*|cancell?ation|annulation|cancelaci\\w*|cancellazion\\w*|richtlinie|polic(?:y|ies)|politique|política|bedingung\\w*)';
+  const STRICT_ALONE = new RegExp(`^\\s*${STRICT_WORD}\\s*$`, 'im');
+  const STRICT_NEAR = new RegExp(`\\b${STRICT_WORD}\\b[^.\\n]{0,30}${CANCEL_WORD}|${CANCEL_WORD}[^.\\n]{0,30}\\b${STRICT_WORD}\\b`, 'i');
   function cancellation(text) {
     const t = String(text || '');
-    if (/nicht erstattungsfähig|non[- ]?refundable|non remboursable|no reembolsable|non rimborsabile/i.test(t)) return { kind: 'nonrefundable', until: null };
+    // R7: erst die kostenlose Frist („… vor dem 12. Mai. Danach nicht erstattungsfähig.“), dann der Rest
     const free = t.match(/(?:kostenlos(?:e)? stornier\w*|free cancell?ation|annulation gratuite|cancelación gratuita|cancellazione gratuita)[^.\n]{0,30}?(?:bis|before|until|avant|antes del?|entro)\s+(\d{1,2}\.?\s+[A-Za-zäéû]+|[A-Za-zäéû]+\s+\d{1,2}|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)/i);
     if (free) return { kind: 'free', until: free[1].trim() };
     if (/kostenlos(?:e)? stornier|free cancell?ation|annulation gratuite|cancelación gratuita|cancellazione gratuita/i.test(t)) return { kind: 'free', until: null };
-    if (/\bstreng\b|\bstrict\b|\bstricte\b|\bestricta\b|\brigida\b/i.test(t)) return { kind: 'strict', until: null };
+    if (/nicht erstattungsfähig|non[- ]?refundable|non remboursable|no reembolsable|non rimborsabile/i.test(t)) return { kind: 'nonrefundable', until: null };
+    // R7: „streng“ nur als eigene Zeile („Streng“) oder neben Stornierung/Richtlinie, nicht „Rauchen ist streng verboten“
+    if (STRICT_ALONE.test(t) || STRICT_NEAR.test(t)) return { kind: 'strict', until: null };
     return { kind: null, until: null };
   }
 
@@ -400,6 +425,6 @@
   root.StayMatchParse = {
     ratingFromAria, isNewLabel, isMultiUnit, normBadge, priceOf, decodeId, findKey,
     diagnose, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, currency, rating, details, detailsExt, localityFromTitle, ROOM_RE,
-    searchKey, mergeSearchResults, houseRules, amenities, cancellation, hostInfo, scamSignals, touristTax, TOTAL_RE,
+    searchKey, mergeSearchResults, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, hostInfo, scamSignals, touristTax, TOTAL_RE,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
