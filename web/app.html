@@ -232,6 +232,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 
     <label id="peopleLabel" class="sec">Was ist dir in der Gegend wichtig?</label>
     <div id="people"></div>
+    <p class="hint warn" id="peopleWarn" role="status"></p>
     <div class="tools">
       <button type="button" class="link" id="addPerson">+ Person hinzufügen</button>
       <button type="button" class="link" id="example">Beispiel mit Mitreisenden laden</button>
@@ -274,7 +275,6 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
       <div class="body">
         <label for="radius">Umkreis um das Viertel</label>
         <select id="radius">
-          <option value="auto">Automatisch (1,2 km mit viel Bahn, sonst 800 m)</option>
           <option value="500">500 m (kurze Wege)</option>
           <option value="800" selected>800 m (Standard)</option>
           <option value="1200">1,2 km</option>
@@ -297,7 +297,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     </div>
     <button type="button" class="link" id="share" style="display:block;margin-top:6px">🔗 Link zum Teilen kopieren</button>
     <div class="hint" id="shareMsg" role="status" aria-live="polite">Mit dem Link öffnest du deine Suche auf einem anderen Gerät oder teilst sie mit Mitreisenden. Die Daten stehen nur im Link.</div>
-    <div class="hint">Daten: OpenStreetMap (Orte im Umkreis, nähere zählen mehr). Für Ortssuche, Orte und Kartenkacheln werden OpenStreetMap-Dienste angefragt. <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md">Datenschutz</a>.</div>
+    <div class="hint">Daten: OpenStreetMap (Orte im Umkreis, nähere zählen mehr). Für Ortssuche, Orte und Kartenkacheln werden OpenStreetMap-Dienste angefragt. <a href="/datenschutz">Datenschutz</a>.</div>
     <details>
       <summary>Wie wird gewertet?</summary>
       <div class="body">Standardmäßig zählt (wenn ihr mehrere seid) zu 60 % die am wenigsten zufriedene Person und zu 40 % der Schnitt, so gewinnt nicht einfach die Mehrheit. Mit dem Fairness-Regler änderst du das Verhältnis. Das Budget ändert die Wertung nicht, es filtert nur die Airbnb-Suche. Die Preislage je Viertel ist eine grobe Schätzung aus Lage und Sehenswürdigkeiten. Ändern sich Reisende oder Umkreis, wird sofort neu gerechnet.</div>
@@ -317,6 +317,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
         <ol class="steps" id="ldSteps" aria-hidden="true"><li>Stadt finden</li><li>Orte laden</li><li>Viertel bewerten</li></ol>
         <p class="ldnote" id="ldNote" aria-hidden="true"></p>
         <p class="ldtip" id="ldTip" aria-hidden="true"></p>
+        <ul id="ldTips" hidden><li>Gezählt werden Bars, Cafés, Parks, Sehenswürdigkeiten und Haltestellen im Umkreis jedes Viertels.</li><li>Mit Mitreisenden zählt die am wenigsten zufriedene Person am meisten, so gewinnt nicht einfach die Mehrheit.</li><li>Die Daten kommen live von OpenStreetMap, gepflegt von Freiwilligen. Große Städte brauchen etwas länger.</li><li>Die Städte unter „Beliebte Ziele“ sind vorgeladen und erscheinen sofort.</li><li>Ist eine Stadt einmal geladen, geht jede weitere Suche dort heute ohne Wartezeit.</li><li>Mit dem Plugin für Chrome siehst du auf Airbnb direkt die drei besten Unterkünfte.</li></ul>
       </div>
     </div>
     <div class="card" id="intro">
@@ -325,7 +326,18 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     </div>
     <div id="dest" aria-labelledby="destH">
       <h2 id="destH">Beliebte Ziele</h2>
-      <div class="dgrid" id="destGrid"></div>
+      <div class="dgrid" id="destGrid">
+        <button type="button" class="dcard" data-city="Barcelona" aria-label="Viertel in Barcelona finden"><span class="ph"><img src="media/staedte/barcelona.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Barcelona</b><span class="s">Strand, Tapas, Altstadt</span></button>
+        <button type="button" class="dcard" data-city="Lissabon" aria-label="Viertel in Lissabon finden"><span class="ph"><img src="media/staedte/lissabon.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Lissabon</b><span class="s">Hügel, Aussichtspunkte, Fado</span></button>
+        <button type="button" class="dcard" data-city="Rom" aria-label="Viertel in Rom finden"><span class="ph"><img src="media/staedte/rom.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Rom</b><span class="s">Piazzas, Trattorien, Antike</span></button>
+        <button type="button" class="dcard" data-city="Wien" aria-label="Viertel in Wien finden"><span class="ph"><img src="media/staedte/wien.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Wien</b><span class="s">Kaffeehäuser, Parks, Kultur</span></button>
+        <button type="button" class="dcard" data-city="Berlin" aria-label="Viertel in Berlin finden"><span class="ph"><img src="media/staedte/berlin.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Berlin</b><span class="s">Kieze, Bars, Spreeufer</span></button>
+        <button type="button" class="dcard" data-city="Paris" aria-label="Viertel in Paris finden"><span class="ph"><img src="media/staedte/paris.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Paris</b><span class="s">Cafés, Museen, Seine</span></button>
+        <button type="button" class="dcard" data-city="Madrid" aria-label="Viertel in Madrid finden"><span class="ph"><img src="media/staedte/madrid.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Madrid</b><span class="s">Dachterrassen, Tapas, Parks</span></button>
+        <button type="button" class="dcard" data-city="Prag" aria-label="Viertel in Prag finden"><span class="ph"><img src="media/staedte/prag.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Prag</b><span class="s">Altstadt, Brücken, Bier</span></button>
+        <button type="button" class="dcard" data-city="Amsterdam" aria-label="Viertel in Amsterdam finden"><span class="ph"><img src="media/staedte/amsterdam.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Amsterdam</b><span class="s">Grachten, Fahrrad, Cafés</span></button>
+        <button type="button" class="dcard" data-city="Budapest" aria-label="Viertel in Budapest finden"><span class="ph"><img src="media/staedte/budapest.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Budapest</b><span class="s">Donau, Thermen, Ruinenbars</span></button>
+      </div>
     </div>
     <p class="muted" id="extHint" hidden>Tipp: Mit dem StayMatch-Plugin für Chrome werden die Unterkünfte auf Airbnb automatisch für dich bewertet.</p>
     <div id="mapSection" hidden>
@@ -346,14 +358,14 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
       <label><input type="checkbox" id="onlyFav"> Nur Favoriten (<span id="favCount">0</span>)</label>
     </div>
     <div class="whatif" id="whatif" aria-live="polite"></div>
-    <div id="compare" aria-live="polite"></div>
+    <div id="compare"></div><p class="sr" id="cmpMsg" role="status"></p>
     <h2 class="sr">Ergebnisse</h2>
     <div id="results" aria-busy="false"></div>
     <button type="button" class="link" id="more" hidden>Mehr Viertel anzeigen</button>
   </section>
 </main>
 <footer>
-  <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden.</div>
+  <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden. · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a></div>
 </footer>
 <script src="vendor/leaflet/leaflet.js"></script>
 <!-- Reihenfolge wichtig: core.js zuerst (klassische Skripte, gemeinsamer globaler Bereich) -->

@@ -121,7 +121,7 @@ test('R5-32..38: Auszeichnungen, Gewichte, parseGroup', () => {
   const mk = (total, transit) => ({ group: { total, scores: [total] }, nearest: { transit } });
   const ranked = [mk(60, 900), mk(80, 900)]; // z. B. nach „Nächste Bahn“ sortiert
   const aw = SM.awards(ranked, [{ name: 'A', type: 'party' }]);
-  assert.ok(aw[1].includes('Bester Kompromiss') && !aw[0].includes('Bester Kompromiss'));
+  assert.ok(aw[1].includes('Beste Wahl für dich') && !aw[0].includes('Beste Wahl für dich'), 'eine Person: kein „Kompromiss“ (R7)');
   assert.ok(!aw.flat().includes('Kürzester Weg zur Bahn'), '900 m ist kein kurzer Weg');
   assert.ok(SM.awards([mk(60, 250)], [{ name: 'A', type: 'party' }])[0].includes('Kürzester Weg zur Bahn'));
   assert.deepEqual(SM.weightsOf({ type: 'party', custom: {} }), SM.PRESETS.party.w);
@@ -137,5 +137,7 @@ test('R5-32..38: Auszeichnungen, Gewichte, parseGroup', () => {
 
 test('R5-43: airbnbUrl begrenzt Gäste auf Airbnb-Grenzen', () => {
   const u = new URL(SM.airbnbUrl({ lat: 41, lon: 2, name: 'X', city: 'Y', adults: 40, children: 99, infants: 1.5 }));
-  assert.equal(u.searchParams.get('adults'), '16'); assert.equal(u.searchParams.get('children'), '15'); assert.equal(u.searchParams.get('infants'), '1');
+  assert.equal(u.searchParams.get('adults'), '16'); assert.equal(u.searchParams.get('children'), null, 'R7: höchstens 16 Gäste zusammen'); assert.equal(u.searchParams.get('infants'), '1');
+  const k = new URL(SM.airbnbUrl({ lat: 41, lon: 2, name: 'X', city: 'Y', adults: 1, children: 99 }));
+  assert.equal(k.searchParams.get('children'), '15');
 });

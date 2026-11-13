@@ -26,7 +26,7 @@
   // Eine Person aus gespeicherten oder per Link gelieferten Rohdaten (nie dem Wert trauen)
   function cleanPerson(raw) {
     if (!raw || typeof raw.name !== 'string') return null;
-    const p = { name: raw.name.slice(0, 40) || 'Person', type: PRESETS[raw.type] ? raw.type : 'chill' };
+    const p = { name: raw.name.trim().slice(0, 40) || 'Person', type: PRESETS[raw.type] ? raw.type : 'chill' };
     if (PRESETS[raw.type2] && raw.type2 !== p.type) p.type2 = raw.type2;
     const c = cleanWeights(raw.custom); if (c) p.custom = c;
     const v = Array.isArray(raw.veto) ? [...new Set(raw.veto.filter(k => CATEGORIES[k]))] : [];
@@ -108,8 +108,12 @@
     // Raster, damit nicht jedes Viertel jeden Ort prüft (Großstadt: 250 × 14 000)
     const lat0 = areas.length ? areas.reduce((x, a) => x + a.lat, 0) / areas.length : 0;
     const cy = radius * 1.2 / 111320, cx = radius * 1.2 / (111320 * Math.cos(lat0 * Math.PI / 180));
-    const grid = new Map();
-    for (const p of pois) { const k = `${Math.floor(p.lat / cy)},${Math.floor(p.lon / cx)}`; (grid.get(k) || grid.set(k, []).get(k)).push(p); }
+    const grid = new Map(), tgrid = new Map(), TR = 1500, ty = TR / 111320, tx = TR / (111320 * Math.cos(lat0 * Math.PI / 180));
+    const put = (g, k, p) => (g.get(k) || g.set(k, []).get(k)).push(p);
+    for (const p of pois) {
+      put(grid, `${Math.floor(p.lat / cy)},${Math.floor(p.lon / cx)}`, p);
+      if (p.cat === 'transit') put(tgrid, `${Math.floor(p.lat / ty)},${Math.floor(p.lon / tx)}`, p);
+    }
     for (const a of areas) {
       a.counts = zero(); a.sums = zero(); a.nearest = Object.fromEntries(keys.map(k => [k, null]));
       const gy = Math.floor(a.lat / cy), gx = Math.floor(a.lon / cx);
@@ -120,6 +124,14 @@
           a.counts[p.cat]++;
           a.sums[p.cat] += 1 - 0.5 * (d / radius); // Entfernungsabfall: direkt vor der Tür zählt doppelt so viel wie am Rand
           if (a.nearest[p.cat] === null || d < a.nearest[p.cat]) a.nearest[p.cat] = Math.round(d);
+        }
+      }
+      // Nächste Bahn auch außerhalb des Wertungsradius (bis 1,5 km), sonst heißt es bei 500 m schnell „keine Bahn“
+      const ty0 = Math.floor(a.lat / ty), tx0 = Math.floor(a.lon / tx);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        for (const p of tgrid.get(`${ty0 + dy},${tx0 + dx}`) || []) {
+          const d = distM(a, p);
+          if (d <= TR && (a.nearest.transit === null || d < a.nearest.transit)) a.nearest.transit = Math.round(d);
         }
       }
     }
@@ -145,8 +157,9 @@
   }
   function median(xs) { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; }
   // Geheimtipp: fast so gut wie die Spitze, aber wenig Sehenswürdigkeiten und abseits vom Zentrum
+  // „ruhiger“ heißt auch: wenig Bars (sonst bekäme ein Kneipenviertel am Rand das Abzeichen)
   function isSecretTip(a, best, medCentre) {
-    return a.group.total >= best - 10 && (a.norm.sights || 0) < 0.45 && a.centerDist > medCentre;
+    return a.group.total < best && a.group.total >= best - 10 && (a.norm.sights || 0) < 0.45 && (a.norm.party || 0) < 0.45 && a.centerDist > medCentre;
   }
   // Durchschnitt der Anzahl je Kategorie über alle bewerteten Viertel
   function cityStats(areas) {
@@ -237,7 +250,7 @@
     const out = ranked.map(() => []);
     if (!ranked.length) return out;
     let b0 = 0; ranked.forEach((a, i) => { if (a.group.total > ranked[b0].group.total) b0 = i; });
-    out[b0].push('Bester Kompromiss');
+    out[b0].push(people.length === 1 ? 'Beste Wahl für dich' : 'Bester Kompromiss');
     const types = [...new Set(people.map(p => p.type))];
     if (types.length > 1) for (const t of types) {
       const idx = people.map((p, i) => p.type === t ? i : -1).filter(i => i >= 0);
@@ -287,7 +300,8 @@
 
   function nights(checkin, checkout) {
     if (!checkin || !checkout) return 0;
-    return Math.max(0, Math.round((new Date(checkout) - new Date(checkin)) / 86400000));
+    const n = Math.round((new Date(checkout) - new Date(checkin)) / 86400000);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
   }
 
   // Deep-Link in die Airbnb-Suche (Kartenbereich rund ums Viertel)
@@ -297,11 +311,13 @@
     if (checkin) q.set('checkin', checkin);
     if (checkout) q.set('checkout', checkout);
     const cap = (v, max) => Math.max(0, Math.min(max, Math.floor(+v) || 0));
-    if (cap(adults, 16)) q.set('adults', cap(adults, 16)); // Airbnb: höchstens 16 Gäste, Kinder ≤ 15, Babys ≤ 5
-    if (cap(children, 15)) q.set('children', cap(children, 15));
+    const ad = cap(adults, 16), ch = Math.min(cap(children, 15), 16 - ad); // Airbnb: höchstens 16 Gäste (Erwachsene + Kinder), Babys ≤ 5
+    if (ad) q.set('adults', ad);
+    if (ch) q.set('children', ch);
     if (cap(infants, 5)) q.set('infants', cap(infants, 5));
     if (minBedrooms) q.set('min_bedrooms', minBedrooms);
     if (priceMaxNight) q.set('price_max', Math.round(priceMaxNight));
+    q.set('currency', 'EUR'); // Budget ist in Euro: sonst gilt price_max in der Kontowährung (CHF, GBP …)
     q.set('ne_lat', (lat + dLat).toFixed(5)); q.set('ne_lng', (lon + dLon).toFixed(5));
     q.set('sw_lat', (lat - dLat).toFixed(5)); q.set('sw_lng', (lon - dLon).toFixed(5));
     q.set('search_by_map', 'true');
@@ -318,5 +334,130 @@
     return out;
   }
 
-  root.StayMatch = { dedupePois, annotateCentre, isSecretTip, median, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
+  // ---- Hilfen der Web-App ohne DOM (testbar in Node) ----
+  // Welche Viertel kommen in die Liste? Genug Orte, genug von dem, was die Gruppe sucht, nicht zu weit vom Zentrum.
+  // Kategorien, für die die Stadt kaum Daten hat (z. B. Einkaufen in älteren Vorab-Dateien), entscheiden nicht mit.
+  function eligibleAreas(areas, ppl, maxC = 0) {
+    const want = Object.keys(CATEGORIES).filter(k => k !== 'transit' && k !== 'food' && ppl.some(p => (p.w || weightsOf(p))[k] >= 0.3));
+    const empty = want.filter(k => areas.filter(a => a.counts[k] >= 2).length < Math.max(5, areas.length * 0.1)); // zu wenig Daten in der Stadt
+    const relevant = want.filter(k => !empty.includes(k));
+    const withData = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10
+      && (!relevant.length || relevant.reduce((x, k) => x + a.counts[k], 0) >= 2) && (!maxC || a.centerDist <= maxC));
+    return { withData, relevant, empty };
+  }
+  // Schlüssel für den Index der Vorab-Städte: „Barcelona, Spanien“, „Wien (Österreich)“ und „ROM “ finden die Datei
+  function cityKeys(s) {
+    const n = C.normCity, full = String(s || '');
+    return [...new Set([n(full), n(full.split(',')[0]), n(full.replace(/\(.*?\)/g, '').split(',')[0])])].filter(Boolean);
+  }
+  // Overpass-CSV (Kopfzeile + |-getrennte Zeilen) → Objekte
+  function parseCsv(text, fields = C.FIELDS) {
+    return String(text).split('\n').slice(1).filter(Boolean).map(line => {
+      const v = line.split('|'), t = {};
+      if (v.length !== fields.length) return null; // Name mit | → Zeile verwerfen
+      fields.forEach((f, i) => { if (v[i]) t[f] = v[i]; });
+      return t;
+    }).filter(Boolean);
+  }
+  // Vorab-Datei (web/data/*.json) → Zeilen und Stadtzentrum. Zentrum aus der Datei, sonst Mitte der Box (ungenau).
+  function fromFile(d) {
+    const rows = d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
+    const [s, w, n, e] = d.bbox, c = Array.isArray(d.center) ? { lat: +d.center[0], lon: +d.center[1] } : d.center || {};
+    const ok = Number.isFinite(+c.lat) && Number.isFinite(+c.lon) && +c.lat >= s && +c.lat <= n && +c.lon >= w && +c.lon <= e;
+    return { geo: { name: d.city, bbox: d.bbox, lat: ok ? +c.lat : (s + n) / 2, lon: ok ? +c.lon : (w + e) / 2 }, rows, at: d.t };
+  }
+  // Zeilen → Viertel (benannte Orte) und Orte je Kategorie (ohne Doppelte)
+  function buildData(rows) {
+    const areas = [], raw = [];
+    for (const t of rows) {
+      const lat = +t.lat, lon = +t.lon;
+      if (!lat) continue;
+      if (t.place && t.name) { if (!areas.some(a => a.name === t.name && distM(a, { lat, lon }) < 1500)) areas.push({ name: t.name, lat, lon }); continue; }
+      for (const cat of categoriesOf(t)) raw.push({ lat, lon, cat, name: t.name, tags: t });
+    }
+    return { areas, pois: dedupePois(raw) };
+  }
+  // Budget beim Umstellen des Modus umrechnen (gleiche Gesamtsumme, andere Bedeutung der Zahl)
+  function convertBudget(v, from, to, nights, people) {
+    const n = nights || 1, g = people || 1, total = from === 'pp' ? v * g : from === 'night' ? v * n : v;
+    return Math.round(to === 'pp' ? total / g : to === 'night' ? total / n : total);
+  }
+
+  // ---- Teilen-Link: Zustand ↔ Text nach #t= (Base64url aus JSON, alles bleibt im Link) ----
+  const b64 = {
+    enc: o => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+    dec: s => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)))),
+  };
+  function shareEncode(st) {
+    const { c, i, o, b, bm, r, mc, k, y, bd } = st;
+    return b64.enc({ c, i, o, b, bm, r, mc, k, y, bd, f: Math.round(st.fairness * 100),
+      p: st.people.map(p => [p.name, p.type, p.custom ? Object.keys(CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: st.wishes });
+  }
+  // Nie dem Link trauen: alles prüfen und begrenzen. null = kaputt.
+  function shareDecode(h) {
+    try {
+      const s = b64.dec(h);
+      const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
+      const day = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+      if (!s || !Array.isArray(s.p) || !s.p.length || s.p.length > 30) return null;
+      const keys = Object.keys(CATEGORIES);
+      const people = s.p.filter(Array.isArray).map(([n, t, c, v, t2]) => cleanPerson({
+        name: str(n, 40) || 'Person', type: t, type2: t2 || undefined,
+        custom: Array.isArray(c) ? Object.fromEntries(keys.map((k, i) => [k, (+c[i] || 0) / 10])) : undefined,
+        veto: v || undefined,
+      })).filter(Boolean);
+      if (!people.length) return null;
+      return { people, wishes: Array.isArray(s.w) ? s.w : null, fairness: s.f != null ? cleanFairness(+s.f / 100) : null,
+        form: { c: str(s.c, 80), i: day(s.i), o: day(s.o), b: Math.max(0, Math.min(1e6, +s.b || 0)), bm: s.bm, r: s.r, mc: s.mc, k: s.k, y: s.y, bd: s.bd } };
+    } catch { return null; }
+  }
+
+  // ---- Overpass: CSV statt JSON (ca. 6x kleiner). Abfrage und Spalten aus dem Kern (gleich wie beim Vorladen der Städte). ----
+  // Fair zu den freiwilligen Servern: erst einer, der nächste erst nach `stagger` ms ohne Antwort oder bei Fehler.
+  async function overpassFetch(bbox, outer, onTry, { f = (...a) => fetch(...a), stagger = 20000, total = 110000 } = {}) {
+    const q = C.overpassQuery(bbox);
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), total);
+    const stop = () => ctrl.abort();
+    if (outer) outer.addEventListener('abort', stop, { once: true });
+    let next = Promise.resolve();
+    const tries = C.OVERPASS_SERVERS.map((url, i) => {
+      const prev = next;
+      let release;
+      next = new Promise(r => { release = r; });
+      return (async () => {
+        if (i) { await Promise.race([prev, new Promise(r => setTimeout(r, stagger * i))]); if (ctrl.signal.aborted) throw new Error('abgebrochen'); if (onTry) onTry(i); }
+        try {
+          const r = await f(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
+          const text = await r.text();
+          if (!r.ok || !text.startsWith('@lat')) throw new Error(`${new URL(url).host}: ${r.status}`);
+          return text;
+        } catch (e) { release(); throw e; }
+      })();
+    });
+    try {
+      const text = await Promise.any(tries);
+      return parseCsv(text);
+    } catch (e) {
+      if (outer && outer.aborted) throw new DOMException('Abgebrochen', 'AbortError');
+      const codes = (e.errors || []).map(x => String(x.message).split(': ').pop());
+      const busy = codes.some(c => c === '429' || c === '504' || c === '503'), bad = codes.find(c => /^4\d\d$/.test(c) && c !== '429');
+      throw new Error(busy ? 'Die kostenlosen OpenStreetMap-Server sind gerade überlastet (Fehler 429/504). Das passiert zu Stoßzeiten. Meist klappt es nach 1–2 Minuten.'
+        : bad ? `Die OpenStreetMap-Server haben die Abfrage abgelehnt (Fehler ${bad}). Bitte später nochmal versuchen oder eine andere Stadt wählen.`
+        : 'Die OpenStreetMap-Server haben nicht rechtzeitig geantwortet (Zeitüberschreitung nach ca. 2 Minuten). Bitte nochmal versuchen. Große Städte brauchen länger.');
+    } finally {
+      clearTimeout(timeout); ctrl.abort();
+      if (outer) outer.removeEventListener('abort', stop); // sonst hängt der Listener nach Erfolg weiter am Signal
+    }
+  }
+  // Brücke zum Plugin: alle bewerteten Viertel + Gruppe (mit type2, custom, veto: Plugin bewertet dieselbe Person wie die App)
+  function tripOf({ city, checkin, checkout, nights, budget, ppl, wishes, areas }) {
+    return { savedAt: Date.now(), city, checkin, checkout, nights, budget, people: ppl.map(p => cleanPerson(p)), wishes,
+      areas: areas.map(a => {
+        const j = a.group.scores.indexOf(a.group.min);
+        return { name: a.name, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: (ppl[j] && ppl[j].name) || null };
+      }) };
+  }
+
+  root.StayMatch = { overpassFetch, tripOf, shareEncode, shareDecode, eligibleAreas, cityKeys, parseCsv, fromFile, buildData, convertBudget, dedupePois, annotateCentre, isSecretTip, median, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
 })(typeof window !== 'undefined' ? window : globalThis);

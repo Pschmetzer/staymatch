@@ -8,7 +8,6 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const LABELS = { party: ['🍸', 'Bars/Clubs'], chill: ['🌿', 'Parks/Cafés'], sights: ['🏛️', 'Sehenswürdigkeiten'], food: ['🍝', 'Restaurants'], transit: ['🚇', 'Stationen'], shop: ['🛍️', 'Einkaufen'], sport: ['🏃', 'Sport'], kids: ['🧸', 'Kinderorte'] };
 const CORE_CATS = ['party', 'chill', 'sights', 'food', 'transit'];
-const CITIES = ['Barcelona', 'Lissabon', 'Rom', 'Wien', 'Berlin', 'Paris', 'Madrid', 'Prag', 'Amsterdam', 'Budapest'];
 const TIERS = ['', '€', '€€', '€€€'];
 
 // Standard: eine Person (du). Mitreisende sind optional.
@@ -31,18 +30,26 @@ const openTune = new WeakSet(); // welche Personen haben das Regler-Feld offen
 let sortMode = 'fair', shown = 8;
 
 // ---- Rückgängig für Gruppenänderungen (Entfernen, Beispiel, Text, Vorlage) ----
-let undoSnap = null, undoTimer = null;
-function offerUndo(msg) {
-  undoSnap = clone(people); $('undoMsg').textContent = msg; $('undo').hidden = false;
+let undoSnap = null, undoTimer = null, undoSticky = false;
+// full: auch Wünsche, Fairness und Formular sichern (Teilen-Link); bleibt dann bis zur nächsten eigenen Änderung
+function offerUndo(msg, full) {
+  undoSnap = { people: clone(people), ...(full && { wishes: [...wishes], fairness, form: formState() }) };
+  undoSticky = !!full; $('undoMsg').textContent = msg; $('undo').hidden = false;
   armUndo();
 }
-const armUndo = () => { clearTimeout(undoTimer); undoTimer = setTimeout(() => { $('undo').hidden = true; }, 15000); };
+const armUndo = () => { clearTimeout(undoTimer); if (!undoSticky) undoTimer = setTimeout(() => { $('undo').hidden = true; }, 15000); };
 // Toast bleibt, solange Maus oder Fokus darauf liegen (WCAG 2.2.1)
 $('undo').addEventListener('mouseenter', () => clearTimeout(undoTimer)); $('undo').addEventListener('focusin', () => clearTimeout(undoTimer));
 $('undo').addEventListener('mouseleave', armUndo); $('undo').addEventListener('focusout', armUndo);
 $('undoBtn').onclick = () => {
   if (!undoSnap) return;
-  people = undoSnap.map(SM.cleanPerson).filter(Boolean); undoSnap = null; $('undo').hidden = true;
+  const u = undoSnap; undoSnap = null; undoSticky = false; $('undo').hidden = true;
+  people = u.people.map(SM.cleanPerson).filter(Boolean);
+  if (u.form) {
+    wishes = u.wishes; store.set('sm_wishes', wishes); renderWishes();
+    fairness = u.fairness; store.set('sm_fair', fairness); updateFair();
+    applyForm(u.form); syncMin(false); saveForm(); updateBudget();
+  }
   save(); renderPeople();
 };
 
@@ -83,11 +90,16 @@ const addDays = (s, n) => ymd(new Date(new Date(s + 'T12:00:00').getTime() + n *
 function syncMin(fixed) {
   const c = new Date($('checkin').value);
   if (isNaN(c)) return;
-  $('checkout').min = addDays($('checkin').value, 1);
   let msg = '';
-  if ($('checkout').value <= $('checkin').value) { $('checkout').value = addDays($('checkin').value, fixed ? stayN : 1); msg = `Die Abreise lag nicht nach der Anreise. Wir haben ${fixed && stayN > 1 ? `${stayN} Nächte` : 'den Folgetag'} eingesetzt.`; }
+  if ($('checkin').value < ymd(new Date())) { // per Tastatur eingetippt: min greift nur im Kalender
+    const n = Math.max(1, SM.nights($('checkin').value, $('checkout').value) || stayN);
+    $('checkin').value = ymd(new Date()); $('checkout').value = addDays($('checkin').value, n);
+    msg = 'Die Anreise lag in der Vergangenheit. Wir haben heute eingesetzt.';
+  }
+  $('checkout').min = addDays($('checkin').value, 1);
+  if ($('checkout').value <= $('checkin').value) { $('checkout').value = addDays($('checkin').value, fixed ? stayN : 1); msg += ` Die Abreise lag nicht nach der Anreise. Wir haben ${fixed && stayN > 1 ? `${stayN} Nächte` : 'den Folgetag'} eingesetzt.`; }
   stayN = Math.max(1, SM.nights($('checkin').value, $('checkout').value) || 1);
-  updateDates(fixed ? msg : '');
+  updateDates(fixed ? msg.trim() : '');
 }
 $('checkin').addEventListener('change', () => syncMin(true));
 $('checkout').addEventListener('change', () => syncMin(true));
@@ -111,7 +123,7 @@ function renderPeople() {
     row.children[0].onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addPerson(); } };
     row.children[1].onchange = e => { p.type = e.target.value; if (p.type2 === p.type) delete p.type2; delete p.custom; save(); renderPeople(); };
     row.children[2].onclick = () => { openTune.has(p) ? openTune.delete(p) : openTune.add(p); renderPeople(); };
-    row.children[3].onclick = () => { offerUndo(`${p.name} entfernt.`); people.splice(i, 1); save(); renderPeople(); $('addPerson').focus(); };
+    row.children[3].onclick = () => { offerUndo(`${p.name} entfernt.`); removePerson(i); };
     if (solo()) { row.classList.add('solo'); row.children[0].hidden = row.children[3].hidden = true; }
     box.appendChild(row);
     if (openTune.has(p)) box.appendChild(tunePanel(p, i));
@@ -119,13 +131,28 @@ function renderPeople() {
   });
   updateBudget();
 }
+// Airbnb: höchstens 16 Gäste (Erwachsene + Kinder) pro Unterkunft
+function guestWarn() {
+  const g = people.length + Math.max(0, +$('kids').value || 0);
+  $('peopleWarn').textContent = g > 16 ? `${g} Gäste: Airbnb erlaubt meist nur 16 pro Unterkunft. Sucht dann zwei Unterkünfte nebeneinander.` : '';
+}
+// Indizes hinter der gelöschten Person rücken nach: „Beste für Lena“ und „Karte zeigt: Lena“ bleiben bei Lena
+function removePerson(i) {
+  const shift = v => v === i ? null : v > i ? v - 1 : v;
+  const m = /^p:(\d+)$/.exec(sortMode); if (m) { const k = shift(+m[1]); sortMode = k == null ? 'fair' : `p:${k}`; }
+  const mw = $('mapWho'), k = /^\d+$/.test(mw.value) ? shift(+mw.value) : null;
+  if (/^\d+$/.test(mw.value)) mw.innerHTML = `<option value="${k == null ? 'g' : k}"></option>`; // buildMapBar übernimmt den Wert
+  people.splice(i, 1); save(); renderPeople();
+  const xs = $('people').querySelectorAll('.person button[aria-label$="entfernen"]:not([hidden])');
+  (xs[Math.min(i, xs.length - 1)] || $('addPerson')).focus();
+}
 // Schieberegler pro Person (-10..+10 je Kategorie) und „auf keinen Fall“ (Veto)
 const vt = v => `${Math.round(v)} von 10: ${v > 0 ? 'wichtig' : v < 0 ? 'stört' : 'egal'}`;
 function tunePanel(p, n) {
   const w = SM.weightsOf(p);
   const el = document.createElement('div');
   el.className = 'tune';
-  el.innerHTML = `<p class="muted">Was ist ${escapeHtml(p.name)} wichtig? Rechts = wichtig, links = stört. „Nie“ schließt Viertel mit viel davon ganz aus.${p.custom ? ' <b>Eigene Werte.</b> <button type="button" class="link" data-reset>Auf Typ zurücksetzen</button>' : ''}</p>
+  el.innerHTML = `<p class="muted">Was ist ${escapeHtml(p.name)} wichtig? Rechts = wichtig, links = stört. „Nie“ schließt Viertel mit viel davon ganz aus.<span data-cust ${p.custom ? '' : 'hidden'}> <b>Eigene Werte</b> (Typ und Mischtyp gelten nicht mehr). <button type="button" class="link" data-reset>Auf Typ zurücksetzen</button></span></p><p class="warn" data-warn role="status"></p>
     <div class="trow" style="grid-template-columns:86px 1fr"><label for="mix-${n}">Mischtyp</label>
     <select id="mix-${n}" data-mix><option value="">kein zweiter Typ</option>${Object.entries(SM.PRESETS).filter(([k]) => k !== p.type).map(([k, v]) => `<option value="${k}" ${k === p.type2 ? 'selected' : ''}>halb ${v.label}</option>`).join('')}</select></div>` +
     Object.entries(SM.CATEGORIES).map(([k, c]) => `<div class="trow">
@@ -135,25 +162,29 @@ function tunePanel(p, n) {
       <label class="veto"><input type="checkbox" data-veto="${k}" aria-label="Nie ${c.label} für ${escapeHtml(p.name)}" ${(p.veto || []).includes(k) ? 'checked' : ''}> Nie</label>
     </div>`).join('');
   el.querySelector('[data-mix]').onchange = e => { e.target.value ? p.type2 = e.target.value : delete p.type2; delete p.custom; save(); renderPeople(); };
+  const warn = () => { const w2 = SM.weightsOf(p); el.querySelector('[data-warn]').textContent = (p.veto || []).filter(k => w2[k] > 0).map(k => `${SM.CATEGORIES[k].label} ist wichtig und zugleich „Nie“: Das „Nie“ gewinnt.`).join(' '); };
   el.querySelectorAll('input[type=range]').forEach(r => {
     r.oninput = () => {
+      el.querySelector('[data-cust]').hidden = false;
       p.custom = SM.cleanWeights(Object.fromEntries([...el.querySelectorAll('input[type=range]')].map(x => [x.dataset.k, +x.value / 10])));
       r.nextElementSibling.textContent = r.value; r.setAttribute('aria-valuetext', vt(+r.value));
-      save();
+      warn(); save();
     };
   });
   el.querySelectorAll('input[data-veto]').forEach(c => {
     c.onchange = () => {
       const set = new Set(p.veto || []); c.checked ? set.add(c.dataset.veto) : set.delete(c.dataset.veto);
       p.veto = [...set]; if (!p.veto.length) delete p.veto;
-      save();
+      warn(); save();
     };
   });
   const reset = el.querySelector('[data-reset]');
   if (reset) reset.onclick = () => { delete p.custom; save(); renderPeople(); };
+  warn();
   return el;
 }
-function save() {
+function save(own = true) {
+  if (own && undoSticky) { undoSticky = false; armUndo(); }
   store.set('sm_people', people);
   rescore();
   // Änderungen gelten ab jetzt: alten Teilen-Link aus der Adresszeile nehmen, sonst überschreibt ein Neuladen die Eingaben
@@ -168,6 +199,7 @@ function budgetNums() {
   return { n, total, perNight: n ? total / n : 0, perPerson: g ? total / g : 0, perPersonNight: n && g ? total / n / g : 0 };
 }
 function updateBudget() {
+  guestWarn();
   const b = budgetNums(), kids = Math.max(0, +$('kids').value || 0), babys = Math.max(0, +$('babys').value || 0);
   const warn = !b.n ? '' : b.total === 0 ? 'Budget 0: In der Airbnb-Suche wird dann kein Preisfilter gesetzt.'
     : b.perPersonNight < 25 ? '⚠ Unter 25 € pro Person und Nacht wird es in den meisten Städten knapp.' : '';
@@ -182,7 +214,14 @@ function refreshLinks() {
   if (lastView) { saveTrip(lastData.geo, lastView.byTotal, lastView.ppl); renderResults(); renderHead(); }
 }
 ['checkin', 'checkout', 'budget', 'kids', 'babys'].forEach(id => $(id).addEventListener('input', refreshLinks));
-['budgetMode', 'beds'].forEach(id => $(id).addEventListener('change', refreshLinks));
+let bmPrev = $('budgetMode').value;
+$('budgetMode').addEventListener('change', () => {
+  const v = +$('budget').value || 0, to = $('budgetMode').value;
+  if (v) $('budget').value = SM.convertBudget(v, bmPrev, to, SM.nights($('checkin').value, $('checkout').value), people.length);
+  bmPrev = to; refreshLinks();
+  if (v) $('budgetInfo').insertAdjacentHTML('afterbegin', `<div class="warn">Umgerechnet: ${v} € → ${$('budget').value} € (${$('budgetMode').selectedOptions[0].text}).</div>`);
+});
+$('beds').addEventListener('change', refreshLinks);
 $('radius').addEventListener('change', () => { saveForm(); rescore(); });
 $('maxcenter').addEventListener('change', () => { saveForm(); shown = 8; rescore(); });
 function updateFair() { const f = Math.round(fairness * 100); $('fairOut').textContent = `${f} % unzufriedenste Person · ${100 - f} % Schnitt`; $('fair').value = f; }
@@ -190,7 +229,6 @@ $('fair').addEventListener('input', () => { fairness = SM.cleanFairness(+$('fair
 updateFair();
 function addPerson() {
   people.push({ name: `Person ${people.length + 1}`, type: 'chill' });
-  if (people.length > 16) $('shareMsg').textContent = 'Mehr als 16 Gäste: Airbnb erlaubt meist nur 16 pro Unterkunft. Sucht dann zwei Unterkünfte nebeneinander.';
   save(); renderPeople();
   const inputs = $('people').querySelectorAll('.person input'); const last = inputs[inputs.length - 1];
   if (last) { last.focus(); last.select(); }
@@ -207,12 +245,13 @@ $('pasteGo').onclick = () => {
   offerUndo(`${list.length} Personen aus dem Text übernommen.`); people = list; $('paste').value = ''; save(); renderPeople();
 };
 // ---- Gespeicherte Gruppen ----
+// Gespeicherte Vorlagen nie blind benutzen: kaputte Einträge verwerfen, sonst steht die ganze App
+const groups = () => arr(store.get('sm_groups', []), 8).filter(g => g && typeof g.name === 'string' && Array.isArray(g.people) && g.people.some(SM.cleanPerson));
 function renderTpl() {
-  const l = arr(store.get('sm_groups', []), 8);
-  $('tpl').innerHTML = '<option value="">Auswahl …</option>' + l.map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.people.length})</option>`).join('');
+  $('tpl').innerHTML = '<option value="">Auswahl …</option>' + groups().map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.people.length})</option>`).join('');
 }
 $('tpl').onchange = () => {
-  const g = arr(store.get('sm_groups', []), 8)[+$('tpl').value];
+  const g = groups()[+$('tpl').value];
   if (!g) return;
   const list = (g.people || []).map(SM.cleanPerson).filter(Boolean);
   if (!list.length) return;
@@ -221,10 +260,10 @@ $('tpl').onchange = () => {
 $('tplSave').onclick = () => {
   const name = (prompt('Name für diese Auswahl?', people.slice(0, 3).map(p => p.name).join(', ')) || '').trim().slice(0, 40);
   if (!name) return;
-  store.set('sm_groups', [...arr(store.get('sm_groups', []), 8), { name, people: clone(people) }].slice(-8)); renderTpl();
+  store.set('sm_groups', [...groups(), { name, people: clone(people) }].slice(-8)); renderTpl();
 };
 $('tplDel').onclick = () => {
-  const i = +$('tpl').value; const l = arr(store.get('sm_groups', []), 8);
+  const i = +$('tpl').value; const l = groups();
   if ($('tpl').value === '' || !l[i] || !confirm(`Auswahl „${l[i].name}“ löschen?`)) return;
   l.splice(i, 1); store.set('sm_groups', l); renderTpl();
 };
@@ -235,10 +274,8 @@ $('typeInfo').innerHTML = '<ul>' + Object.values(SM.PRESETS).map(v => {
   return `<li><b>${v.label}</b>: wichtig ${pos.join(', ')}${neg.length ? `; stört ${neg.join(', ')}` : ''}</li>`;
 }).join('') + '</ul><p>Mit ⚙️ an jeder Person stellst du alles einzeln ein oder mischst zwei Typen.</p>';
 // Schnellwahl beliebter Ziele
-$('cityChips').innerHTML = CITIES.map(c => `<button type="button">${c}</button>`).join('');
-const DEST_SUB = { Barcelona: 'Strand, Tapas, Altstadt', Lissabon: 'Hügel, Aussichtspunkte, Fado', Rom: 'Piazzas, Trattorien, Antike', Wien: 'Kaffeehäuser, Parks, Kultur', Berlin: 'Kieze, Bars, Spreeufer', Paris: 'Cafés, Museen, Seine', Madrid: 'Dachterrassen, Tapas, Parks', Prag: 'Altstadt, Brücken, Bier', Amsterdam: 'Grachten, Fahrrad, Cafés', Budapest: 'Donau, Thermen, Ruinenbars' };
-const slug = c => c.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '');
-$('destGrid').innerHTML = CITIES.map(c => `<button type="button" class="dcard" data-city="${c}" aria-label="Viertel in ${c} finden"><span class="ph"><img src="media/staedte/${slug(c)}.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>${c}</b><span class="s">${DEST_SUB[c] || ''}</span></button>`).join('');
+// Städte stehen einmal in app.html (Kacheln), die Schnellwahl entsteht daraus
+$('cityChips').innerHTML = [...document.querySelectorAll('#destGrid .dcard')].map(b => `<button type="button">${escapeHtml(b.dataset.city)}</button>`).join('');
 $('destGrid').onclick = e => { const b = e.target.closest('.dcard'); if (b) { $('city').value = b.dataset.city; saveForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); run(); } };
 $('cityChips').onclick = e => { const b = e.target.closest('button'); if (b) { $('city').value = b.textContent; saveForm(); run(); } };
 
@@ -252,61 +289,24 @@ async function geocode(city, signal) {
 // Zentrum und Suchfläche: Logik und Mindestgröße stehen in shared/core.js
 const geoFrom = res => C.geoFromNominatim(res);
 
-// CSV statt JSON: ca. 6x kleiner. Abfrage und Spalten kommen aus dem gemeinsamen Kern (gleich wie beim Vorladen der Städte).
-async function overpass(bbox, outer, onTry) {
-  const FIELDS = C.FIELDS, q = C.overpassQuery(bbox);
-  // Fair zu den freiwilligen Servern: erst einer, der nächste erst nach 20 s ohne Antwort oder bei Fehler.
-  const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), 110000);
-  if (outer) outer.addEventListener('abort', () => ctrl.abort(), { once: true });
-  let next = Promise.resolve();
-  const tries = C.OVERPASS_SERVERS.map((url, i) => {
-    const prev = next;
-    let release;
-    next = new Promise(r => { release = r; });
-    return (async () => {
-      if (i) { await Promise.race([prev, new Promise(r => setTimeout(r, 20000 * i))]); if (onTry && !ctrl.signal.aborted) onTry(i); }
-      try {
-        const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
-        const text = await r.text();
-        if (!r.ok || !text.startsWith('@lat')) throw new Error(`${new URL(url).host}: ${r.status}`);
-        return text;
-      } catch (e) { release(); throw e; }
-    })();
-  });
-  try {
-    const text = await Promise.any(tries);
-    clearTimeout(timeout); ctrl.abort();
-    return text.split('\n').slice(1).filter(Boolean).map(line => {
-      const v = line.split('|'), t = {};
-      if (v.length !== FIELDS.length) return null; // Name mit | → Zeile verwerfen
-      FIELDS.forEach((f, i) => { if (v[i]) t[f] = v[i]; });
-      return t;
-    }).filter(Boolean);
-  } catch (e) {
-    clearTimeout(timeout);
-    if (outer && outer.aborted) throw new DOMException('Abgebrochen', 'AbortError');
-    const codes = (e.errors || []).map(x => String(x.message).split(': ').pop());
-    const busy = codes.some(c => c === '429' || c === '504' || c === '503');
-    throw new Error(busy
-      ? 'Die kostenlosen OpenStreetMap-Server sind gerade überlastet (Fehler 429/504). Das passiert zu Stoßzeiten. Meist klappt es nach 1–2 Minuten.'
-      : 'Die OpenStreetMap-Server haben nicht rechtzeitig geantwortet (Zeitüberschreitung nach ca. 2 Minuten). Bitte nochmal versuchen. Große Städte brauchen länger.');
-  }
-}
+const overpass = (bbox, outer, onTry) => SM.overpassFetch(bbox, outer, onTry); // Logik in scoring.js
 
 // Vorab geladene Städte (scripts/prefetch-cities.mjs → web/data/). Der Index wird nur einmal geladen.
 const normCity = C.normCity;
 let indexPromise = null;
-async function prefetched(city) {
+async function prefetched(city, signal) {
   try {
-    indexPromise = indexPromise || fetch('data/index.json').then(r => r.json()).catch(() => ({}));
-    const file = (await indexPromise)[normCity(city)];
+    indexPromise = indexPromise || fetch('data/index.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    const idx = await indexPromise.catch(e => { indexPromise = null; throw e; }); // beim nächsten Mal neu versuchen
+    const file = SM.cityKeys(city).map(k => idx[k]).find(Boolean);
     if (!file) return null;
-    const d = await (await fetch('data/' + file)).json();
-    const rows = d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
-    const [s, w, n, e] = d.bbox;
-    return { geo: { name: d.city, bbox: d.bbox, lat: (s + n) / 2, lon: (w + e) / 2 }, rows, at: d.t };
-  } catch { return null; }
+    const r = await fetch('data/' + file, { signal });
+    if (!r.ok) throw new Error(r.status);
+    return SM.fromFile(await r.json());
+  } catch (e) {
+    if (signal && signal.aborted) throw e;
+    console.warn('Vorab-Daten nicht lesbar, lade live', e); return null;
+  }
 }
 
 // Ergebnis pro Stadt einen Tag lang im Browser merken (spart die langsame Abfrage)
@@ -330,21 +330,10 @@ function cacheSet(k, rows) {
 try { Object.keys(localStorage).filter(k => k.startsWith('sm_osm_') || k.startsWith('sm_osm2_')).forEach(k => localStorage.removeItem(k)); } catch {}
 
 let map, layer, poiLayer, bboxLayer, circles = [], cmp = [], lastData = null, lastView = null; // lastData: geladene Viertel + Orte → Neuberechnung ohne Netz
-function radius() {
-  const v = $('radius').value;
-  if (v === 'auto') return lastData && lastData.pois.filter(p => p.cat === 'transit').length >= 60 ? 1200 : 800;
-  return +v || 800;
-}
+const radius = () => +$('radius').value || 800;
 
 let runCtrl = null, tick = null, ldShow = null, ldPrev = null;
-const LD_TIPS = [
-  'Gezählt werden Bars, Cafés, Parks, Sehenswürdigkeiten und Haltestellen im Umkreis jedes Viertels.',
-  'Mit Mitreisenden zählt die am wenigsten zufriedene Person am meisten, so gewinnt nicht einfach die Mehrheit.',
-  'Die Daten kommen live von OpenStreetMap, gepflegt von Freiwilligen. Große Städte brauchen etwas länger.',
-  'Die Städte unter „Beliebte Ziele“ sind vorgeladen und erscheinen sofort.',
-  'Ist eine Stadt einmal geladen, geht jede weitere Suche dort heute ohne Wartezeit.',
-  'Mit dem Plugin für Chrome siehst du auf Airbnb direkt die drei besten Unterkünfte.'
-];
+const LD_TIPS = [...$('ldTips').children].map(li => li.textContent);
 const LD_EST = 75; // grobe Schätzung für das Laden aus OpenStreetMap in Sekunden
 function setBusy(on, msg) {
   $('go').disabled = on; $('cancel').hidden = !on; clearInterval(tick); clearTimeout(ldShow);
@@ -362,7 +351,8 @@ function setBusy(on, msg) {
   const draw = () => {
     const s = Math.round((Date.now() - t0) / 1000);
     // Sekunden nur alle 15 s in die Live-Region: Screenreader lesen sonst jede Sekunde vor
-    $('status').textContent = s % 15 === 0 ? `${base} (${s} s)` : base;
+    const st = s % 15 === 0 ? `${base} (${s} s)` : base;
+    if ($('status').textContent !== st) $('status').textContent = st;
     $('ldTitle').textContent = base.replace(/^Schritt \d von 3: /, '').replace(/, kann bis zu 2 Minuten dauern$/, '');
     [...$('ldSteps').children].forEach((li, i) => { li.className = i + 1 < step ? 'ok' : i + 1 === step ? 'on' : ''; });
     let p, time, unit;
@@ -401,7 +391,7 @@ async function run(pick) {
   try {
     // 1) vorab geladene Stadt (sofort, ohne Anfrage an OpenStreetMap-Server)
     let geo, rows = null, at = Date.now();
-    const pre = pick ? null : await prefetched(city);
+    const pre = pick ? null : await prefetched(city, signal);
     if (pre) { geo = pre.geo; rows = pre.rows; at = pre.at || at; }
     // 2) sonst: Ort suchen (bei mehreren gleich wichtigen Treffern nachfragen) und Daten holen (Tageszwischenspeicher im Browser)
     if (!rows) {
@@ -421,15 +411,8 @@ async function run(pick) {
     }
 
     setBusy.set('Schritt 3 von 3: Bewerte Viertel');
-    const areas = [], raw = [];
-    for (const t of rows) {
-      const lat = +t.lat, lon = +t.lon;
-      if (!lat) continue;
-      if (t.place && t.name) { if (!areas.some(a => a.name === t.name && SM.distM(a, { lat, lon }) < 1500)) areas.push({ name: t.name, lat, lon }); continue; }
-      for (const cat of SM.categoriesOf(t)) raw.push({ lat, lon, cat, name: t.name, tags: t });
-    }
+    const { areas, pois } = SM.buildData(rows); // dieselben Orte als Punkt und Gebäude, Bahnhofseingänge: nur einmal zählen
     if (areas.length < 2) throw new Error('Keine Viertel in OpenStreetMap gefunden – andere Stadt versuchen.');
-    const pois = SM.dedupePois(raw); // dieselben Orte als Punkt und Gebäude, Bahnhofseingänge: nur einmal zählen
     lastData = { areas, pois, geo, q: normCity(city), at };
     cmp = []; lastView = null; shown = 8; renderMap.key = null;
     $('stale').hidden = true;
@@ -440,6 +423,7 @@ async function run(pick) {
       $('status').scrollIntoView({ block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth' });
     }
   } catch (e) {
+    restoreMap();
     if (e.name === 'AbortError' || signal.aborted) $('status').textContent = 'Suche abgebrochen. Du kannst es jederzeit nochmal starten.';
     else if (!navigator.onLine) showError('Du bist offline. Internet prüfen und nochmal versuchen.');
     else showError(/fetch|network|load failed/i.test(e.message) ? 'Keine Verbindung zum Kartendienst. Internet prüfen und nochmal versuchen.' : e.message, !/nicht gefunden|Keine Viertel/.test(e.message));
@@ -477,10 +461,8 @@ function compute() {
   const ppl = people.map(p => ({ ...p, w: SM.weightsOf(p) }));
   for (const a of areas) { a.group = SM.groupScore(a.norm, ppl, fairness); a.vetoes = SM.vetoes(a.norm, ppl, a.counts); }
   // Viertel ohne nennenswerte Infrastruktur ausblenden, auch ohne die Orte, die die Gruppe sucht. Viertel mit Veto und zu weit vom Zentrum ebenso.
-  const relevant = Object.keys(SM.CATEGORIES).filter(k => k !== 'transit' && k !== 'food' && ppl.some(p => p.w[k] >= 0.3));
-  const maxC = (+$('maxcenter').value || 0) * 1000;
-  const withData = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10
-    && (!relevant.length || relevant.reduce((x, k) => x + a.counts[k], 0) >= 2) && (!maxC || a.centerDist <= maxC));
+  const { withData, relevant, empty } = SM.eligibleAreas(areas, ppl, (+$('maxcenter').value || 0) * 1000);
+  const emptyNote = empty.length ? ` Für ${empty.map(k => SM.CATEGORIES[k].label).join(', ')} hat OpenStreetMap hier kaum Daten; das zählt beim Ausblenden nicht mit.` : '';
   const okAreas = withData.filter(a => !a.vetoes.length);
   const vetoed = withData.length - okAreas.length;
   const vetoNote = vetoed ? ` ${vetoed} Viertel ausgeschlossen (${[...new Set(withData.flatMap(a => a.vetoes.map(v => `${v.name}: nie ${v.label}`)))].slice(0, 3).join(', ')}).` : '';
@@ -505,7 +487,7 @@ function compute() {
       : 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis, weniger strenge Entfernung zum Zentrum oder einen anderen Ortsnamen.';
     return;
   }
-  $('status').textContent = `${okAreas.length} Viertel und ${pois.length} Orte ausgewertet.${vetoNote} Die besten ${solo() ? 'für dich' : 'für eure Gruppe'}:`;
+  $('status').textContent = `${okAreas.length} Viertel und ${pois.length} Orte ausgewertet.${vetoNote}${emptyNote} Die besten ${solo() ? 'für dich' : 'für eure Gruppe'}:`;
   $('intro').hidden = true; $('dest').hidden = true;
   if (/Chrome\//.test(navigator.userAgent) && !/Edg|OPR|Mobile|Android/.test(navigator.userAgent)) $('extHint').hidden = false;
   saveTrip(geo, byTotal, ppl);
@@ -571,28 +553,28 @@ function renderResults() {
     }).join('');
     const thin = SM.thinData(c) ? `<div class="muted">ℹ️ Wenig Daten in OpenStreetMap für dieses Viertel (${Object.values(c).reduce((x, y) => x + y, 0)} Orte im Umkreis). Die Wertung ist hier unsicher.</div>` : '';
     const k = areaKey(a), isFav = favs.has(k);
-    const tip = SM.isSecretTip(a, best, medCentre);
+    const tip = i > 0 && SM.isSecretTip(a, best, medCentre);
     const badges = [...awards[i].map(t => `<span class="badge">${escapeHtml(t)}</span>`), tip ? '<span class="badge tip" title="Fast so gut wie die Spitze, aber ruhiger und weiter vom Zentrum">Geheimtipp</span>' : ''].join('');
     const delta = a.delta ? `<span class="delta ${a.delta > 0 ? 'up' : 'down'}" title="Platzwechsel gegenüber vorher">${a.delta > 0 ? '▲' : '▼'}${Math.abs(a.delta)}</span>` : '';
     const next = ranked[i + 1];
     const tie = sortMode === 'fair' && next && a.group.total - next.group.total <= 1 ? `<div class="muted">≈ Fast gleichauf mit Platz ${i + 2} (${escapeHtml(next.name)}). Der Unterschied ist kleiner als die Genauigkeit der Daten.</div>` : '';
-    const mini = usedCats.map(kk => `<div><span>${LABELS[kk][1]}</span><span class="bar" aria-hidden="true"><i style="width:${Math.round(a.norm[kk] * 100)}%"></i></span></div>`).join('');
+    const mini = usedCats.map(kk => `<div><span>${LABELS[kk][1]}<span class="sr">: ${Math.round(a.norm[kk] * 100)} %</span></span><span class="bar" aria-hidden="true"><i style="width:${Math.round(a.norm[kk] * 100)}%"></i></span></div>`).join('');
     const countsLine = Object.keys(SM.CATEGORIES).filter(kk => CORE_CATS.includes(kk) || usedCats.includes(kk))
       .map(kk => `${LABELS[kk][0]} ${c[kk]} ${LABELS[kk][1]}${stats[kk] ? ` (Ø ${stats[kk]})` : ''}`).join(' · ');
     const tr = a.nearest.transit, km = (a.centerDist / 1000).toFixed(1).replace('.', ',');
-    const where = `${tr != null ? `🚇 Bahn ${tr} m` : '🚇 keine Bahn im Umkreis'} · 📍 ${km} km zum Zentrum · <span title="Grobe Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise">Preislage (Schätzung): ${TIERS[a.tier]}</span>`;
+    const where = `${tr != null ? `🚇 Bahn ${tr} m` : '🚇 keine Bahn im Umkreis von 1,5 km'} · 📍 ${km} km zum Zentrum · <span title="Grobe Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise">Preislage (Schätzung): ${TIERS[a.tier]}</span>`;
     const neigh = pool.filter(x => x !== a && !ranked.includes(x) && SM.distM(a, x) < minDist).slice(0, 3).map(x => `${escapeHtml(x.name)} (${x.group.total})`);
     const osm = `https://www.openstreetmap.org/?mlat=${a.lat.toFixed(5)}&mlon=${a.lon.toFixed(5)}#map=16/${a.lat.toFixed(5)}/${a.lon.toFixed(5)}`;
     return `<article class="card result" id="area-${i}" data-i="${i}" tabindex="-1" aria-labelledby="areah-${i}">
       <h3 id="areah-${i}"><span class="rank-num">${i + 1}. ${escapeHtml(a.name)} <button type="button" class="fav" data-fav="${escapeHtml(k)}" aria-pressed="${isFav}" aria-label="${escapeHtml(a.name)} als Favorit ${isFav ? 'entfernen' : 'merken'}">${isFav ? '♥' : '♡'}</button>${delta}</span>
-        <span><span class="score" aria-label="Gesamtwert ${a.group.total} von 100, ${SM.verdict(a.group.total)}">${a.group.total}</span><span class="verdict">/100 · ${SM.verdict(a.group.total)}</span></span></h3>
+        <span><span class="sr">Gesamtwert ${a.group.total} von 100, ${SM.verdict(a.group.total)}</span><span class="score" aria-hidden="true">${a.group.total}</span><span class="verdict" aria-hidden="true">/100 · ${SM.verdict(a.group.total)}</span></span></h3>
       ${badges ? `<div class="badges">${badges}</div>` : ''}
       <div class="bar" aria-hidden="true"><i style="width:${a.group.total}%"></i></div>
       <div>${escapeHtml(SM.summary(a, ppl))}</div>${tie}
       <div class="chips" role="group" aria-label="Zufriedenheit je Person. Anklicken zeigt die Zusammensetzung.">${chips}</div>
       <div class="breakdown" id="bd-${i}" hidden></div>
       ${whys}${thin}
-      <div class="mini" aria-label="Wie stark ist jede Kategorie hier">${mini}</div>
+      <div class="mini"><span class="sr">Stärke je Kategorie:</span>${mini}</div>
       <div class="muted">${countsLine}</div>
       <div class="muted">${where}</div>
       ${hl.length ? `<div class="muted">In der Nähe: ${hl.map(p => `<a class="sub2" href="https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=18/${p.lat}/${p.lon}" target="_blank" rel="noopener">${escapeHtml(p.name)}</a>`).join(', ')}</div>` : ''}
@@ -648,6 +630,8 @@ function renderCompare() {
   const A = ranked.find(a => areaKey(a) === cmp[0]), B = ranked.find(a => areaKey(a) === cmp[1]);
   if (!A || !B) { cmp = []; el.innerHTML = ''; return; }
   const c = SM.compareAreas(A, B, ppl);
+  const msg = `Vergleich ${A.name} gegen ${B.name} geöffnet.`;
+  if (renderCompare.last !== msg) { renderCompare.last = msg; $('cmpMsg').textContent = msg; }
   const cell = (v, win, side) => `<td class="${win === side ? 'win' : ''}">${v}${win === side ? ' ✓' : ''}</td>`;
   const row = (label, x) => `<tr><th scope="row">${escapeHtml(label)}</th>${cell(x.a, x.win, 1)}${cell(x.b, x.win, 2)}</tr>`;
   el.innerHTML = `<div class="card"><table class="cmp-table"><caption>Vergleich: ${escapeHtml(A.name)} gegen ${escapeHtml(B.name)}</caption>
@@ -675,7 +659,7 @@ $('mapWho').addEventListener('change', () => lastView && renderMap(lastView.rank
 $('mapToggle').onclick = () => {
   const hide = !$('mapWrap').hidden; $('mapWrap').hidden = hide;
   $('mapToggle').textContent = hide ? 'Karte einblenden' : 'Karte ausblenden'; $('mapToggle').setAttribute('aria-expanded', String(!hide));
-  if (!hide && map) setTimeout(() => map.invalidateSize(), 0);
+  if (!hide && map) setTimeout(() => { map.invalidateSize(); renderMap.key = null; if (lastView) renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois); }, 0);
 };
 
 function ensureMap() {
@@ -699,6 +683,12 @@ function previewMap(geo) {
   map.fitBounds([[geo.bbox[0], geo.bbox[1]], [geo.bbox[2], geo.bbox[3]]]);
 }
 
+// Suche gescheitert oder abgebrochen: Rahmen und Ausschnitt der angezeigten Ergebnisse wiederherstellen
+function restoreMap() {
+  if (!map) return;
+  if (lastView) { renderMap.key = null; renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois); }
+  else if (bboxLayer) { bboxLayer.remove(); bboxLayer = null; }
+}
 function renderMap(ranked, geo, r = 800, pois = []) {
   if (!window.L) return;
   $('mapSection').hidden = false;
@@ -706,9 +696,9 @@ function renderMap(ranked, geo, r = 800, pois = []) {
   ensureMap();
   map.invalidateSize();
   drawBBox(geo);
-  // Ausschnitt nur ändern, wenn sich die Auswahl ändert (sonst springt die Karte bei jeder Änderung zurück)
+  // Ausschnitt nur ändern, wenn sich die Auswahl ändert (sonst springt die Karte bei jeder Änderung zurück); verborgen: später einpassen
   const key = ranked.map(a => a.name).join('|');
-  if (key !== renderMap.key) {
+  if (key !== renderMap.key && !$('mapWrap').hidden) {
     renderMap.key = key;
     let bounds = L.latLngBounds(ranked.map(a => [a.lat, a.lon]));
     // Weit gestreut: auf die Top 3 zoomen
@@ -744,7 +734,7 @@ function renderMap(ranked, geo, r = 800, pois = []) {
   // Orte als Punkte (nur in den gezeigten Vierteln, höchstens 1500)
   const on = [...$('poiToggles').querySelectorAll('input:checked')].map(x => x.dataset.poi);
   if (on.length) {
-    const canvas = L.canvas({ padding: 0.3 });
+    const canvas = renderMap.canvas = renderMap.canvas || L.canvas({ padding: 0.3 }); // einmal anlegen, sonst wächst die Kartenebene
     const dots = [];
     for (const p of pois) {
       if (!on.includes(p.cat) || dots.length >= 1500) continue;
@@ -760,41 +750,25 @@ function renderMap(ranked, geo, r = 800, pois = []) {
 $('f').addEventListener('submit', e => { e.preventDefault(); run(); });
 
 // ---- Reise per Link teilen (alles steht im Teil nach #, wird nie an einen Server geschickt) ----
-const b64 = {
-  enc: o => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
-  dec: s => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)))),
-};
-function shareState() {
-  const f = formState();
-  return { c: f.c, i: f.i, o: f.o, b: f.b, bm: f.bm, r: f.r, mc: f.mc, k: f.k, y: f.y, bd: f.bd, f: Math.round(fairness * 100),
-    p: people.map(p => [p.name, p.type, p.custom ? Object.keys(SM.CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: wishes };
-}
+const shareState = () => ({ ...formState(), fairness, people, wishes });
 let sharedPast = false;
 function applyShared(h) {
   try {
-    const s = b64.dec(h);
-    const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
-    const day = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
-    if (!Array.isArray(s.p) || !s.p.length || s.p.length > 30) return false;
-    offerUndo('Reise aus dem Link geladen. Deine bisherige Gruppe ist nicht verloren.'); // R5-24: vorherige Gruppe wiederherstellbar
-    const keys = Object.keys(SM.CATEGORIES);
-    people = s.p.filter(Array.isArray).map(([n, t, c, v, t2]) => SM.cleanPerson({
-      name: str(n, 40) || 'Person', type: t, type2: t2 || undefined,
-      custom: Array.isArray(c) ? Object.fromEntries(keys.map((k, i) => [k, (+c[i] || 0) / 10])) : undefined,
-      veto: v || undefined,
-    })).filter(Boolean);
-    if (!people.length) return false;
-    if (Array.isArray(s.w)) { wishes = cleanWishes(s.w); store.set('sm_wishes', wishes); renderWishes(); } // alte Links ohne Wünsche bleiben gültig
-    if (s.f != null) { fairness = SM.cleanFairness(+s.f / 100); store.set('sm_fair', fairness); updateFair(); }
-    applyForm({ c: str(s.c, 80), i: day(s.i), o: day(s.o), b: Math.max(0, Math.min(1e6, +s.b || 0)), bm: s.bm, r: s.r, mc: s.mc, k: s.k, y: s.y, bd: s.bd });
-    if (day(s.i) && day(s.i) < ymd(new Date())) sharedPast = true;
+    const s = SM.shareDecode(h);
+    if (!s) return false;
+    offerUndo('Reise aus dem Link geladen. Deine bisherigen Eingaben kannst du zurückholen.', true); // ganzer Zustand, bis zur nächsten eigenen Änderung
+    people = s.people;
+    if (s.wishes) { wishes = cleanWishes(s.wishes); store.set('sm_wishes', wishes); renderWishes(); } // alte Links ohne Wünsche bleiben gültig
+    if (s.fairness != null) { fairness = s.fairness; store.set('sm_fair', fairness); updateFair(); }
+    applyForm(s.form);
+    if (s.form.i && s.form.i < ymd(new Date())) sharedPast = true;
     syncMin(false);
-    save(); renderPeople(); updateBudget(); saveForm();
+    save(false); renderPeople(); updateBudget(); saveForm();
     return true;
   } catch { return false; }
 }
 $('share').onclick = async () => {
-  const url = location.origin + location.pathname + '#t=' + b64.enc(shareState());
+  const url = location.origin + location.pathname + '#t=' + SM.shareEncode(shareState());
   try { await navigator.clipboard.writeText(url); $('shareMsg').textContent = solo() ? '✅ Link kopiert. Damit öffnest du deine Suche auch auf einem anderen Gerät.' : '✅ Link kopiert. Schick ihn in den Gruppenchat.'; }
   catch { $('shareMsg').textContent = 'Kopieren nicht möglich. Kopiere den Link aus der Adresszeile.'; }
   history.replaceState(null, '', url);
@@ -812,28 +786,26 @@ $('city').addEventListener('input', () => {
   if (!location.hash.startsWith('#t=') && q.get('c')) {
     applyForm({ c: q.get('c'), i: q.get('i'), o: q.get('o') }); syncMin(false);
     if (n > 1 && n <= 16 && people.length === 1) people = Array.from({ length: n }, (_, i) => i ? { name: `Person ${i + 1}`, type: 'chill' } : people[0]);
+    saveForm(); store.set('sm_people', people);
   }
+  if (location.search) history.replaceState(null, '', location.pathname + location.hash); // sonst gewinnt ?c= bei jedem Neuladen
 }
-if (location.hash.startsWith('#t=')) {
+function openShared() {
+  if (!location.hash.startsWith('#t=')) return;
+  sharedPast = false;
   if (applyShared(location.hash.slice(3))) {
     $('status').textContent = 'Reise aus dem Link geladen. Die Suche startet gleich, du kannst dich danach selbst eintragen.';
     if (sharedPast) $('status').textContent += ' Die Reisedaten im Link lagen in der Vergangenheit, wir haben Standarddaten eingesetzt.';
     if ($('city').value.trim()) setTimeout(() => run(), 0);
   } else { $('status').textContent = 'Der Link ist beschädigt oder zu alt.'; }
 }
+openShared();
+window.addEventListener('hashchange', openShared); // neuer Link in die Adresszeile des offenen Tabs eingefügt
 
 // Brücke zum Plugin: alle bewerteten Viertel + Gruppe speichern, Plugin übernimmt sie
 function saveTrip(geo, areas, ppl) {
   const b = budgetNums();
-  const trip = {
-    savedAt: Date.now(), city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value,
-    nights: b.n, budget: b.total, people: ppl.map(p => SM.cleanPerson(p)), wishes, // mit type2, custom, veto: Plugin bewertet dieselbe Person wie die App
-    areas: areas.map(a => {
-      const j = a.group.scores.indexOf(a.group.min);
-      return { name: a.name, lat: +a.lat.toFixed(5), lon: +a.lon.toFixed(5), total: a.group.total, min: a.group.min, minName: ppl[j]?.name || null };
-    }),
-  };
-  const v = JSON.stringify(trip);
+  const v = JSON.stringify(SM.tripOf({ city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, nights: b.n, budget: b.total, ppl, wishes, areas }));
   try { localStorage.setItem('sm_trip', v); }
   catch { // Speicher voll: alte Stadt-Caches löschen und nochmal
     try { Object.keys(localStorage).filter(k => k.startsWith('sm_osm')).forEach(k => localStorage.removeItem(k)); localStorage.setItem('sm_trip', v); } catch {}
