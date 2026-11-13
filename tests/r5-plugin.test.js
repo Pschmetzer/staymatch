@@ -64,9 +64,15 @@ test('Speicher voll: saveListing wirft nicht', { skip }, async () => {
   const chrome = chromeMock();
   chrome.storage.local.set = async () => { throw new Error('QUOTA_BYTES quota exceeded'); };
   const { w } = makePage({ body: '', url: 'https://www.airbnb.de/account-settings', chrome });
-  const item = await w.StayMatchContent.saveListing('9', { note: 'x' });
-  assert.equal(item.note, 'x');
-  assert.equal(w.StayMatchContent.saveFailed, true);
+  // Die erwartete Meldung samt Stacktrace abfangen statt in die Testausgabe schreiben, und prüfen, dass sie kommt
+  const logged = [], debug = w.console.debug;
+  w.console.debug = (...a) => { logged.push(a.map(String).join(' ')); };
+  try {
+    const item = await w.StayMatchContent.saveListing('9', { note: 'x' });
+    assert.equal(item.note, 'x');
+    assert.equal(w.StayMatchContent.saveFailed, true);
+    assert.ok(logged.some(m => /Speichern fehlgeschlagen/.test(m) && /QUOTA_BYTES/.test(m)), logged.join('\n'));
+  } finally { w.console.debug = debug; }
 });
 
 function popup(data) {
