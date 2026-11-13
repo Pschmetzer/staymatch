@@ -11,7 +11,7 @@
     ['Lage', /\b(tolle|super|perfekte|zentrale) lage\b|\b(great|perfect|excellent) location\b/, true, true, 'Lage enttäuschend'],
     ['Gastgeber', /\bgastgeber\w*\b[^.]{0,40}\b(nett|freundlich|hilfsbereit)\b|\bhost was (great|helpful|friendly|amazing)\b/, true, true, 'Gastgeber unfreundlich'],
     // R7: „laut“ als Präposition („Laut Beschreibung …“) ist kein Lärm
-    ['laut', /\b(laut(?!\s+(?:der|dem|den|des|einer?|eigenen?|beschreibung|inserat|anzeige|gastgeber\w*|airbnb|bewertung\w*|website|foto\w*))|lärm|lärmig|noisy|noise)\b/, false, true],
+    ['laut', /\b((?<!klimaanlage\s+(?:war\s+)?(?:sehr\s+)?)laut(?!\s+(?:der|dem|den|des|einer?|eigenen?|beschreibung|inserat|anzeige|gastgeber\w*|airbnb|bewertung\w*|website|foto\w*))|lärm|lärmig|noisy|noise)\b/, false, true],
     ['hellhörig', /\b(hellhörig|dünne wände|thin walls|paper[- ]thin)\b/, false, false],
     ['Baustelle', /\b(baustelle|baulärm|construction (site|work|noise))\b/, false, true, 'keine Baustelle'],
     ['schmutzig', /\b(schmutzig|dreckig|dirty|unclean)\b/, false, true],
@@ -33,7 +33,7 @@
     ['Gastgeber löst Probleme', /\b(sofort\s+(reagiert|repariert|gekümmert)|schnell\s+(repariert|behoben|gelöst)|innerhalb\s+(einer|1)\s+stunde\s+(repariert|behoben|da)|fixed (it )?(right away|immediately|quickly)|responded immediately|resolved (it )?quickly)\b/, true, false],
     ['Gäste kamen wieder', /\b(zum\s+(zweiten|dritten|vierten|\d+\.)\s+mal|kommen\s+(gerne\s+)?wieder|wiederkommen|stayed here (again|before)|(second|third|fourth) (time|stay)|will (definitely )?(be back|come back|return))\b/, true, true, 'würden nicht wiederkommen'],
     ['Gastgeber hat storniert', /\b(gastgeber\w*\s+hat\s+[^.]{0,40}storniert|host canceled|host cancelled|l'hôte a annulé|el anfitrión canceló)\b/, false, false],
-    ['Ohrstöpsel nötig', /\b(ohrstöpsel|oropax|earplugs?)\b/, false, false],
+    ['Ohrstöpsel nötig', /\b((ohrstöpsel|oropax)\s+(waren\s+|sind\s+)?(nötig|notwendig|gebraucht|benötigt|empfehlenswert|ein muss|mitnehmen)|brauchten\s+(\w+\s+)?(ohrstöpsel|oropax)|(needed|bring|recommend)\s+earplugs|earplugs\s+(are\s+|were\s+)?(a must|needed|necessary|recommended))\b/, false, true, 'keine Ohrstöpsel nötig'],
     ['Klimaanlage laut', /\b(klimaanlage\s+(war\s+)?(sehr\s+)?laut|laute\s+klimaanlage|(ac|air conditioning|air conditioner)\s+(was\s+)?(very\s+)?(loud|noisy)|noisy (ac|air conditioning))\b/, false, false],
     ['hell', /\b(lichtdurchflutet\w*|sehr\s+hell(?!hörig)\w*|viel\s+(tages)?licht|bright and|so bright|lots of (natural )?light|flooded with light)\b/, true, false],
     ['dunkel', /\b((wohnung|zimmer|apartment|room)\s+(war\s+|was\s+)?(sehr\s+|very\s+)?dunkel|wenig\s+(tages)?licht|kaum\s+licht|(dark|gloomy) (apartment|room|flat)|not much (natural )?light)\b/, false, false],

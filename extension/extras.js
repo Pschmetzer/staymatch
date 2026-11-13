@@ -164,7 +164,7 @@
     pool: /\bpool\b(?!\s*(?:table|tisch|billard))|schwimmbad|piscine|piscina/i,
     fireplace: /kamin|fireplace|cheminée|chimenea|camino/i,
     sauna: /sauna/i,
-    fridge: /kühlschrank|refrigerator|fridge|réfrigérateur|frigorífico|nevera|frigorifero/i,
+    fridge: /(?<!mini[- ]?)kühlschrank|refrigerator|(?<!mini[- ]?)fridge|réfrigérateur|frigorífico|nevera|frigorifero/i,
     miniFridge: /minikühlschrank|mini[- ]?(?:fridge|kühlschrank)|minibar|kühlfach/i,
     freezer: /gefrierfach|gefrierschrank|tiefkühl\w*|freezer|congélateur|congelador/i,
     oven: /backofen|ofen\b|\boven\b|four\b|horno|forno/i,
@@ -362,7 +362,7 @@
     if (month && ctx.checkin) {
       const md = String(ctx.checkin).slice(5, 10), nights = ctx.nights || 1;
       const end = new Date(Date.parse(ctx.checkin) + nights * 864e5).toISOString().slice(5, 10);
-      const coversNye = md <= '12-31' && md >= '12-20' && (end >= '01-01' && end <= '01-15' || end === '12-31');
+      const coversNye = md <= '12-31' && md >= '12-20' && end >= '01-01' && end <= '01-15';
       if (coversNye) { const s = [ctx.noParties && 'Partyverbot', x.deposit && `Kaution ${money(x.deposit.amount, x.deposit.currency)}`, x.noVisitors && 'keine Besucher'].filter(Boolean); if (s.length) warn.push(`Silvester: ${s.join(', ')}`); }
     }
     if ((ctx.nights || 0) >= 28) info.push('Ab 28 Nächten gilt bei Airbnb oft eine eigene Stornoregel für Langzeitaufenthalte; je nach Land auch Meldepflichten. Bedingungen genau lesen.');

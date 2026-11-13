@@ -259,4 +259,10 @@ $('wipe').onclick = async () => {
   if (!pick) { alert('Nichts gelöscht: bitte verlauf, zwischenspeicher, reise, diese reise oder alles eingeben.'); return; }
   await chrome.storage.local.remove(keys.filter(pick)); load();
 };
+// R7 E: ehrlich anzeigen, ob Chromes eingebaute KI-Schnittstellen hier vorhanden sind (nur Erkennung, kein Download; StayMatch nutzt sie nicht)
+function aiStatus(g) {
+  const apis = ['LanguageModel', 'Summarizer', 'Translator', 'LanguageDetector'].filter(k => k in g);
+  return apis.length ? `Chrome-KI auf diesem Gerät: ${apis.join(', ')} vorhanden. StayMatch nutzt sie (noch) nicht, alles läuft mit festen Regeln.` : 'Chrome-KI auf diesem Gerät nicht verfügbar. StayMatch braucht sie nicht, alles läuft mit festen Regeln.';
+}
+$('aiInfo').textContent = aiStatus(self);
 load();
