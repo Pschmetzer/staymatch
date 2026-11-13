@@ -15,9 +15,10 @@
     const areas = (allAreas || []).filter(a => a && Number.isFinite(a.total));
     if (!areas.length) return null;
     if (listing.lat != null) {
-      let best = null, bd = Infinity;
-      for (const a of areas) { const d = distM(listing, a); if (d < bd) { bd = d; best = a; } }
-      if (best && bd <= RADIUS.match) return { ...best, dist: Math.round(bd) };
+      let best = null, bd = Infinity, second = Infinity;
+      for (const a of areas) { const d = distM(listing, a); if (d < bd) { second = bd; bd = d; best = a; } else if (d < second) second = d; }
+      // R7 E: Airbnb zeigt die Lage nur ungefähr (±500 m): liegt ein zweites Viertel kaum weiter weg, ist der Viertelwert unscharf
+      if (best && bd <= RADIUS.match) return { ...best, dist: Math.round(bd), ...(second - bd < 250 ? { nearBorder: true } : {}) };
     }
     const loc = norm(listing.locality);
     if (loc) {
@@ -341,12 +342,13 @@
     const known = ctx.known?.get?.(l.id);
     const hintWarn = (known?.hints || []).filter(x => String(x).startsWith('⚠️')).map(x => String(x).replace(/^⚠️\s*/, ''));
 
-    const why = [], warn = [], unsuitableReasons = [], short = { why: [], warn: [] };
+    const why = [], warn = [], info = [], unsuitableReasons = [], short = { why: [], warn: [] };
     let adjust = 0;
     const disliked = !!ctx.disliked?.has(l.id);
 
     if (area) { why.push(`Viertel ${area.name}: ${area.total}/100 ${solo ? 'für dich' : 'für die Gruppe'}${area.approx ? ' (ungefähr)' : ''}`); short.why.push(`Viertel ${area.total}`); }
     if (area?.approx) warn.push('Viertel nur ungefähr bestimmt (mehrere Teil-Viertel)');
+    else if (area?.nearBorder) info.push('Lage laut Airbnb nur ±500 m genau, nahe einer Viertelgrenze: Viertelwert unscharf');
     if (!solo && area?.minName && area.min < 40) warn.push(`${area.minName} wäre dort eher unzufrieden (${area.min})`);
     if (l.rating != null) {
       // R7: Note aus dem aria-label hat keine Anzahl: nicht „bei 0 Bewertungen“
@@ -410,7 +412,7 @@
 
     if (l.badges?.length) why.push(l.badges.join(' · '));
     // R7: neutrale Infos (kein Vorzug, keine Warnung)
-    const info = [];
+    // (info steht oben bei why/warn)
     // R7 E: Lockpreis (Nacht billig, gesamt teuer), Gebühren-Anteil, Sterne relativ zur Seite, nur Einzelbetten für ein Paar
     const fees = feeShareOf(l, ctx.nights);
     const med = ctx.medianNight?.[normCur(l.currency) || '€'];

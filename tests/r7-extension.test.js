@@ -21,7 +21,7 @@ test('R7: indische Tausendergruppen (₹1,23,456)', () => {
 });
 
 test('R7: Preis im Buchungsbereich, Währung vorn oder hinten, Rabatt', () => {
-  assert.deepEqual(P.bookPrice('$120 night'), { night: 120, total: null, currency: '$' });
+  assert.deepEqual(P.bookPrice('$120 night'), { night: 120, total: null, currency: '$', was: null });
   assert.equal(P.bookPrice('£95 night').night, 95);
   assert.equal(P.bookPrice('CHF 140 Nacht').night, 140);
   assert.equal(P.bookPrice('200 € pro Nacht').night, 200);

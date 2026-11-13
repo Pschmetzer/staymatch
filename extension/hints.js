@@ -127,7 +127,16 @@
     return null;
   }
   // Höflichkeits-Bewertung: 5 Sterne, Text nennt Mängel (reviews: [{ rating, text }])
+  // Gastgeber antwortet auf Kritik? Kritische Bewertungen mit Antwort, lösungsorientiert („behoben“, „ersetzt“)
+  function hostReplies(texts) {
+    const crit = (texts || []).filter(critical);
+    if (crit.length < 2) return null;
+    const RE = /antwort (?:des|vom|von) gastgeber|response from|réponse de l'hôte|respuesta del anfitrión/i;
+    const replied = crit.filter(t => RE.test(t));
+    const fix = replied.filter(t => /behoben|repariert|ersetzt|ausgetauscht|neu gekauft|fixed|replaced|repaired|resolved|réparé|remplacé/i.test(t));
+    return { critical: crit.length, replied: replied.length, fixing: fix.length };
+  }
   function politeFives(reviews) { return (reviews || []).filter(r => +r.rating === 5 && r.text && critical(r.text)).length; }
 
-  root.StayMatchHints = { reviewHints, warnings, HINTS, criticalShare, noiseTimes, guestMix, languages, numberFacts, renovated, keywordTrend, politeFives };
+  root.StayMatchHints = { reviewHints, warnings, HINTS, criticalShare, noiseTimes, guestMix, languages, numberFacts, renovated, keywordTrend, politeFives, hostReplies };
 })(typeof window !== 'undefined' ? window : globalThis);

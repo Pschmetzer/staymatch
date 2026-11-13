@@ -37,6 +37,8 @@
     // R7 E: Zusatz-Hinweise aus denselben Abschnitten (Kaution, Gebühren, Betten, Ausstattung, Regeln …)
     const hostLink = document.querySelector('[data-section-id*="MEET_YOUR_HOST"] a[href*="/users/show/"], [data-section-id*="HOST_PROFILE"] a[href*="/users/show/"]');
     const hostId = hostLink?.getAttribute('href')?.match(/\/users\/show\/(\d+)/)?.[1] || null;
+    const reviewSec = sec('[data-section-id*="REVIEWS"]');
+    const bookText = book?.innerText || '';
     const extra = X ? X.roomExtras({ desc: descText, rules: rulesText, amen: amenText, host: hostText, book: book?.innerText || '' }) : null;
     const reviewTexts = outer('[data-review-id], [data-section-id*="REVIEWS"] [role="listitem"]').map(e => (e.innerText || '').slice(0, 600)).filter(Boolean).slice(0, 30);
     const found = {
@@ -48,6 +50,11 @@
       scamSignals: descText ? P.scamSignals(descText) : null,
       reviewTexts: reviewTexts.length ? reviewTexts : null,
       extra, hostId,
+      // R7 E: Teilnoten, Gastgeber-Bewertungen, Last-Minute-Hinweis, Normalpreis bei Rabatt
+      subRatings: X && reviewSec ? X.subRatings(reviewSec) : null,
+      hostReviews: X && hostText ? X.hostReviewCount(hostText) : null,
+      lastMinute: X ? X.lastMinute(bookText) : null,
+      wasPrice: bp.was ?? null,
     };
     return {
       ...found,
@@ -134,6 +141,8 @@
     const nf = H.numberFacts?.(t) || [];
     if (nf.length) out.info.push(`Gäste nennen: ${nf.map(x => `„${x}“`).join(', ')}`);
     if (H.renovated?.(t)) out.info.push('Neuere Bewertungen erwähnen Renovierung oder neue Matratzen: ältere Kritik ist evtl. überholt');
+    const hr = H.hostReplies?.(t);
+    if (hr) out.info.push(hr.replied ? `Gastgeber hat auf ${hr.replied} von ${hr.critical} kritischen Bewertungen geantwortet${hr.fixing ? `, ${hr.fixing}× mit Lösung („behoben“, „ersetzt“)` : ''}` : `Keine Antwort des Gastgebers auf ${hr.critical} kritische Bewertungen gelesen`);
     const tr = H.keywordTrend?.(t);
     if (tr) out.warn.push(tr);
     return out;
@@ -157,7 +166,7 @@
 
   function roomPanel(item, area, ctx = {}) {
     const setVote = async v => { clearTimeout(roomTimers.get(item.id)); roomPanel(await saveListing(item.id, { vote: item.vote === v ? 0 : v, note: note.value }), area, ctx); }; // 2. Klick hebt auf
-    currentRoom = { item, setVote };
+    currentRoom = { item, setVote, warnContact: () => { if (!ctx.copiedContact) roomPanel(item, area, { ...ctx, copiedContact: true }); } };
     const conflicts = R.reviewConflicts(item.hints, ctx.wishes);
     // Warnungen, die schon als Konflikt mit deinen Wünschen genannt sind, nicht doppelt zeigen
     const warns = H.warnings(item.hints).filter(w => !conflicts.some(c => c.endsWith(w.replace(/^⚠️\s*/, ''))));
@@ -181,8 +190,19 @@
     const wishMiss = xw.filter(([w, r]) => r === false && w.no).map(([w]) => `passt nicht zu deinem Wunsch „${w.ok}“: ${w.no}`);
     const wishHit = xw.filter(([, r]) => r === true).map(([w]) => `✓ ${w.ok}`);
     const mem = ctx.memory || { warn: [], info: [], plus: [] };
+    const topWarnExtra = [];
     const rv = reviewNotes(item, ctx.people);
-    const topWarn = [...wishMiss, ...notes.warn, ...mem.warn, ...rv.warn];
+    // R7 E: Teilnoten, Rabatt, Last-Minute, Gastgeber-Bilanz, Videocall-Ruhe, Kontaktdaten kopiert
+    const sr = X ? X.subRatingNotes(item.subRatings, ctx.wishes) : { warn: [], info: [] };
+    rv.warn.push(...sr.warn); rv.info.push(...sr.info);
+    if (item.lastMinute) rv.info.push('Last-Minute- oder Frühbucher-Rabatt: gilt nur für diese Daten und kann bei Datumsänderung wegfallen');
+    const hist = (item.priceHistory || []).slice(0, -1), cur0 = (item.priceHistory || []).at(-1);
+    const dh = X && cur0 ? X.discountHonesty(item.wasPrice, item.pricePerNight, hist, e => priceKey(e) === priceKey(cur0)) : null;
+    if (dh) rv.warn.push(dh);
+    if (!item.reviewCount && item.hostReviews >= 50) rv.info.push(`Neues Inserat, aber Gastgeber mit ${item.hostReviews} Bewertungen insgesamt: eher erfahren als riskant`);
+    if ((ctx.wishes || []).includes('workspace') && (item.hints || []).some(x => /⚠️ (Baustelle|laut)/.test(x))) rv.warn.push('Tagsüber Lärm (Baustelle/Straße) in Bewertungen: schlecht für Videocalls');
+    if (ctx.copiedContact) topWarnExtra.push('Du hast Kontaktdaten kopiert: buche und zahle nur über Airbnb, nie per Überweisung oder Messenger');
+    const topWarn = [...topWarnExtra, ...wishMiss, ...notes.warn, ...mem.warn, ...rv.warn];
     const more = [...wishHit, ...notes.plus.map(x => '👍 ' + x), ...mem.plus.map(x => '👍 ' + x), ...notes.info, ...mem.info, ...rv.info];
     const booked = item.booked;
     const setBooked = async () => {
@@ -218,6 +238,12 @@
     ], { label: `StayMatch: ${short}, ${item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier'}` }); // R7: Screenreader erfahren, worum es geht
   }
 
+  // R7 E: Kopier-Warnung, wenn auf der Unterkunftsseite Telefonnummer oder Mailadresse markiert und kopiert wird
+  document.addEventListener('copy', () => {
+    if (!currentRoom || !P.ROOM_RE.test(location.pathname) || !X) return;
+    const sel = String(document.getSelection?.() || '');
+    if (X.contactLike(sel)) currentRoom.warnContact();
+  }, true);
   keys.KeyL = () => { if (P.ROOM_RE.test(location.pathname)) currentRoom?.setVote(1); };
   keys.KeyN = () => { if (P.ROOM_RE.test(location.pathname)) currentRoom?.setVote(-1); };
   window.StayMatchContent.room = { handle: handleRoom };

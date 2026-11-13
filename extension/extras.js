@@ -401,6 +401,9 @@
     garden: { label: '🌳 Garten', ok: 'Garten/Innenhof', no: 'kein Garten', check: has('garden'), src: 'Ausstattung und Beschreibung' },
     baby: { label: '👶 Baby an Bord', ok: 'Kinderbett', no: 'kein Kinderbett angegeben', check: has('crib'), src: 'Ausstattung der Unterkunftsseite' },
     lock: { label: '🔒 abschließbares Zimmer', ok: 'abschließbares Zimmer', no: 'kein Schloss angegeben', check: x => (x?.features?.lock ? true : null), src: 'Ausstattung der Unterkunftsseite' },
+    monitor: { label: '🖥️ Monitor', ok: 'externer Monitor', no: 'kein Monitor', check: x => (x?.features?.monitor ? true : null), src: 'Ausstattung der Unterkunftsseite' },
+    fireplace: { label: '🔥 Kamin', ok: 'Kamin', no: 'kein Kamin', check: has('fireplace'), src: 'Ausstattung der Unterkunftsseite', season: 'winter' },
+    sauna: { label: '🧖 Sauna', ok: 'Sauna', no: 'keine Sauna', check: has('sauna'), src: 'Ausstattung der Unterkunftsseite', season: 'winter' },
     stepFree: { label: '♿ stufenlos', ok: 'stufenloser Zugang', no: 'stufenloser Zugang nicht angegeben', check: x => (x?.features?.stepFree || x?.floor?.ground ? true : x?.amenRead ? false : null), src: 'Barrierefreiheit-Abschnitt und Beschreibung' },
     beach: { label: '🏖️ Strandausstattung', ok: 'Strandausstattung', no: 'keine Strandausstattung', check: x => (x?.features?.beach ? true : null), src: 'Ausstattung der Unterkunftsseite' },
     ski: { label: '⛷️ Skiraum', ok: 'Skiraum', no: 'kein Skiraum', check: x => (x?.features?.ski ? true : null), src: 'Ausstattung und Beschreibung' },
@@ -644,6 +647,8 @@
     add(stopPaging(opt.pool, list, top));
     add(mapCorner(list, top));
     (opt.history || []).forEach(add);
+    add(cancelTradeoff(top, ctx.known));
+    add(opt.lastYear);
     if (opt.listings) add(robustness(opt.listings, ctx, top.map(l => l.id)));
     return lines;
   }
@@ -690,7 +695,66 @@
     ].filter(Boolean);
   }
 
+  // ================= Teil 4: weitere Hinweise =================
+  // Last-Minute- oder Frühbucher-Rabatt im Buchungsbereich
+  const lastMinute = t => /last[- ]?minute|kurzfristig\w* rabatt|frühbucher\w*|early[- ]bird|réduction de dernière minute|descuento de última hora/i.test(S(t));
+  // Rabatt-Ehrlichkeit: war der „Normalpreis“ bei einem früheren Besuch (gleiche Reise) schon so niedrig?
+  function discountHonesty(was, now, history, key) {
+    if (!was || !now || was <= now) return null;
+    const same = (history || []).filter(e => e.p && key(e));
+    const low = same.length ? Math.min(...same.map(e => e.p)) : null;
+    return low != null && low <= now * 1.02 ? `Rabatt mit Vorsicht: bei einem früheren Besuch kostete es schon ${fmt(low)} pro Nacht ohne Rabatt-Hinweis` : null;
+  }
+  // Teilbewertungen (Sauberkeit, Genauigkeit, Check-in, Kommunikation, Lage, Preis-Leistung)
+  const SUB = { clean: /sauberkeit|cleanliness|propreté|limpieza|pulizia/i, accuracy: /genauigkeit|accuracy|exactitude|veracidad|precisione/i, checkin: /check-?in|arrivée|llegada/i,
+    communication: /kommunikation|communication|comunicación|comunicazione/i, location: /\blage\b|location|emplacement|ubicación|posizione/i, value: /preis-leistung|value|qualité-prix|calidad-precio|qualità-prezzo/i };
+  function subRatings(t) {
+    const out = {};
+    for (const line of S(t).split(/\n/)) for (const [k, re] of Object.entries(SUB)) {
+      if (out[k] != null || !re.test(line)) continue;
+      const m = line.match(/(\d)[.,](\d)\b/) || null;
+      if (m) out[k] = +(m[1] + '.' + m[2]);
+    }
+    // „Sauberkeit\n4,5“: Zahl in der nächsten Zeile
+    const lines = S(t).split(/\n/).map(x => x.trim());
+    lines.forEach((l, i) => { for (const [k, re] of Object.entries(SUB)) if (out[k] == null && re.test(l) && l.length < 30) { const m = (lines[i + 1] || '').match(/^(\d)[.,](\d)$/); if (m) out[k] = +(m[1] + '.' + m[2]); } });
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v >= 1 && v <= 5));
+  }
+  const SUB_NAMES = { clean: 'Sauberkeit', accuracy: 'Genauigkeit', checkin: 'Check-in', communication: 'Kommunikation', location: 'Lage', value: 'Preis-Leistung' };
+  function subRatingNotes(sub, wishes) {
+    const warn = [], info = [];
+    if (!sub || !Object.keys(sub).length) return { warn, info };
+    if ((wishes || []).includes('clean') && sub.clean != null && sub.clean < 4.6) warn.push(`passt nicht zu deinem Wunsch „sauber“: Sauberkeit nur ${sep(sub.clean)}`);
+    const low = Object.entries(sub).filter(([k, v]) => v < 4.5 && !(k === 'clean' && (wishes || []).includes('clean'))).map(([k, v]) => `${SUB_NAMES[k]} ${sep(v)}`);
+    if (low.length) info.push(`Schwächere Teilnoten: ${low.join(', ')}`);
+    return { warn, info };
+  }
+  // Kontaktdaten markiert (Telefon, Mail): außerhalb der Plattform zahlen ist ein häufiger Betrug
+  const contactLike = t => /[\w.+-]+@[\w-]+\.[a-z]{2,}|(?:\+|00)\d[\d\s()/-]{7,}\d|\b0\d{2,4}[\s/-]?\d{4,}/i.test(S(t));
+  // Gastgeber hat viele Bewertungen (Bilanz für neue Inserate)
+  function hostReviewCount(t) { const m = S(t).match(/(\d{1,3}(?:[.,]\d{3})*|\d+)\s*(?:bewertungen|reviews|commentaires|evaluaciones|reseñas|recensioni)/i); return m ? +m[1].replace(/[.,]/g, '') : null; }
+  // Storno-Preis-Abwägung: zwei fast gleich gute Top-Inserate, eines kostenlos stornierbar (von der Unterkunftsseite bekannt)
+  function cancelTradeoff(top, known) {
+    const k = l => known?.get?.(l.id)?.cancellation?.kind || null;
+    for (let i = 0; i < top.length; i++) for (let j = 0; j < top.length; j++) {
+      const a = top[i], b = top[j];
+      if (i === j || k(a) !== 'free' || !k(b) || k(b) === 'free' || a.rank?.stay == null || b.rank?.stay == null) continue;
+      if (Math.abs(a.rank.score - b.rank.score) > 5 || a.rank.stay <= b.rank.stay) continue;
+      return `Platz ${i + 1} kostet ${money(a.rank.stay - b.rank.stay, a.currency)} mehr als Platz ${j + 1}, ist aber kostenlos stornierbar`;
+    }
+    return null;
+  }
+  // Vorjahresvergleich: früher gebuchte Unterkunft in derselben Stadt
+  function lastYear(booked, cityPath, medNow, cur) {
+    const city = decodeURIComponent(String(cityPath || '').split('/')[2] || '').split(/[-–,]/)[0].trim().toLowerCase();
+    if (!city || !medNow) return null;
+    const b = (booked || []).filter(i => i.booked && i.pricePerNight && String(i.city || i.locality || '').toLowerCase().includes(city) && (R().normCur(i.currency) || '€') === cur && i.booked.checkin)
+      .sort((x, y) => S(y.booked.checkin).localeCompare(S(x.booked.checkin)))[0];
+    return b ? `Bei deiner Buchung ab ${b.booked.checkin} hast du hier ${money(b.pricePerNight, b.currency)} pro Nacht gezahlt, heute liegt die Mitte bei ${money(medNow, cur)}` : null;
+  }
+
   root.StayMatchExtras = {
+    lastMinute, discountHonesty, subRatings, subRatingNotes, contactLike, hostReviewCount, cancelTradeoff, lastYear,
     linkCheck, friendIds, tripsText, storageSummary,
     priceAnchor, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
     budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, mainCurrency,

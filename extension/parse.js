@@ -368,7 +368,10 @@
       if (night == null && NIGHT_AFTER.test(t.slice(a.e, a.e + 24))) night = a;
       else if (TOTAL_AFTER.test(t.slice(a.e, a.e + 24)) || TOTAL_BEFORE.test(t.slice(Math.max(0, a.i - 40), a.i))) total = a;
     }
-    return { night: night ? night.v : null, total: total ? total.v : null, currency: (night || total)?.c || null };
+    // R7 E: durchgestrichener Normalpreis direkt vor dem Nachtpreis („150 € 120 € pro Nacht“)
+    const k = night ? all.indexOf(night) : -1, prev = k > 0 ? all[k - 1] : null;
+    const was = prev && prev.c === night.c && prev.v > night.v && /^[\s ·•|,;/-]*$/.test(t.slice(prev.e, night.i)) ? prev.v : null;
+    return { night: night ? night.v : null, total: total ? total.v : null, currency: (night || total)?.c || null, was };
   }
 
   // Nr. 182 Ausstattung

@@ -10,6 +10,8 @@
 
   // R7: eine Filterfunktion für Panel und Tests (rank.js); ohne bekanntes Budget sortiert „im Budget“ nichts aus
   const passes = l => R.filterListings([l], { minRating: !!filters.rating, inBudget: !!filters.budget, enoughBeds: !!filters.beds, favorite: !!filters.fav, lux: !!filters.lux, lowFees: !!filters.lowFees }).length === 1;
+  // R7 E: woran StayMatch einen Wunsch erkennt (Tooltip an den Chips)
+  const WISH_SRC = { whole: 'Quelle: Art der Unterkunft auf der Karte', trusted: 'Quelle: Plakette auf der Karte', reviews: 'Quelle: Anzahl der Bewertungen auf der Karte', luxury: 'Quelle: Stichwörter im Titel, Preislage, Bäder', private: 'Quelle: „gewerblicher Gastgeber“ auf der Karte' };
   const activeFilters = () => FILTERS.filter(([k]) => filters[k]);
 
   function currentTop() {
@@ -96,7 +98,8 @@
     const history = X && now ? X.priceHistoryNotes(log, now) : [];
     if (now && !log.some(e => e.path === now.path && e.ci === now.ci && e.nights === now.nights)) chrome.storage.local.set({ priceLog: [...log, now].slice(-60) }).catch?.(() => {});
     const booked = items.filter(i => i.booked && sp.checkin && i.booked.checkin === sp.checkin);
-    lastView = { ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta };
+    const lastYear = X && anchor ? X.lastYear(items.filter(i => i.booked && i.booked.checkin !== sp.checkin), location.pathname, anchor.median, anchor.currency) : null;
+    lastView = { ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, lastYear };
 
     // Empfehlungen für das Popup merken (nur die eigene Auswahl, lokal). R7: dieselbe Auswahl wie im Panel (ohne 👎, mit Filtern), Einheit dabei
     chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, top: ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, isTotal: !!l.isTotal, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, stay: l.rank.stay, ppnPerson: l.rank.ppn?.person ?? null, url: `${location.origin}/rooms/${l.id}` })) } });
@@ -153,10 +156,13 @@
     const sentence = h('input', { type: 'text', placeholder: 'z. B. ruhige ganze Wohnung mit WLAN unter 120', 'aria-label': 'Wünsche als Satz', style: 'width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--bg);color:var(--fg);font:12px system-ui' });
     sentence.onchange = () => { const r = X.wishesFromSentence(sentence.value); setQuick({ wishes: [...new Set([...quick.wishes, ...r.wishes])], ...(r.budgetNight && !trip ? { budgetNight: r.budgetNight } : {}) }); };
     const xwOn = quick.wishes.filter(k => XW[k]).length;
+    // R7 E: Kamin und Sauna nur Oktober bis März (Monat der Anreise, sonst heute)
+    const mon = +(P.searchParams(location.href).checkin || new Date().toISOString()).slice(5, 7);
+    const winter = [10, 11, 12, 1, 2, 3].includes(mon);
     const moreWishes = X ? h('details', { open: lastView.openWishes ? '' : null, ontoggle: e => { lastView.openWishes = e.target.open; } }, h('summary', {}, `Mehr Wünsche und Gruppe${xwOn ? ` (${xwOn} aktiv)` : ''}`),
       h('div', { class: 'muted' }, 'Ausstattung prüft StayMatch nur bei Unterkünften, deren Seite du geöffnet hast.'),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Wunsch-Profile' }, Object.entries(X.PROFILES).map(([k, p]) => h('button', { title: p.wishes.join(', '), onclick: () => setQuick({ wishes: p.wishes.filter(w => R.WISHES[w] || R.REVIEW_WISHES[w] || XW[w]), profile: k }) }, chip(p.label)))),
-      h('div', { class: 'chips', role: 'group', 'aria-label': 'Ausstattungs-Wünsche' }, Object.entries(XW).map(([k, w]) => h('button', { class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)), title: `Quelle: ${w.src}`, onclick: () => toggleWish(k) }, chip(w.label)))),
+      h('div', { class: 'chips', role: 'group', 'aria-label': 'Ausstattungs-Wünsche' }, Object.entries(XW).filter(([k, w]) => w.season !== 'winter' || winter || quick.wishes.includes(k)).map(([k, w]) => h('button', { class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)), title: `Quelle: ${w.src}`, onclick: () => toggleWish(k) }, chip(w.label)))),
       sentence,
       ctx.people ? h('div', { class: 'row', style: 'align-items:center;gap:6px' },
         h('span', { class: 'muted' }, `Personen: ${ctx.people}${lastView.delta ? ` (Airbnb: ${lastView.basePeople})` : ''}`),
@@ -166,7 +172,7 @@
         h('button', { class: quick.ownBed ? 'on' : '', 'aria-pressed': String(!!quick.ownBed), title: 'Doppelbett zählt dann als ein Bett', onclick: () => setQuick({ ownBed: !quick.ownBed }) }, chip('🛏️ jede Person eigenes Bett')),
         h('button', { class: quick.smoker ? 'on' : '', 'aria-pressed': String(!!quick.smoker), title: 'Prüft auf der Unterkunftsseite Rauchverbot und Außenfläche', onclick: () => setQuick({ smoker: !quick.smoker }) }, chip('🚬 Raucher dabei')))) : null;
     const first = top[0];
-    const insights = X ? X.pageInsights(lastView.ranked.filter(l => !l.rank.disliked), top, { ...ctx, ...{ taste: ctx.taste } }, { pool: lastView.pool, history: lastView.history, listings: lastView.listings.length <= 300 ? lastView.listings : null }) : [];
+    const insights = X ? X.pageInsights(lastView.ranked.filter(l => !l.rank.disliked), top, { ...ctx, ...{ taste: ctx.taste } }, { pool: lastView.pool, history: lastView.history, lastYear: lastView.lastYear, listings: lastView.listings.length <= 300 ? lastView.listings : null }) : [];
     const shifts = X ? X.shiftLinks(location.href) : [];
     const fsug = X ? X.filterSuggestion(location.href, lastView.ranked, ctx.people) : null;
     const speak = () => { try { const u = new SpeechSynthesisUtterance(top.map((l, i) => `Platz ${i + 1}: ${l.title || l.kind}. ${l.rank.score} Punkte. ${l.rank.why.slice(0, 2).join('. ')}`).join(' ')); u.lang = 'de-DE'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} };
@@ -184,6 +190,7 @@
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Deine Wünsche' }, Object.entries(R.WISHES).map(([k, w]) => h('button', {
         class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
         onclick: () => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] }),
+        title: WISH_SRC[k] || '',
       }, chip(w.label))), Object.entries(R.REVIEW_WISHES).map(([k, w]) => h('button', {
         class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
         title: 'Prüft StayMatch auf der Unterkunftsseite anhand der Bewertungen',
