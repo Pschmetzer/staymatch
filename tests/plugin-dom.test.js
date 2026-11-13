@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const D = require('./helpers/dom.js');
+const fs = require('node:fs'), path = require('node:path');
 const skip = !D.JSDOM && 'jsdom nicht installiert (npm install --prefix tests)';
 const { makePage, chromeMock, searchBody, DEFAULT, shadow, until, sleep } = D;
 test.after(D.closeAll);
@@ -91,6 +92,14 @@ test('Seitenaufbau unbekannt: klare Fehlermeldung statt leerem Panel, nur Zahlen
   const body2 = decodeURIComponent(a.href);
   assert.match(body2, new RegExp(`StayMatch ${require('../extension/manifest.json').version.replace(/\./g, '\\.')}`));
   assert.ok(!body2.includes('airbnb.de'), 'keine Adresse im Bericht');
+  // Issue-Formular: Vorlage und nur Feld-IDs, die es in der Vorlage gibt (Textfelder; „body“ ignoriert GitHub bei Formularen)
+  const q = new URL(a.href).searchParams;
+  const tpl = q.get('template');
+  const yml = fs.readFileSync(path.join(__dirname, '..', '.github', 'ISSUE_TEMPLATE', tpl), 'utf8');
+  const ids = [...yml.matchAll(/^\s+id:\s*(\S+)/gm)].map(m => m[1]);
+  for (const k of q.keys()) if (!['template', 'title'].includes(k)) assert.ok(ids.includes(k), `Feld ${k} fehlt in ${tpl}`);
+  assert.ok(!q.has('confirm'), 'Bestätigung setzt die Person selbst');
+  assert.match(q.get('console'), /Karten: 0/);
 });
 
 test('Fehlermeldung verschwindet, sobald doch Unterkünfte erscheinen', { skip }, async () => {

@@ -2,7 +2,8 @@
 (() => {
   const P = window.StayMatchParse, R = window.StayMatchRank, C = window.StayMatchCore;
   const SMC = window.StayMatchContent, H = window.StayMatchHints, X = window.StayMatchExtras;
-  const { getListing, saveListing, getTrip, h, panel, keys, T, copyText } = SMC;
+  const { getListing, saveListing, getTrip, h, panel, keys, T, copyText, SCAM_HELP_URL } = SMC;
+  const scamHelp = () => h('a', { href: SCAM_HELP_URL, target: '_blank', rel: 'noopener' }, 'Verdacht auf Betrug? So reagierst du');
 
   const reviewHints = window.StayMatchHints.reviewHints; // einzige Quelle: hints.js
 
@@ -214,7 +215,7 @@
     const advanceText = () => X?.advanceText?.(total, ctx.people, item.currency, item.cancellation);
     panel('sm-room', item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier', [
       // R7: Betrugshinweise dort, wo gebucht wird, ganz oben
-      item.scamSignals?.length ? h('div', { class: 'err', role: 'alert' }, h('b', {}, '⚠️ Vorsicht (Hinweis, kein Beweis): '), item.scamSignals.join(' · '), '. Nur über Airbnb zahlen und schreiben.') : null,
+      item.scamSignals?.length ? h('div', { class: 'err', role: 'alert' }, h('b', {}, '⚠️ Vorsicht (Hinweis, kein Beweis): '), item.scamSignals.join(' · '), '. Nur über Airbnb zahlen und schreiben. ', scamHelp()) : null,
       // R7: Passt-Wert aus deiner letzten Suche, wenn du von dort kommst
       fs?.score != null ? h('div', {}, h('b', {}, `Passt-Wert ${fs.score}/100`), ' aus deiner Suche', (fs.why || []).length ? ` · ${fs.why.slice(0, 2).join(' · ')}` : '') : null,
       h('div', {}, item.rating ? `⭐ ${item.rating}${item.reviewCount ? ` (${item.reviewCount})` : ''}` : 'Noch keine Sterne gefunden'),
@@ -224,6 +225,7 @@
       booked ? h('div', {}, h('b', {}, '✅ Gebucht'), booked.checkin ? ` · ${booked.checkin}${booked.checkout ? ' bis ' + booked.checkout : ''}` : '', booked.why?.length ? h('div', { class: 'muted' }, 'Warum: ' + booked.why.join(' · ')) : null) : null,
       ...conflicts.map(c => h('div', { class: 'warn' }, '⚠️ ' + c)),
       ...topWarn.map(c => h('div', { class: 'warn' }, '⚠️ ' + c)),
+      ctx.copiedContact && !item.scamSignals?.length ? h('div', { class: 'muted' }, scamHelp()) : null,
       warns.length ? h('div', { class: 'err' }, h('b', {}, 'Achtung aus den Bewertungen: '), warns.map(x => x.replace(/^⚠️\s*/, '')).join(' · ')) : null,
       item.hints?.length ? h('div', { class: 'muted' }, 'Aus den Bewertungen: ' + item.hints.join(' · ')) : null,
       change ? h('div', { class: 'muted' }, `Preis seit dem ersten Besuch ${change > 0 ? '+' : ''}${change} %`) : null,

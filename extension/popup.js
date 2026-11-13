@@ -265,4 +265,28 @@ function aiStatus(g) {
   return apis.length ? `Chrome-KI auf diesem Gerät: ${apis.join(', ')} vorhanden. StayMatch nutzt sie (noch) nicht, alles läuft mit festen Regeln.` : 'Chrome-KI auf diesem Gerät nicht verfügbar. StayMatch braucht sie nicht, alles läuft mit festen Regeln.';
 }
 $('aiInfo').textContent = aiStatus(self);
+// R7-597: Wunsch-Profile Arbeit und Urlaub. Ein Klick setzt das Arbeits-Profil (WLAN, Arbeitsplatz, ruhig, Self-Check-in),
+// der nächste wechselt zu Urlaub und wieder zurück. Schreibt in „quick“ wie die Profil-Chips im Panel (Budget bleibt erhalten),
+// nur Wünsche, die das Plugin kennt. Die offene Suchseite übernimmt es bei der nächsten Bewertung (kein Doppel-Durchlauf).
+const R = window.StayMatchRank || null;
+const PROFILE_CYCLE = ['work', 'holiday'];
+const knownWish = w => !!(R?.WISHES?.[w] || R?.REVIEW_WISHES?.[w] || X?.EXTRA_WISHES?.[w]);
+async function renderWishProfile(note) {
+  if (!X?.PROFILES || !R) return;
+  const { quick = {} } = await chrome.storage.local.get('quick');
+  const cur = PROFILE_CYCLE.includes(quick.profile) ? quick.profile : null;
+  const next = PROFILE_CYCLE[(PROFILE_CYCLE.indexOf(cur) + 1) % PROFILE_CYCLE.length];
+  const b = $('profileBtn');
+  b.textContent = cur ? `Profil ${X.PROFILES[cur].label} aktiv · wechseln zu ${X.PROFILES[next].label}` : `Wunsch-Profil ${X.PROFILES.work.label} setzen`;
+  b.setAttribute('aria-pressed', String(!!cur));
+  b.title = X.PROFILES[next].wishes.filter(knownWish).join(', ');
+  b.onclick = async () => {
+    const { quick: q = {} } = await chrome.storage.local.get('quick');
+    await chrome.storage.local.set({ quick: { budgetNight: null, ...q, wishes: X.PROFILES[next].wishes.filter(knownWish), profile: next } });
+    renderWishProfile('Gilt ab der nächsten Bewertung der Airbnb-Suche.');
+  };
+  $('profileInfo').textContent = note || '';
+  $('wishProfile').hidden = false;
+}
+renderWishProfile();
 load();

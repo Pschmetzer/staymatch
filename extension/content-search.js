@@ -115,6 +115,14 @@
     renderSearch();
   }
 
+  // Issue-Vorlage „Plugin erkennt die Seite nicht“ mit vorausgefüllten Feldern (Feld-IDs aus .github/ISSUE_TEMPLATE/plugin-erkennt-seite-nicht.yml).
+  // GitHub füllt bei Issue-Formularen nur Textfelder über ihre ID, „body“ würde ignoriert. Keine Adresse, keine Seiteninhalte;
+  // die Domain trägt die Person selbst ein, die Bestätigung (keine persönlichen Daten) setzt sie auch selbst.
+  const reportUrl = (ver, report) => `${REPORT_URL}?` + Object.entries({
+    template: 'plugin-erkennt-seite-nicht.yml', title: 'Plugin versteht Suchseite nicht', domain: 'Suchseite',
+    version: `StayMatch ${ver}`, what: 'Panel „Seite nicht verstanden“ statt Wertung', console: report,
+  }).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+
   // Nach einer Wartezeit noch keine Unterkünfte gelesen → klare Meldung statt leerem Panel
   function checkEmpty() {
     if (!/^\/s\//.test(location.pathname) || lastView) return;
@@ -129,7 +137,7 @@
         // R7: lädt die Seite nur langsam, hilft ein neuer Versuch ohne auf die nächste DOM-Änderung zu warten
         h('button', { onclick: () => { document.getElementById('sm-error')?.remove(); lastSig = ''; if (P.parseSearch(document).length) handleSearch().catch(() => {}); else checkEmpty(); } }, 'Erneut versuchen'),
         h('button', { onclick: async e => { e.target.textContent = (await copyText(report)) ? 'Kopiert ✓' : 'Nicht möglich'; } }, 'Diagnose kopieren'),
-        h('a', { class: 'btn', href: `${REPORT_URL}?title=${encodeURIComponent('Plugin versteht Suchseite nicht')}&body=${encodeURIComponent(report)}`, target: '_blank', rel: 'noopener' }, 'Fehler melden')),
+        h('a', { class: 'btn', href: reportUrl(ver, report), target: '_blank', rel: 'noopener' }, 'Fehler melden')),
       h('div', { class: 'muted' }, 'Die Diagnose enthält nur Zahlen, keine Adresse und keine Inhalte der Seite. Deine Unterkünfte bleiben unbewertet, bis das Plugin angepasst ist.'),
     ]);
   }
