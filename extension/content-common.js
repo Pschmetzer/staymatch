@@ -16,6 +16,9 @@
   async function saveListing(id, patch) {
     const old = (await getListing(id)) || { id, firstSeen: Date.now(), visits: 0 };
     const item = { ...old, ...patch, id, lastSeen: Date.now() };
+    // R7 E: Spuren-Pause (Popup): nichts speichern, also auch kein „schon gesehen“. Ausnahme: was du ausdrücklich klickst (👍/👎, Notiz, gebucht)
+    const explicit = patch && ('vote' in patch || 'note' in patch || 'booked' in patch);
+    if (settings.pauseUntil > Date.now() && !explicit) return { ...item, paused: true };
     try { await chrome.storage.local.set({ [KEY(id)]: item }); }
     catch (e) { console.debug('StayMatch: Speichern fehlgeschlagen (Speicher voll?)', e); SMC.saveFailed = true; }
     return item;
@@ -54,9 +57,11 @@
   function applyTheme() {
     for (const id of ['sm-search', 'sm-room', 'sm-error']) {
       const box = rootOf(id)?.querySelector('.box');
-      if (box) { box.classList.toggle('dark', settings.theme === 'dark'); box.classList.toggle('light', settings.theme === 'light'); }
+      if (box) { box.classList.toggle('dark', settings.theme === 'dark'); box.classList.toggle('light', settings.theme === 'light'); box.style.setProperty('--sm-scale', String(scale())); }
     }
   }
+  // R7 E: Textgröße 100–150 % (Popup)
+  const scale = () => Math.min(1.5, Math.max(1, +settings.fontScale || 1));
   const settingsListeners = [];
   function setSettings(v) { Object.assign(settings, { showBadges: true, theme: 'auto' }, v || {}); applyTheme(); settingsListeners.forEach(f => f(settings)); }
   chrome.storage.onChanged?.addListener(ch => {
@@ -148,6 +153,7 @@
     root.replaceChildren(live);
     if (opts.announce != null && live.textContent !== opts.announce) setTimeout(() => { live.textContent = opts.announce; }, 50);
     const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
+    box.style.setProperty('--sm-scale', String(scale()));
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
     const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');
     box.append(h('style', {}, CSS),

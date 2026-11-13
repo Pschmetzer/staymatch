@@ -47,7 +47,7 @@
     const sp = P.searchParams(location.href);
     // Seiten, die du nacheinander öffnest (Blättern), gemeinsam ranken. Nichts wird von selbst geladen.
     // R7: Speicher parallel lesen statt vier-, fünfmal nacheinander
-    const [stored, savedTrip, items] = await Promise.all([chrome.storage.local.get(['filters', 'min:sm-search', 'pool', 'quick', 'priceLog', 'tasteIgnore']), getTrip(), allListings()]);
+    const [stored, savedTrip, items] = await Promise.all([chrome.storage.local.get(['filters', 'min:sm-search', 'pool', 'quick', 'priceLog', 'tasteIgnore', 'friendLikes', 'stats']), getTrip(), allListings()]);
     const pool = POOL.mergePool(stored.pool, location.href, current);
     chrome.storage.local.set({ pool }).catch?.(() => {});
     const byId = new Map(current.map(l => [l.id, l]));
@@ -78,6 +78,15 @@
     const tasteItems = ign.size ? items.map(i => ign.has(String(i.locality || '').toLowerCase()) ? { ...i, locality: null } : i) : items;
     const ctx = { ownBed: !!quick.ownBed, people, adults: delta ? people : sp.adults || null, nights, tripNights: trip?.nights || null, budget: trip?.budget || null, budgetCurrency: trip?.budget ? '€' : (quick.budgetCurrency || null), priceUnsure: !!sp.flexible, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: R.buildTaste(tasteItems), seen, disliked, known, wishes: quick.wishes };
     const ranked = R.rankListings(listings, ctx);
+    // R7 E: Merklisten von Freunden („Lena mag das“), nur aus dem, was du im Popup eingefügt hast
+    const fl = stored.friendLikes || {};
+    for (const l of ranked) if (fl[l.id]?.length) l.rank.info.push(`${fl[l.id].join(', ')} ${fl[l.id].length === 1 ? 'mag' : 'mögen'} das`);
+    // R7 E: Zähler „heute bewertet“ fürs Popup (nur Zahlen, nie gesendet)
+    if (!(settings.pauseUntil > Date.now())) {
+      const day = new Date().toISOString().slice(0, 10), st = stored.stats?.day === day ? stored.stats : { day, rated: 0, opened: 0, ids: [] };
+      const fresh = current.filter(l => !st.ids.includes(l.id)).map(l => l.id);
+      if (fresh.length) chrome.storage.local.set({ stats: { ...st, rated: st.rated + fresh.length, opened: items.filter(i => i.lastSeen && new Date(i.lastSeen).toISOString().slice(0, 10) === day).length, ids: [...st.ids, ...fresh].slice(-1000) } }).catch?.(() => {});
+    }
 
     filters = stored.filters || {};
     // R7 E: eigener Preisverlauf je Stadt (nur Median, Datum, Nächte; lokal) für „ungewöhnlich teuer“ und Wochenend-Aufschlag
@@ -217,6 +226,9 @@
       h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → die Seiten, die du öffnest, werden zusammen bewertet. Es wird nichts von selbst nachgeladen.'),
       pages > 1 ? h('div', { class: 'row' }, h('button', { onclick: async () => { await chrome.storage.local.remove('pool'); lastSig = ''; lastView = null; SMC.route?.(); } }, 'Sammlung leeren')) : null,
       h('div', { class: 'muted' }, 'Tasten: Alt+Shift+V Vergleich · K kopieren · M ein-/ausklappen'),
+      // R7 E: Kennenlernen beim ersten Panel, danach nie wieder
+      !settings.onboarded ? h('div', { class: 'err muted', role: 'note' }, h('b', {}, 'Kurz erklärt: '), 'Die Zahl rechts ist der Passt-Wert (0–100). Chips oben sind deine Wünsche, darunter die Filter. Auf der Unterkunftsseite merkst du mit 👍/👎. ',
+        h('button', { onclick: async () => { const { settings: st = {} } = await chrome.storage.local.get('settings'); await chrome.storage.local.set({ settings: { ...st, onboarded: true } }); } }, 'Verstanden')) : null,
       !trip ? h('div', { class: 'muted' }, 'Tipp: Im ', h('a', { href: window.StayMatchCore.APP_URL, target: '_blank', rel: 'noopener' }, 'Viertel-Finder'), ' findest du vorher das Viertel, das zu dir passt, auch mit Mitreisenden.') : null,
     ], { minimized, wide: compareMode, announce: top[0] ? `Neu bewertet, Platz 1: ${cut(top[0].title || top[0].kind, 60)}. ${count} Unterkünfte${budgetKnown ? `, ${inBudget} im Budget` : ''}, beste ${top[0].rank.score} Punkte` : 'Neu bewertet, keine Unterkunft erfüllt alle Filter' }); // R7: Ansage für Screenreader
   }
@@ -241,13 +253,16 @@
       const bg = s >= 75 ? '#1f9d6b' : s >= 55 ? '#d68a00' : '#9a9aa0';
       b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;pointer-events:none`;
       const pp = l.rank.ppn?.person;
-      b.textContent = `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;
+      // R7 E: Screenshot-Modus: nur die Punkte, ohne Preis und ohne Tooltip
+      b.textContent = settings.scoreOnly ? String(s) : `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;
       // R7: Airbnbs Skripte können das title-Attribut lesen: keine Namen der Mitreisenden hinein
-      b.title = [...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n))).join(' · ');
+      b.title = settings.scoreOnly ? '' : [...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
       card.style.opacity = l.rank.disliked ? '0.45' : !passes(l) ? '0.35' : '';
     }
+    // R7 E: Blindverkostung: Fotos aller Karten ausblenden (rückgängig, wenn abgeschaltet)
+    for (const img of document.querySelectorAll('[data-testid="card-container"] img')) img.style.visibility = settings.blind ? 'hidden' : '';
   }
-  SMC.settingsListeners.push(() => applyBadges());
+  SMC.settingsListeners.push(() => { applyBadges(); if (lastView && SMC.rootOf("sm-search")) renderSearch(); });
   // R7: nach ✕ (Panel weg) bauen die Tasten es nicht wieder auf
   const open = () => !P.ROOM_RE.test(location.pathname) && lastView && !!SMC.rootOf('sm-search');
   keys.KeyV = () => { if (open()) { compareMode = !compareMode; renderSearch(); } };

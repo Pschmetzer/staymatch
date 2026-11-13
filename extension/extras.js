@@ -648,7 +648,50 @@
     return lines;
   }
 
+  // ================= Teil 3: Popup und Verlauf =================
+  // Link-Echtheit: exakt eine Airbnb-Domain aus der Liste? Nachbauten („airbnb-secure-pay.com“) erkennen
+  function linkCheck(url, domains) {
+    let u; try { u = new URL(String(url).trim()); } catch { return { ok: false, text: 'Kein gültiger Link' }; }
+    const host = u.hostname.toLowerCase().replace(/^www\./, '');
+    if (domains.includes(host)) return u.protocol === 'https:' ? { ok: true, text: `Echte Airbnb-Adresse (${host})` } : { ok: false, text: 'Airbnb-Adresse, aber ohne https: nicht öffnen' };
+    if (/a[i1l]r[bh]n[bh]|airbnb/i.test(host)) return { ok: false, text: `Vorsicht: ${host} ist KEINE Airbnb-Adresse (Nachbau). Nichts eingeben, nichts zahlen.` };
+    return { ok: false, text: `${host} gehört nicht zu Airbnb` };
+  }
+  // Merkliste eines Freundes (Text aus „Merkliste kopieren“): Unterkunfts-Ids einsammeln
+  function friendIds(text) { return [...new Set([...S(text).matchAll(/\/rooms\/(?:[a-z]+\/)?(\d+)/g)].map(m => m[1]))]; }
+  // Gebuchte Etappen als Text: Reihenfolge, Daten, Preis pro Kopf, Storno-Kette, Wechselkosten (Reinigung)
+  function tripsText(items) {
+    const b = (items || []).filter(i => i.booked).sort((a, c) => S(a.booked.checkin).localeCompare(S(c.booked.checkin)));
+    if (!b.length) return '';
+    const lines = ['Unsere Etappen (StayMatch)'];
+    let clean = 0, cleanCur = null, cleanN = 0;
+    b.forEach((i, n) => {
+      const k = i.booked, pp = k.total && k.people > 1 ? ` · ${money(k.total / k.people, k.currency)} p. P.` : k.total ? ` · ${money(k.total, k.currency)}` : '';
+      lines.push('', `${n + 1}. ${i.title || 'Unterkunft'}${i.locality ? ` (${i.locality})` : ''}`, `   ${k.checkin || '?'} bis ${k.checkout || '?'}${pp}`,
+        `   Storno: ${k.cancel ? `kostenlos${k.cancel !== 'ja' ? ' bis ' + k.cancel : ''}` : 'nicht kostenlos oder unbekannt'}`);
+      if (i.url) lines.push(`   ${i.url}`);
+      if (i.extra?.fees?.cleaning) { clean += i.extra.fees.cleaning; cleanCur = i.extra.fees.currency; cleanN++; }
+    });
+    if (b.length >= 2 && cleanN >= 2) lines.push('', `Reinigungsgebühren der ${cleanN} Wechsel zusammen: ${money(clean, cleanCur)}`);
+    return lines.join('\n');
+  }
+  // Datenauskunft: was liegt lokal?
+  function storageSummary(all) {
+    const ls = Object.entries(all || {}).filter(([k]) => k.startsWith('l:')).map(([, v]) => v);
+    const n = f => ls.filter(f).length;
+    return [
+      `${ls.length} Unterkünfte im Verlauf (${n(i => i.vote === 1)} 👍, ${n(i => i.vote === -1)} 👎, ${n(i => i.note)} mit Notiz, ${n(i => i.booked)} gebucht)`,
+      `${n(i => i.reviewTexts?.length)} mit gespeicherten Bewertungsauszügen, ${n(i => i.priceHistory?.length)} mit Preisverlauf`,
+      all?.trip ? `Reise: ${all.trip.city || '?'}, ${all.trip.people?.length || 0} Personen` : 'Keine Reise gespeichert',
+      all?.pool ? `Gesammelte Suchseiten: ${(all.pool.pages || []).length}` : null,
+      all?.priceLog?.length ? `${all.priceLog.length} Preis-Mediane deiner Suchen (nur Stadt, Datum, Median)` : null,
+      all?.friendLikes ? `Merklisten von Freunden: ${Object.keys(all.friendLikes).length} Unterkünfte` : null,
+      'Alles liegt nur in diesem Browser (chrome.storage.local).',
+    ].filter(Boolean);
+  }
+
   root.StayMatchExtras = {
+    linkCheck, friendIds, tripsText, storageSummary,
     priceAnchor, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
     budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, mainCurrency,
     advanceText,
