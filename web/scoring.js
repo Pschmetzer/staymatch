@@ -287,9 +287,15 @@
     ['family', /^(famil|kind)/], ['nature', /^(natur|wander)/], ['shopping', /^(shop|einkauf)/], ['sport', /^(sport|fitness|lauf)/], ['culture', /^(kultur|museum|theater)/],
   ]; // am Wortanfang verankert: „Jessen“ ist kein Foodie
   function parseGroup(text) {
-    const parts = String(text || '').split(/[\n,;]+|\s+und\s+/i).map(x => x.trim()).filter(Boolean).slice(0, 30);
+    const parts = String(text || '').split(/[\n,;&+]+|\s+(?:und|and)\s+/i).map(x => x.trim()).filter(Boolean).slice(0, 30);
     const out = [];
     for (const part of parts) {
+      const m = /^(\d{1,2})\s*[x×]?\s+(\S.*)$/i.exec(part); // „3 Party“ = drei Personen vom Typ Party
+      if (m && +m[1] > 1) {
+        const hit = TYPE_WORDS.find(([, re]) => re.test(m[2].toLowerCase())), label = m[2].trim().slice(0, 30);
+        for (let n = 1; n <= +m[1] && out.length < 30; n++) out.push({ name: `${label} ${n}`, type: hit ? hit[0] : 'chill' });
+        continue;
+      }
       const words = part.replace(/[:()–]|\s-\s/g, ' ').split(/\s+/).filter(Boolean); // Bindestrich im Namen bleibt („Hans-Peter“)
       const hit = TYPE_WORDS.find(([, re]) => words.some(w => re.test(w.toLowerCase())));
       const name = words.filter(w => !hit || !hit[1].test(w.toLowerCase())).join(' ').trim().slice(0, 40);
@@ -401,8 +407,8 @@
     dec: s => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)))),
   };
   function shareEncode(st) {
-    const { c, i, o, b, bm, r, mc, k, y, bd } = st;
-    return b64.enc({ c, i, o, b, bm, r, mc, k, y, bd, f: Math.round(st.fairness * 100),
+    const { c, i, o, b, bm, r, mc, k, y, bd, m, mw } = st;
+    return b64.enc({ c, i, o, b, bm, r, mc, k, y, bd, m, mw, f: Math.round(st.fairness * 100),
       p: st.people.map(p => [p.name, p.type, p.custom ? Object.keys(CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: st.wishes });
   }
   // Nie dem Link trauen: alles prüfen und begrenzen. null = kaputt.
@@ -419,14 +425,15 @@
         veto: v || undefined,
       })).filter(Boolean);
       if (!people.length) return null;
-      return { people, wishes: Array.isArray(s.w) ? s.w : null, fairness: s.f != null ? cleanFairness(+s.f / 100) : null,
+      const map = { m: Array.isArray(s.m) ? s.m.filter(k => CATEGORIES[k]) : [], mw: /^(g|\d{1,2})$/.test(s.mw) ? s.mw : 'g' };
+      return { people, map, wishes: Array.isArray(s.w) ? s.w : null, fairness: s.f != null ? cleanFairness(+s.f / 100) : null,
         form: { c: str(s.c, 80), i: day(s.i), o: day(s.o), b: Math.max(0, Math.min(1e6, +s.b || 0)), bm: s.bm, r: s.r, mc: s.mc, k: s.k, y: s.y, bd: s.bd } };
     } catch { return null; }
   }
 
   // ---- Overpass: CSV statt JSON (ca. 6x kleiner). Abfrage und Spalten aus dem Kern (gleich wie beim Vorladen der Städte). ----
   // Fair zu den freiwilligen Servern: erst einer, der nächste erst nach `stagger` ms ohne Antwort oder bei Fehler.
-  async function overpassFetch(bbox, outer, onTry, { f = (...a) => fetch(...a), stagger = 20000, total = 110000 } = {}) {
+  async function overpassFetch(bbox, outer, onTry, { f = (...a) => fetch(...a), stagger = 20000, total = 130000, onBytes } = {}) { // jeder Server hat ca. 90 s
     const q = C.overpassQuery(bbox);
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), total);
@@ -441,7 +448,12 @@
         if (i) { await Promise.race([prev, new Promise(r => setTimeout(r, stagger * i))]); if (ctrl.signal.aborted) throw new Error('abgebrochen'); if (onTry) onTry(i); }
         try {
           const r = await f(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
-          const text = await r.text();
+          let text = '';
+          if (onBytes && r.ok && r.body && r.body.getReader) { // mitzählen statt blind warten
+            const rd = r.body.getReader(), td = new TextDecoder(); let n = 0;
+            for (let c; !(c = await rd.read()).done;) { n += c.value.length; text += td.decode(c.value, { stream: true }); onBytes(n); }
+            text += td.decode();
+          } else text = await r.text();
           if (!r.ok || !text.startsWith('@lat')) throw new Error(`${new URL(url).host}: ${r.status}`);
           return text;
         } catch (e) { release(); throw e; }
@@ -476,7 +488,7 @@
   const LABELS = { party: ['🍸', 'Bars/Clubs'], chill: ['🌿', 'Parks/Cafés'], sights: ['🏛️', 'Sehenswürdigkeiten'], food: ['🍝', 'Restaurants'], transit: ['🚇', 'Stationen'], shop: ['🛍️', 'Einkaufen'], sport: ['🏃', 'Sport'], kids: ['🧸', 'Kinderorte'] };
   const CORE_CATS = ['party', 'chill', 'sights', 'food', 'transit'], TIERS = ['', '€', '€€', '€€€'];
   const ico = e => `<span aria-hidden="true">${e}</span>`; // Emoji nicht vorlesen
-  const dec = (v, d = 1) => v.toFixed(d).replace('.', ',');
+  const dec = (v, d = 1) => v.toLocaleString((typeof document !== 'undefined' && document.documentElement.lang) || 'de', { minimumFractionDigits: d, maximumFractionDigits: d });
   // Wert, nach dem gerade sortiert wird (für „fast gleichauf“); null = Sortierung ohne Wert
   const sortValue = (a, mode) => mode === 'fair' ? a.group.total : mode === 'avg' ? a.group.avg : /^p:\d+$/.test(mode) ? a.group.scores[+mode.slice(2)] : null;
   // v: Ansicht (ranked, pois, ppl, r, pool, stats, medCentre, awards, minDist, relevant, byTotal); o: { url, key, fav, cmp, sortMode }

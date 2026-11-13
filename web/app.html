@@ -28,6 +28,8 @@
 :root { --brand:#ff385c; }
 .skip { position:absolute; left:-999px; top:8px; z-index:50; background:var(--btn); color:var(--btnText); padding:8px 14px; border-radius:8px; } .skip:focus { left:8px; }
 .fav { min-width:28px; min-height:28px; }
+.trow.mix { grid-template-columns:86px 1fr; }
+.mapfit { width:30px; height:30px; background:#fff; color:#222; border:2px solid rgba(0,0,0,.2); border-radius:4px; font-size:16px; cursor:pointer; }
 .result, #status, #results { scroll-margin-top:80px; }
 * { box-sizing:border-box; }
 [hidden] { display:none !important; }
@@ -156,7 +158,7 @@ form#f { border-radius:16px; padding:24px; box-shadow:var(--shadow); }
 .seg .cell:nth-child(even) { border-left:1px solid var(--muted); }
 .seg .full { grid-column:1 / -1; border-top:0; border-radius:11px 11px 0 0; }
 .seg .cell:last-child { border-radius:0 0 11px 0; } .seg .cell:nth-last-child(2) { border-radius:0 0 0 11px; }
-.seg label { margin:0; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text); }
+.seg label { margin:0; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text); }
 .seg input, .seg select { border:0; background:transparent; padding:2px 0 0; border-radius:0; font-size:15px; outline:none; }
 .seg input[type=search]::-webkit-search-cancel-button { display:none; }
 @media (forced-colors: active) { .seg .cell:focus-within, :focus-visible { outline:2px solid CanvasText; outline-offset:2px; } }
@@ -213,7 +215,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     <a class="logo" href="/"><i><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg></i>StayMatch</a>
     <div class="right">
       <a href="/#plugin">Plugin</a>
-      <button class="theme" id="theme" aria-label="Hell/Dunkel umschalten">◐</button>
+      <button class="theme" id="theme" aria-label="Dunkles Design" aria-pressed="false">◐</button>
     </div>
   </div>
 </nav>
@@ -259,7 +261,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     <div class="undo" id="undo" role="status" hidden><span id="undoMsg"></span><button type="button" class="link" id="undoBtn">Rückgängig</button></div>
     <details>
       <summary>Reisende aus Text einfügen</summary>
-      <div class="body"><textarea id="paste" aria-label="Reisende als Text" placeholder="Lena Party, Mia Chill, Tom Sightseeing"></textarea><button type="button" class="link" id="pasteGo">Übernehmen</button></div>
+      <div class="body"><textarea id="paste" aria-label="Reisende als Text" placeholder="Lena Party, Mia Chill, Tom Sightseeing"></textarea><button type="button" class="link" id="pasteGo">Übernehmen</button><p class="hint warn" id="pasteMsg" role="status"></p></div>
     </details>
     <details>
       <summary>Gespeicherte Reisende</summary>
@@ -312,7 +314,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
   </form>
   <section>
     <p class="warn" id="crash" role="alert" hidden>Etwas ging schief. Bitte die Seite neu laden. Hilft das nicht: <button type="button" class="link">gespeicherte Eingaben zurücksetzen und neu laden</button></p>
-    <p id="status" role="status" aria-live="polite">Stadt, Zeitraum, Budget und deine Wünsche eingeben.</p>
+    <p id="status" role="status" aria-live="polite" tabindex="-1">Stadt, Zeitraum, Budget und deine Wünsche eingeben.</p>
     <div id="choices" class="choices" role="group" aria-label="Mehrere Orte gefunden" hidden></div>
     <button class="link" id="retry" hidden>↻ Nochmal versuchen</button>
     <div class="card loader" id="loader" hidden>
@@ -356,13 +358,14 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
       <div id="mapWrap">
         <div class="poitog" id="poiToggles" role="group" aria-label="Orte auf der Karte zeigen"></div>
         <div id="map" role="region" aria-label="Karte der besten Viertel. Dieselben Informationen stehen in der Liste darunter."></div>
-        <div class="hint">Nummern = beste Viertel, kleine Punkte = weitere bewertete Viertel (grün gut, rot schwach). Gestrichelt: ausgewertete Fläche.</div>
+        <p class="hint warn" id="tileMsg" role="status" hidden>Kartenbild nicht verfügbar. Die Liste unten gilt trotzdem.</p>
+        <div class="hint" id="mapLegend">Nummern = beste Viertel, kleine Punkte = weitere bewertete Viertel (grün gut, rot schwach). Gestrichelt: ausgewertete Fläche.</div>
       </div>
     </div>
     <div class="stale" id="stale" role="status" hidden></div>
     <div class="reshead" id="reshead" hidden>
       <span id="resSummary"></span>
-      <label for="sort">Sortieren <select id="sort" aria-label="Sortierung"></select></label>
+      <label for="sort">Sortieren <select id="sort"></select></label>
       <label><input type="checkbox" id="onlyFav"> Nur Favoriten (<span id="favCount">0</span>)</label>
     </div>
     <div class="whatif" id="whatif" aria-live="polite"></div>
@@ -375,16 +378,20 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 <footer>
   <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden. · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a></div>
 </footer>
-<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/leaflet/leaflet.js" defer></script>
 <!-- Reihenfolge wichtig: core.js zuerst (klassische Skripte, gemeinsamer globaler Bereich) -->
-<script src="core.js"></script>
-<script src="scoring.js"></script>
-<script src="app.js"></script>
+<script src="core.js" defer></script>
+<script src="scoring.js" defer></script>
+<script src="app.js" defer></script>
 <script>
+  addEventListener('DOMContentLoaded', () => {
   document.getElementById('theme').onclick = () => {
     const root = document.documentElement, next = root.dataset.theme === 'light' ? 'dark' : 'light';
     root.dataset.theme = next; try { localStorage.setItem('sm_theme', next); } catch {}
+    document.getElementById('theme').setAttribute('aria-pressed', String(next === 'dark'));
   };
+  document.getElementById('theme').setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
+  });
 </script>
 </body>
 </html>

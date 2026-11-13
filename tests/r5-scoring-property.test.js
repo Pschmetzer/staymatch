@@ -50,20 +50,19 @@ test('scoreAreas: norm in [0,1], Anzahl nie negativ, mehr Orte ändern nie den R
   }
 });
 
-test('Leistung: größte Stadtdatei wird in unter 5 s bewertet', () => {
+test('Leistung: größte Stadtdatei wird in unter 1,5 s bewertet (bester von 3 Läufen)', () => {
   const dir = path.join(__dirname, '..', 'web', 'data');
   const biggest = fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'index.json')
     .map(f => [f, fs.statSync(path.join(dir, f)).size]).sort((a, b) => b[1] - a[1])[0][0];
-  const t0 = Date.now();
-  const d = JSON.parse(fs.readFileSync(path.join(dir, biggest), 'utf8'));
-  const rows = d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
-  const areas = [], raw = [];
-  for (const t of rows) {
-    if (t.place && t.name) { if (!areas.some(a => a.name === t.name && SM.distM(a, t) < 1500)) areas.push({ name: t.name, lat: +t.lat, lon: +t.lon }); continue; }
-    for (const cat of SM.categoriesOf(t)) raw.push({ lat: +t.lat, lon: +t.lon, cat, name: t.name, tags: t });
+  const raw = fs.readFileSync(path.join(dir, biggest), 'utf8');
+  let best = Infinity, areas = [];
+  for (let run = 0; run < 3; run++) { // dieselben Funktionen wie die App (fromFile, buildData), kein Nachbau
+    const t0 = Date.now();
+    const data = SM.buildData(SM.fromFile(JSON.parse(raw)).rows);
+    areas = data.areas;
+    SM.scoreAreas(areas, data.pois, 800);
+    best = Math.min(best, Date.now() - t0);
   }
-  SM.scoreAreas(areas, SM.dedupePois(raw), 800);
-  const ms = Date.now() - t0;
   assert.ok(areas.length >= 2 && areas.every(a => a.norm), biggest);
-  assert.ok(ms < 5000, `${biggest}: ${ms} ms`);
+  assert.ok(best < 1500, `${biggest}: ${best} ms`);
 });

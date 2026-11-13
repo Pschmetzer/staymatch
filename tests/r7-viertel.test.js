@@ -299,3 +299,89 @@ test('whatIfWithout vergleicht Viertel, nicht Namen', () => {
   const ppl = withW([{ name: 'P', type: 'party' }, { name: 'C', type: 'chill' }]);
   assert.equal(SM.whatIfWithout([A, B], ppl, 0.6, A).length, 1, 'Ohne P gewinnt das andere „Gleich“');
 });
+
+// ---------- Welle 3 ----------
+test('Lint: Namen in HTML-Vorlagen gehen immer durch escapeHtml', () => {
+  const bad = [];
+  for (const f of ['app.js', 'scoring.js']) {
+    const src = fs.readFileSync(path.join(web, f), 'utf8');
+    const chunks = [];
+    for (const m of src.matchAll(/innerHTML\s*[+]?=|insertAdjacentHTML\(|bindTooltip\(/g)) chunks.push(src.slice(m.index, src.indexOf(';\n', m.index)));
+    const card = src.indexOf('function cardHtml(');
+    if (card >= 0) chunks.push(src.slice(card, src.indexOf('\n  }\n', card)));
+    for (const c of chunks) for (const [e] of c.matchAll(/\$\{[^{}]*\.(?:name|display_name)\b[^{}]*\}/g)) if (!/escapeHtml\(|\brow\(/.test(e)) bad.push(`${f}: ${e}`); // row() in renderCompare escapt selbst
+  }
+  assert.deepEqual(bad, []);
+  assert.ok(fs.readFileSync(path.join(web, 'scoring.js'), 'utf8').includes('function cardHtml('), 'cardHtml gefunden (sonst prüft der Test nichts)');
+});
+
+test('parseGroup: Mengen („3 Party“) und Trenner &, +, and', () => {
+  assert.deepEqual(SM.parseGroup('3 Party, 2 Chill').map(x => [x.name, x.type]), [['Party 1', 'party'], ['Party 2', 'party'], ['Party 3', 'party'], ['Chill 1', 'chill'], ['Chill 2', 'chill']]);
+  assert.deepEqual(SM.parseGroup('Lena & Tom + Mia and Bo').map(x => x.name), ['Lena', 'Tom', 'Mia', 'Bo']);
+  assert.equal(SM.parseGroup('40 Party').length, 30, 'höchstens 30 Personen');
+});
+
+test('pickDiverse: alle Paare mit Mindestabstand, Ergebnis wächst als Präfix', () => {
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const areas = Array.from({ length: 200 }, (_, i) => ({ name: 'a' + i, lat: 41.3 + rnd() * 0.15, lon: 2.1 + rnd() * 0.15 }));
+  const small = SM.pickDiverse(areas, 5, 1200), big = SM.pickDiverse(areas, 12, 1200);
+  for (let i = 0; i < big.length; i++) for (let j = i + 1; j < big.length; j++) assert.ok(SM.distM(big[i], big[j]) >= 1200);
+  assert.deepEqual(big.slice(0, small.length), small);
+});
+
+test('dedupePois ist idempotent', () => {
+  let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const cats = ['party', 'transit', 'food'];
+  const pois = Array.from({ length: 400 }, (_, i) => ({ lat: 41.4 + rnd() * 0.01, lon: 2.16 + rnd() * 0.01, cat: cats[i % 3], name: i % 4 ? 'n' + (i % 7) : undefined }));
+  const once = SM.dedupePois(pois);
+  assert.deepEqual(SM.dedupePois(once), once);
+});
+
+test('Allein: keine Sortierung „Höchster Schnitt“/„Beste für“, kein Chip, Aufschlüsselung direkt; „Mehr“ nennt die Anzahl', dom, async () => {
+  const w = bootApp();
+  const $ = id => w.document.getElementById(id);
+  await search(w, 'Wien');
+  const opts = [...$('sort').options].map(o => o.value);
+  assert.ok(!opts.includes('avg') && !opts.some(v => v.startsWith('p:')), opts.join());
+  assert.equal($('results').querySelectorAll('button.chip').length, 0);
+  assert.match($('results').querySelector('article').textContent, /So setzt sich der Wert zusammen/);
+  assert.match($('more').textContent, /^\d+ weitere Viertel anzeigen \(\d+ übrig\)$/);
+});
+
+test('Ortsauswahl hat „Keiner davon“, Text ohne Namen gibt einen Hinweis, Fairness spricht', dom, () => {
+  const w = bootApp();
+  const $ = id => w.document.getElementById(id);
+  $('paste').value = ' , ; '; $('pasteGo').click();
+  assert.match($('pasteMsg').textContent, /Kein Name erkannt/);
+  assert.match($('fair').getAttribute('aria-valuetext'), /unzufriedenste Person/);
+  assert.equal($('status').getAttribute('tabindex'), '-1', 'Sprunglink-Ziel fokussierbar');
+  assert.equal($('sort').getAttribute('aria-label'), null, 'sichtbarer Text „Sortieren“ ist der Name');
+  assert.ok(w.document.querySelectorAll('script[src][defer]').length >= 4);
+});
+
+test('Escape schließt die Aufschlüsselung, Fokus zurück auf den Chip', dom, async () => {
+  const w = bootApp({ storage: { sm_people: [{ name: 'Lena', type: 'party' }, { name: 'Tom', type: 'chill' }] } });
+  const $ = id => w.document.getElementById(id);
+  await search(w, 'Wien');
+  const chip = $('results').querySelector('button.chip'); chip.click();
+  $('bd-0').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal($('bd-0').hidden, true); assert.equal(w.document.activeElement, chip);
+});
+
+test('sm_trip nur mit Plugin; Teilen-Link trägt den Kartenzustand und bleibt bis zur eigenen Änderung in der Adresse', dom, async () => {
+  const w = bootApp({ storage: { sm_trip: '{"people":["alt"]}' } });
+  const $ = id => w.document.getElementById(id);
+  await search(w, 'Wien');
+  assert.equal(w.localStorage.getItem('sm_trip'), null, 'ohne Plugin keine Namen im Speicher');
+  w.document.documentElement.dataset.staymatchExtension = '1';
+  await tick(20);
+  assert.ok(JSON.parse(w.localStorage.getItem('sm_trip')).areas.length > 0, 'Plugin erkannt: nachgeholt');
+  const st = { c: 'Wien', b: 500, bm: 'total', r: '800', mc: '0', k: 0, y: 0, fairness: 0.6, people: [{ name: 'Gast', type: 'chill' }], wishes: [], m: ['party'], mw: 'g' };
+  const w2 = bootApp({ url: 'http://localhost/app#t=' + SM.shareEncode(st) });
+  await until(() => w2.document.getElementById('results').children.length > 0);
+  assert.ok(w2.location.hash.startsWith('#t='), 'Link bleibt in der Adresse');
+  w2.document.getElementById('poiToggles').innerHTML || assert.ok(true); // ohne Leaflet wird die Karte nicht gebaut
+  w2.document.getElementById('people').querySelector('input').dispatchEvent(new w2.Event('input'));
+  assert.equal(w2.location.hash, '', 'eigene Änderung: Link weg');
+  assert.deepEqual(SM.shareDecode(SM.shareEncode(st)).map, { m: ['party'], mw: 'g' });
+});

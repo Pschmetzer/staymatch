@@ -8,7 +8,7 @@ addEventListener('error', e => crash(e.error || e.message)); addEventListener('u
 const $ = id => document.getElementById(id);
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { if (!store.warned) { store.warned = 1; const m = document.getElementById('shareMsg'); if (m) m.textContent = 'Dein Browser speichert gerade nichts (privater Modus?). Nutze den Teilen-Link, um deine Eingaben zu behalten.'; } } },
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -65,9 +65,12 @@ $('checkout').value = ymd(d1);
 $('checkin').min = ymd(new Date());
 
 // ---- Formular merken (Stadt, Zeitraum, Budget, Umkreis …) ----
+// Kinder und Babys überall gleich begrenzen (Formular, Kopfzeile, Airbnb-Link)
+const guests = () => ({ k: Math.max(0, Math.min(10, Math.floor(+$('kids').value || 0))), y: Math.max(0, Math.min(5, Math.floor(+$('babys').value || 0))) });
+['kids', 'babys'].forEach(id => $(id).addEventListener('change', () => { const g = guests(); $('kids').value = g.k; $('babys').value = g.y; }));
 function formState() {
   return { c: $('city').value.trim(), i: $('checkin').value, o: $('checkout').value, b: +$('budget').value || 0, bm: $('budgetMode').value,
-    r: $('radius').value, mc: $('maxcenter').value, k: Math.max(0, Math.min(10, Math.floor(+$('kids').value || 0))), y: Math.max(0, Math.min(5, Math.floor(+$('babys').value || 0))), bd: $('beds').checked };
+    r: $('radius').value, mc: $('maxcenter').value, ...guests(), bd: $('beds').checked, mh: $('mapWrap').hidden };
 }
 const saveForm = () => store.set('sm_form', formState());
 function applyForm(f, { dates = true } = {}) {
@@ -80,10 +83,12 @@ function applyForm(f, { dates = true } = {}) {
   pick($('radius'), f.r, v => [...$('radius').options].some(o => o.value === String(v))); pick($('maxcenter'), f.mc, v => [...$('maxcenter').options].some(o => o.value === String(v)));
   pick($('kids'), Math.max(0, Math.min(10, +f.k || 0)), () => true); pick($('babys'), Math.max(0, Math.min(5, +f.y || 0)), () => true);
   $('beds').checked = !!f.bd;
+  if (typeof f.mh === 'boolean') setMapHidden(f.mh); // „Karte ausblenden“ merken
 }
 applyForm(store.get('sm_form', null));
 
-const wd = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' }); // new Date('YYYY-MM-DD') ist UTC
+const LANG = document.documentElement.lang || 'de'; // Formate und Ortsnamen in der Sprache der Seite
+const wd = new Intl.DateTimeFormat(LANG, { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' }); // new Date('YYYY-MM-DD') ist UTC
 function updateDates(msg) {
   const a = new Date($('checkin').value), b = new Date($('checkout').value);
   $('dateInfo').className = 'hint' + (msg ? ' warn' : '');
@@ -137,7 +142,7 @@ function renderPeople() {
 }
 // Airbnb: höchstens 16 Gäste (Erwachsene + Kinder) pro Unterkunft
 function guestWarn() {
-  const g = people.length + Math.max(0, +$('kids').value || 0);
+  const g = people.length + guests().k;
   $('peopleWarn').textContent = g > 16 ? `${g} Gäste: Airbnb erlaubt meist nur 16 pro Unterkunft. Sucht dann zwei Unterkünfte nebeneinander.` : '';
 }
 // Indizes hinter der gelöschten Person rücken nach: „Beste für Lena“ und „Karte zeigt: Lena“ bleiben bei Lena
@@ -157,7 +162,7 @@ function tunePanel(p, n) {
   const el = document.createElement('div');
   el.className = 'tune';
   el.innerHTML = `<p class="muted">Was ist ${escapeHtml(p.name)} wichtig? Rechts = wichtig, links = stört. „Nie“ schließt Viertel mit viel davon ganz aus.<span data-cust ${p.custom ? '' : 'hidden'}> <b>Eigene Werte</b> (Typ und Mischtyp gelten nicht mehr). <button type="button" class="link" data-reset>Auf Typ zurücksetzen</button></span></p><p class="warn" data-warn role="status"></p>
-    <div class="trow" style="grid-template-columns:86px 1fr"><label for="mix-${n}">Mischtyp</label>
+    <div class="trow mix"><label for="mix-${n}">Mischtyp</label>
     <select id="mix-${n}" data-mix><option value="">kein zweiter Typ</option>${Object.entries(SM.PRESETS).filter(([k]) => k !== p.type).map(([k, v]) => `<option value="${k}" ${k === p.type2 ? 'selected' : ''}>halb ${v.label}</option>`).join('')}</select></div>` +
     Object.entries(SM.CATEGORIES).map(([k, c]) => `<div class="trow">
       <label for="t-${k}-${n}">${c.label}</label>
@@ -192,7 +197,7 @@ function save(own = true) {
   store.set('sm_people', people);
   rescore();
   // Änderungen gelten ab jetzt: alten Teilen-Link aus der Adresszeile nehmen, sonst überschreibt ein Neuladen die Eingaben
-  if (location.hash.startsWith('#t=')) history.replaceState(null, '', location.pathname + location.search);
+  if (own && location.hash.startsWith('#t=')) history.replaceState(null, '', location.pathname + location.search);
 }
 
 function budgetNums() {
@@ -200,7 +205,7 @@ function budgetNums() {
 }
 function updateBudget() {
   guestWarn();
-  const b = budgetNums(), kids = Math.max(0, +$('kids').value || 0), babys = Math.max(0, +$('babys').value || 0);
+  const b = budgetNums(), { k: kids, y: babys } = guests();
   const warn = !b.n ? '' : b.total === 0 ? 'Budget 0: In der Airbnb-Suche wird dann kein Preisfilter gesetzt.'
     : b.perPersonNight < 25 ? '⚠ Unter 25 € pro Person und Nacht wird es in den meisten Städten knapp.' : '';
   $('budgetInfo').innerHTML = (b.n
@@ -218,6 +223,8 @@ function refreshLinks() {
 }
 let linkTimer = null;
 ['checkin', 'checkout', 'budget', 'kids', 'babys'].forEach(id => $(id).addEventListener('input', () => { updateBudget(); clearTimeout(linkTimer); linkTimer = setTimeout(refreshLinks, 300); }));
+// Fokussiertes Zahlenfeld ändert sich sonst beim Scrollen mit dem Mausrad
+document.querySelectorAll('input[type=number]').forEach(el => el.addEventListener('wheel', () => el.blur(), { passive: true }));
 let bmPrev = $('budgetMode').value;
 $('budgetMode').addEventListener('change', () => {
   const v = +$('budget').value || 0, to = $('budgetMode').value;
@@ -228,7 +235,7 @@ $('budgetMode').addEventListener('change', () => {
 $('beds').addEventListener('change', refreshLinks);
 $('radius').addEventListener('change', () => { saveForm(); rescore(); });
 $('maxcenter').addEventListener('change', () => { saveForm(); shown = 8; rescore(); });
-function updateFair() { const f = Math.round(fairness * 100); $('fairOut').textContent = `${f} % unzufriedenste Person · ${100 - f} % Schnitt`; $('fair').value = f; }
+function updateFair() { const f = Math.round(fairness * 100); $('fairOut').textContent = `${f} % unzufriedenste Person · ${100 - f} % Schnitt`; $('fair').value = f; $('fair').setAttribute('aria-valuetext', $('fairOut').textContent); }
 $('fair').addEventListener('input', () => { fairness = SM.cleanFairness(+$('fair').value / 100); updateFair(); store.set('sm_fair', fairness); rescore(); });
 updateFair();
 function addPerson() {
@@ -245,7 +252,8 @@ $('example').onclick = () => {
 };
 $('pasteGo').onclick = () => {
   const list = SM.parseGroup($('paste').value).map(SM.cleanPerson).filter(Boolean);
-  if (!list.length) return;
+  if (!list.length) { $('pasteMsg').textContent = 'Kein Name erkannt. Beispiel: Lena Party, Tom Chill'; return; }
+  $('pasteMsg').textContent = '';
   offerUndo(`${list.length} Personen aus dem Text übernommen.`); people = list; $('paste').value = ''; save(); renderPeople();
 };
 // ---- Gespeicherte Gruppen ----
@@ -289,7 +297,7 @@ $('destGrid').onclick = e => { const b = e.target.closest('.dcard'); if (b) { $(
 $('cityChips').onclick = e => { const b = e.target.closest('button'); if (b) { $('city').value = b.textContent; saveForm(); run(); } };
 
 async function geocode(city, signal) {
-  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(city)}`, { headers: { 'Accept-Language': 'de' }, signal });
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(city)}`, { headers: { 'Accept-Language': LANG }, signal });
   if (!r.ok) throw new Error(`Ortssuche gerade nicht erreichbar (${r.status}) – bitte gleich nochmal versuchen.`);
   const choices = SM.placeChoices(await r.json());
   if (!choices.length) throw new Error('Stadt nicht gefunden');
@@ -298,7 +306,7 @@ async function geocode(city, signal) {
 // Zentrum und Suchfläche: Logik und Mindestgröße stehen in shared/core.js
 const geoFrom = res => C.geoFromNominatim(res);
 
-const overpass = (bbox, outer, onTry) => SM.overpassFetch(bbox, outer, onTry); // Logik in scoring.js
+const overpass = (bbox, outer, onTry, onBytes) => SM.overpassFetch(bbox, outer, onTry, { onBytes }); // Logik in scoring.js
 
 // Vorab geladene Städte (scripts/prefetch-cities.mjs → web/data/). Der Index wird nur einmal geladen.
 const normCity = C.normCity;
@@ -314,7 +322,7 @@ async function prefetched(city, signal) {
     return SM.fromFile(await r.json());
   } catch (e) {
     if (signal && signal.aborted) throw e;
-    console.warn('Vorab-Daten nicht lesbar, lade live', e); return null;
+    console.warn('Vorab-Daten nicht lesbar, lade live', e); if (setBusy.note) setBusy.note('Vorab-Daten nicht lesbar, lade live.'); return null;
   }
 }
 
@@ -352,14 +360,14 @@ const LD_TIPS = [...$('ldTips').children].map(li => li.textContent);
 const LD_EST = 75; // grobe Schätzung für das Laden aus OpenStreetMap in Sekunden
 function setBusy(on, msg) {
   $('go').disabled = on; $('cancel').hidden = !on; clearInterval(tick); clearTimeout(ldShow);
-  $('results').setAttribute('aria-busy', String(on)); $('results').classList.toggle('dim', on && !!$('results').innerHTML);
+  $('results').setAttribute('aria-busy', String(on)); $('results').classList.toggle('dim', on && !!$('results').innerHTML); $('results').inert = on;
   if (!on) {
     $('loader').hidden = true; $('status').classList.remove('sr');
     if (ldPrev && !$('results').innerHTML.trim()) { $('intro').hidden = ldPrev[0]; $('dest').hidden = ldPrev[1]; }
     ldPrev = null; return;
   }
   const t0 = Date.now(); let base = msg, step = 1, t2 = 0, slow = false, tipI = Math.floor(Math.random() * LD_TIPS.length);
-  setBusy.set = m => { base = m; const n = +(/Schritt (\d)/.exec(m) || [])[1]; if (n && n !== step) { step = n; if (n === 2) { t2 = Date.now(); slow = /aus OpenStreetMap/.test(m); } } draw(); };
+  setBusy.set = (m, n, live) => { base = m; if (n && n !== step) { step = n; if (n === 2) { t2 = Date.now(); slow = !!live; } } draw(); };
   setBusy.note = m => { $('ldNote').textContent = m; };
   $('ldNote').textContent = '';
   const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -421,11 +429,11 @@ async function run(pick) {
       const cacheKey = CACHE + geo.bbox.map(x => x.toFixed(3)).join(',');
       const hit = cacheGet(cacheKey);
       rows = hit && hit.rows; if (hit) at = hit.t;
-      setBusy.set(rows ? `Schritt 2 von 3: Nutze gespeicherte Daten für ${geo.name}` : `Schritt 2 von 3: Lade Orte in ${geo.name} aus OpenStreetMap, kann bis zu 2 Minuten dauern`);
-      if (!rows) { rows = await overpass(geo.bbox, signal, i => setBusy.note && setBusy.note(`Server ${i} antwortet langsam, frage zusätzlich Server ${i + 1} an.`)); cacheSet(cacheKey, rows); at = Date.now(); }
+      setBusy.set(rows ? `Schritt 2 von 3: Nutze gespeicherte Daten für ${geo.name}` : `Schritt 2 von 3: Lade Orte in ${geo.name} aus OpenStreetMap, kann bis zu 2 Minuten dauern`, 2, !rows);
+      if (!rows) { rows = await overpass(geo.bbox, signal, i => setBusy.note && setBusy.note(`Server ${i} antwortet langsam, frage zusätzlich Server ${i + 1} an.`), n => setBusy.note && setBusy.note(`${(n / 1e6).toLocaleString(LANG, { maximumFractionDigits: 1 })} MB empfangen`)); cacheSet(cacheKey, rows); at = Date.now(); }
     }
 
-    setBusy.set('Schritt 3 von 3: Bewerte Viertel');
+    setBusy.set('Schritt 3 von 3: Bewerte Viertel', 3);
     const { areas, pois } = SM.buildData(rows); // dieselben Orte als Punkt und Gebäude, Bahnhofseingänge: nur einmal zählen
     if (areas.length < 2) throw new Error('Keine Viertel in OpenStreetMap gefunden – andere Stadt versuchen.');
     lastData = { areas, pois, geo, q: normCity(city), at };
@@ -453,7 +461,12 @@ function showChoices(choices) {
   $('status').textContent = 'Mehrere Orte gefunden. Welcher ist gemeint?';
   const box = $('choices'); box.hidden = false;
   box.innerHTML = choices.map((c, i) => `<button type="button" data-i="${i}">${escapeHtml(c.display_name.split(',').map(x => x.trim()).filter((_, j, a) => j === 0 || j >= a.length - 2).join(', '))}</button>`).join('');
-  box.onclick = e => { const b = e.target.closest('button'); if (b) { box.hidden = true; run(choices[+b.dataset.i]); } };
+  box.insertAdjacentHTML('beforeend', '<button type="button" class="link" data-none>Keiner davon, Suchbegriff ändern</button>');
+  box.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    box.hidden = true;
+    if (b.hasAttribute('data-none')) { $('city').focus(); $('city').select(); } else run(choices[+b.dataset.i]);
+  };
   box.querySelector('button').focus();
 }
 $('retry').onclick = () => run();
@@ -462,9 +475,12 @@ $('retry').onclick = () => run();
 const areaKey = a => `${a.name}@${a.lat.toFixed(4)}`;
 const favStore = () => store.get('sm_fav', {});
 const favSet = () => new Set((favStore()[lastData && lastData.q] || []));
-function clearResults(msg) {
-  $('results').innerHTML = ''; $('compare').innerHTML = ''; $('whatif').innerHTML = ''; $('reshead').hidden = true; $('more').hidden = true;
-  lastView = null; if (msg) $('status').textContent = msg;
+function clearResults(msg, keepHead) {
+  $('results').innerHTML = ''; $('compare').innerHTML = ''; $('whatif').innerHTML = ''; $('reshead').hidden = !keepHead; $('more').hidden = true;
+  for (const l of [layer, poiLayer]) if (l) l.remove(); // alte Kreise, Pins und Orte weg
+  layer = poiLayer = null; circles = []; renderMap.key = null;
+  if (!keepHead) lastView = null;
+  if (msg) $('status').textContent = msg;
 }
 function compute() {
   if (!lastData) return;
@@ -482,7 +498,7 @@ function compute() {
   const vetoed = withData.length - okAreas.length;
   const vetoNote = vetoed ? ` ${vetoed} Viertel ausgeschlossen (${[...new Set(withData.flatMap(a => a.vetoes.map(v => `${v.name}: nie ${v.label}`)))].slice(0, 3).join(', ')}).` : '';
   const byTotal = SM.sortAreas(okAreas, 'fair');
-  if (/^p:(\d+)$/.test(sortMode) && +sortMode.slice(2) >= ppl.length) sortMode = 'fair';
+  if ((/^p:(\d+)$/.test(sortMode) && +sortMode.slice(2) >= ppl.length) || (ppl.length === 1 && /^(avg|p:)/.test(sortMode))) sortMode = 'fair';
   const sorted = SM.sortAreas(okAreas, sortMode);
   const favs = favSet(), onlyFav = $('onlyFav').checked;
   const pool = onlyFav ? sorted.filter(a => favs.has(areaKey(a))) : sorted;
@@ -491,12 +507,10 @@ function compute() {
   // Platzwechsel gegenüber der letzten Rechnung (nur bei gleichen Daten)
   const prev = lastView && lastView.data === lastData && lastView.sortMode === sortMode ? new Map(lastView.ranked.map((a, i) => [areaKey(a), i])) : null;
   ranked.forEach((a, i) => { a.delta = prev && prev.has(areaKey(a)) ? prev.get(areaKey(a)) - i : null; });
-  lastView = { data: lastData, sortMode, ranked, pool, okAreas, byTotal, ppl, r, pois, geo, minDist, stats: SM.cityStats(okAreas), medCentre: SM.median(okAreas.map(a => a.centerDist)),
+  lastView = { data: lastData, sortMode, ranked, pool, okAreas, byTotal, ppl, r, pois, geo, minDist, stats: SM.cityStats(areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10)), medCentre: SM.median(okAreas.map(a => a.centerDist)),
     awards: SM.awards(ranked, ppl), relevant };
   if (!ranked.length) {
-    $('results').innerHTML = ''; $('compare').innerHTML = ''; $('whatif').innerHTML = ''; $('more').hidden = true; $('reshead').hidden = false; renderHead();
-    for (const l of [layer, poiLayer]) if (l) l.remove(); // alte Kreise, Pins und Orte weg
-    layer = poiLayer = null; circles = []; renderMap.key = null;
+    clearResults('', true); renderHead();
     $('status').textContent = onlyFav ? 'Noch keine Favoriten. Markiere Viertel mit dem Herz.'
       : vetoed ? `Alle Viertel sind durch ein Veto ausgeschlossen.${vetoNote} Nimm ein „Nie“ heraus.`
       : 'Keine passenden Viertel mit genug Orten gefunden. Versuche eine größere Stadt, einen größeren Umkreis, weniger strenge Entfernung zum Zentrum oder einen anderen Ortsnamen.';
@@ -504,27 +518,28 @@ function compute() {
   }
   $('status').textContent = `${okAreas.length} Viertel und ${pois.length} Orte ausgewertet.${vetoNote}${emptyNote} Die besten ${solo() ? 'für dich' : 'für eure Gruppe'}:`;
   $('intro').hidden = true; $('dest').hidden = true;
-  if (/Chrome\//.test(navigator.userAgent) && !/Edg|OPR|Mobile|Android/.test(navigator.userAgent)) $('extHint').hidden = false;
+  if (/Chrome\//.test(navigator.userAgent) && !/Mobile|Android/.test(navigator.userAgent)) $('extHint').hidden = false; // Edge und Opera installieren Chrome-Erweiterungen
   saveTrip(geo, byTotal, ppl);
   renderHead();
   renderWhatIf(byTotal, ppl);
   renderResults();
   $('more').hidden = !(ranked.length >= shown && pool.length > ranked.length);
+  $('more').textContent = `${Math.min(8, pool.length - ranked.length)} weitere Viertel anzeigen (${pool.length - ranked.length} übrig)`;
   renderCompare();
   renderMap(ranked, geo, r, pois);
 }
 let rescoreTimer = null;
 const rescore = () => { clearTimeout(rescoreTimer); rescoreTimer = setTimeout(() => { try { compute(); } catch (e) { console.debug(e); } }, 250); };
-$('more').onclick = () => { shown += 8; compute(); };
+$('more').onclick = () => { shown += 8; renderMap.keep = true; compute(); }; // Karte springt bei „Mehr“ nicht weg
 $('onlyFav').addEventListener('change', () => { shown = 8; compute(); });
 
 // Kopfzeile: was wurde berechnet, Sortierung, Datenstand
 function renderHead() {
-  const b = budgetNums(), kids = +$('kids').value || 0, babys = +$('babys').value || 0, g = people.length;
+  const b = budgetNums(), { k: kids, y: babys } = guests(), g = people.length;
   const at = lastData && lastData.at ? new Date(lastData.at) : null;
-  const stamp = at ? (at.toDateString() === new Date().toDateString() ? 'heute geladen' : `Stand ${at.toLocaleDateString('de-DE')}`) : '';
+  const stamp = at ? (at.toDateString() === new Date().toDateString() ? 'heute geladen' : `Stand ${at.toLocaleDateString(LANG)}`) : '';
   $('resSummary').textContent = `Für ${g} ${g === 1 ? 'Person' : 'Personen'}${kids + babys ? ` + ${kids + babys} Kind${kids + babys > 1 ? 'er' : ''}` : ''}, ${b.n || '?'} Nächte${b.perNight ? `, ${Math.round(b.perNight)} € pro Nacht` : ''}. OpenStreetMap-Daten, ${stamp}.`;
-  const opts = [['fair', 'Fairste Wahl (Standard)'], ['avg', 'Höchster Schnitt'], ...people.map((p, i) => [`p:${i}`, `Beste für ${p.name}`]), ['transit', 'Nächste Bahn'], ['center', 'Nah am Zentrum'], ['cheap', 'Günstigere Lage (Schätzung)']];
+  const opts = [['fair', solo() ? 'Beste Wertung (Standard)' : 'Fairste Wahl (Standard)'], ...(solo() ? [] : [['avg', 'Höchster Schnitt'], ...people.map((p, i) => [`p:${i}`, `Beste für ${p.name}`])]), ['transit', 'Nächste Bahn'], ['center', 'Nah am Zentrum'], ['cheap', 'Günstigere Lage (Schätzung)']];
   const sel = $('sort');
   if (sel.dataset.sig !== JSON.stringify(opts)) { sel.innerHTML = opts.map(([v, l]) => `<option value="${v}">${escapeHtml(l)}</option>`).join(''); sel.dataset.sig = JSON.stringify(opts); }
   sel.value = sortMode;
@@ -544,7 +559,7 @@ function renderWhatIf(byTotal, ppl) {
 function airbnbFor(a) {
   const { ppl, geo, r } = lastView, b = budgetNums();
   return SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length,
-    children: Math.max(0, +$('kids').value || 0), infants: Math.max(0, +$('babys').value || 0), minBedrooms: $('beds').checked ? Math.max(1, Math.ceil(ppl.length / 2)) : 0, priceMaxNight: b.perNight, radius: r });
+    children: guests().k, infants: guests().y, minBedrooms: $('beds').checked ? Math.max(1, Math.ceil(ppl.length / 2)) : 0, priceMaxNight: b.perNight, radius: r });
 }
 function renderResults() {
   if (!lastView) return;
@@ -561,7 +576,7 @@ resultsEl.addEventListener('focusin', e => { const a = e.target.closest('article
 resultsEl.addEventListener('focusout', e => { const a = e.target.closest('article'); if (a) hi(+a.dataset.i, false); });
 resultsEl.addEventListener('change', e => {
   const c = e.target.closest('input[data-k]'); if (!c) return;
-  if (c.checked) { cmp.push(c.dataset.k); if (cmp.length > 2) { const old = cmp.shift(); resultsEl.querySelectorAll('input[data-k]').forEach(x => { if (x.dataset.k === old) x.checked = false; }); } }
+  if (c.checked) { cmp.push(c.dataset.k); if (cmp.length > 2) { const old = cmp.shift(); $('cmpMsg').textContent = `${old.split('@')[0]} aus dem Vergleich genommen.`; resultsEl.querySelectorAll('input[data-k]').forEach(x => { if (x.dataset.k === old) x.checked = false; }); } }
   else cmp = cmp.filter(x => x !== c.dataset.k);
   renderCompare();
 });
@@ -590,6 +605,12 @@ resultsEl.addEventListener('click', e => {
   }
 });
 
+resultsEl.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const chip = resultsEl.querySelector('button.chip[aria-expanded="true"]');
+  if (chip) { chip.setAttribute('aria-expanded', 'false'); $('bd-' + chip.dataset.i).hidden = true; chip.focus(); }
+});
+$('compare').addEventListener('keydown', e => { if (e.key === 'Escape' && $('cmpClose')) $('cmpClose').click(); });
 // Zwei Viertel nebeneinander
 function renderCompare() {
   const el = $('compare');
@@ -616,17 +637,23 @@ const POI_COLORS = { party: '#e0475b', chill: '#2fbf85', sights: '#7c6cf0', food
 function buildMapBar(ppl) {
   const sel = $('mapWho'), keep = sel.value;
   sel.innerHTML = `<option value="g">Gruppe</option>` + ppl.map((p, i) => `<option value="${i}">${escapeHtml(p.name)}</option>`).join('');
-  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+  const want = mapPending ? mapPending.mw : keep;
+  if ([...sel.options].some(o => o.value === want)) sel.value = want;
   $('mapWhoWrap').hidden = ppl.length < 2; // allein: Auswahl ist sinnlos
+  mapPending = null;
   if (!$('poiToggles').children.length) {
     $('poiToggles').innerHTML = Object.entries(SM.CATEGORIES).map(([k, c]) => `<label><input type="checkbox" data-poi="${k}"> <i class="dot" style="background:${POI_COLORS[k]}"></i>${c.label}</label>`).join('');
+    if (mapPending) $('poiToggles').querySelectorAll('input').forEach(x => { x.checked = mapPending.m.includes(x.dataset.poi); });
     $('poiToggles').onchange = () => lastView && renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois);
   }
 }
 $('mapWho').addEventListener('change', () => lastView && renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois));
-$('mapToggle').onclick = () => {
-  const hide = !$('mapWrap').hidden; $('mapWrap').hidden = hide;
+function setMapHidden(hide) { // nur DOM: läuft schon beim Start (applyForm), bevor die Karte existiert
+  $('mapWrap').hidden = hide;
   $('mapToggle').textContent = hide ? 'Karte einblenden' : 'Karte ausblenden'; $('mapToggle').setAttribute('aria-expanded', String(!hide));
+}
+$('mapToggle').onclick = () => {
+  const hide = !$('mapWrap').hidden; setMapHidden(hide); saveForm();
   if (!hide && map) setTimeout(() => { map.invalidateSize(); renderMap.key = null; if (lastView) renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois); }, 0);
 };
 
@@ -634,7 +661,12 @@ function ensureMap() {
   if (!window.L || map) return !!map;
   map = L.map('map', { scrollWheelZoom: false }); // Mausrad scrollt die Seite; nach Klick in die Karte zoomt es
   map.on('click', () => map.scrollWheelZoom.enable()); map.on('mouseout', () => map.scrollWheelZoom.disable());
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' })
+    .on('tileerror', () => { $('tileMsg').hidden = false; }).on('tileload', () => { $('tileMsg').hidden = true; }).addTo(map);
+  // Knopf: Ausschnitt der besten Viertel wiederherstellen
+  const Fit = L.Control.extend({ onAdd: () => { const b = L.DomUtil.create('button', 'mapfit'); b.type = 'button'; b.textContent = '⤢'; b.title = b.ariaLabel = 'Ausschnitt zurücksetzen';
+    L.DomEvent.disableClickPropagation(b); b.onclick = () => { renderMap.key = null; if (lastView) renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois); }; return b; } });
+  new Fit({ position: 'topleft' }).addTo(map);
   return true;
 }
 // Ausgewertete Fläche als gestrichelter Rahmen
@@ -667,6 +699,8 @@ function renderMap(ranked, geo, r = 800, pois = []) {
   drawBBox(geo);
   // Ausschnitt nur ändern, wenn sich die Auswahl ändert (sonst springt die Karte bei jeder Änderung zurück); verborgen: später einpassen
   const key = ranked.map(a => a.name).join('|');
+  if (renderMap.keep && renderMap.key) renderMap.key = key;
+  renderMap.keep = false;
   if (key !== renderMap.key && !$('mapWrap').hidden) {
     renderMap.key = key;
     let bounds = L.latLngBounds(ranked.map(a => [a.lat, a.lon]));
@@ -678,19 +712,21 @@ function renderMap(ranked, geo, r = 800, pois = []) {
   if (poiLayer) poiLayer.remove();
   const who = $('mapWho').value, pi = who === 'g' ? -1 : +who;
   const score = a => pi < 0 ? a.group.total : a.group.scores[pi];
-  const color = (a, i) => pi < 0 ? (i === 0 ? '#e0475b' : '#888') : (score(a) >= 70 ? '#2fbf85' : score(a) < 40 ? '#e6a23c' : '#888');
+  const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue('--' + k).trim() || '#888'; // Farben aus dem Theme
+  const color = (a, i) => pi < 0 ? (i === 0 ? col('accent') : '#888') : (score(a) >= 70 ? col('good') : score(a) < 40 ? col('warn') : '#888');
+  $('mapLegend').textContent = pi < 0 ? 'Nummern = beste Viertel, Platz 1 farbig. Kleine Punkte = weitere bewertete Viertel (grün gut, rot schwach). Gestrichelt: ausgewertete Fläche.'
+    : `Kreise für ${lastView.ppl[pi].name}: grün ab 70, orange unter 40, grau dazwischen. Kleine Punkte = weitere Viertel (grün gut, rot schwach).`;
   const goto = i => { const el = $('area-' + i); if (el) { el.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' }); el.focus({ preventScroll: true }); } };
   const mark = (i, on) => { const el = $('area-' + i); if (el) el.classList.toggle('hl', on); };
   // Kreis = Wertungsradius (gleich wie in der Wertung und im Airbnb-Ausschnitt)
   circles = ranked.map((a, i) => {
-    const c = L.circle([a.lat, a.lon], { radius: r, color: color(a, i), weight: 2, fillOpacity: 0.12 })
-      .bindTooltip(`${i + 1}. ${escapeHtml(a.name)} (${pi < 0 ? '' : escapeHtml(lastView.ppl[pi].name) + ': '}${score(a)})`);
+    const c = L.circle([a.lat, a.lon], { radius: r, color: color(a, i), weight: 2, fillOpacity: 0.12 }); // Tooltip nur am Pin
     c.on('click', () => goto(i)); c.on('mouseover', () => mark(i, true)); c.on('mouseout', () => mark(i, false));
     return c;
   });
   const pins = ranked.map((a, i) => {
     const m = L.marker([a.lat, a.lon], { icon: L.divIcon({ className: '', html: `<div class="numpin ${i ? 'n' : ''}">${i + 1}</div>`, iconSize: [24, 24] }), keyboard: false })
-      .bindTooltip(`${i + 1}. ${escapeHtml(a.name)} (${score(a)})`);
+      .bindTooltip(`${i + 1}. ${escapeHtml(a.name)} (${pi < 0 ? '' : escapeHtml(lastView.ppl[pi].name) + ': '}${score(a)})`);
     m.on('click', () => goto(i)); return m;
   });
   // Weitere bewertete Viertel als kleine Punkte (grün gut, rot schwach)
@@ -698,16 +734,18 @@ function renderMap(ranked, geo, r = 800, pois = []) {
     L.circleMarker([a.lat, a.lon], { radius: 5, weight: 1, color: `hsl(${Math.round(Math.max(0, Math.min(100, score(a))) * 1.2)},65%,45%)`, fillOpacity: 0.7 }).bindTooltip(`${escapeHtml(a.name)} (${score(a)})`));
   // Suchausschnitt der Airbnb-Suche für Platz 1
   const a0 = ranked[0], dLat = r / 111320, dLon = r / (111320 * Math.cos(a0.lat * Math.PI / 180));
-  const box = L.rectangle([[a0.lat - dLat, a0.lon - dLon], [a0.lat + dLat, a0.lon + dLon]], { color: '#e0475b', weight: 1, dashArray: '4 4', fill: false, interactive: false }).bindTooltip('Airbnb-Suchausschnitt für Platz 1');
+  const box = L.rectangle([[a0.lat - dLat, a0.lon - dLon], [a0.lat + dLat, a0.lon + dLon]], { color: col('accent'), weight: 1, dashArray: '4 4', fill: false, interactive: false }).bindTooltip('Airbnb-Suchausschnitt für Platz 1');
   layer = L.layerGroup([...others, ...circles, box, ...pins]).addTo(map);
   // Orte als Punkte (nur in den gezeigten Vierteln, höchstens 1500)
   const on = [...$('poiToggles').querySelectorAll('input:checked')].map(x => x.dataset.poi);
   if (on.length) {
     const canvas = renderMap.canvas = renderMap.canvas || L.canvas({ padding: 0.3 }); // einmal anlegen, sonst wächst die Kartenebene
-    const dots = [];
+    const dots = [], cell = r / 111320, idx = new Map(); // Raster der gezeigten Viertel: nicht jede Entfernung neu rechnen
+    for (const a of ranked) { const k = `${Math.floor(a.lat / cell)},${Math.floor(a.lon / cell)}`; (idx.get(k) || idx.set(k, []).get(k)).push(a); }
+    const near = p => { const y = Math.floor(p.lat / cell), x = Math.floor(p.lon / cell); for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) for (const a of idx.get(`${y + dy},${x + dx}`) || []) if (SM.distM(a, p) <= r) return true; return false; };
     for (const p of pois) {
       if (!on.includes(p.cat) || dots.length >= 1500) continue;
-      if (!ranked.some(a => SM.distM(a, p) <= r)) continue;
+      if (!near(p)) continue;
       const m = L.circleMarker([p.lat, p.lon], { renderer: canvas, radius: 4, color: POI_COLORS[p.cat], weight: 1, fillOpacity: 0.8 });
       if (p.name) m.bindTooltip(escapeHtml(p.name));
       dots.push(m);
@@ -719,7 +757,9 @@ function renderMap(ranked, geo, r = 800, pois = []) {
 $('f').addEventListener('submit', e => { e.preventDefault(); run(); });
 
 // ---- Reise per Link teilen (alles steht im Teil nach #, wird nie an einen Server geschickt) ----
-const shareState = () => ({ ...formState(), fairness, people, wishes });
+const mapState = () => ({ m: [...$('poiToggles').querySelectorAll('input:checked')].map(x => x.dataset.poi), mw: $('mapWho').value || 'g' });
+const shareState = () => ({ ...formState(), ...mapState(), fairness, people, wishes });
+let mapPending = null; // Kartenzustand aus einem Teilen-Link, wird beim ersten Zeichnen übernommen
 let sharedPast = false;
 function applyShared(h) {
   try {
@@ -729,7 +769,7 @@ function applyShared(h) {
     people = s.people;
     if (s.wishes) { wishes = cleanWishes(s.wishes); store.set('sm_wishes', wishes); renderWishes(); } // alte Links ohne Wünsche bleiben gültig
     if (s.fairness != null) { fairness = s.fairness; store.set('sm_fair', fairness); updateFair(); }
-    applyForm(s.form);
+    applyForm(s.form); mapPending = s.map;
     if (s.form.i && s.form.i < ymd(new Date())) sharedPast = true;
     syncMin(false);
     save(false); renderPeople(); updateBudget(); saveForm();
@@ -772,7 +812,9 @@ openShared();
 window.addEventListener('hashchange', openShared); // neuer Link in die Adresszeile des offenen Tabs eingefügt
 
 // Brücke zum Plugin: alle bewerteten Viertel + Gruppe speichern, Plugin übernimmt sie
+// Namen der Mitreisenden nur speichern, wenn ein Plugin sie liest; sonst alten Stand entfernen
 function saveTrip(geo, areas, ppl) {
+  if (!document.documentElement.dataset.staymatchExtension) { try { localStorage.removeItem('sm_trip'); } catch {} return; }
   const b = budgetNums();
   const v = JSON.stringify(SM.tripOf({ city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, nights: b.n, budget: b.total, ppl, wishes, areas }));
   try { localStorage.setItem('sm_trip', v); }
@@ -783,7 +825,9 @@ function saveTrip(geo, areas, ppl) {
 }
 // Hinweis, ob das Plugin installiert ist (setzt bridge.js)
 const extCheck = () => {
-  if (document.documentElement.dataset.staymatchExtension) { $('extHint').hidden = false; $('extHint').textContent = `✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 ${solo() ? 'für dich' : 'für euch'}.`; }
+  if (document.documentElement.dataset.staymatchExtension) {
+    if (lastView && !extCheck.done) { extCheck.done = 1; saveTrip(lastData.geo, lastView.byTotal, lastView.ppl); } // spät erkannt: nachholen
+    $('extHint').hidden = false; $('extHint').textContent = `✅ Plugin verbunden: Auf der Airbnb-Seite siehst du direkt die Top 3 ${solo() ? 'für dich' : 'für euch'}.`; }
 };
 // Nicht auf ein festes Zeitfenster verlassen: auch spätes Setzen des Attributs erkennen
 new MutationObserver(extCheck).observe(document.documentElement, { attributes: true, attributeFilter: ['data-staymatch-extension'] });
