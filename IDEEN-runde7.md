@@ -1,6 +1,6 @@
 # Ideen Runde 7
 
-Aus dem Code abgeleitet (Stand `origin/main` 8c4930b, 2026-11-13), gegen alle Titel aus Runde 1 bis 6 abgeglichen. 🔴 Fehler/Risiko, 🟠 deutliche Verbesserung, 🟢 nett, 💡 neues Feature. Aufwand: S klein, M mittel, L groß. Umsetzungsstand steht in den Branches `feat/r7-*`.
+Aus dem Code abgeleitet (Stand `origin/main` 8c4930b, 2026-11-13), gegen alle Titel aus Runde 1 bis 6 abgeglichen. 🔴 Fehler/Risiko, 🟠 deutliche Verbesserung, 🟢 nett, 💡 neues Feature. Aufwand: S klein, M mittel, L groß. Umsetzungsstand je Eintrag steht in [docs/r7-status/](docs/r7-status/), offene Entscheidungen in [ENTSCHEIDUNGEN-runde7.md](ENTSCHEIDUNGEN-runde7.md).
 
 ## Browser-Extension
 
