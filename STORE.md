@@ -20,10 +20,10 @@ Kein Konto, keine Server, kein Tracking. Das Plugin liest nur Seiten, die du sel
 - Zugriff auf staymatch-tau.vercel.app: übernimmt Gruppe, Budget und Viertel-Wertungen aus dem Viertel-Finder.
 
 **Datennutzung (Formular):** Es werden keine Nutzerdaten gesammelt, übertragen oder verkauft. Gespeichert wird nur lokal (`chrome.storage.local`): besuchte Unterkünfte, Likes, Notizen, Einstellungen, Reise aus dem Viertel-Finder. Alle drei Zusicherungen (kein Verkauf, keine Nutzung außerhalb des Zwecks, keine Kreditwürdigkeits-Nutzung) ankreuzen.
-**Remote Code:** Nein. Das Plugin lädt und führt keinen Code von außen aus; alle Skripte liegen im Paket. Es gibt keine eigenen Netzwerkanfragen.
+**Remote Code:** Nein. Das Plugin lädt und führt keinen Code von außen aus; alle Skripte liegen im Paket. Einzige Netzwerkanfragen: Vorschaubilder der Top-3-Unterkünfte im Panel, geladen vom Bild-Server von Airbnb (Adresse stammt von der Airbnb-Seite, ohne Referrer).
 **Inkognito:** Das Plugin ist im Inkognito-Fenster nicht aktiv (`incognito: not_allowed`), dort entsteht kein Verlauf.
 **Testanleitung für Prüfer:** Plugin installieren, eine normale Airbnb-Suche öffnen (z. B. Stadt, Datum, Gäste), Panel unten rechts erscheint mit Top 3 und Punkten an den Karten. Eine Unterkunft öffnen: Panel mit 👍/👎 und Notiz. Popup (Symbol in der Leiste): Verlauf, Export. Kein Konto nötig.
-**Bilder:** Das Popup lädt keine Bilder; es werden keine Anfragen an Airbnb oder Dritte gestellt.
+**Bilder:** Das Popup lädt keine Bilder. Das Panel auf der Suchseite zeigt Vorschaubilder der Top 3; der Browser lädt sie vom Bild-Server von Airbnb (wie die Seite selbst, ohne Referrer), auch für Unterkünfte früher gesammelter Suchseiten. Anfragen an Dritte außer Airbnb gibt es nicht.
 **Ausgeschlossene Seiten:** Buchung, Kontoeinstellungen, Gastgeber-Bereich, Nachrichten und Zahlungen (`exclude_matches` im Manifest).
 
 **Hinweise zum Markennamen:** „Airbnb“ nicht im Namen, im Symbol oder in Screenshots als Logo verwenden. In der Beschreibung nur beschreibend („für die Airbnb-Suche“) und mit „nicht mit Airbnb verbunden“.

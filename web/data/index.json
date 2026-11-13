@@ -15,5 +15,22 @@
  "budapest": "budapest.json",
  "rom": "rom.json",
  "roma": "rom.json",
- "rome": "rom.json"
+ "rome": "rom.json",
+ "barcelone": "barcelona.json",
+ "barcellona": "barcelona.json",
+ "lisbonne": "lissabon.json",
+ "lisbona": "lissabon.json",
+ "berlino": "berlin.json",
+ "berlijn": "berlin.json",
+ "praga": "prag.json",
+ "praag": "prag.json",
+ "viena": "wien.json",
+ "vienne": "wien.json",
+ "wenen": "wien.json",
+ "parigi": "paris.json",
+ "parijs": "paris.json",
+ "paryz": "paris.json",
+ "madri": "madrid.json",
+ "budapeste": "budapest.json",
+ "boedapest": "budapest.json"
 }

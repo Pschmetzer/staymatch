@@ -14,6 +14,19 @@ if [ "$(git rev-list --count HEAD..origin/main)" -gt 0 ]; then
   echo "Abbruch: dieser Stand liegt hinter origin/main. Erst aktualisieren." >&2; exit 1
 fi
 
+# CI dieses Commits muss grün sein (lokal fehlen oft die DOM-Tests). Nur im Notfall: SKIP_CI_CHECK=1
+if [ -z "$SKIP_CI_CHECK" ]; then
+  if command -v gh >/dev/null 2>&1; then
+    ci=$(gh run list --workflow CI --commit "$(git rev-parse HEAD)" --json status,conclusion \
+      --jq '[.[] | select(.status == "completed")][0].conclusion // ""' 2>/dev/null || true)
+    if [ "$ci" != success ]; then
+      echo "Abbruch: CI für $(git rev-parse --short HEAD) ist nicht grün (${ci:-kein abgeschlossener Lauf}). CI abwarten oder SKIP_CI_CHECK=1." >&2; exit 1
+    fi
+  else
+    echo "Hinweis: gh fehlt, CI-Status des Commits nicht geprüft." >&2
+  fi
+fi
+
 echo "→ Tests und Prüfungen"
 npm test
 npm run check

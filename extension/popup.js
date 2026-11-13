@@ -1,8 +1,10 @@
 const { APP_URL } = window.StayMatchCore;
 document.getElementById('app').href = APP_URL;
-let tab = 'top', listings = {}, lastSearch = null, trip = null, query = '';
+let tab = 'top', listings = {}, lastSearch = null, trip = null, query = '', extraKeys = {};
+const X = window.StayMatchExtras || null; // R7 E: Popup-Werkzeuge (in alten Tests nicht geladen)
 const LIMIT = 100, STALE_MS = 24 * 3600 * 1000;
-const safeSearchUrl = u => /^https:\/\/www\.airbnb\.[a-z.]+\/s\//.test(u || '') ? u : null;
+// R7: gleiche Hostprüfung wie isRoomUrl (Regex ließ „www.airbnb.evil.com“ durch)
+const safeSearchUrl = u => { const x = parseUrl(u); const d = StayMatchCore.AIRBNB_DOMAINS; return x && x.protocol === 'https:' && d.some(h => x.hostname === h || x.hostname === 'www.' + h) && x.pathname.startsWith('/s/') ? u : null; };
 
 const $ = id => document.getElementById(id);
 function h(tag, attrs = {}, ...kids) {
@@ -19,8 +21,15 @@ const safeUrl = u => isRoomUrl(u) ? u : '#';
 // Bilder nur vom Airbnb-CDN (verhindert Tracking-Pixel über importierte Dateien)
 const isCdnImage = u => { const x = parseUrl(u); return !!x && x.protocol === 'https:' && (x.hostname === 'muscache.com' || x.hostname.endsWith('.muscache.com')); };
 
+// R7: nur die nötigen Schlüssel lesen (nicht Pool, Bewertungstexte usw.), wenn der Browser getKeys kennt (Chrome 130+)
+async function readStore() {
+  const s = chrome.storage.local;
+  if (typeof s.getKeys !== 'function') return s.get(null);
+  const keys = (await s.getKeys()).filter(k => k.startsWith('l:') || ['listings', 'lastSearch', 'trip', 'settings', 'stats', 'tasteIgnore'].includes(k));
+  return keys.length ? s.get(keys) : {};
+}
 async function load() {
-  const all = await chrome.storage.local.get(null);
+  const all = await readStore();
   // Umzug vom alten Format (v0.1: ein großes Objekt "listings")
   if (all.listings) {
     const moved = Object.fromEntries(Object.entries(all.listings).map(([id, v]) => ['l:' + id, { ...v, id }]));
@@ -29,48 +38,76 @@ async function load() {
   }
   listings = Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('l:')).map(([, v]) => [v.id, v]));
   lastSearch = all.lastSearch || null; trip = all.trip || null;
+  extraKeys = { settings: all.settings || {}, stats: all.stats || null, tasteIgnore: all.tasteIgnore || [] };
   render();
 }
 
 function profile(items) {
   const liked = items.filter(i => i.vote === 1);
   if (!liked.length) return ['Markiere Unterkünfte mit 👍, dann lernt StayMatch deinen Geschmack.'];
-  const p = avg(liked.map(i => i.pricePerNight).filter(Boolean)), r = avg(liked.map(i => i.rating).filter(Boolean));
-  const places = [...new Set(liked.map(i => i.locality).filter(Boolean))].slice(0, 3);
-  return [h('b', {}, 'Dein Geschmack'), ` (aus ${liked.length} 👍): `, [p && `≈ ${Math.round(p)} €/Nacht`, r && `⭐ ab ${r.toFixed(2)}`, places.length && `Orte: ${places.join(', ')}`].filter(Boolean).join(' · ')];
+  // R7: Preis je Währung (wie im Ranking), nicht € und $ gemischt
+  const byCur = window.StayMatchRank.buildTaste(items)?.avgPricePerNightByCurrency || {};
+  const prices = Object.entries(byCur).map(([c, v]) => `≈ ${Math.round(v)} ${c}/Nacht`);
+  const r = avg(liked.map(i => i.rating).filter(Boolean));
+  // R7 E: Geschmack korrigieren: Orte einzeln streichen (zählen dann nicht mehr für den Geschmack)
+  const ign = new Set((extraKeys.tasteIgnore || []).map(x => String(x).toLowerCase()));
+  const places = [...new Set(liked.map(i => i.locality).filter(Boolean))].filter(p => !ign.has(p.toLowerCase())).slice(0, 4);
+  const drop = p => async () => { const t = [...(extraKeys.tasteIgnore || []), p]; await chrome.storage.local.set({ tasteIgnore: t }); extraKeys.tasteIgnore = t; render(); };
+  return [h('b', {}, 'Dein Geschmack'), ` (aus ${liked.length} 👍): `, [...prices, r && `⭐ ab ${r.toFixed(2)}`].filter(Boolean).join(' · '),
+    places.length ? [' · Orte: ', ...places.flatMap((p, i) => [i ? ', ' : '', p, h('button', { title: `${p} nicht mehr als Vorliebe zählen`, 'aria-label': `${p} aus dem Geschmack streichen`, onclick: drop(p) }, '✕')])] : null,
+    ign.size ? h('div', { class: 'muted' }, `Gestrichen: ${[...ign].join(', ')} `, h('button', { onclick: async () => { await chrome.storage.local.set({ tasteIgnore: [] }); extraKeys.tasteIgnore = []; render(); } }, 'zurücksetzen')) : null];
+}
+
+// R7: gemerkte Reisedaten an den Link hängen (Preis und Verfügbarkeit gleich sichtbar), nur gültige, nicht vergangene Daten
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+function roomLink(i) {
+  const u = safeUrl(i.url);
+  if (u === '#' || !DATE.test(i.checkin || '') || !DATE.test(i.checkout || '') || i.checkout <= i.checkin || i.checkin < new Date().toISOString().slice(0, 10)) return u;
+  const x = new URL(u); x.searchParams.set('check_in', i.checkin); x.searchParams.set('check_out', i.checkout);
+  return x.href;
 }
 
 function itemRow(i) {
-  return h('a', { class: 'item', href: safeUrl(i.url), target: '_blank' },
+  return h('a', { class: 'item', href: roomLink(i), target: '_blank' },
     h('div', {},
-      h('div', {}, (i.vote === 1 ? '👍 ' : i.vote === -1 ? '👎 ' : '') + (i.title || 'Unterkunft')),
-      h('div', { class: 'muted' }, [i.rating && '⭐ ' + i.rating, i.pricePerNight && i.pricePerNight + ' ' + (i.currency || '€') + '/Nacht', i.locality, (i.visits || 1) + '× angesehen', i.lastSeen && new Date(i.lastSeen).toLocaleDateString('de-DE')].filter(Boolean).join(' · ')),
+      h('div', {}, (i.booked ? '✅ ' : '') + (i.vote === 1 ? '👍 ' : i.vote === -1 ? '👎 ' : '') + (i.title || 'Unterkunft')),
+      h('div', { class: 'muted' }, [i.rating && '⭐ ' + i.rating, i.pricePerNight && window.StayMatchRank.money(i.pricePerNight, i.currency) + '/Nacht', i.locality, (i.visits || 1) + '× angesehen', i.lastSeen && new Date(i.lastSeen).toLocaleDateString('de-DE')].filter(Boolean).join(' · ')),
       i.lastSeen && Date.now() - i.lastSeen > STALE_MS && i.pricePerNight ? h('div', { class: 'muted warn' }, 'Preis älter als 24 h, auf der Seite neu prüfen') : null,
       i.hints?.length ? h('div', { class: 'muted' }, i.hints.slice(0, 4).join(' · ')) : null,
       i.note ? h('div', { class: 'muted' }, '📝 ' + i.note) : null));
+}
+
+// R7: Einheit aus der Suche; ältere Einträge ohne isTotal: Reisesumme (stay) falls bekannt, sonst ohne Einheit
+function topPrice(l) {
+  const M = v => window.StayMatchRank.money(v, l.currency);
+  if (l.isTotal === true) return `${M(l.totalPrice)} gesamt`;
+  if (l.isTotal === false) return `${M(l.totalPrice)} pro Nacht`;
+  return l.stay != null ? `${M(l.stay)} gesamt` : M(l.totalPrice);
 }
 
 function topRow(l, n) {
   return h('a', { class: 'item', href: safeUrl(l.url), target: '_blank', style: 'display:block' },
     h('span', { class: 'score' }, l.score),
     h('div', {}, `${n}. ${l.title || l.kind || 'Unterkunft'}`),
-    h('div', { class: 'muted' }, [l.locality, l.rating && '⭐ ' + l.rating, l.totalPrice && `${l.totalPrice} ${l.currency || '€'} gesamt`].filter(Boolean).join(' · ')),
+    h('div', { class: 'muted' }, [l.locality, l.rating && '⭐ ' + l.rating, l.totalPrice && topPrice(l)].filter(Boolean).join(' · ')),
     h('div', { class: 'muted' }, (l.why || []).slice(0, 2).join(' · ')),
     (l.warn || []).length ? h('div', { class: 'muted warn' }, '⚠️ ' + l.warn.slice(0, 2).join(' · ')) : null);
 }
 
+// R7: ein Einstiegstext, Direktweg zuerst
+const START_TEXT = 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Optional findet der Viertel-Finder vorher das passende Viertel, auch für Gruppen.';
 function render() {
   const items = Object.values(listings).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
-  $('profile').replaceChildren(...profile(items));
+  $('profile').replaceChildren(h('span', {}, profile(items)));
   $('trip').replaceChildren(trip
     ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} ${trip.people?.length === 1 ? 'Person' : 'Personen'} · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
-    : 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Optional findet der Viertel-Finder vorher das passende Viertel, auch für Gruppen.');
+    : START_TEXT);
   let rows;
   if (tab === 'top') {
     rows = lastSearch?.top?.length
       ? [h('div', { class: 'item muted', style: 'display:block' }, `Letzte Suche vom ${new Date(lastSearch.at).toLocaleString('de-DE')}`,
           safeSearchUrl(lastSearch.url) ? [' · ', h('a', { href: safeSearchUrl(lastSearch.url), target: '_blank', rel: 'noopener' }, 'Suche wieder öffnen')] : null), ...lastSearch.top.map((l, n) => topRow(l, n + 1))]
-      : [h('div', { class: 'item muted' }, 'Öffne im Viertel-Finder „Unterkünfte ansehen“. StayMatch bewertet die Seite automatisch.')];
+      : [h('div', { class: 'item muted' }, trip ? START_TEXT : 'Noch keine Suche bewertet.')];
   } else {
     const q = query.trim().toLowerCase();
     const shown = items.filter(i => (tab === 'all' || (tab === 'liked' ? i.vote === 1 : i.vote === -1)) &&
@@ -80,6 +117,21 @@ function render() {
   }
   $('search').hidden = tab === 'top';
   $('list').replaceChildren(...rows);
+  renderExtras(items);
+}
+// R7 E: Backup-Erinnerung (alle 3 Monate, ab 5 Einträgen) und Zähler „heute bewertet“
+const BACKUP_MS = 90 * 864e5;
+function renderExtras(items) {
+  const st = extraKeys.settings || {};
+  const due = items.length >= 5 && Date.now() - (st.lastBackup || st.firstUse || 0) > BACKUP_MS && st.firstUse;
+  $('backup').hidden = !due;
+  if (due) $('backup').replaceChildren('Deine Daten liegen nur hier. Sichern? ', h('button', { class: 'lnk', onclick: () => $('export').click() }, 'Jetzt als Datei sichern'));
+  if (!st.firstUse) setSetting({ firstUse: Date.now() });
+  const today = new Date().toISOString().slice(0, 10), stt = extraKeys.stats;
+  $('stats').textContent = stt?.day === today && stt.rated ? `Heute hat StayMatch ${stt.rated} Unterkünfte für dich bewertet, du hast ${stt.opened || 0} davon geöffnet.` : '';
+  const pu = st.pauseUntil || 0;
+  $('pauseInfo').textContent = pu > Date.now() ? `aktiv bis ${new Date(pu).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : '';
+  $('pause').textContent = pu > Date.now() ? 'Spuren-Pause beenden' : 'Spuren-Pause: 1 Stunde ohne Verlauf';
 }
 
 const tabs = [...document.querySelectorAll('nav button')];
@@ -106,27 +158,44 @@ $('export').onclick = () => {
   const withPrivate = confirm('Notizen und Namen der Mitreisenden mit exportieren?\n\nOK = mit, Abbrechen = ohne (gut zum Teilen).');
   const ls = withPrivate ? listings : Object.fromEntries(Object.entries(listings).map(([k, v]) => [k, (({ note, ...r }) => r)(v)]));
   const t = trip && !withPrivate ? { ...trip, people: (trip.people || []).map(p => ({ type: p?.type })), areas: (trip.areas || []).map(a => ({ ...a, minName: undefined })) } : trip;
-  download('staymatch.json', JSON.stringify({ listings: ls, trip: t }, null, 2), 'application/json');
+  // R7 E: offenes Format mit Kennung und Version, damit andere Werkzeuge die Datei lesen können
+  download('staymatch.json', JSON.stringify({ format: 'staymatch-merkliste', version: 1, exportedAt: new Date().toISOString(), listings: ls, trip: t }, null, 2), 'application/json');
+  setSetting({ lastBackup: Date.now() });
 };
 $('csv').onclick = () => {
-  const cols = ['title', 'locality', 'rating', 'reviewCount', 'pricePerNight', 'currency', 'vote', 'visits', 'note', 'url'];
+  // R7: wie beim JSON-Export nach Notizen fragen; Datum und Art als eigene Spalten (ISO-Datum)
+  const withNotes = confirm('Notizen mit exportieren?\n\nOK = mit, Abbrechen = ohne (gut zum Teilen).');
+  const iso = t => t ? new Date(t).toISOString().slice(0, 10) : '';
+  const cols = ['title', 'kind', 'locality', 'rating', 'reviewCount', 'pricePerNight', 'currency', 'checkin', 'checkout', 'lastSeen', 'vote', 'visits', ...(withNotes ? ['note'] : []), 'url'];
   const esc = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; };
-  download('staymatch.csv', '\ufeff' + [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(i[c])).join(';'))].join('\n'), 'text/csv;charset=utf-8');
+  const val = (i, c) => c === 'lastSeen' ? iso(i.lastSeen) : i[c];
+  download('staymatch.csv', '\ufeff' + [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(val(i, c))).join(';'))].join('\n'), 'text/csv;charset=utf-8');
 };
 $('import').onclick = () => $('file').click();
 $('file').onchange = async e => {
   try {
     const j = JSON.parse(await e.target.files[0].text());
     const src = j.listings || j;
-    const entries = Object.values(src).filter(v => v && v.id && /^\d+$/.test(String(v.id)))
+    const all = Object.values(src);
+    const entries = all.filter(v => v && v.id && /^\d+$/.test(String(v.id)))
       .map(v => ({ ...v, image: isCdnImage(v.image) ? v.image : undefined, url: isRoomUrl(v.url) ? v.url : undefined }));
     await chrome.storage.local.set(Object.fromEntries(entries.map(v => ['l:' + v.id, v])));
-    load();
+    await load();
+    // R7: R\u00fcckmeldung, was \u00fcbernommen wurde
+    $('list').prepend(h('div', { class: 'item muted', role: 'status' }, `${entries.length} \u00fcbernommen, ${all.length - entries.length} \u00fcbersprungen`));
   } catch { alert('Datei konnte nicht gelesen werden.'); }
+  e.target.value = ''; // R7: dieselbe Datei l\u00e4sst sich erneut w\u00e4hlen
 };
 chrome.storage.local.get('settings').then(r => {
-  $('optBadges').checked = (r.settings || {}).showBadges !== false;
-  $('optTheme').value = (r.settings || {}).theme || 'auto';
+  const st = r.settings || {};
+  $('optBadges').checked = st.showBadges !== false;
+  $('optTheme').value = st.theme || 'auto';
+  $('optScale').value = String(st.fontScale || 1);
+  $('optScoreOnly').checked = !!st.scoreOnly;
+  $('optBlind').checked = !!st.blind;
+  $('optNoPrices').checked = !!st.share?.noPrices;
+  $('optNoEmoji').checked = !!st.share?.noEmoji;
+  $('optMarkdown').checked = !!st.share?.markdown;
 });
 async function setSetting(patch) {
   const { settings = {} } = await chrome.storage.local.get('settings');
@@ -134,28 +203,95 @@ async function setSetting(patch) {
 }
 $('optBadges').onchange = e => setSetting({ showBadges: e.target.checked });
 $('optTheme').onchange = e => setSetting({ theme: e.target.value });
+$('optScale').onchange = e => setSetting({ fontScale: +e.target.value || 1 });
+$('optScoreOnly').onchange = e => setSetting({ scoreOnly: e.target.checked });
+$('optBlind').onchange = e => setSetting({ blind: e.target.checked });
+const shareOpts = () => ({ noPrices: $('optNoPrices').checked, noEmoji: $('optNoEmoji').checked, markdown: $('optMarkdown').checked });
+for (const id of ['optNoPrices', 'optNoEmoji', 'optMarkdown']) $(id).onchange = () => setSetting({ share: shareOpts() });
+$('pause').onclick = async () => {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  const pu = settings.pauseUntil > Date.now() ? 0 : Date.now() + 3600e3;
+  await setSetting({ pauseUntil: pu }); extraKeys.settings = { ...settings, pauseUntil: pu }; render();
+};
+$('linkCheck').oninput = e => {
+  const v = e.target.value.trim(), r = v && X ? X.linkCheck(v, StayMatchCore.AIRBNB_DOMAINS) : null;
+  // Nachbau-Verdacht: Hilfe auf der Startseite verlinken (nur ein Link, nichts wird geladen)
+  const help = r && /KEINE Airbnb-Adresse/.test(r.text) ? [' ', h('a', { href: 'https://staymatch.pro/#verdacht', target: '_blank', rel: 'noopener' }, 'Verdacht auf Betrug? So reagierst du')] : [];
+  $('linkResult').replaceChildren(r ? r.text : '', ...help);
+};
+$('friendAdd').onclick = async () => {
+  const ids = X ? X.friendIds($('friendText').value) : [];
+  if (!ids.length) { $('friendInfo').textContent = 'Keine Airbnb-Links gefunden.'; return; }
+  const name = (prompt('Von wem ist die Liste? (Name bleibt nur hier)', '') || 'Freund').trim().slice(0, 30);
+  const { friendLikes = {} } = await chrome.storage.local.get('friendLikes');
+  for (const id of ids) friendLikes[id] = [...new Set([...(friendLikes[id] || []), name])];
+  await chrome.storage.local.set({ friendLikes });
+  $('friendInfo').textContent = `${ids.length} Unterkünfte von ${name} übernommen. Auf der Suchseite steht dann „${name} mag das“.`;
+  $('friendText').value = '';
+};
+$('trips').onclick = async () => {
+  const text = X ? X.tripsText(Object.values(listings)) : '';
+  if (!text) { $('trips').textContent = 'Noch nichts als gebucht markiert'; return; }
+  try { await navigator.clipboard.writeText(text); $('trips').textContent = 'Kopiert ✓'; } catch { $('trips').textContent = 'Nicht möglich'; }
+  setTimeout(() => { $('trips').textContent = 'Gebuchte Etappen kopieren'; }, 2500);
+};
+$('dataInfo').onclick = async () => { const all = await chrome.storage.local.get(null); $('dataOut').replaceChildren(...(X ? X.storageSummary(all) : []).map(t => h('div', {}, t))); };
 // Merkliste (👍) als Text zum Teilen (Preis pro Person nur, wenn mehrere reisen)
 $('share').onclick = async () => {
   const liked = Object.values(listings).filter(i => i.vote === 1).sort((a, b) => (b.rating || 0) - (a.rating || 0));
   if (!liked.length) { $('share').textContent = 'Erst 👍 vergeben'; return; }
   const n = trip?.people?.length || 0;
-  const text = window.StayMatchRank.shareText(liked.map(i => ({ ...i, stay: null, ppnPerson: n > 1 && i.pricePerNight ? Math.round(i.pricePerNight / n) : null })), { title: n > 1 ? 'Unsere Merkliste (StayMatch)' : 'Meine Merkliste (StayMatch)' });
+  // R7: private Notizen gehen nur auf Wunsch in den Gruppenchat
+  const notes = liked.some(i => i.note) && !!confirm('Deine Notizen mit in den Text nehmen?\n\nOK = mit, Abbrechen = ohne.');
+  const text = window.StayMatchRank.shareText(liked.map(i => ({ ...i, stay: null, ppnPerson: n > 1 && i.pricePerNight ? Math.round(i.pricePerNight / n) : null })), { title: n > 1 ? 'Unsere Merkliste (StayMatch)' : 'Meine Merkliste (StayMatch)', notes, ...(extraKeys.settings?.share || {}) });
   try { await navigator.clipboard.writeText(text); $('share').textContent = 'Kopiert ✓'; } catch { $('share').textContent = 'Nicht möglich'; }
   setTimeout(() => { $('share').textContent = 'Merkliste kopieren'; }, 2500);
 };
 // Löschen getrennt nach Art; Einstellungen bleiben immer erhalten
 $('wipe').onclick = async () => {
-  const kind = prompt('Was löschen? Tippe: verlauf (Unterkünfte, Likes, Notizen), zwischenspeicher (letzte Suche, gesammelte Seiten), reise oder alles. Das kann nicht rückgängig gemacht werden.', 'verlauf');
+  const kind = prompt('Was löschen? Tippe: verlauf (Unterkünfte, Likes, Notizen), zwischenspeicher (letzte Suche, gesammelte Seiten), reise, diese reise (Reise samt Unterkünften mit ihrem Anreisedatum) oder alles. Das kann nicht rückgängig gemacht werden.', 'verlauf');
   if (!kind) return;
   const k = kind.trim().toLowerCase();
   const keys = Object.keys(await chrome.storage.local.get(null));
   const pick = {
     verlauf: x => x.startsWith('l:') || x === 'listings',
-    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters'].includes(x),
+    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters'].includes(x) || x.startsWith('min:'), // R7: auch Einklapp-Zustand
     reise: x => x === 'trip',
+    // R7 E: „Reise vergessen“: Reise, Sammlung und die Unterkünfte mit diesem Anreisedatum; der Rest bleibt
+    'diese reise': x => x === 'trip' || x === 'pool' || x === 'lastSearch' || (x.startsWith('l:') && !!trip?.checkin && listings[x.slice(2)]?.checkin === trip.checkin),
     alles: x => x !== 'settings',
   }[k];
-  if (!pick) { alert('Nichts gelöscht: bitte verlauf, zwischenspeicher, reise oder alles eingeben.'); return; }
+  if (!pick) { alert('Nichts gelöscht: bitte verlauf, zwischenspeicher, reise, diese reise oder alles eingeben.'); return; }
   await chrome.storage.local.remove(keys.filter(pick)); load();
 };
+// R7 E: ehrlich anzeigen, ob Chromes eingebaute KI-Schnittstellen hier vorhanden sind (nur Erkennung, kein Download; StayMatch nutzt sie nicht)
+function aiStatus(g) {
+  const apis = ['LanguageModel', 'Summarizer', 'Translator', 'LanguageDetector'].filter(k => k in g);
+  return apis.length ? `Chrome-KI auf diesem Gerät: ${apis.join(', ')} vorhanden. StayMatch nutzt sie (noch) nicht, alles läuft mit festen Regeln.` : 'Chrome-KI auf diesem Gerät nicht verfügbar. StayMatch braucht sie nicht, alles läuft mit festen Regeln.';
+}
+$('aiInfo').textContent = aiStatus(self);
+// R7-597: Wunsch-Profile Arbeit und Urlaub. Ein Klick setzt das Arbeits-Profil (WLAN, Arbeitsplatz, ruhig, Self-Check-in),
+// der nächste wechselt zu Urlaub und wieder zurück. Schreibt in „quick“ wie die Profil-Chips im Panel (Budget bleibt erhalten),
+// nur Wünsche, die das Plugin kennt. Die offene Suchseite übernimmt es bei der nächsten Bewertung (kein Doppel-Durchlauf).
+const R = window.StayMatchRank || null;
+const PROFILE_CYCLE = ['work', 'holiday'];
+const knownWish = w => !!(R?.WISHES?.[w] || R?.REVIEW_WISHES?.[w] || X?.EXTRA_WISHES?.[w]);
+async function renderWishProfile(note) {
+  if (!X?.PROFILES || !R) return;
+  const { quick = {} } = await chrome.storage.local.get('quick');
+  const cur = PROFILE_CYCLE.includes(quick.profile) ? quick.profile : null;
+  const next = PROFILE_CYCLE[(PROFILE_CYCLE.indexOf(cur) + 1) % PROFILE_CYCLE.length];
+  const b = $('profileBtn');
+  b.textContent = cur ? `Profil ${X.PROFILES[cur].label} aktiv · wechseln zu ${X.PROFILES[next].label}` : `Wunsch-Profil ${X.PROFILES.work.label} setzen`;
+  b.setAttribute('aria-pressed', String(!!cur));
+  b.title = X.PROFILES[next].wishes.filter(knownWish).join(', ');
+  b.onclick = async () => {
+    const { quick: q = {} } = await chrome.storage.local.get('quick');
+    await chrome.storage.local.set({ quick: { budgetNight: null, ...q, wishes: X.PROFILES[next].wishes.filter(knownWish), profile: next } });
+    renderWishProfile('Gilt ab der nächsten Bewertung der Airbnb-Suche.');
+  };
+  $('profileInfo').textContent = note || '';
+  $('wishProfile').hidden = false;
+}
+renderWishProfile();
 load();

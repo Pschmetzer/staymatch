@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERIERT aus CHANGELOG.md – nicht bearbeiten! Neu erzeugen: node scripts/build-feed.mjs -->
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="de">
+  <title>StayMatch: Änderungen</title>
+  <subtitle>Neue Funktionen und Korrekturen an Plugin, Viertel-Finder und Website</subtitle>
+  <id>tag:staymatch.pro,2026:changelog</id>
+  <updated>2026-11-13T00:00:00Z</updated>
+  <link rel="self" type="application/atom+xml" href="https://staymatch.pro/feed.xml"/>
+  <link rel="alternate" type="text/html" href="https://staymatch.pro/"/>
+  <author><name>StayMatch</name></author>
+  <icon>https://staymatch.pro/favicon.svg</icon>
+  <entry>
+    <title>StayMatch: Unveröffentlicht (Stand 2026-11-13)</title>
+    <id>tag:staymatch.pro,2026:changelog:unveroeffentlicht</id>
+    <updated>2026-11-13T00:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/Pschmetzer/staymatch/blob/main/CHANGELOG.md"/>
+    <content type="html">&lt;h3&gt;Hinzugefügt (Runde 7)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Plugin, Unterkunftsseite: Zusatz-Hinweise (Kaution, Zusatzgast- und Vor-Ort-Kosten, Gebühren-Anteil, Hausregeln, Sicherheitsausstattung, Kamera/Lärmsensor, Gastgeber-Angaben, Lizenznummer, Saison und Silvester), Bewertungs-Analyse (Kritik-Quote, Lärmzeit, Gästemix, Trend), wichtige Hinweise sichtbar und Rest unter „Mehr Hinweise“, Gebucht-Status mit Entscheidungsnotiz, Gastgeber-Gedächtnis, Beschreibung gegen Bewertungen. Neues Modul &lt;code&gt;extension/extras.js&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Plugin, Suchseite: Lockpreis- und Gebühren-Warnungen, Sterne relativ zur Seite, Einzelbetten-Warnung, „jede Person eigenes Bett“, Wunsch-Profile und Wünsche aus einem Satz, ±1 Person, Seiten-Auswertungen („Mehr zu dieser Seite“), Abstand zu Platz 1, Vorlesen, Kopiertext ohne Preise/Emojis oder als Markdown.&lt;/li&gt;
+&lt;li&gt;Plugin, weitere Hinweise: Rabatt-Ehrlichkeit mit eigenem Preisverlauf, Last-Minute/Frühbucher, Airbnb-Teilnoten, Warnung beim Kopieren von Telefonnummer oder Mail, Storno-Preis-Abwägung in den Top 3, Vorjahresvergleich, Quellen an den Wunsch-Chips.&lt;/li&gt;
+&lt;li&gt;Plugin, Popup: Textgröße, Screenshot-Modus, Blindverkostung, Kopier-Optionen, Spuren-Pause, gebuchte Etappen kopieren, Link-Prüfung gegen Nachbauten, Merkliste eines Freundes, Datenauskunft, Geschmack korrigieren, Backup-Erinnerung, Zähler „heute bewertet“; Wunsch-Profile Arbeiten/Urlaub per Knopf (R7-597).&lt;/li&gt;
+&lt;li&gt;Plugin: Betrugshinweise verlinken die Hilfe auf &lt;code&gt;https://staymatch.pro/#verdacht&lt;/code&gt;; „Fehler melden“ öffnet die Issue-Vorlage „Plugin erkennt die Seite nicht“ mit vorausgefüllten Feldern.&lt;/li&gt;
+&lt;li&gt;Viertel-Finder: neues Modul &lt;code&gt;web/app-extra.js&lt;/code&gt; mit Tageslicht am Anreisetag, Abstand zu Platz 1, robuster Empfehlung, „Mal was anderes“, einfacher Sprache, Wünschen aus einem Satz, Interessen als Text, eigenen Orten (GeoJSON/KML), Gruppen-Abstimmung per Link, Etappen, Kopiertext, Vorlesen mit lokaler Stimme, Textgröße, Duell, Fairness-Konto; Hinweis bei Anreise am Sonntag. Übernimmt Kinder und Budget pro Nacht aus der Schnellsuche der Startseite.&lt;/li&gt;
+&lt;li&gt;Startseite (DE und EN): Kinder und Max. € pro Nacht in der Schnellsuche, Sterne- und Fairness-Regler zum Ausprobieren, Checkliste vor der Buchung, Abschnitt „Verdacht auf Betrug?“ mit Link-Prüfung, „Seite teilen“, Wochenend-Schnellwahl; 404 auf Englisch für &lt;code&gt;/en&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Stadtseiten: je Viertel Link zur Airbnb-Suche, Brotkrümel, Abschnitt „Kurz und einfach“ (R7-742).&lt;/li&gt;
+&lt;li&gt;Atom-Feed &lt;code&gt;web/feed.xml&lt;/code&gt; aus diesem CHANGELOG (&lt;code&gt;scripts/build-feed.mjs&lt;/code&gt;, in CI geprüft), verlinkt auf beiden Startseiten (R7-731).&lt;/li&gt;
+&lt;li&gt;Tests: DOM-Tests des Viertel-Finders mit jsdom, Kontrast-Test, &lt;code&gt;r7-*&lt;/code&gt;-Tests für alle Wellen.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Geändert (Runde 7)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Startseite: Kontrast von Grün/Orange und Bedienelement-Rändern im Hellmodus, Schnellsuche funktioniert ohne JS und merkt Eingaben im Tab, Barrierefreiheit (Live-Regionen, Klickflächen, Fokus), FAQ-Anker, Vertrauenszeile „Kein Tracking“, Markenhinweis im Footer, Download heißt &lt;code&gt;staymatch-0.5.0.zip&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Rechts- und Stadtseiten: &lt;code&gt;legal.css&lt;/code&gt; mit Hell als Standard und Druckansicht, Datenschutz mit Inhaltsverzeichnis, Impressum nach DDG (beides bitte gegenlesen).&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;vercel.json&lt;/code&gt;: Kurz-Umleitungen, englische Stadtnamen, COOP, strengere CSP. &lt;code&gt;security.txt&lt;/code&gt; mit &lt;code&gt;Canonical&lt;/code&gt; auf staymatch.pro.&lt;/li&gt;
+&lt;li&gt;Live-Städte im Viertel-Finder nutzen dieselben Kern-Helfer wie die vorab geladenen (&lt;code&gt;shared/core.js&lt;/code&gt;); Städtedaten mit shop-Spalte und echtem Zentrum neu erzeugt.&lt;/li&gt;
+&lt;li&gt;Plugin: geschlossener Shadow Root, strenge CSP fürs Popup, Spuren-Pause schreibt auf der Suchseite nichts, Seiten-Auswertung einmal je Suche.&lt;/li&gt;
+&lt;li&gt;CI: Actions per Commit-SHA gepinnt, Rechte minimiert, Größenbudget für &lt;code&gt;web/*.js&lt;/code&gt; auf 170 KB; Leistungstest misst CPU-Zeit statt Wanduhr. Dependabot wartet 7 Tage auf neue Versionen.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Behoben (Runde 7)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Plugin: Preise mit indischen Tausendergruppen und Rabatt, Storno-Fristen, Geschirrspüler ist keine Waschmaschine, Stichworte mit Verneinung, kein NaN-Score bei Vierteln ohne Wert, Nachtpreis konnte zum Gesamtpreis werden, freier Inseratsname wurde als Ort gespeichert, weitere Parser-Fehler (Währung aus Fließtext, Sterne nur aus Stern-Labels).&lt;/li&gt;
+&lt;li&gt;Viertel-Finder: Shopping-Typ ohne Daten, Personen-Index nach Löschen, kaputte Vorlagen, EUR im Airbnb-Link, Gäste-Grenze, Anreise in der Vergangenheit, Budget-Modus rechnet um, Kartenzustand aus dem Teilen-Link, globaler Fehlerfang mit Zurücksetzen.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Hinzugefügt&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Startseite auf Englisch (&lt;code&gt;/en&lt;/code&gt;) mit Sprachumschalter DE/EN, hreflang und englischem Schnellstart auf airbnb.com (#36).&lt;/li&gt;
+&lt;li&gt;Plugin-Panel: Foto-Karten im Hotel-Stil, Wunsch „Luxus“ in Plugin und Viertel-Finder mit Filter „nur Luxus“ (#44).&lt;/li&gt;
+&lt;li&gt;Startseite (DE und EN): Abschnitte „Wie wir rechnen“ und „Beliebte Städte“ (Links auf die Stadtseiten), acht neue Stimmungsbilder, Szenario-Karten mit Bild, FAQ-Auszeichnung (&lt;code&gt;FAQPage&lt;/code&gt;), Kopier-Knopf und browserabhängiger Erweiterungs-Pfad bei der Installation, ZIP-Größe am Download-Knopf, Nächte-Anzeige im Schnellstart, aktiver Navigationspunkt. Test &lt;code&gt;tests/startseite.test.js&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;/.well-known/security.txt&lt;/code&gt;, SHA-256-Prüfsumme neben dem Plugin-ZIP, Herkunftsnachweis (Provenance) im Release-Workflow.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;scripts/cities.json&lt;/code&gt; (Städteliste), &lt;code&gt;scripts/check-syntax.mjs&lt;/code&gt;, &lt;code&gt;scripts/dev-server.mjs&lt;/code&gt; (setzt die Header aus &lt;code&gt;web/vercel.json&lt;/code&gt;), &lt;code&gt;.nvmrc&lt;/code&gt;, &lt;code&gt;.editorconfig&lt;/code&gt;, &lt;code&gt;.githooks/&lt;/code&gt;, &lt;code&gt;THIRD_PARTY.md&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Geändert&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Weiß als Standard, Lade-Karte mit Countdown und Schritten im Viertel-Finder, helle Varianten der Startseiten-Fotos (#41).&lt;/li&gt;
+&lt;li&gt;Website-Adresse in canonical, Open Graph, hreflang, Sitemap, &lt;code&gt;robots.txt&lt;/code&gt; und Stadtseiten ist jetzt &lt;code&gt;https://staymatch.pro&lt;/code&gt; (das Plugin nutzt weiter die alte Vercel-Adresse). Sitemap enthält die Stadtseiten.&lt;/li&gt;
+&lt;li&gt;Startseite: Plugin-Abschnitt direkt nach „So geht&apos;s“, Schnellstart mit sichtbaren Feldnamen und Städte-Vorschlägen, FAQ zusammengelegt, Hero-Beispiel ohne verdecktes Viertel-Label, Navigation auf dem Handy kompakter. Hero-Platzhalter &lt;code&gt;sm-lumina&lt;/code&gt; entfernt.&lt;/li&gt;
+&lt;li&gt;CI: Online-Linkcheck nur wöchentlich, Zeitlimits, npm-Cache, jsdom-Prüfung. Release-Workflow führt &lt;code&gt;npm run check&lt;/code&gt; aus und nimmt den CHANGELOG-Abschnitt als Release-Text. Dependabot beobachtet &lt;code&gt;tests/&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;deploy.sh&lt;/code&gt; prüft Stand und alle Checks und testet nach dem Deploy. &lt;code&gt;prefetch-cities.mjs&lt;/code&gt; bricht bei Fehlern mit Exit-Code 1 ab und überschreibt keine Datei mit einer Teilantwort.&lt;/li&gt;
+&lt;li&gt;Datenschutz-Texte: gespeicherte Felder des Plugins vollständig, vorab geladene Städte als aktiv beschrieben.&lt;/li&gt;
+&lt;li&gt;Cache-Header für &lt;code&gt;/data&lt;/code&gt;, &lt;code&gt;/fonts&lt;/code&gt;, &lt;code&gt;/vendor&lt;/code&gt;; &lt;code&gt;robots.txt&lt;/code&gt; sperrt &lt;code&gt;/data/&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;</content>
+  </entry>
+  <entry>
+    <title>StayMatch 0.5.0</title>
+    <id>tag:staymatch.pro,2026:changelog:0.5.0</id>
+    <updated>2026-11-10T00:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/Pschmetzer/staymatch/blob/main/CHANGELOG.md"/>
+    <content type="html">&lt;p&gt;Die Tags &lt;code&gt;v0.4.0&lt;/code&gt; und &lt;code&gt;v0.5.0&lt;/code&gt; gibt es noch nicht, die Vergleichslinks am Ende gelten erst nach dem Taggen.&lt;/p&gt;
+&lt;h3&gt;Geändert&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Neue Ausrichtung: StayMatch ist zuerst ein Helfer für eine Person, die schneller ihr passendes Airbnb findet. Gruppen sind ein Zusatz.&lt;/li&gt;
+&lt;li&gt;Direkt-Modus: Das Plugin funktioniert auf jeder Airbnb-Suche mit Budget pro Nacht und Wunsch-Chips, der Viertel-Finder ist optional.&lt;/li&gt;
+&lt;li&gt;Viertel-Finder startet mit einer Person („Du“), Einzahl-Texte, kein „pro Person“.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Hinzugefügt&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Wünsche an die Unterkunft: ganze Unterkunft, kein Gewerbe, Superhost/Favorit, ab 20 Bewertungen; ruhig, sauber, WLAN als Warnung auf der Unterkunftsseite.&lt;/li&gt;
+&lt;li&gt;Gemeinsamer Kern in &lt;code&gt;shared/&lt;/code&gt;, Runde 4 im Viertel-Finder, vorab geladene Städtedaten.&lt;/li&gt;
+&lt;/ul&gt;</content>
+  </entry>
+  <entry>
+    <title>StayMatch 0.4.0</title>
+    <id>tag:staymatch.pro,2026:changelog:0.4.0</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/Pschmetzer/staymatch/blob/main/CHANGELOG.md"/>
+    <content type="html">&lt;h3&gt;Hinzugefügt&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;CI: Node 22 und 24, HTML-Prüfung, Domain-Abgleich Manifest/&lt;code&gt;bridge.js&lt;/code&gt;/&lt;code&gt;APP_URL&lt;/code&gt;, Größengrenzen, ZIP-Inhaltsprüfung, Link-Prüfung.&lt;/li&gt;
+&lt;li&gt;Release-Workflow: Bei Tag &lt;code&gt;v*&lt;/code&gt; wird das Plugin-ZIP gebaut und angehängt.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;package.json&lt;/code&gt; mit &lt;code&gt;test&lt;/code&gt;, &lt;code&gt;check&lt;/code&gt;, &lt;code&gt;build&lt;/code&gt;, &lt;code&gt;dev&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Issue- und PR-Vorlagen, &lt;code&gt;CONTRIBUTING.md&lt;/code&gt;, &lt;code&gt;CODE_OF_CONDUCT.md&lt;/code&gt;, &lt;code&gt;SECURITY.md&lt;/code&gt;, Dependabot.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Geändert&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;build-plugin-zip.sh&lt;/code&gt; schließt versteckte Dateien auf jeder Ebene aus und meldet fehlendes &lt;code&gt;zip&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;deploy.sh&lt;/code&gt; führt vorher die Tests aus.&lt;/li&gt;
+&lt;/ul&gt;</content>
+  </entry>
+  <entry>
+    <title>StayMatch 0.3.0</title>
+    <id>tag:staymatch.pro,2026:changelog:0.3.0</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/Pschmetzer/staymatch/blob/main/CHANGELOG.md"/>
+    <content type="html">&lt;ul&gt;
+&lt;li&gt;Runde 3: Entfernungsabfall, Umkreis, neue Orttypen, Neuberechnung ohne Netz, Plugin-Filter.&lt;/li&gt;
+&lt;/ul&gt;</content>
+  </entry>
+  <entry>
+    <title>StayMatch 0.2.1</title>
+    <id>tag:staymatch.pro,2026:changelog:0.2.1</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/Pschmetzer/staymatch/blob/main/CHANGELOG.md"/>
+    <content type="html">&lt;ul&gt;
+&lt;li&gt;Runde 2: Datenschutz-Texte, Fehlerkorrekturen, Teilen-Link, Tests, CI.&lt;/li&gt;
+&lt;/ul&gt;</content>
+  </entry>
+  <entry>
+    <title>StayMatch 0.2.0</title>
+    <id>tag:staymatch.pro,2026:changelog:0.2.0</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/Pschmetzer/staymatch/blob/main/CHANGELOG.md"/>
+    <content type="html">&lt;ul&gt;
+&lt;li&gt;Landingpage, Viertel-Finder, Plugin-ZIP zum Download.&lt;/li&gt;
+&lt;/ul&gt;</content>
+  </entry>
+</feed>

@@ -4,15 +4,21 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const ROOT = new URL('../', import.meta.url);
-const FILES = ['core.js', 'i18n.js'];
-const TARGETS = ['web', 'extension'];
+// Datei → Ziele. i18n.js nur ins Plugin: die Website lädt es (noch) nicht, sonst würde totes Gepäck ausgeliefert.
+const FILES = { 'core.js': ['web', 'extension'], 'i18n.js': ['extension'] };
 const check = process.argv.includes('--check');
 
+// Der Hinweis steht in der ersten Kommentarzeile, damit Zeilennummern (Stacktraces, Abdeckung) zu shared/ passen
+const withHeader = (f, src) => {
+  const head = `// GENERIERT aus shared/${f} – nicht bearbeiten! Änderungen in shared/${f}, dann: node scripts/sync-core.mjs`;
+  return src.startsWith('// ') ? `${head} | ${src.slice(3)}` : `${head}\n${src}`;
+};
+
 let bad = 0;
-for (const f of FILES) {
+for (const [f, targets] of Object.entries(FILES)) {
   const src = await readFile(new URL(`shared/${f}`, ROOT), 'utf8');
-  const want = `// GENERIERT aus shared/${f} – nicht bearbeiten! Änderungen in shared/${f}, dann: node scripts/sync-core.mjs\n${src}`;
-  for (const t of TARGETS) {
+  const want = withHeader(f, src);
+  for (const t of targets) {
     const dest = new URL(`${t}/${f}`, ROOT);
     const have = await readFile(dest, 'utf8').catch(() => null);
     if (have === want) continue;

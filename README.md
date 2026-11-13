@@ -20,7 +20,7 @@ Static, no backend and no API keys.
 ```bash
 python3 -m http.server 8765 -d web
 ```
-Then open http://localhost:8765 (landing page) or http://localhost:8765/app.html (neighbourhood finder). Legal pages: `impressum.html` and `datenschutz.html`.
+Then open http://localhost:8765 (landing page) or http://localhost:8765/app.html (neighbourhood finder). Legal pages: `impressum.html` (placeholder, `TODO Nutzer`) and `datenschutz.html`. Hero image or video: see [LUMINA-PROMPTS.md](LUMINA-PROMPTS.md).
 
 ## Chrome extension (`extension/`)
 Download as ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (built on deploy, locally with `./scripts/build-plugin-zip.sh`).
@@ -29,21 +29,21 @@ Download as ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (built on
 2. Turn on **Developer mode** (top right)
 3. **Load unpacked** → select the `extension/` folder
 
-All data stays local in `chrome.storage.local`. The extension only reads pages you open yourself: no requests of its own to Airbnb, no background crawling, no intercepting of network traffic.
+All data stays local in `chrome.storage.local`. The extension only reads pages you open yourself: no fetching of Airbnb pages or data, no background crawling, no intercepting of network traffic. The only network requests are the preview images of the top 3 in the panel, loaded from Airbnb’s image server without a referrer.
 
 ## Data and notes
-- Places and neighbourhoods: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), via Nominatim and Overpass.
+- Places and neighbourhoods: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), via Nominatim and Overpass. Prefetched city data and how it is built: [web/data/NOTICE.md](web/data/NOTICE.md).
 - Not an official product and not affiliated with Airbnb. The extension only reads pages you open yourself.
 
 License: code MIT, map data ODbL (see [THIRD_PARTY.md](THIRD_PARTY.md))
 
 ## Development
 ```bash
-npm ci --prefix tests              # einmalig: jsdom für die DOM-Tests (sonst werden sie übersprungen)
+npm ci --prefix tests              # once: jsdom for the extension DOM tests (skipped otherwise)
 npm test                             # tests
-npm run check                        # alle Prüfungen (Syntax, HTML, Größen, Links, ZIP)
+npm run check                        # all checks (syntax, HTML, sizes, city data, links, ZIP)
 node scripts/sync-core.mjs           # copy shared/ to web/ and extension/ (after changing the core)
 ./scripts/deploy.sh                  # build ZIP + upload to Vercel (VERCEL_SCOPE=<team> optional)
-node scripts/prefetch-cities.mjs [city ...]   # prefetch city data (web/data/)
+node scripts/prefetch-cities.mjs [city ...]   # prefetch city data (web/data/), see CONTRIBUTING.md
 ```
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Privacy: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md) · Security: [SECURITY.md](SECURITY.md)

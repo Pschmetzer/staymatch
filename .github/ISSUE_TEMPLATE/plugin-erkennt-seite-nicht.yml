@@ -1,6 +1,6 @@
 name: Plugin erkennt die Seite nicht
 description: StayMatch zeigt auf einer Airbnb-Suchseite keine Wertung an.
-labels: [plugin]
+labels: [bug]
 body:
   - type: markdown
     attributes:

@@ -23,44 +23,58 @@ test('data/*.json: jede Datei ist im Index erreichbar (keine Waisen)', () => {
 });
 
 for (const file of files.filter(f => fs.existsSync(path.join(dataDir, f)))) {
-  test(`data/${file}: Felder, Zeilenlänge, Bounding-Box`, () => {
+  test(`data/${file}: Felder, Zeilenlänge, Bounding-Box, Viertel-Typen`, async () => {
+    const D = await import('../scripts/city-data.mjs');
     const d = JSON.parse(fs.readFileSync(path.join(dataDir, file), 'utf8'));
+    assert.equal(d.v, D.VERSION, 'Schema-Version v');
     assert.equal(typeof d.city, 'string');
+    assert.equal(d.license, 'ODbL-1.0');
+    assert.ok(d.attribution.includes('OpenStreetMap'));
     assert.ok(Number.isFinite(d.t) && d.t > 1.6e12, 't ist ein Millisekunden-Zeitstempel');
     assert.deepEqual(d.fields.slice(0, 2), ['lat', 'lon']);
-    for (const f of C.FIELDS.filter(f => f !== 'shop')) assert.ok(d.fields.includes(f), `Feld ${f} fehlt`);
+    for (const f of C.FIELDS) assert.ok(d.fields.includes(f), `Feld ${f} fehlt`);
     const [s, w, n, e] = d.bbox;
     assert.ok(s < n && w < e, 'bbox [s,w,n,e] geordnet');
     assert.ok(n - s < 1 && e - w < 1, 'bbox kleiner als 1 Grad');
-    assert.ok(d.rows.length > 100, 'genug Zeilen');
-    let places = 0, outside = 0;
+    assert.ok(Array.isArray(d.center) && d.center[0] > s && d.center[0] < n && d.center[1] > w && d.center[1] < e, 'center liegt in der bbox');
+    assert.ok(d.rows.length >= D.MIN_ROWS, `genug Zeilen (mindestens ${D.MIN_ROWS} wie im Prefetch)`);
+    const iP = d.fields.indexOf('place'), iN = d.fields.indexOf('name'), m = D.BBOX_MARGIN;
+    let places = 0;
     for (const r of d.rows) {
       if (r.length !== d.fields.length) assert.fail(`Zeile mit ${r.length} statt ${d.fields.length} Spalten`);
-      if (!(r[0] >= s - 0.01 && r[0] <= n + 0.01 && r[1] >= w - 0.01 && r[1] <= e + 0.01)) outside++; // Overpass-Mittelpunkte großer Flächen ragen vereinzelt über den Rand
-      if (r[d.fields.indexOf('place')] && r[d.fields.indexOf('name')]) places++;
+      assert.ok(r[0] >= s - m && r[0] <= n + m && r[1] >= w - m && r[1] <= e + m, `Punkt ${r[0]},${r[1]} außerhalb der bbox`);
+      if (r[iP]) assert.ok(C.PLACE_TYPES.includes(r[iP]), `place=${r[iP]} ist kein Viertel-Typ (${r[iN]})`);
+      assert.equal(r[iN], r[iN].replace(/\s+/g, ' ').trim(), `Name mit Leerzeichen am Rand: „${r[iN]}“`);
+      assert.ok(!r[iN].includes('""'), `Name mit doppelten CSV-Anführungszeichen: ${r[iN]}`);
+      if (r[iP] && r[iN]) places++;
     }
-    assert.ok(outside <= d.rows.length * 0.01, `${outside} Punkte außerhalb der bbox`);
     assert.ok(places >= 2, 'mindestens 2 benannte Viertel, sonst wirft app.js einen Fehler');
   });
 }
 
-// Echter Fehler: Die vorab geladenen Dateien haben keine Spalte „shop“ (core.js FIELDS hat sie), Einkaufen zählt dort immer 0.
-test('data/*.json: Spalte „shop“ vorhanden', { todo: 'Fehler: data/*.json stammen aus einer Zeit vor der Spalte shop; scripts/prefetch-cities.mjs neu laufen lassen' }, () => {
+// Früher fehlte die Spalte „shop“ in den vorab geladenen Dateien (Einkaufen zählte dort immer 0).
+test('data/*.json: Spalte „shop“ vorhanden (Datenlauf 13.11.2026)', () => {
   for (const f of files.filter(f => fs.existsSync(path.join(dataDir, f)))) {
     assert.ok(JSON.parse(fs.readFileSync(path.join(dataDir, f), 'utf8')).fields.includes('shop'), f);
   }
 });
 
-// Echter Fehler: app.js bietet „Rom“ als Stadt an, es gibt aber weder rom.json noch einen Index-Eintrag.
-test('Städte-Liste in app.js hat vorab geladene Daten', { todo: 'Fehler: Rom steht in CITIES, aber es gibt kein data/rom.json und keinen Index-Eintrag' }, () => {
-  const src = fs.readFileSync(path.join(web, 'app.js'), 'utf8');
-  const cities = eval(/const CITIES = (\[.*?\]);/.exec(src)[1]);
+// Jede Stadt der Kacheln in app.html hat vorab geladene Daten (R7: Städte stehen nur noch in app.html)
+test('Städte-Liste der App hat vorab geladene Daten', () => {
+  const html = fs.readFileSync(path.join(web, 'app.html'), 'utf8');
+  const cities = [...html.matchAll(/class="dcard" data-city="([^"]+)"/g)].map(m => m[1]);
+  assert.ok(cities.length >= 10, 'Kacheln gefunden');
   for (const c of cities) assert.ok(index[C.normCity(c)], `${c} fehlt im Index`);
 });
 
-test('Aliase zeigen auf dieselbe Datei wie der Stadtname', () => {
-  const alias = { lisboa: 'lissabon', lisbon: 'lissabon', praha: 'prag', prague: 'prag', vienna: 'wien' };
-  for (const [a, k] of Object.entries(alias)) assert.equal(index[a], index[k], a);
+test('Aliase aus scripts/cities.json zeigen alle auf die Datei der Stadt', () => {
+  const list = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'scripts', 'cities.json'), 'utf8'));
+  for (const [key, aliases] of Object.entries(list)) {
+    for (const a of aliases) {
+      assert.equal(C.normCity(a), a, `Alias „${a}“ ist nicht in normCity-Form`);
+      assert.equal(index[a], `${key}.json`, `Alias „${a}“ fehlt im Index oder zeigt woandershin`);
+    }
+  }
   assert.equal(index[C.normCity('Wien')], 'wien.json');
 });
 

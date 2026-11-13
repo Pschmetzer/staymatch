@@ -1,5 +1,4 @@
-// GENERIERT aus shared/core.js – nicht bearbeiten! Änderungen in shared/core.js, dann: node scripts/sync-core.mjs
-// StayMatch – gemeinsamer Kern für Web-App, Plugin und Skripte.
+// GENERIERT aus shared/core.js – nicht bearbeiten! Änderungen in shared/core.js, dann: node scripts/sync-core.mjs | StayMatch – gemeinsamer Kern für Web-App, Plugin und Skripte.
 // NUR HIER bearbeiten, danach `node scripts/sync-core.mjs` (kopiert nach web/ und extension/).
 // Klassisches Skript (MV3-Content-Scripts können keine ES-Module): setzt globalThis.StayMatchCore,
 // in Node zusätzlich module.exports.
@@ -79,13 +78,59 @@
       for (const cat of Object.values(CATEGORIES)) for (const [k, v] of cat.tags) if (k === key && !values.includes(v)) values.push(v);
       lines.push(overpassFilter(type, key, values));
     }
-    return `[out:csv(::lat,::lon,${FIELDS.slice(2).join(',')};true;"|")][timeout:90];(\n${lines.map(l => `    ${l}(${b});`).join('\n')}\n  );out center;`;
+    return `[out:csv(::lat,::lon,${FIELDS.slice(2).join(',')};true;"|")][timeout:90];(\n${lines.map(l => `    ${l}(${b});`).join('\n')}\n  );out center qt;`;
   }
 
-  // Nominatim-Suche. lang: optional als accept-language-Parameter (Browser schickt stattdessen den Header)
-  function nominatimUrl(q, lang) {
-    return `https://nominatim.openstreetmap.org/search?format=json&limit=1${lang ? `&accept-language=${lang}` : ''}&q=${encodeURIComponent(q)}`;
+  // Nominatim-Suche. lang: optional als accept-language-Parameter (Browser schickt stattdessen den Header).
+  // limit: Anzahl Treffer (App und Vorabladen: 5, dann StayMatch.placeChoices)
+  function nominatimUrl(q, lang, limit = 1) {
+    return `https://nominatim.openstreetmap.org/search?format=json&limit=${limit}${lang ? `&accept-language=${lang}` : ''}&q=${encodeURIComponent(q)}`;
   }
+
+  // Overpass setzt CSV-Werte mit Komma oder Anführungszeichen in "…" und verdoppelt innere ": "Café ""X""" → Café "X"
+  const unquoteCsv = x => (x.length > 1 && x[0] === '"' && x[x.length - 1] === '"' ? x.slice(1, -1).replace(/""/g, '"') : x);
+
+  // Overpass-CSV (Kopfzeile + Zeilen mit „|“) → Zeilen als Arrays in FIELDS-Reihenfolge.
+  // Zeilen mit falscher Spaltenzahl (z. B. „|“ im Namen) werden verworfen und gezählt.
+  function parseOverpassCsv(text) {
+    const rows = []; let dropped = 0;
+    for (const line of String(text).split('\n').slice(1)) {
+      if (!line) continue;
+      const v = line.split('|');
+      if (v.length !== FIELDS.length) { dropped++; continue; }
+      rows.push(v.map(unquoteCsv));
+    }
+    return { rows, dropped };
+  }
+
+  // Zeilen (Arrays, Spalten laut fields) → Tag-Objekte; leere Zellen fallen weg
+  function rowsToTags(fields, rows) {
+    return rows.map(v => {
+      const t = {};
+      fields.forEach((f, i) => { const x = v[i]; if (x !== '' && x != null) t[f] = x; });
+      return t;
+    });
+  }
+
+  // Nur echte Viertel (PLACE_TYPES) mit Namen gelten als Viertel. Plätze, Inseln, Fluren (place=square, islet, locality …)
+  // kommen über ihre anderen Tags als Orte in die Wertung (z. B. Platz mit tourism=attraction = Sehenswürdigkeit).
+  const isArea = t => !!(t && t.name && PLACE_TYPES.includes(t.place));
+
+  // Tag-Objekte → Viertel (gleicher Name im Umkreis von RADIUS.match nur einmal) und Orte je Kategorie.
+  // categoriesOf kommt aus web/scoring.js (StayMatch.categoriesOf).
+  function splitRows(tags, categoriesOf) {
+    const areas = [], raw = [];
+    for (const t of tags) {
+      const lat = +t.lat, lon = +t.lon;
+      if (!lat) continue;
+      if (isArea(t)) { if (!areas.some(a => a.name === t.name && distM(a, { lat, lon }) < RADIUS.match)) areas.push({ name: t.name, lat, lon }); continue; }
+      for (const cat of categoriesOf(t)) raw.push({ lat, lon, cat, name: t.name, tags: t });
+    }
+    return { areas, raw };
+  }
+
+  // Umkreis automatisch: dichtes ÖPNV-Netz (≥ 60 Halte nach dem Entdoppeln) = Großstadt → 1200 m, sonst RADIUS.area
+  const autoRadius = pois => pois.filter(p => p.cat === 'transit').length >= 60 ? 1200 : RADIUS.area;
 
   // Erster Nominatim-Treffer → Zentrum, begrenzte Bbox [s, w, n, e], Kurzname
   function geoFromNominatim(hit) {
@@ -103,6 +148,7 @@
     CATEGORIES, PRESETS, RADIUS, BBOX_HALF, VISIT_WINDOW_MS, APP_URL, AIRBNB_DOMAINS, STAYMATCH_ORIGINS,
     OVERPASS_SERVERS, OSM_KEYS, PLACE_TYPES, FIELDS,
     distM, norm, normCity, overpassQuery, nominatimUrl, geoFromNominatim,
+    parseOverpassCsv, unquoteCsv, rowsToTags, isArea, splitRows, autoRadius,
   };
   root.StayMatchCore = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

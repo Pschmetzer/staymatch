@@ -89,7 +89,7 @@ test('Warnstichworte aus früheren Besuchen senken die Wertung und erscheinen al
   const plain = R.scoreListing(l, { people: 4, nights: 4, budget: 2400 });
   const known = new Map([['1', { hints: ['👍 sauber', '⚠️ Treppen', '⚠️ laut (2×)'] }]]);
   const warned = R.scoreListing(l, { people: 4, nights: 4, budget: 2400, known });
-  assert.equal(warned.score, plain.score - 8);
+  assert.equal(warned.score, plain.score - 7); // R7: gestaffelt: Treppen 1× = 3, laut 2× = 4
   assert.ok(warned.warn.some(w => w.includes('Treppen')));
   assert.ok(warned.warn.some(w => w.includes('laut')));
   assert.equal(R.scoreListing(l, { people: 4, nights: 4, budget: 2400, known: new Map([['1', { hints: ['👍 sauber'] }]]) }).score, plain.score);
@@ -108,14 +108,14 @@ test('Vergleichstabelle: eine Spalte je Unterkunft, fehlende Werte als Strich', 
   assert.equal(row('pro Person/Nacht')[byId('1')], '50 €');
   assert.equal(row('Sterne')[byId('2')], 'neu');
   assert.equal(row('Betten')[byId('2')], '–');
-  assert.equal(row('Gastgeber')[byId('1')], 'Superhost');
+  assert.equal(row('Auszeichnung')[byId('1')], 'Superhost'); // R7: Zeile heißt jetzt Auszeichnung
   assert.equal(row('Viertel')[byId('2')], 'Gràcia');
 });
 
 test('Teilen: Text mit Titel, Eckdaten und Link, ohne Notiz-Zeile wenn leer', () => {
   const ctx = { people: 4, nights: 4 };
   const [a] = R.rankListings([{ ...base, totalPrice: 800, isTotal: true, locality: 'Gràcia' }], ctx);
-  const t = R.shareText([{ ...a, score: a.rank.score, url: 'https://www.airbnb.de/rooms/1?adults=4', note: 'Balkon' }, { id: '2', title: 'Zweite' }], { title: 'Kopf', sub: '4 Personen' });
+  const t = R.shareText([{ ...a, score: a.rank.score, url: 'https://www.airbnb.de/rooms/1?adults=4', note: 'Balkon' }, { id: '2', title: 'Zweite' }], { title: 'Kopf', sub: '4 Personen', notes: true }); // R7: Notizen nur auf Wunsch
   const lines = t.split('\n');
   assert.equal(lines[0], 'Kopf');
   assert.equal(lines[1], '4 Personen');
@@ -142,5 +142,5 @@ test('Diagnose: Seitenzustand fehlt / Struktur anders / ok, Karten und Links wer
 
 test('Qualität: zählt fehlende Felder', () => {
   const q = P.quality([{ totalPrice: 1, rating: 4 }, { rating: 4, beds: 2 }, {}]);
-  assert.deepEqual(q, { n: 3, noPrice: 2, noRating: 1, noBeds: 2 });
+  assert.deepEqual(q, { n: 3, noPrice: 2, noRating: 1, noBeds: 2, noTitle: 0, noCoords: 0 });
 });

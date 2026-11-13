@@ -2,26 +2,51 @@
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Datenschutz · StayMatch</title>
 <meta name="description" content="Was StayMatch speichert, was das Plugin liest und welche Dienste der Viertel-Finder anfragt.">
+<meta name="theme-color" content="#fbfaf8">
 <link rel="canonical" href="https://staymatch.pro/datenschutz">
+<meta property="og:site_name" content="StayMatch">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://staymatch.pro/datenschutz">
+<meta property="og:title" content="Datenschutz · StayMatch">
+<meta property="og:description" content="Was StayMatch speichert, was das Plugin liest und welche Dienste der Viertel-Finder anfragt.">
+<meta property="og:image" content="https://staymatch.pro/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/legal.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/legal.css?v=0c051186">
+<script>try { if (localStorage.getItem('sm_theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch {}</script>
 </head><body><main>
 <a class="back" href="/">← StayMatch</a>
 <h1>Datenschutz bei StayMatch</h1>
-<p class="stand">Stand: 09.11.2026 · Dieselbe Fassung liegt als <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> im Repository.</p>
+<p class="stand">Stand: 13.11.2026 · gilt für Plugin-Version 0.5.0 und die Website staymatch.pro · Grundlage ist <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> im Repository.</p>
 <p>StayMatch hat kein Konto, keinen eigenen Server mit Datenbank und kein Tracking.</p>
+<nav class="toc" aria-label="Inhalt">
+<ol>
+<li><a href="#plugin">Plugin (Chrome-Erweiterung)</a></li>
+<li><a href="#viertel-finder">Viertel-Finder (Website)</a></li>
+<li><a href="#startseite">Startseite und Stadtseiten</a></li>
+<li><a href="#airbnb">Schnellsuche und Links zu Airbnb</a></li>
+<li><a href="#github">GitHub</a></li>
+<li><a href="#cookies">Cookies und Browser-Speicher</a></li>
+<li><a href="#nachpruefen">Selbst nachprüfen</a></li>
+<li><a href="#kontakt">Kontakt</a></li>
+</ol>
+</nav>
 
-<h2>Plugin (Chrome-Erweiterung)</h2>
+<h2 id="plugin">Plugin (Chrome-Erweiterung)</h2>
 <ul>
 <li>Liest nur Airbnb-Seiten, die du selbst öffnest. Es stellt keine eigenen Anfragen an Airbnb und fängt keine Netzwerkdaten ab.</li>
-<li>Gespeichert wird lokal in <code>chrome.storage.local</code>: angesehene Unterkünfte (Titel, Preis, Bewertung, Lage, Bild-Adresse), deine 👍/👎, Notizen, Preisverlauf und die Reise (Personen, Wünsche, Budget, bewertete Viertel), die zuletzt geöffnete Such-Adresse (<code>lastSearch</code>), Filter (<code>filters</code>), Schnellwahl (<code>quick</code>), Einstellungen (<code>settings</code>) und den Ein-/Ausklapp-Zustand der Box (<code>min:*</code>).</li>
+<li>Gespeichert wird lokal im Speicher der Erweiterung: angesehene Unterkünfte (Titel, Preis, Bewertung, Lage, Bild-Adresse), deine 👍/👎, Notizen, Preisverlauf und die Reise (Personen, Wünsche, Budget, bewertete Viertel), die zuletzt geöffnete Such-Adresse, Filter, Schnellwahl, Einstellungen und ob die Box ein- oder ausgeklappt ist.
+<details class="keys"><summary>Technische Schlüssel</summary>
+<p>Speicherort <code>chrome.storage.local</code>. Such-Adresse: <code>lastSearch</code>, Filter: <code>filters</code>, Schnellwahl: <code>quick</code>, Einstellungen: <code>settings</code>, Ein-/Ausklapp-Zustand: <code>min:*</code>.</p>
+</details></li>
 <li>Das Plugin sammelt die Suchseiten, die du nacheinander selbst öffnest, lokal (die Frist von 2 Stunden beginnt bei jeder neu gesammelten Seite von vorn), damit alle gemeinsam bewertet werden. Es lädt keine Seite von selbst nach. In die Zwischenablage schreibt es nur, wenn du auf „Kopieren“ klickst. „Fehler melden“ öffnet ein GitHub-Formular mit Versionsnummer und Zählwerten (keine Adresse, keine Seiteninhalte); gesendet wird erst, wenn du es dort selbst abschickst.</li>
 <li>Nichts davon wird an uns oder Dritte gesendet. Löschen: Popup → „Alles löschen“, oder die Erweiterung entfernen.</li>
 <li>Speicherdauer: Die Daten bleiben, bis du sie löschst. Eine automatische Löschung gibt es noch nicht.</li>
 <li>Berechtigungen: <code>storage</code> (lokaler Speicher), Zugriff auf Airbnb-Seiten (zum Lesen der geöffneten Seite) und auf die StayMatch-Website (um die Reise zu übernehmen).</li>
 </ul>
 
-<h2>Viertel-Finder (Website)</h2>
+<h2 id="viertel-finder">Viertel-Finder (Website)</h2>
 <ul>
 <li>Personen, Wünsche, Reisedaten und Budget bleiben im Browser (<code>localStorage</code>) und in einem Teilen-Link, den du selbst erzeugst. Der Teil nach <code>#</code> wird von Browsern nicht an Server gesendet. Der Link ist nur kodiert, nicht verschlüsselt: Wer ihn hat, kann die Namen und Angaben lesen. Teile ihn nur mit Leuten, die ihn sehen sollen.</li>
 <li>Der eingegebene Ortsname und deine IP-Adresse gehen an
@@ -33,16 +58,35 @@
   Deren Datenschutzhinweise gelten dort.</li>
 <li>Für zehn Städte (Amsterdam, Barcelona, Berlin, Budapest, Lissabon, Madrid, Paris, Prag, Rom, Wien) sind die Orte vorab geladen und liegen auf der eigenen Seite. Für sie entfallen Nominatim und Overpass, die Kartenkacheln bleiben.</li>
 <li>Schrift (Inter) und Karten-Bibliothek (Leaflet) werden von der eigenen Seite geladen, nicht von Google oder unpkg.</li>
-<li>Hosting: Vercel. Dabei fallen die üblichen Server-Protokolle an (IP-Adresse, Zeitpunkt, abgerufene Datei).</li>
+<li>Hosting: Vercel. Dabei fallen die üblichen Server-Protokolle an (IP-Adresse, Zeitpunkt, abgerufene Adresse).</li>
+<li>Ausnahme vom Teil nach <code>#</code>: Der Schnellstart auf der Startseite gibt Stadt, Reisedaten, Personenzahl und, wenn du sie angibst, Kinderzahl und Budget pro Nacht als Adress-Parameter an den Viertel-Finder weiter (<code>/app?c=…&amp;i=…&amp;o=…&amp;n=…&amp;k=…&amp;b=…</code>). Diese Adresse erreicht den Server und kann so in den Server-Protokollen von Vercel stehen.</li>
 </ul>
 
-<h2>Cookies und Browser-Speicher</h2>
-<p>Keine Cookies. <code>localStorage</code> speichert Personen, Wünsche, Reise, Design (hell/dunkel) und Zwischenspeicher der Stadtdaten (24 Stunden), <code>sessionStorage</code> hält Stadtdaten für die Dauer des Tabs, wenn der dauerhafte Speicher voll ist. Beides dient nur den eigenen Funktionen und wird nicht gesendet. Darum braucht die Seite kein Cookie-Banner. Löschen: Websitedaten im Browser entfernen.</p>
+<h2 id="startseite">Startseite und Stadtseiten</h2>
+<p>Startseite, Stadtseiten und diese Rechtsseiten laden nichts von Dritten: Schrift, Bilder und Skripte kommen von staymatch.pro. Gespeichert wird nur deine Design-Wahl (hell/dunkel) und, nur für den geöffneten Tab, was du in die Schnellsuche eingibst (auch Kinderzahl und Budget). Häkchen der Checkliste, die Link-Prüfung und die Regler zum Ausprobieren arbeiten nur im Browser und speichern oder senden nichts. „Seite teilen“ öffnet das Teilen-Menü deines Geräts oder kopiert den Link; wohin du teilst, entscheidest du dort selbst. Die Startseite fragt beim eigenen Server die Größe der Plugin-Datei ab, um sie am Download-Knopf anzuzeigen.</p>
 
-<h2>Kontakt</h2>
+<h2 id="airbnb">Schnellsuche und Links zu Airbnb</h2>
+<p>Die Schnellsuche auf der Startseite und die Viertel-Links der Stadtseiten öffnen die normale Airbnb-Suche in einem neuen Tab. Dabei stehen Stadt (bzw. Viertel), Reisedaten, Gästezahl und, wenn du sie angibst, Kinderzahl und Preisgrenze pro Nacht in der Adresse, die dein Browser an Airbnb schickt. Ab dort gelten die Datenschutzhinweise und Cookies von Airbnb. Airbnb kann über den Referrer sehen, dass du von staymatch.pro kommst (nur die Domain, keine Unterseite).</p>
+
+<h2 id="github">GitHub</h2>
+<p>Code, Fehlermeldungen („Fehler melden“ im Plugin) und Issues liegen bei GitHub (GitHub, Inc., ein Unternehmen von Microsoft, USA). Was du dort einträgst und abschickst, verarbeitet GitHub nach eigenen Datenschutzbestimmungen, auch in den USA, also außerhalb der EU. StayMatch schickt von sich aus nichts an GitHub; das passiert erst, wenn du dort selbst etwas absendest.</p>
+
+<h2 id="cookies">Cookies und Browser-Speicher</h2>
+<p>Diese Website setzt keine Cookies. Seiten, die du von hier aus öffnest (Airbnb, GitHub, OpenStreetMap), haben eigene Regeln und setzen eventuell eigene Cookies. <code>localStorage</code> speichert Personen, Wünsche, Reise, Design (hell/dunkel) und Zwischenspeicher der Stadtdaten (24 Stunden). <code>sessionStorage</code> hält die Eingaben der Schnellsuche und, wenn der dauerhafte Speicher voll ist, Stadtdaten für die Dauer des Tabs. Beides dient nur den eigenen Funktionen und wird nicht gesendet. Darum braucht die Seite kein Cookie-Banner. Löschen: Websitedaten im Browser entfernen.</p>
+
+<h2 id="nachpruefen">Selbst nachprüfen</h2>
+<p>Du musst uns nicht glauben, du kannst es prüfen:</p>
+<ol>
+<li>Startseite oder Viertel-Finder öffnen, dann die Entwicklerwerkzeuge (F12 bzw. Cmd+Alt+I) und dort den Reiter „Netzwerk“.</li>
+<li>Seite neu laden. Anfragen gehen nur an staymatch.pro und, im Viertel-Finder, an die OpenStreetMap-Dienste aus Abschnitt 2. Keine Werbe- oder Analysedienste.</li>
+<li>Plugin: Es hat kein Hintergrundskript und keinen Netzwerkaufruf im Code. In <code>chrome://extensions</code> steht bei StayMatch darum kein „Service Worker“, und eine Suche nach <code>fetch(</code> im Ordner <code>extension/</code> auf GitHub findet nichts. Im Popup per Rechtsklick → „Untersuchen“ → „Netzwerk“ siehst du nur Vorschaubilder von Airbnbs Bildserver (<code>muscache.com</code>), keine Datenabfragen.</li>
+<li>Gespeichertes ansehen: Reiter „Anwendung“ (Application), dort Local Storage und Session Storage.</li>
+</ol>
+
+<h2 id="kontakt">Kontakt</h2>
 <p>Fragen oder Löschwünsche: <a href="https://github.com/Pschmetzer/staymatch/issues" rel="noopener">Issue im Repository</a>. Bitte keine persönlichen Daten in öffentliche Issues schreiben.</p>
 <div class="todo" role="note"><b>Hinweis:</b> Eine E-Mail-Adresse für Datenschutzfragen und die verantwortliche Stelle sind hier noch nicht angegeben. Bis dahin: Issue im Repository (ohne persönliche Daten) oder, für Sicherheitsfragen, die vertrauliche GitHub-Meldung. Siehe <a href="/impressum">Impressum</a>.</div>
 
-<p>StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden.</p>
+<p>StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Airbnb ist eine Marke der Airbnb, Inc.</p>
 <footer><a href="/impressum">Impressum</a> · <a href="/">Startseite</a></footer>
 </main></body></html>

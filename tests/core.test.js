@@ -72,7 +72,7 @@ test('Overpass-Abfrage aus CATEGORIES ist gleich der eingefrorenen Abfrage', () 
     node["railway"~"^(station|subway_entrance|tram_stop)$"](${b});
     node["public_transport"="station"](${b});
     nwr["shop"~"^(mall|department_store)$"](${b});
-  );out center;`;
+  );out center qt;`;
   assert.equal(C.overpassQuery([41.317, 2.077, 41.458, 2.228]), old);
   assert.deepEqual(C.FIELDS, ['lat', 'lon', 'place', 'name', 'amenity', 'leisure', 'tourism', 'historic', 'natural', 'railway', 'public_transport', 'shop', 'wikidata']);
 });

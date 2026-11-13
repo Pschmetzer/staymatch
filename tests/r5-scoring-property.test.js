@@ -50,20 +50,26 @@ test('scoreAreas: norm in [0,1], Anzahl nie negativ, mehr Orte ändern nie den R
   }
 });
 
-test('Leistung: größte Stadtdatei wird in unter 5 s bewertet', () => {
+// Gemessen wird CPU-Zeit dieses Prozesses (process.cpuUsage), nicht Wanduhrzeit: laufen mehrere Testdateien
+// parallel, wartet der Prozess auf die CPU und die Wanduhr misst 9–12 s, obwohl die Rechnung selbst gleich schnell ist.
+// Die größte Datei braucht rund 170–300 ms CPU-Zeit, auch bei sechs parallelen Testläufen; zehnfache Arbeit maß 1,1–1,9 s.
+// Die Grenze findet also weiter eine Verlangsamung um Faktor 10.
+// In CI (gemeinsam genutzte, langsamere Maschinen) gilt das 1,5-Fache.
+const LIMIT_MS = 800 * (process.env.CI ? 1.5 : 1);
+const cpuMs = since => { const d = process.cpuUsage(since); return (d.user + d.system) / 1000; };
+test(`Leistung: größte Stadtdatei wird in unter ${String(LIMIT_MS / 1000).replace(".", ",")} s CPU-Zeit bewertet (bester von 3 Läufen)`, () => {
   const dir = path.join(__dirname, '..', 'web', 'data');
   const biggest = fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'index.json')
     .map(f => [f, fs.statSync(path.join(dir, f)).size]).sort((a, b) => b[1] - a[1])[0][0];
-  const t0 = Date.now();
-  const d = JSON.parse(fs.readFileSync(path.join(dir, biggest), 'utf8'));
-  const rows = d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
-  const areas = [], raw = [];
-  for (const t of rows) {
-    if (t.place && t.name) { if (!areas.some(a => a.name === t.name && SM.distM(a, t) < 1500)) areas.push({ name: t.name, lat: +t.lat, lon: +t.lon }); continue; }
-    for (const cat of SM.categoriesOf(t)) raw.push({ lat: +t.lat, lon: +t.lon, cat, name: t.name, tags: t });
+  const raw = fs.readFileSync(path.join(dir, biggest), 'utf8');
+  let best = Infinity, areas = [];
+  for (let run = 0; run < 3; run++) { // dieselben Funktionen wie die App (fromFile, buildData), kein Nachbau
+    const t0 = process.cpuUsage();
+    const data = SM.buildData(SM.fromFile(JSON.parse(raw)).rows);
+    areas = data.areas;
+    SM.scoreAreas(areas, data.pois, 800);
+    best = Math.min(best, cpuMs(t0));
   }
-  SM.scoreAreas(areas, SM.dedupePois(raw), 800);
-  const ms = Date.now() - t0;
   assert.ok(areas.length >= 2 && areas.every(a => a.norm), biggest);
-  assert.ok(ms < 5000, `${biggest}: ${ms} ms`);
+  assert.ok(best < LIMIT_MS, `${biggest}: ${Math.round(best)} ms CPU-Zeit (Grenze ${LIMIT_MS} ms)`);
 });

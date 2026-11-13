@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const D = require('./helpers/dom.js');
+const fs = require('node:fs'), path = require('node:path');
 const skip = !D.JSDOM && 'jsdom nicht installiert (npm install --prefix tests)';
 const { makePage, chromeMock, searchBody, DEFAULT, shadow, until, sleep } = D;
 test.after(D.closeAll);
@@ -15,12 +16,13 @@ test('Suchseite: Panel mit Top 3, Plaketten an den Karten, Preis pro Person und 
   assert.ok(box, 'Panel fehlt');
   assert.equal(box.querySelectorAll('.item').length, 3);
   assert.match(box.textContent, /4 Unterkünfte/);
-  assert.match(box.textContent, /pro Person und Nacht/);
+  assert.match(box.textContent, /\d+ € p\. P\.\/Nacht/); // seit #44: Hotel-Karte mit Kurzform
   const badges = [...doc.querySelectorAll('[data-staymatch-badge]')];
   assert.equal(badges.length, 4);
   assert.match(badges[0].textContent, /^StayMatch \d+ · \d+ € p\. P\.\/Nacht$/);
   // Gast-Favorit 111 (4,92 bei 210, 5 Betten) steht vorne
-  assert.match(box.querySelector('.item a').textContent, /^1\. Titel 111/);
+  assert.equal(box.querySelector('.item .rank').textContent, '1');
+  assert.match(box.querySelector('.item a.name').textContent, /^Titel 111/);
 });
 
 test('Suchseite: Texte der Seite werden nie als HTML eingesetzt', { skip }, async () => {
@@ -30,7 +32,10 @@ test('Suchseite: Texte der Seite werden nie als HTML eingesetzt', { skip }, asyn
   const box = await until(() => shadow(doc, 'sm-search')?.querySelector('.box'));
   assert.ok(box);
   assert.equal(w.pwned, undefined);
-  assert.equal(box.querySelectorAll('img').length, 0);
+  // seit #44 zeigt die Karte das Kartenfoto (nur https), aber nie ein eingeschleustes Bild
+  for (const img of box.querySelectorAll('img')) { assert.match(img.getAttribute('src'), /^https:\/\//); assert.equal(img.getAttribute('onerror'), null); }
+  assert.equal(box.querySelectorAll('img[src="x"]').length, 0);
+  assert.equal(box.querySelectorAll('[onerror]').length, 0, 'kein onerror-Attribut im Panel');
   void evil;
 });
 
@@ -87,6 +92,14 @@ test('Seitenaufbau unbekannt: klare Fehlermeldung statt leerem Panel, nur Zahlen
   const body2 = decodeURIComponent(a.href);
   assert.match(body2, new RegExp(`StayMatch ${require('../extension/manifest.json').version.replace(/\./g, '\\.')}`));
   assert.ok(!body2.includes('airbnb.de'), 'keine Adresse im Bericht');
+  // Issue-Formular: Vorlage und nur Feld-IDs, die es in der Vorlage gibt (Textfelder; „body“ ignoriert GitHub bei Formularen)
+  const q = new URL(a.href).searchParams;
+  const tpl = q.get('template');
+  const yml = fs.readFileSync(path.join(__dirname, '..', '.github', 'ISSUE_TEMPLATE', tpl), 'utf8');
+  const ids = [...yml.matchAll(/^\s+id:\s*(\S+)/gm)].map(m => m[1]);
+  for (const k of q.keys()) if (!['template', 'title'].includes(k)) assert.ok(ids.includes(k), `Feld ${k} fehlt in ${tpl}`);
+  assert.ok(!q.has('confirm'), 'Bestätigung setzt die Person selbst');
+  assert.match(q.get('console'), /Karten: 0/);
 });
 
 test('Fehlermeldung verschwindet, sobald doch Unterkünfte erscheinen', { skip }, async () => {
@@ -117,7 +130,7 @@ test('Mehrere Seiten: Blättern sammelt, Top 3 kommt aus allen Seiten, Leeren se
   assert.deepEqual(chrome.data.pool.pages, ['0', '18']);
   assert.deepEqual(Object.keys(chrome.data.pool.items).sort(), ['111', '222', '333', '999']);
   assert.match(box.textContent, /4 Unterkünfte von 2 Seiten/);
-  assert.match(box.querySelector('.item a').textContent, /^1\. Titel 999/);
+  assert.match(box.querySelector('.item a.name').textContent, /^Titel 999/);
   assert.equal(p2.doc.querySelectorAll('[data-staymatch-badge]').length, 2, 'Plaketten nur an sichtbaren Karten');
   [...box.querySelectorAll('button')].find(b => b.textContent === 'Sammlung leeren').click();
   await until(() => chrome.data.pool?.pages.length === 1);
@@ -180,7 +193,7 @@ test('Manifest: Version 0.5.0, keine neuen Berechtigungen, alle Skripte vorhande
   assert.deepEqual(m.permissions, ['storage']);
   assert.equal(m.host_permissions, undefined);
   const js = m.content_scripts[0].js;
-  assert.deepEqual(js, ['core.js', 'parse.js', 'rank.js', 'hints.js', 'pool.js', 'content-common.js', 'content-search.js', 'content-listing.js']);
+  assert.deepEqual(js, ['core.js', 'parse.js', 'rank.js', 'hints.js', 'extras.js', 'pool.js', 'content-common.js', 'content-search.js', 'content-listing.js']);
   for (const f of m.content_scripts.flatMap(c => c.js)) assert.ok(require('node:fs').existsSync(require('node:path').join(__dirname, '..', 'extension', f)), f);
 });
 
@@ -194,7 +207,8 @@ test('Plugin lädt keine fremden Adressen nach (kein fetch/XHR/WebSocket im Code
 
 test('Popup: Einstellungen funktionieren ohne vorherigen Import, Merkliste wird kopiert', { skip }, async () => {
   const fs = require('node:fs'), path = require('node:path');
-  const chrome = chromeMock({ settings: { showBadges: true }, trip: TRIP, 'l:1': { id: '1', title: 'Loft', vote: 1, rating: 4.8, pricePerNight: 200, url: 'https://www.airbnb.de/rooms/1', locality: 'Gràcia', note: 'Balkon' }, 'l:2': { id: '2', title: 'Nein', vote: -1 } });
+  // R7: Währung steht beim Eintrag (ohne gelesene Währung wird kein „€“ mehr erfunden)
+  const chrome = chromeMock({ settings: { showBadges: true }, trip: TRIP, 'l:1': { id: '1', title: 'Loft', vote: 1, rating: 4.8, pricePerNight: 200, currency: '€', url: 'https://www.airbnb.de/rooms/1', locality: 'Gràcia', note: 'Balkon' }, 'l:2': { id: '2', title: 'Nein', vote: -1 } });
   const dom = new D.JSDOM(fs.readFileSync(path.join(D.EXT, 'popup.html'), 'utf8').replace(/<script[^>]*><\/script>/g, ''), { runScripts: 'outside-only', url: 'chrome-extension://x/popup.html' });
   const w = dom.window; w.chrome = chrome; D.track(w);
   let copied = null;
@@ -209,6 +223,7 @@ test('Popup: Einstellungen funktionieren ohne vorherigen Import, Merkliste wird 
   await until(() => chrome.data.settings.showBadges === false);
   assert.equal(chrome.data.settings.showBadges, false);
   assert.equal(chrome.data.settings.theme, 'dark');
+  w.confirm = () => true; // R7: Notizen nur auf Nachfrage
   w.document.getElementById('share').click();
   await until(() => copied);
   assert.match(copied, /^Unsere Merkliste \(StayMatch\)\n\n1\. Loft – Gràcia · ⭐ 4,8 · 50 € p\. P\.\/Nacht\n {3}Notiz: Balkon\n {3}https:\/\/www\.airbnb\.de\/rooms\/1$/);
@@ -244,6 +259,7 @@ test('Popup, eine Person: „Meine Merkliste“ ohne Preis pro Person', { skip }
   await until(() => chrome.data.settings.showBadges === false);
   assert.equal(chrome.data.settings.showBadges, false);
   assert.equal(chrome.data.settings.theme, 'dark');
+  w.confirm = () => true; // R7: Notizen nur auf Nachfrage
   w.document.getElementById('share').click();
   await until(() => copied);
   assert.match(copied, /^Meine Merkliste \(StayMatch\)\n\n1\. Loft – Gràcia · ⭐ 4,8\n {3}Notiz: Balkon\n {3}https:\/\/www\.airbnb\.de\/rooms\/1$/);

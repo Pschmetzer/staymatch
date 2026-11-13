@@ -4,6 +4,7 @@
 // Aufruf: node scripts/build-city-pages.mjs [--check]   (--check: schreibt nichts, prüft nur, ob die Seiten aktuell sind)
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -25,21 +26,30 @@ const TYPES = [
   ['foodie', 'Essen und Trinken', 'Die dichteste Auswahl an Restaurants und Cafés.'],
 ];
 const TOP = 5;
+// „Kurz und einfach“ (R7-742): kurze Sätze, Inhalt nur aus rankCity (Platz 1 je Reisetyp, Anzahl Viertel), nichts erfunden
+export function simpleSection(name, r) {
+  const items = TYPES.map(([key, label]) => r.top[key][0] ? `<li>Für ${esc(label)}: <b>${esc(r.top[key][0].a.name)}</b>.</li>` : '').filter(Boolean);
+  return `<section class="simple" aria-labelledby="kurz"><h2 id="kurz">Kurz und einfach</h2>
+<p>Wir haben ${r.areas} Viertel in ${esc(name)} verglichen. Nach unserer Rechnung passen diese am besten:</p>
+<ul>
+${items.join('\n')}
+</ul>
+<p>Die Punkte kommen aus Karten-Daten. Sie sagen nichts über Preise oder Unterkünfte.</p>
+</section>`;
+}
+// legal.css wird lange gecacht; die Version im Link ändert sich mit dem Inhalt
+const CSS_V = createHash('sha256').update(readFileSync(path.join(web, 'legal.css'))).digest('hex').slice(0, 8);
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const slug = file => file.replace(/\.json$/, '');
+// Airbnb-Suche für ein Viertel (gleiches Format wie die Schnellsuche der Startseite, URL nicht offiziell dokumentiert)
+const airbnb = (area, city) => `https://www.airbnb.de/s/${encodeURIComponent(`${area}, ${city}`)}/homes`;
 
 export function rankCity(d) {
-  const rows = d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
-  const areas = [], raw = [];
-  for (const t of rows) {
-    const lat = +t.lat, lon = +t.lon;
-    if (!lat) continue;
-    if (t.place && t.name) { if (!areas.some(a => a.name === t.name && SM.distM(a, { lat, lon }) < 1500)) areas.push({ name: t.name, lat, lon }); continue; }
-    for (const cat of SM.categoriesOf(t)) raw.push({ lat, lon, cat, name: t.name, tags: t });
-  }
+  // Gleiche Logik wie die Web-App (shared/core.js): nur echte Viertel, Plätze zählen als Orte
+  const { areas, raw } = C.splitRows(C.rowsToTags(d.fields, d.rows), SM.categoriesOf);
   const pois = SM.dedupePois(raw);
-  const radius = pois.filter(p => p.cat === 'transit').length >= 60 ? 1200 : 800;
+  const radius = C.autoRadius(pois);
   SM.scoreAreas(areas, pois, radius);
   const out = {};
   for (const [key] of TYPES) {
@@ -60,7 +70,7 @@ export function renderPage(file, d) {
   const sections = TYPES.map(([key, label, text]) => `<h2>${esc(label)}</h2>
 <p>${esc(text)}</p>
 <ol>
-${r.top[key].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} von 100</span></li>`).join('\n')}
+${r.top[key].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} von 100</span> <a class="bnb" href="${airbnb(a.name, name)}" target="_blank" rel="noopener">Unterkünfte auf Airbnb <span aria-hidden="true">↗</span></a></li>`).join('\n')}
 </ol>`).join('\n');
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -68,15 +78,24 @@ ${r.top[key].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s}
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${url}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/legal.css">
-<style>.pts{color:var(--muted);font-size:14px;margin-left:6px}ol{padding-left:22px}.cta{display:inline-block;margin-top:24px;padding:10px 18px;border-radius:999px;background:var(--accent);color:#fff;text-decoration:none}</style>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#fbfaf8">
+<link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/legal.css?v=${CSS_V}">
+<style>.pts{color:var(--muted);font-size:14px;margin-left:6px}ol{padding-left:22px}.bnb{display:block;width:fit-content;font-size:14px;color:var(--muted)}.ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.cta{display:inline-block;padding:10px 18px;border-radius:999px;background:var(--accent);color:#fff;text-decoration:none}.cta.alt{background:none;color:var(--text);border:1px solid var(--muted)}.simple{border:1px solid var(--muted);border-radius:12px;padding:4px 16px;margin:20px 0}</style>
 </head><body><main>
-<a class="back" href="/">← StayMatch</a>
+<nav class="crumbs" aria-label="Brotkrümel"><a href="/">StayMatch</a> › <a href="/#staedte">Städte</a> › <span aria-current="page">${esc(name)}</span></nav>
 <h1>Beste Viertel in ${esc(name)}</h1>
 <p class="stand">Stand der Daten: ${date}. Bewertet werden Bars, Restaurants, Sehenswürdigkeiten, Bahnhöfe, Parks und mehr im Umkreis von ${r.radius} m um jedes Viertel (${r.areas} Viertel, ${r.pois} Orte).</p>
+<p class="stand">Punkte von 0 bis 100: 100 hieße, dass ein Viertel in allen für diesen Reisetyp wichtigen Kategorien die dichteste Auswahl der Stadt hat. <a href="/#rechnen">Wie StayMatch rechnet</a></p>
+${simpleSection(name, r)}
 ${sections}
-<p><a class="cta" href="/app">Eigene Gruppe in ${esc(name)} vergleichen</a></p>
-<footer>Daten: © OpenStreetMap-Mitwirkende, <a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener">Open Database License (ODbL) 1.0</a>, <a href="https://www.openstreetmap.org/copyright" rel="noopener">Quelle</a>. Die Werte sind eine Schätzung aus Kartendaten, keine Preise und keine Bewertungen. · <a href="/datenschutz">Datenschutz</a> · <a href="/">Startseite</a></footer>
+<p class="ctas"><a class="cta" href="/app">Eigene Gruppe in ${esc(name)} vergleichen</a><a class="cta alt" href="/#plugin">Unterkünfte dort bewerten: Plugin holen</a></p>
+<footer>
+<p>Daten: © OpenStreetMap-Mitwirkende, <a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener">Open Database License (ODbL) 1.0</a>, <a href="https://www.openstreetmap.org/copyright" rel="noopener">Quelle</a>.</p>
+<p>Die Werte sind eine Schätzung aus Kartendaten, keine Preise und keine Bewertungen. Nicht mit Airbnb verbunden; Airbnb ist eine Marke der Airbnb, Inc.</p>
+<ul class="nav"><li><a href="/">Startseite</a></li><li><a href="/datenschutz">Datenschutz</a></li><li><a href="/impressum">Impressum</a></li></ul>
+</footer>
 </main></body></html>
 `;
 }

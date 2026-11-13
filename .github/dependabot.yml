@@ -4,7 +4,10 @@ updates:
     directory: /
     schedule: { interval: monthly }
     commit-message: { prefix: "CI" }
+    # Neue Versionen erst nach 7 Tagen vorschlagen (Schutz vor kurz danach zurückgezogenen oder kompromittierten Releases)
+    cooldown: { default-days: 7 }
   - package-ecosystem: npm
     directory: /tests
     schedule: { interval: monthly }
     commit-message: { prefix: "Tests" }
+    cooldown: { default-days: 7 }

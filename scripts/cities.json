@@ -1,19 +1,27 @@
 {
  "barcelona": [
-  "barcelona"
+  "barcelona",
+  "barcelone",
+  "barcellona"
  ],
  "lissabon": [
   "lissabon",
   "lisboa",
-  "lisbon"
+  "lisbon",
+  "lisbonne",
+  "lisbona"
  ],
  "berlin": [
-  "berlin"
+  "berlin",
+  "berlino",
+  "berlijn"
  ],
  "prag": [
   "prag",
   "praha",
-  "prague"
+  "prague",
+  "praga",
+  "praag"
  ],
  "amsterdam": [
   "amsterdam"
@@ -25,15 +33,24 @@
  ],
  "wien": [
   "wien",
-  "vienna"
+  "vienna",
+  "viena",
+  "vienne",
+  "wenen"
  ],
  "paris": [
-  "paris"
+  "paris",
+  "parigi",
+  "parijs",
+  "paryz"
  ],
  "madrid": [
-  "madrid"
+  "madrid",
+  "madri"
  ],
  "budapest": [
-  "budapest"
+  "budapest",
+  "budapeste",
+  "boedapest"
  ]
 }

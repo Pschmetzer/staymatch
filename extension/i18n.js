@@ -1,6 +1,5 @@
-// GENERIERT aus shared/i18n.js – nicht bearbeiten! Änderungen in shared/i18n.js, dann: node scripts/sync-core.mjs
-// StayMatch – Übersetzungen (Gerüst, noch ungenutzt).
-// NUR HIER bearbeiten, danach `node scripts/sync-core.mjs` (kopiert nach web/ und extension/).
+// GENERIERT aus shared/i18n.js – nicht bearbeiten! Änderungen in shared/i18n.js, dann: node scripts/sync-core.mjs | StayMatch – Übersetzungen (Gerüst, noch ungenutzt).
+// NUR HIER bearbeiten, danach `node scripts/sync-core.mjs` (kopiert nach extension/; die Website lädt es noch nicht).
 // t('key', { n: 3 }) → Text aus dem Wörterbuch, {n} wird ersetzt. Unbekannter Schlüssel → der Schlüssel selbst.
 (function (root) {
   const DICT = {
