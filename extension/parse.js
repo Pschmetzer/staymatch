@@ -114,11 +114,19 @@
   }
 
   // Erweiterte Angaben (eigene Funktion, damit die Form von details() unverändert bleibt)
+  // R7 E: Bettarten einzeln (Doppel, Einzel, Sofa, Etage) für Paar-Check und Preis pro echtem Schlafplatz
+  const BED_KEYS = ['double', 'single', 'sofa', 'bunk'];
   function detailsExt(lines) {
     const t = lines.join(' | ').replace(CRIB_RE, '');
     let sleeps = 0, typed = false;
-    for (const k of BED_KINDS) for (const m of t.matchAll(k.re)) { sleeps += k.per * +m[1]; typed = true; }
-    return { sleeps: typed ? sleeps : null };
+    const kinds = {};
+    BED_KINDS.forEach((k, i) => { for (const m of t.matchAll(k.re)) { sleeps += k.per * +m[1]; typed = true; kinds[BED_KEYS[i]] = (kinds[BED_KEYS[i]] || 0) + +m[1]; } });
+    return typed ? { sleeps, bedKinds: kinds } : { sleeps: null };
+  }
+  // R7 E: Nacht- UND Gesamtpreis, wenn beide in der Preiszeile stehen („120 € pro Nacht · 480 € gesamt“)
+  function bothPrices(line) {
+    const b = bookPrice(line);
+    return b.night != null && b.total != null && b.total > b.night ? { nightPrice: b.night, allTotal: b.total } : {};
   }
 
   // "Ferienwohnung in Gràcia" → "Gràcia"; nimmt die LETZTE Präposition ("Zimmer im Zentrum in Rom" → "Rom")
@@ -191,7 +199,7 @@
         totalPrice: px.amount, currency: px.currency || currency(priceLabel), discounted: !!(disc && disc.amount != null) || !!px.discounted, // R7: Rabatt mitnehmen
         isTotal: TOTAL_RE.test(priceLabel), priceWord: TOTAL_RE.test(priceLabel) || NIGHT_RE.test(priceLabel),
         lat: coord?.latitude ?? null, lon: coord?.longitude ?? null,
-        multiUnit: lines.some(isMultiUnit),
+        multiUnit: lines.some(isMultiUnit), ...bothPrices(priceLabel),
         ...details(lines), ...detailsExt(lines),
         badges: [...new Set((r.badges || []).map(normBadge).filter(Boolean))],
         image: safeImage(r.contextualPictures?.[0]?.picture),
@@ -226,14 +234,14 @@
         kind, locality: localityFromTitle(kind),
         rating: rt.value, reviewCount: rt.count, isNew,
         totalPrice: px.amount, currency: px.currency, isTotal: TOTAL_RE.test(priceLine), priceWord: TOTAL_RE.test(priceLine) || NIGHT_RE.test(priceLine),
-        lat: null, lon: null, multiUnit: isMultiUnit(txt),
+        lat: null, lon: null, multiUnit: isMultiUnit(txt), ...bothPrices(priceLine),
         ...details(lines), ...detailsExt(lines), badges: [FAV_RE.test(txt) && 'Gäste-Favorit', /Superhost|Superanfitri/i.test(txt) && 'Superhost'].filter(Boolean),
         image: safeImage(card.querySelector('img')?.src), source: 'dom',
       };
     }).filter(x => x.id);
   }
 
-  const PRICE_KEYS = ['totalPrice', 'currency', 'isTotal', 'priceWord', 'discounted'];
+  const PRICE_KEYS = ['totalPrice', 'currency', 'isTotal', 'priceWord', 'discounted', 'nightPrice', 'allTotal'];
   // Zusammenführen: State liefert Koordinaten/Details, DOM sagt, was gerade sichtbar ist.
   // Preis: Stimmt der DOM-Betrag mit dem State überein, gilt der State (er kennt "Gesamtpreis" sicher).
   // Weicht er ab (State veraltet, z. B. Seite 2 oder anderer Zeitraum), gilt der DOM-Betrag; "gesamt" nur,
@@ -438,6 +446,6 @@
   root.StayMatchParse = {
     ratingFromAria, isNewLabel, isMultiUnit, normBadge, priceOf, decodeId, findKey,
     diagnose, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, currency, rating, details, detailsExt, localityFromTitle, ROOM_RE,
-    searchKey, mergeSearchResults, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, safeImage, hostInfo, scamSignals, touristTax, TOTAL_RE,
+    searchKey, mergeSearchResults, bothPrices, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, safeImage, hostInfo, scamSignals, touristTax, TOTAL_RE,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

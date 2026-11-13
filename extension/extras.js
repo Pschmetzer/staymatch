@@ -437,7 +437,220 @@
     return `Ich zahle die Unterkunft: ${money(total, cur)}. Bitte je ${money(each, cur)} an mich (${people} Personen).${c}`;
   }
 
+  // ================= Teil 2: Suchseite (über alle bewerteten Karten) =================
+  const med = a => { const x = a.filter(v => v != null && isFinite(v)).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
+  const qt = (a, p) => { const x = a.filter(v => v != null && isFinite(v)).sort((u, v) => u - v); return x.length ? x[Math.min(x.length - 1, Math.max(0, Math.round((x.length - 1) * p)))] : null; };
+  const title = l => { const t = String(l.title || l.kind || 'Unterkunft'); return t.length > 40 ? t.slice(0, 39) + '…' : t; };
+  const isTrusted = l => (l.badges || []).some(b => /favorit|superhost/i.test(b));
+  const curOf = l => R().normCur(l.currency) || '€';
+  // Hauptwährung der Seite (die meisten Karten), damit € und $ nicht gemischt werden
+  function mainCurrency(list) { const c = {}; for (const l of list) { const k = curOf(l); c[k] = (c[k] || 0) + 1; } return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || '€'; }
+  const night = (l, nights) => (l.priceImplausible ? null : R().perNight(l, nights));
+  const PRIVATE = /privatzimmer|private room|chambre privée|habitación privada|camera privata/i;
+
+  // Preisanker: günstigstes Zehntel, Median, teuerstes Zehntel pro Nacht
+  function priceAnchor(list, ctx = {}) {
+    const cur = mainCurrency(list);
+    const v = list.filter(l => curOf(l) === cur).map(l => night(l, ctx.nights)).filter(x => x != null);
+    if (v.length < 8) return null;
+    return { p10: qt(v, 0.1), median: med(v), p90: qt(v, 0.9), currency: cur, text: `Preisrahmen pro Nacht: günstigstes Zehntel bis ${money(qt(v, 0.1), cur)}, Mitte ${money(med(v), cur)}, teuerstes Zehntel ab ${money(qt(v, 0.9), cur)}` };
+  }
+  // Budget-Hebel: was brächten 10 % mehr Budget?
+  function budgetLever(list, ctx = {}) {
+    const eb = R().effectiveBudget(ctx);
+    const bn = ctx.budgetPerNight || (eb && ctx.nights ? eb / ctx.nights : null);
+    if (!bn) return null;
+    const extra = Math.max(5, Math.round(bn * 0.1));
+    const gain = list.filter(l => { const n = night(l, ctx.nights); return n != null && n > bn && n <= bn + extra && isTrusted(l) && (l.rating || 0) >= 4.7; });
+    return gain.length ? `Mit ${money(extra, '€')} mehr pro Nacht kämen ${gain.length} gut bewertete ${gain.length === 1 ? 'Superhost-/Favoriten-Unterkunft' : 'Superhost-/Favoriten-Unterkünfte'} dazu` : null;
+  }
+  // Günstiger Zwilling: fast gleich gut (höchstens 3 Punkte weniger), deutlich günstiger
+  function cheapTwins(top, list) {
+    const ids = new Set(top.map(l => l.id)), out = [];
+    top.forEach((t, i) => {
+      if (t.rank?.stay == null) return;
+      const c = list.filter(l => !ids.has(l.id) && !l.rank?.disliked && l.rank?.stay != null && curOf(l) === curOf(t) && l.rank.score >= t.rank.score - 3 && l.rank.stay <= t.rank.stay * 0.95)
+        .sort((a, b) => a.rank.stay - b.rank.stay)[0];
+      if (c) out.push({ for: i + 1, id: c.id, text: `Zu Platz ${i + 1}: „${title(c)}“ fast gleich gut (${c.rank.score}), ${money(t.rank.stay - c.rank.stay, c.currency)} günstiger` });
+    });
+    return out;
+  }
+  // Robuste Empfehlung: bleibt Platz 1, wenn Preis, Sterne oder Viertel etwas mehr zählen?
+  function robustness(listings, ctx, topIds) {
+    if (!topIds?.length || listings.length < 4) return null;
+    const changed = [];
+    for (const [k, name] of [['price', 'Preis'], ['rating', 'Sterne'], ['area', 'Viertel']]) {
+      const r = R().rankListings(listings, { ...ctx, weightTweak: { [k]: 1.3 } }).filter(l => !ctx.disliked?.has?.(l.id)).map(l => l.id);
+      if (r[0] !== topIds[0]) changed.push(name);
+    }
+    return changed.length ? { stable: false, text: `Empfehlung knapp: zählt ${changed.join(' oder ')} etwas mehr, wäre ein anderes Inserat vorn` } : { stable: true, text: 'Empfehlung stabil: Platz 1 bleibt, auch wenn Preis, Sterne oder Viertel etwas mehr zählen' };
+  }
+  // Abstand zu Platz 1: wo fehlen die Punkte?
+  const PART = { area: 'Viertel', rating: 'Sterne', price: 'Preis', wishes: 'Wünsche', beds: 'Betten', taste: 'Geschmack' };
+  function gapToFirst(l, first) {
+    if (!first || l === first || !l.rank || !first.rank) return null;
+    const pts = x => Object.fromEntries((x.rank.breakdown || []).map(b => [b.key, b.points]));
+    const a = pts(l), b = pts(first);
+    const diff = Object.keys({ ...a, ...b }).map(k => [k, (a[k] || 0) - (b[k] || 0)]).filter(([, d]) => d <= -1).sort((x, y) => x[1] - y[1]).slice(0, 2);
+    const gap = first.rank.score - l.rank.score;
+    if (gap <= 0) return null;
+    return `${gap} ${gap === 1 ? 'Punkt' : 'Punkte'} hinter Platz 1${diff.length ? ` (vor allem ${diff.map(([k, d]) => `${PART[k] || k} ${Math.round(d)}`).join(', ')})` : ''}`;
+  }
+  // Rabattschwellen bei 7 und 28 Nächten
+  function discountThreshold(nights) {
+    if (nights === 5 || nights === 6) return 'Ab 7 Nächten geben viele Gastgeber Wochenrabatt: prüfe, ob eine Nacht mehr kaum mehr kostet';
+    if (nights >= 25 && nights <= 27) return 'Ab 28 Nächten geben viele Gastgeber Monatsrabatt: prüfe einen längeren Zeitraum';
+    return null;
+  }
+  // Dieselbe Suche mit Anreise ±1 Tag (du öffnest die Links selbst, nichts wird geladen)
+  function shiftLinks(url) {
+    let u; try { u = new URL(url); } catch { return []; }
+    const ciK = u.searchParams.has('checkin') ? 'checkin' : u.searchParams.has('check_in') ? 'check_in' : null;
+    const coK = ciK === 'checkin' ? 'checkout' : 'check_out';
+    const ci = ciK && u.searchParams.get(ciK), co = u.searchParams.get(coK);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ci || '') || !/^\d{4}-\d{2}-\d{2}$/.test(co || '')) return [];
+    const shift = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+    return [-1, 1].map(n => { const x = new URL(u); x.searchParams.set(ciK, shift(ci, n)); x.searchParams.set(coK, shift(co, n)); for (const k of ['items_offset', 'cursor', 'pagination_search']) x.searchParams.delete(k); return { label: `Anreise einen Tag ${n < 0 ? 'früher' : 'später'}`, url: x.href }; });
+  }
+  // Filter-Vorschlag: „Mindestens 2 Schlafzimmer setzen entfernt 18 unpassende“
+  function filterSuggestion(url, list, people) {
+    if (!people || people < 3) return null;
+    const need = Math.ceil(people / 2);
+    const bad = list.filter(l => l.bedrooms != null && l.bedrooms < need).length;
+    if (bad < 5) return null;
+    let u; try { u = new URL(url); } catch { return null; }
+    if (+u.searchParams.get('min_bedrooms') >= need) return null;
+    u.searchParams.set('min_bedrooms', String(need));
+    return { url: u.href, text: `Mindestens ${need} Schlafzimmer als Filter setzen: das entfernt ${bad} unpassende` };
+  }
+  // Allein reisen: gut bewertetes Privatzimmer als günstige Alternative zur ganzen Wohnung
+  function soloAlternative(list, top, ctx = {}) {
+    if (ctx.people !== 1 || !top[0]) return null;
+    const t = top[0], tn = night(t, ctx.nights);
+    if (!tn || PRIVATE.test(`${t.kind} ${t.title}`)) return null;
+    const c = list.filter(l => PRIVATE.test(String(l.kind)) && isTrusted(l) && (l.rating || 0) >= 4.7 && curOf(l) === curOf(t) && night(l, ctx.nights) != null && night(l, ctx.nights) <= tn * 0.6)
+      .sort((a, b) => night(a, ctx.nights) - night(b, ctx.nights))[0];
+    return c ? { id: c.id, text: `Allein unterwegs: Zimmer bei Superhost/Favorit „${title(c)}“, ${Math.round((1 - night(c, ctx.nights) / tn) * 100)} % günstiger als Platz 1` } : null;
+  }
+  // Ausreißer gegen die eigene Filterblase: sehr gut bewertet, aber anders als dein Geschmack
+  function outlierPick(list, top, ctx = {}) {
+    if (!ctx.taste) return null;
+    const ids = new Set(top.map(l => l.id));
+    const c = list.filter(l => !ids.has(l.id) && !l.rank?.disliked && l.rank?.parts?.taste != null && l.rank.parts.taste <= 0.5 && (l.rating || 0) >= 4.9 && (l.reviewCount || 0) >= 20 && l.rank.score >= 55)
+      .sort((a, b) => b.rank.score - a.rank.score)[0];
+    return c ? { id: c.id, text: `Mal was anderes: „${title(c)}“ (⭐ ${sep(c.rating, 2)}, ${c.rank.score} Punkte), passt nicht zu deinem bisherigen Geschmack` } : null;
+  }
+  // Weiterblättern lohnt nicht mehr: die zuletzt geöffnete Seite brachte nichts für die Top 3
+  function stopPaging(pool, list, top) {
+    if (!pool || (pool.pages || []).length < 3 || top.length < 3) return null;
+    const last = pool.pages.at(-1), min = Math.min(...top.map(l => l.rank.score));
+    const lastIds = new Set(Object.values(pool.items || {}).filter(i => i.page === last).map(i => i.id));
+    if (!lastIds.size) return null;
+    const better = list.filter(l => lastIds.has(l.id) && l.rank.score >= Math.max(70, min)).length;
+    return better ? null : 'Die zuletzt geöffnete Seite brachte nichts für deine Top 3: Weiterblättern lohnt kaum noch';
+  }
+  // Kartenausschnitt-Tipp: alle besten Treffer in einer Ecke
+  function mapCorner(list, top) {
+    const pts = list.filter(l => l.lat != null && l.lon != null);
+    const tp = top.filter(l => l.lat != null && l.lon != null);
+    if (pts.length < 15 || tp.length < 3) return null;
+    const lats = pts.map(l => l.lat), lons = pts.map(l => l.lon);
+    const midLat = (Math.min(...lats) + Math.max(...lats)) / 2, midLon = (Math.min(...lons) + Math.max(...lons)) / 2;
+    const quad = l => (l.lat >= midLat ? 'Nord' : 'Süd') + (l.lon >= midLon ? 'osten' : 'westen');
+    const qs = new Set(tp.map(quad));
+    return qs.size === 1 ? `Deine besten Treffer liegen alle im ${[...qs][0]} des Kartenausschnitts: Karte dorthin verschieben zeigt mehr davon` : null;
+  }
+  // Budget-Rest für Platz 1 (Reisebudget ist in €)
+  function budgetRest(first, ctx = {}) {
+    const eb = R().effectiveBudget(ctx);
+    if (!first || !eb || first.rank?.stay == null || first.rank?.parts?.price == null) return null;
+    const share = first.rank.stay / eb;
+    if (share > 1) return null;
+    const rest = eb - first.rank.stay;
+    return `Platz 1 nutzt ${Math.round(share * 100)} % des Budgets, es bleiben ${money(rest, '€')}${ctx.people > 1 ? ` (${money(rest / ctx.people, '€')} pro Person)` : ''}`;
+  }
+  // Was kostet ein Stern mehr? Lineare Regression Nachtpreis gegen Sterne (ab 10 Karten mit ≥ 5 Bewertungen)
+  function starPrice(list, ctx = {}) {
+    const cur = mainCurrency(list);
+    const pts = list.filter(l => l.rating != null && (l.reviewCount || 0) >= 5 && curOf(l) === cur).map(l => [l.rating, night(l, ctx.nights)]).filter(([, y]) => y != null);
+    if (pts.length < 10) return null;
+    const mx = pts.reduce((s, p) => s + p[0], 0) / pts.length, my = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+    const sxx = pts.reduce((s, p) => s + (p[0] - mx) ** 2, 0), sxy = pts.reduce((s, p) => s + (p[0] - mx) * (p[1] - my), 0);
+    if (sxx < 0.01) return null;
+    const per01 = sxy / sxx * 0.1;
+    return per01 >= 1 ? `0,1 Sterne mehr kosten hier im Schnitt etwa ${money(per01, cur)} pro Nacht (grobe Schätzung)` : null;
+  }
+  // Gesamtpreis-Schalter: Airbnb zeigt Nachtpreise ohne Gebühren
+  function totalSwitchHint(list, nights) {
+    const known = list.filter(l => l.priceWord && l.totalPrice != null);
+    if (!nights || nights < 2 || known.length < 5) return null;
+    return known.every(l => !l.isTotal) ? 'Airbnb zeigt hier Nachtpreise ohne Gebühren. Schalte bei Airbnb „Gesamtpreis anzeigen“ ein, dann vergleicht StayMatch die echten Kosten.' : null;
+  }
+  // Preisanzeige wechselt zwischen den gesammelten Seiten (Gesamt- und Nachtpreise gemischt)
+  function mixedUnits(pool) {
+    const by = {};
+    for (const i of Object.values(pool?.items || {})) if (i.priceWord && i.totalPrice != null) (by[i.page] ||= new Set()).add(i.isTotal ? 'T' : 'N');
+    const units = new Set(Object.values(by).flatMap(x => x.size === 1 ? [...x] : []));
+    return Object.keys(by).length >= 2 && units.size === 2 ? 'Die gesammelten Seiten zeigen teils Gesamt-, teils Nachtpreise: Vergleich kann schief sein (Gesamtpreis-Schalter prüfen)' : null;
+  }
+  // Zwei Wohnungen nebeneinander (unter 200 m) für große Gruppen, zusammen günstiger als die günstigste große?
+  function distM(a, b) { const C = root.StayMatchCore; if (C?.distM) return C.distM(a, b); const r = Math.PI / 180, x = (b.lon - a.lon) * r * Math.cos((a.lat + b.lat) / 2 * r), y = (b.lat - a.lat) * r; return Math.sqrt(x * x + y * y) * 6371000; }
+  function twoFlats(list, ctx = {}) {
+    const people = ctx.people || 0;
+    if (people < 6) return null;
+    const cap = l => l.sleeps ?? l.beds ?? null;
+    const big = list.filter(l => cap(l) >= people && l.rank?.stay != null).sort((a, b) => a.rank.stay - b.rank.stay)[0];
+    const small = list.filter(l => l.lat != null && cap(l) != null && cap(l) < people && l.rank?.stay != null && (l.rating == null || l.rating >= 4.5)).slice(0, 200);
+    let best = null;
+    for (let i = 0; i < small.length; i++) for (let j = i + 1; j < small.length; j++) {
+      const a = small[i], b = small[j];
+      if (cap(a) + cap(b) < people || curOf(a) !== curOf(b)) continue;
+      const d = distM(a, b);
+      if (d > 200) continue;
+      const sum = a.rank.stay + b.rank.stay;
+      if (!best || sum < best.sum) best = { a, b, sum, d };
+    }
+    if (!best || (big && (curOf(big) !== curOf(best.a) || best.sum >= big.rank.stay * 0.95))) return null;
+    return { ids: [best.a.id, best.b.id], text: `Zwei Wohnungen ${Math.round(best.d)} m auseinander („${title(best.a)}“ + „${title(best.b)}“) kosten zusammen ${money(best.sum, best.a.currency)}${big ? `, ${money(big.rank.stay - best.sum, best.a.currency)} weniger als die günstigste große` : ''}` };
+  }
+  // Ungewöhnlich teuer / Wochenend-Aufschlag aus deinen eigenen früheren Suchen (log: [{ path, ci, nights, med, cur }])
+  function priceHistoryNotes(log, now) {
+    const out = [];
+    if (!now || !now.med) return out;
+    const same = (log || []).filter(e => e.path === now.path && e.cur === now.cur && e.ci !== now.ci && e.med);
+    const prev = same.at(-1);
+    if (prev && now.med / prev.med >= 1.5) out.push(`Heute ${sep(now.med / prev.med)}× so teuer wie bei deiner Suche für den ${prev.ci}: vielleicht ein Event oder Feiertag`);
+    const wk = e => { const d = new Date(e.ci + 'T12:00:00Z').getUTCDay(); return (d === 5 || d === 6) && e.nights <= 3; };
+    const all = [...same, now].filter(e => e.ci && e.nights);
+    const we = med(all.filter(wk).map(e => e.med)), wd = med(all.filter(e => !wk(e) && e.nights <= 4).map(e => e.med));
+    if (we && wd && we / wd >= 1.1) out.push(`Wochenende kostet hier etwa +${Math.round((we / wd - 1) * 100)} % (aus deinen eigenen Suchen)`);
+    return out;
+  }
+  // Alles für den Abschnitt „Mehr zu dieser Seite“
+  function pageInsights(list, top, ctx = {}, opt = {}) {
+    const lines = [];
+    const add = x => { if (x) lines.push(typeof x === 'string' ? x : x.text); };
+    add(totalSwitchHint(list, ctx.nights));
+    add(mixedUnits(opt.pool));
+    add(priceAnchor(list, ctx));
+    add(budgetRest(top[0], ctx));
+    add(budgetLever(list, ctx));
+    cheapTwins(top, list).forEach(add);
+    add(soloAlternative(list, top, ctx));
+    add(twoFlats(list, ctx));
+    add(outlierPick(list, top, ctx));
+    add(discountThreshold(ctx.nights));
+    add(starPrice(list, ctx));
+    add(stopPaging(opt.pool, list, top));
+    add(mapCorner(list, top));
+    (opt.history || []).forEach(add);
+    if (opt.listings) add(robustness(opt.listings, ctx, top.map(l => l.id)));
+    return lines;
+  }
+
   root.StayMatchExtras = {
+    priceAnchor, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
+    budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, mainCurrency,
     advanceText,
     deposit, extraGuestFee, extraGuestCost, onSiteCosts, checkoutChores, fees, feeShare, parkingInfo, diningSeats, dishesFor, bedWidth, area, floorInfo,
     features, coffee, kitchenLevel, minAge, petLimits, petFee, allergy, ruleCount, hostExtra, license, greenClaims, superlatives, dayLength,
