@@ -110,6 +110,22 @@ h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), va
 .qchips button:hover { color: var(--text); }
 .langhint { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
 .quick .btn { padding: 11px 16px; font-size: 15px; }
+.qmore { grid-column: 1 / -1; border: 0; padding: 0; } .qmore summary { display: inline-flex; gap: 8px; font-size: 14px; color: var(--muted); } .qmore summary::after { font-size: 16px; }
+.qmore div, .check { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.play { margin-top: 22px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 10px 20px; }
+.play label { display: grid; grid-template-columns: 110px 1fr 44px; gap: 10px; align-items: center; font-size: 14px; color: var(--muted); }
+input[type=range] { accent-color: var(--accent); width: 100%; min-height: 32px; }
+.check { list-style: none; padding: 0; gap: 12px 28px; }
+@media (max-width: 760px) { .check { grid-template-columns: 1fr; } .play label { grid-template-columns: 100px 1fr 40px; } }
+.check label { display: flex; gap: 12px; cursor: pointer; color: var(--muted); }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; margin-top: 3px; }
+.ckbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 22px 0 30px; color: var(--muted); }
+.ckbar button, #lc-in { font: inherit; font-size: 15px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--line2); border-radius: 12px; background: var(--bg2); color: var(--text); }
+#lc-in { display: block; width: min(100%, 420px); margin: 8px 0; }
+.linkbtn { font: inherit; background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; }
+#lc-out.ok { color: var(--good); } #lc-out.warn { color: var(--warn); }
+#vorbereiten li { color: var(--muted); }
+@media print { .pc nav.top, .pc footer, .pc main > :not(#vorbereiten), .pc #vorbereiten .faq, .pc .ckbar { display: none; } .pc #vorbereiten * { color: #000 !important; } }
 @media (max-width: 640px) { .quick { grid-template-columns: 1fr 1fr; } .quick input[name=query], .quick .btn { grid-column: 1 / -1; } }
 .mobile-hint { font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 16px; }
 
@@ -306,6 +322,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       <a href="#funktionen">Funktionen</a>
       <a href="#gruppen">Für Gruppen</a>
       <a href="#staedte">Städte</a>
+      <a href="#vorbereiten">Checkliste</a>
       <a href="#faq">FAQ</a>
       <a class="app" href="/app" data-app>Viertel-Finder</a>
     </div>
@@ -339,6 +356,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
         <label><span>Anreise</span><input name="checkin" type="date" id="qci"></label>
         <label><span>Abreise</span><input name="checkout" type="date" id="qco"></label>
         <label><span>Erwachsene</span><input name="adults" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="2"></label>
+        <details class="qmore"><summary>Kinder und Budget (optional)</summary><div><label><span>Kinder</span><input name="children" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="0"></label><label><span>Max. € pro Nacht</span><input name="price_max" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="z. B. 140"></label></div><input type="hidden" name="currency" value="EUR"></details>
         <button class="btn primary" type="submit" aria-describedby="qnights">Auf Airbnb suchen <span aria-hidden="true">↗</span></button>
         <datalist id="cities"><option value="Amsterdam"><option value="Barcelona"><option value="Berlin"><option value="Budapest"><option value="Lissabon"><option value="Madrid"><option value="Paris"><option value="Prag"><option value="Rom"><option value="Wien"></datalist>
       </form>
@@ -471,7 +489,13 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
         <li><span><b>Viertel (optional):</b> der Wert aus dem Viertel-Finder.</span></li>
         <li><span><b>Fehlt eine Angabe,</b> zählt sie nicht mit, statt als 0.</span></li>
       </ul>
-      <p class="intro" style="margin-bottom:0">Daraus entsteht ein Wert von 0 bis 100. Er ist ein guter Startpunkt, kein Urteil. <a href="https://github.com/Pschmetzer/staymatch/blob/main/shared/core.js" target="_blank" rel="noopener">Rechnung im Code ansehen</a></p>
+      <div class="play" id="sterne-demo">
+        <p><b>Ausprobieren:</b> wie Sterne zählen (Seitenmittel hier 4,6)</p>
+        <label><span>Sterne</span><input type="range" id="sd-star" min="3" max="5" step="0.01" value="4.9"><output id="sd-v">4,90</output></label>
+        <label><span>Bewertungen</span><input type="range" id="sd-n" min="0" max="500" value="12"><output id="sd-nv">12</output></label>
+        <p id="sd-out" aria-live="polite"></p>
+      </div>
+      <p class="intro" style="margin:22px 0 0">Daraus entsteht ein Wert von 0 bis 100. Er ist ein guter Startpunkt, kein Urteil. <a href="https://github.com/Pschmetzer/staymatch/blob/main/shared/core.js" target="_blank" rel="noopener">Rechnung im Code ansehen</a></p>
     </div>
     <picture class="photo"><source type="image/webp" srcset="media/sterne-640.webp 640w, media/sterne-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 560px"><img src="media/sterne-1280.jpg" srcset="media/sterne-640.jpg 640w, media/sterne-1280.jpg 1280w" sizes="(max-width: 900px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture>
   </div>
@@ -499,6 +523,13 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
         <div class="row"><span><span aria-hidden="true">🌿</span> Chill (2)</span><div class="bar"><i class="g" style="width:74%"></i></div><b>74</b></div>
         <div class="row"><span><span aria-hidden="true">🏛️</span> Sightseeing</span><div class="bar"><i class="g" style="width:80%"></i></div><b>80</b></div>
         <p class="formula">0,6 × 74 (schwächster Wert) + 0,4 × 78 (Schnitt) = 76</p>
+      </div>
+      <div class="bars" id="fair-demo" style="grid-column:1/-1">
+        <h3>Selbst ausprobieren</h3><div class="muted">Drei Personen, ein Viertel. 0,6 ist der Standard, im Viertel-Finder einstellbar.</div>
+        <label class="row"><span>Person A</span><input type="range" min="0" max="100" value="90"><b>90</b></label>
+        <label class="row"><span>Person B</span><input type="range" min="0" max="100" value="70"><b>70</b></label>
+        <label class="row"><span>Person C</span><input type="range" min="0" max="100" value="30"><b>30</b></label>
+        <p class="formula" id="fd-out" aria-live="polite"></p>
       </div>
     </div>
   </div>
@@ -534,6 +565,37 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       <a class="city" href="/staedte/prag"><img src="media/staedte/prag.webp" width="680" height="512" alt="" loading="lazy" decoding="async"><span>Prag</span></a>
       <a class="city" href="/staedte/rom"><img src="media/staedte/rom.webp" width="680" height="512" alt="" loading="lazy" decoding="async"><span>Rom</span></a>
       <a class="city" href="/staedte/wien"><img src="media/staedte/wien.webp" width="680" height="512" alt="" loading="lazy" decoding="async"><span>Wien</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="block tight" id="vorbereiten">
+  <div class="wrap">
+    <span class="eyebrow">Vor dem Buchen</span>
+    <h2>Checkliste: 10 Fragen vor dem Klick auf „Reservieren“.</h2>
+    <ul class="check" id="checkliste">
+      <li>Gesamtpreis geprüft, mit Reinigung, Servicegebühr und Steuern?</li>
+      <li>Genug echte Betten für alle, Schlafsofa ehrlich mitgezählt?</li>
+      <li>Stornobedingungen gelesen: bis wann kostenlos?</li>
+      <li>Hausregeln passen: Ruhezeiten, Gäste, Haustiere, Rauchen?</li>
+      <li>Check-in-Zeit und Schlüsselübergabe passen zu deiner Ankunft?</li>
+      <li>Die neuesten Bewertungen gelesen, nicht nur den Schnitt?</li>
+      <li>Lage auf der Karte geprüft: Weg zu Bahn, Zentrum oder Strand?</li>
+      <li>Ausstattung da: WLAN, Küche, Waschmaschine, Heizung oder Klima?</li>
+      <li>Kosten vor Ort bedacht: Kurtaxe, Kaution, Strom?</li>
+      <li>Zahlung und Nachrichten nur über Airbnb?</li>
+    </ul>
+    <p class="ckbar"><span id="ck-out" aria-live="polite"></span><button type="button" id="ck-print">Checkliste drucken</button></p>
+    <div class="faq">
+      <details id="verdacht"><summary>Verdacht auf Betrug? So reagierst du.</summary>
+        <ol>
+          <li>Nie außerhalb von Airbnb zahlen oder weiterschreiben, auch wenn jemand darum bittet.</li>
+          <li>Links prüfen: echte Seiten liegen auf airbnb.de, airbnb.com usw.</li>
+          <li>Inserat oder Nachricht bei Airbnb melden.</li>
+          <li>Schon bezahlt? Sofort Bank anrufen und Anzeige erstatten.</li>
+        </ol>
+        <p class="lc"><label for="lc-in">Link prüfen (bleibt in deinem Browser):</label> <input id="lc-in" type="url" autocomplete="off" placeholder="https://…"> <span id="lc-out" aria-live="polite"></span></p>
+      </details>
     </div>
   </div>
 </section>
@@ -585,7 +647,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       <a class="btn primary" href="staymatch-plugin.zip" download="staymatch-0.5.0.zip">Plugin herunterladen<span class="zipsize"></span> <span aria-hidden="true">↓</span></a>
       <a class="btn ghost" href="/app" data-app>Erst Viertel finden <span aria-hidden="true">→</span></a>
     </div>
-    <p style="margin:22px 0 0"><a href="#quick-head">Oder direkt auf Airbnb suchen ↑</a></p>
+    <p style="margin:22px 0 0"><a href="#quick-head">Oder direkt auf Airbnb suchen ↑</a> · <button type="button" class="linkbtn" id="share">Seite teilen</button> <span id="share-out" aria-live="polite"></span></p>
   </div>
 </section>
 
@@ -600,7 +662,9 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
 
 <script>
   // Texte dieser Sprachversion (index.html und en.html teilen sonst dasselbe Skript)
-  const T = { nights: n => n === 1 ? '1 Nacht' : n + ' Nächte', newTab: 'Öffnet die normale Airbnb-Suche in einem neuen Tab.', toLight: 'Zu Hell wechseln', toDark: 'Zu Dunkel wechseln', copy: 'Kopieren', copied: 'Kopiert ✓', copyKey: 'Markiert: Strg+C drücken', badDates: 'Die Abreise muss nach der Anreise liegen.', afterSearch: 'Mit dem Plugin siehst du dort sofort die Top 3.', getPlugin: 'Plugin holen ↓', airbnb: 'https://www.airbnb.de' };
+  const T = { nights: n => n === 1 ? '1 Nacht' : n + ' Nächte', newTab: 'Öffnet die normale Airbnb-Suche in einem neuen Tab.', toLight: 'Zu Hell wechseln', toDark: 'Zu Dunkel wechseln', copy: 'Kopieren', copied: 'Kopiert ✓', copyKey: 'Markiert: Strg+C drücken', badDates: 'Die Abreise muss nach der Anreise liegen.', afterSearch: 'Mit dem Plugin siehst du dort sofort die Top 3.', getPlugin: 'Plugin holen ↓', airbnb: 'https://www.airbnb.de', dec: ',',
+    stars: (b, p) => `Gewichtet: ${b} Sterne → ${p} von 100 Sterne-Punkten`, fair: (m, a, t) => `0,6 × ${m} (schwächster Wert) + 0,4 × ${a} (Schnitt) = ${t}`,
+    done: (n, of) => `${n} von ${of} erledigt`, lcOk: h => `✓ ${h} ist eine Airbnb-Adresse.`, lcWarn: h => `⚠ ${h} ist keine Airbnb-Adresse.`, lcBad: 'Das sieht nicht wie ein Link aus.', linkCopied: 'Link kopiert ✓' };
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
   // Hell/Dunkel: eigene Wahl merken, Beschriftung, Browserleisten-Farbe und Fotos mitziehen
@@ -643,6 +707,9 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       if (s.i >= today) ci.value = s.i;
       if (s.o > (ci.value || today)) co.value = s.o;
       if (s.n) ad.value = s.n;
+      if (s.k) form.elements.children.value = s.k;
+      if (s.b) form.elements.price_max.value = s.b;
+      if (s.k || s.b) $('.qmore').open = true;
     } catch {}
     const plusDays = (v, n) => { const d = new Date(v + 'T12:00'); d.setDate(d.getDate() + n); return iso(d); };
     ci.addEventListener('change', () => {
@@ -669,7 +736,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       if (co.value && !bad) q.set('o', co.value);
       if (Number(ad.value) > 1) q.set('n', String(ad.value));
       $$('a[data-app]').forEach(a => { a.href = '/app' + (q.size ? '?' + q : ''); });
-      try { sessionStorage.setItem('sm_quick', JSON.stringify({ c, i: ci.value, o: bad ? '' : co.value, n: ad.value })); } catch {}
+      try { sessionStorage.setItem('sm_quick', JSON.stringify({ c, i: ci.value, o: bad ? '' : co.value, n: ad.value, k: form.elements.children.value, b: form.elements.price_max.value })); } catch {}
     };
     form.addEventListener('input', sync);
     form.addEventListener('change', sync);
@@ -681,6 +748,10 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       if (ci.value) q.set('checkin', ci.value);
       if (co.value && (!ci.value || co.value > ci.value)) q.set('checkout', co.value);
       q.set('adults', ad);
+      // wie airbnbUrl (scoring.js): max. 16 Gäste, Budget in Euro
+      const kids = Math.max(0, Math.min(16 - ad, Math.floor(Number(f.get('children'))) || 0)), max = Math.min(99999, Math.floor(Number(f.get('price_max'))) || 0);
+      if (kids) q.set('children', kids);
+      if (max > 0) { q.set('price_max', max); q.set('currency', 'EUR'); }
       // Link statt window.open: wird von Pop-up-Blockern nicht abgefangen
       const a = Object.assign(document.createElement('a'), { href: `${T.airbnb}/s/${encodeURIComponent(city)}/homes?${q}`, target: '_blank', rel: 'noopener' });
       a.click();
@@ -726,6 +797,43 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       }, 300);
     }));
   })();
+
+  // Demos: Sterne = ratingScore (extension/rank.js), Fairness = groupScore (web/scoring.js)
+  {
+    const live = (els, f) => { els.forEach(e => e.addEventListener('input', f)); f(); };
+    live([$('#sd-star'), $('#sd-n')], () => {
+      const s = +$('#sd-star').value, c = +$('#sd-n').value, bay = (s * c + 4.6 * 20) / (c + 20), f = x => x.toFixed(2).replace('.', T.dec);
+      $('#sd-v').textContent = f(s); $('#sd-nv').textContent = c;
+      $('#sd-out').textContent = T.stars(f(bay), Math.round(Math.max(0, Math.min(1, (bay - 4.2) / .75)) * 100));
+    });
+    const fd = $$('#fair-demo input');
+    live(fd, () => {
+      const s = fd.map(i => (i.nextElementSibling.textContent = i.value, +i.value)), m = Math.min(...s), a = s.reduce((x, y) => x + y) / s.length;
+      $('#fd-out').textContent = T.fair(m, Math.round(a), Math.round(.6 * m + .4 * a));
+    });
+    // Checkliste: Häkchen nicht gespeichert, Drucken nur der Liste
+    const ck = $$('#checkliste li').map(li => {
+      const l = document.createElement('label'), b = l.appendChild(document.createElement('input'));
+      b.type = 'checkbox'; l.append(Object.assign(document.createElement('span'), { textContent: li.textContent })); li.replaceChildren(l); return b;
+    });
+    live(ck, () => { $('#ck-out').textContent = T.done(ck.filter(b => b.checked).length, ck.length); });
+    $('#ck-print').addEventListener('click', () => { document.documentElement.classList.add('pc'); print(); });
+    addEventListener('afterprint', () => document.documentElement.classList.remove('pc'));
+    // Link-Prüfung lokal gegen AIRBNB_DOMAINS (shared/core.js), nichts wird gesendet
+    const D = 'de com at ch co.uk fr es it nl pt pl be dk se no fi ie gr cz com.au ca co.nz mx com.br'.split(' ').map(t => 'airbnb.' + t), lc = $('#lc-out');
+    $('#lc-in').addEventListener('input', e => {
+      const v = e.target.value.trim(); let h = '';
+      try { h = new URL(/^[a-z][\w+.-]*:\/\//i.test(v) ? v : 'https://' + v).hostname; } catch {}
+      const ok = D.some(d => h === d || h.endsWith('.' + d));
+      lc.textContent = !v ? '' : !h.includes('.') ? T.lcBad : ok ? T.lcOk(h) : T.lcWarn(h); lc.className = ok ? 'ok' : 'warn';
+    });
+    // Teilen: Menü des Geräts, sonst Link kopieren
+    $('#share').addEventListener('click', async () => {
+      const url = $('link[rel=canonical]').href;
+      try { if (navigator.share) return await navigator.share({ title: document.title, url }); await navigator.clipboard.writeText(url); $('#share-out').textContent = T.linkCopied; }
+      catch (e) { if (e?.name !== 'AbortError') $('#share-out').textContent = url; }
+    });
+  }
 
   // FAQ-Fragen sind verlinkbar: passender Anker öffnet die Frage
   (() => {
