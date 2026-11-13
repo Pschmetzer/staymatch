@@ -24,6 +24,6 @@ test('Stadtseite: Titel, canonical, ODbL-Hinweis, keine Fremdhosts außer OSM-Li
     assert.equal((h.match(/<li><b>/g) || []).length, 25, f + ': 5 Typen × 5 Viertel');
     assert.ok(!/<script/i.test(h), f + ' ohne Skripte');
     const hosts = new Set([...h.matchAll(/https?:\/\/([^/"' ]+)/g)].map(m => m[1]));
-    for (const x of hosts) assert.ok(['staymatch.pro', 'opendatacommons.org', 'www.openstreetmap.org'].includes(x), `${f}: Fremdhost ${x}`);
+    for (const x of hosts) assert.ok(['staymatch.pro', 'opendatacommons.org', 'www.openstreetmap.org', 'www.airbnb.de'].includes(x), `${f}: Fremdhost ${x}`);
   }
 });

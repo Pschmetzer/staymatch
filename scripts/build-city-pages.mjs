@@ -28,6 +28,8 @@ const TOP = 5;
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const slug = file => file.replace(/\.json$/, '');
+// Airbnb-Suche für ein Viertel (gleiches Format wie die Schnellsuche der Startseite, URL nicht offiziell dokumentiert)
+const airbnb = (area, city) => `https://www.airbnb.de/s/${encodeURIComponent(`${area}, ${city}`)}/homes`;
 
 export function rankCity(d) {
   const rows = d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
@@ -60,7 +62,7 @@ export function renderPage(file, d) {
   const sections = TYPES.map(([key, label, text]) => `<h2>${esc(label)}</h2>
 <p>${esc(text)}</p>
 <ol>
-${r.top[key].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} von 100</span></li>`).join('\n')}
+${r.top[key].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} von 100</span> <a class="bnb" href="${airbnb(a.name, name)}" target="_blank" rel="noopener">Unterkünfte auf Airbnb <span aria-hidden="true">↗</span></a></li>`).join('\n')}
 </ol>`).join('\n');
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -69,14 +71,14 @@ ${r.top[key].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s}
 <link rel="canonical" href="${url}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/legal.css">
-<style>.pts{color:var(--muted);font-size:14px;margin-left:6px}ol{padding-left:22px}.cta{display:inline-block;margin-top:24px;padding:10px 18px;border-radius:999px;background:var(--accent);color:#fff;text-decoration:none}</style>
+<style>.pts{color:var(--muted);font-size:14px;margin-left:6px}ol{padding-left:22px}.bnb{display:block;width:fit-content;font-size:14px;color:var(--muted)}.cta{display:inline-block;margin-top:24px;padding:10px 18px;border-radius:999px;background:var(--accent);color:#fff;text-decoration:none}</style>
 </head><body><main>
 <a class="back" href="/">← StayMatch</a>
 <h1>Beste Viertel in ${esc(name)}</h1>
 <p class="stand">Stand der Daten: ${date}. Bewertet werden Bars, Restaurants, Sehenswürdigkeiten, Bahnhöfe, Parks und mehr im Umkreis von ${r.radius} m um jedes Viertel (${r.areas} Viertel, ${r.pois} Orte).</p>
 ${sections}
 <p><a class="cta" href="/app">Eigene Gruppe in ${esc(name)} vergleichen</a></p>
-<footer>Daten: © OpenStreetMap-Mitwirkende, <a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener">Open Database License (ODbL) 1.0</a>, <a href="https://www.openstreetmap.org/copyright" rel="noopener">Quelle</a>. Die Werte sind eine Schätzung aus Kartendaten, keine Preise und keine Bewertungen. · <a href="/datenschutz">Datenschutz</a> · <a href="/">Startseite</a></footer>
+<footer>Daten: © OpenStreetMap-Mitwirkende, <a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener">Open Database License (ODbL) 1.0</a>, <a href="https://www.openstreetmap.org/copyright" rel="noopener">Quelle</a>. Die Werte sind eine Schätzung aus Kartendaten, keine Preise und keine Bewertungen. Nicht mit Airbnb verbunden; Airbnb ist eine Marke der Airbnb, Inc. · <a href="/datenschutz">Datenschutz</a> · <a href="/">Startseite</a></footer>
 </main></body></html>
 `;
 }

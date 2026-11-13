@@ -28,7 +28,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"StayMatch","url":"https://staymatch.pro/en","description":"Helps you find the right Airbnb faster: scores every listing on the search page by budget, stars and your must-haves and shows the top 3. Optional neighborhood finder, also for groups.","applicationCategory":"TravelApplication","operatingSystem":"Web, Chrome, Edge, Brave","inLanguage":"en","isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"sameAs":["https://github.com/Pschmetzer/staymatch"],"downloadUrl":"https://staymatch.pro/staymatch-plugin.zip","softwareVersion":"0.5.0","browserRequirements":"Chrome, Edge, Brave or another Chromium browser on a computer"}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"StayMatch","url":"https://staymatch.pro/en","description":"Helps you find the right Airbnb faster: scores every listing on the search page by budget, stars and your must-haves and shows the top 3. Optional neighborhood finder, also for groups.","applicationCategory":"TravelApplication","operatingSystem":"Windows, macOS, Linux, ChromeOS","inLanguage":"de","isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"sameAs":["https://github.com/Pschmetzer/staymatch"],"downloadUrl":"https://staymatch.pro/staymatch-plugin.zip","softwareVersion":"0.5.0","browserRequirements":"Chrome, Edge, Brave or another Chromium browser on a computer"}
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","inLanguage":"en","mainEntity":[{"@type":"Question","name":"Does StayMatch cost anything?","acceptedAnswer":{"@type":"Answer","text":"No. The extension and the neighborhood finder are free and open source under the MIT license."}},{"@type":"Question","name":"Is StayMatch available in English?","acceptedAnswer":{"@type":"Answer","text":"This page is. The extension panel and the neighborhood finder are currently in German only. English versions are planned, but there's no date yet."}},{"@type":"Question","name":"Is StayMatch made by Airbnb?","acceptedAnswer":{"@type":"Answer","text":"No. StayMatch is an independent project and not affiliated with Airbnb. The links lead to the regular search, and you book there as usual."}},{"@type":"Question","name":"Does the extension read Airbnb in the background?","acceptedAnswer":{"@type":"Answer","text":"No. It only reads the page you opened yourself and makes no requests of its own. When you go to the next page, it scores the listings there. Airbnb may still view extensions reading its pages differently; the terms of service are theirs. If that bothers you, just use the neighborhood finder."}},{"@type":"Question","name":"Why do I need to turn on Developer mode?","acceptedAnswer":{"@type":"Answer","text":"The extension isn't in the Chrome Web Store yet. Until then, you load it as an unpacked extension. You can review the code on GitHub at any time."}},{"@type":"Question","name":"The extension doesn't show up. What now?","acceptedAnswer":{"@type":"Answer","text":"Check on the extensions page (see step 2) that StayMatch is switched on, then reload the Airbnb page. After an update, remove the old version and load the new folder. If that doesn't help, open an issue on GitHub."}},{"@type":"Question","name":"What happens to my data?","acceptedAnswer":{"@type":"Answer","text":"Must-haves, likes, notes and history stay locally in your browser or the extension's storage. There's no account and no StayMatch server. In the neighborhood finder, the place name and your IP address go to OpenStreetMap's map services (place search, points of interest), and the map tiles come from there too. The font and map library are served from our own site, not from Google. Details: privacy policy (German)."}},{"@type":"Question","name":"How does StayMatch know what suits me?","acceptedAnswer":{"@type":"Answer","text":"From what you tell it: budget, must-haves for the place and, if you use the neighborhood finder, your interests for the area. On top of that come the stars weighted by number of reviews, and your 👍 and 👎. How that becomes a score is explained under How we score."}},{"@type":"Question","name":"Can I search with friends?","acceptedAnswer":{"@type":"Answer","text":"Yes. Add your travel companions in the neighborhood finder, and StayMatch finds the area where everyone is happy and checks there are enough beds. Then share the link in your group chat."}},{"@type":"Question","name":"Does StayMatch work on my phone?","acceptedAnswer":{"@type":"Answer","text":"The extension doesn't: browser extensions only run in Chrome, Edge and Brave on a computer, not in the Airbnb app. You can use the neighborhood finder on your phone and send yourself the link for your laptop."}},{"@type":"Question","name":"Which cities work?","acceptedAnswer":{"@type":"Answer","text":"Any city where OpenStreetMap knows the neighborhoods, so almost every larger city worldwide. The first search for a city can take up to a minute. After that, your browser keeps the data for a day."}},{"@type":"Question","name":"Why only Airbnb?","acceptedAnswer":{"@type":"Answer","text":"Because it has lots of holiday rentals and its search can be opened via a link with dates and guests. Other sites like Booking.com are an idea for later, not a promise."}},{"@type":"Question","name":"How accurate is the recommendation?","acceptedAnswer":{"@type":"Answer","text":"It's a good starting point, not a verdict. StayMatch always shows why a listing is at the top and warns you about things like too few beds or a price over budget."}}]}
@@ -99,10 +99,12 @@ nav.top .wrap { display: flex; align-items: center; gap: 28px; height: 68px; }
 .pill b { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; }
 h1 { font-size: clamp(40px, 5.2vw, 64px); line-height: 1.05; letter-spacing: -.035em; font-weight: 500; margin: 20px 0 20px; }
 h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+@media (forced-colors: active) { h1 em { color: CanvasText; background: none; } }
 .lead { font-size: clamp(17px, 1.6vw, 19px); color: var(--muted); max-width: 590px; margin: 0 0 28px; }
 .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
 .note { font-size: 14px; color: var(--dim); margin-top: 22px; }
-.quick { display: grid; grid-template-columns: 1.4fr 1fr 1fr .6fr auto; gap: 8px; margin-top: 22px; max-width: 640px; }
+.quick { display: grid; grid-template-columns: 1.4fr 1fr 1fr .6fr; gap: 8px; margin-top: 22px; max-width: 640px; }
+.quick .btn { grid-column: 1 / -1; justify-self: start; }
 .quick input { min-width: 0; border: 1px solid var(--line2); border-radius: 12px; padding: 11px 12px; background: var(--bg2); color: var(--text); font: inherit; font-size: 15px; }
 .quick .btn { padding: 11px 16px; font-size: 15px; }
 @media (max-width: 640px) { .quick { grid-template-columns: 1fr 1fr; } .quick input[name=city], .quick .btn { grid-column: 1 / -1; } }
@@ -278,7 +280,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
 </style>
 
 <script>
-  // Theme vor dem ersten Zeichnen: eigene Wahl, sonst folgt die Seite dem System (CSS)
+  // Theme vor dem ersten Zeichnen: eigene Wahl, sonst bewusst Hell (Standard seit #41), nicht das System
   document.documentElement.classList.add('js');
   let t = 'light'; try { const s = localStorage.getItem('sm_theme'); if (s === 'light' || s === 'dark') t = s; } catch {}
   document.documentElement.dataset.theme = t;
@@ -319,7 +321,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
         <a class="btn ghost" href="/app" data-app hreflang="de">Find the right neighborhood first <span aria-hidden="true">→</span></a>
       </div>
       <ul class="trust" aria-label="At a glance">
-        <li>Free</li><li>Open source</li><li>No sign-up</li><li>Data stays in your browser</li>
+        <li>Free</li><li>Open source</li><li>No sign-up</li><li>No tracking</li>
       </ul>
       <p class="quick-head" id="quick-head">Or search Airbnb directly:</p>
       <form class="quick" id="quick" aria-labelledby="quick-head">
@@ -327,7 +329,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
         <label><span>Check-in</span><input name="checkin" type="date" id="qci"></label>
         <label><span>Check-out</span><input name="checkout" type="date" id="qco"></label>
         <label><span>Guests</span><input name="adults" type="number" min="1" max="16" value="2" inputmode="numeric"></label>
-        <button class="btn primary" type="submit">Search</button>
+        <button class="btn primary" type="submit">Search Airbnb <span aria-hidden="true">↗</span></button>
         <datalist id="cities"><option value="Amsterdam"><option value="Barcelona"><option value="Berlin"><option value="Budapest"><option value="Lisbon"><option value="Madrid"><option value="Paris"><option value="Prague"><option value="Rome"><option value="Vienna"></datalist>
       </form>
       <p class="qnote" id="qnights" aria-live="polite">Opens the regular Airbnb search in a new tab.</p>
@@ -355,7 +357,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
         <h4>Stay<span>Match</span> · Your top 3</h4>
         <div class="sub"><b style="color:var(--accent)">EXAMPLE</b> · 24 listings scored · 4 nights</div>
         <div class="li"><b>1. Apartment in Gràcia</b><span class="sc">91</span><small>⭐ 4.86 · 212 reviews · €132/night</small><span class="why">✓ entire place · ✓ Superhost · ✓ quiet per guests</span></div>
-        <div class="li"><b>2. Studio near Park Güell</b><span class="sc">86</span><small>⭐ 4.82 · 94 reviews · €118/night</small><span class="why">✓ entire place · ✓ within budget</span></div>
+        <div class="li"><b>2. Studio near Park Güell</b><span class="sc">86</span><small>⭐ 4.82 · 94 reviews · €118/night</small><span class="why">✓ entire place · ✓ within budget</span><span class="why w">⚠ Superhost and quiet: not stated</span></div>
         <div class="li"><b>3. Period flat with balcony</b><span class="sc">79</span><small>⭐ 4.71 · 58 reviews · €139/night</small><span class="why w">⚠ not a Superhost</span></div>
       </div>
     </div>
@@ -367,7 +369,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     <div><h3>Top 3 instead of 40 tabs</h3><p>The extension scores every listing on your search page.</p></div>
     <div><h3>Made for you</h3><p>Budget, reviews and your must-haves count, and the neighborhood too if you like.</p></div>
     <div><h3>With reasons</h3><p>You always see why a listing is at the top, and what doesn't fit.</p></div>
-    <div><h3>Stays with you</h3><p>No account, no StayMatch server. Everything runs locally in your browser.</p></div>
+    <div><h3>Stays with you</h3><p>No account, no tracking, no StayMatch database. Your browser keeps your must-haves and history.</p></div>
   </div>
 </div>
 
@@ -582,7 +584,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
 <footer>
   <div class="wrap">
     <span>© 2026 StayMatch · Open source (MIT) · <a href="/datenschutz" hreflang="de">Privacy policy (German)</a> · <a href="/impressum" hreflang="de">Legal notice (German)</a> · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/Pschmetzer/staymatch/blob/main/LICENSE" target="_blank" rel="noopener">Licenses</a></span>
-    <span>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · Not affiliated with Airbnb.</span>
+    <span>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · Not affiliated with Airbnb. Airbnb is a trademark of Airbnb, Inc., Chrome a trademark of Google LLC.</span>
   </div>
 </footer>
 
@@ -660,6 +662,8 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     const ua = navigator.userAgent, mobile = /Mobile|Android|iPhone|iPad|CriOS|FxiOS/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     const chromium = /Chrome|Chromium|Edg\//.test(ua) && !mobile;
     if (!chromium) { const h = $('#browserhint'); if (h) h.hidden = false; }
+    // Chromium am Computer: Hero-Knopf lädt direkt herunter und springt danach zu den Schritten
+    if (chromium) $$('.hero .ctas a[href="#plugin"]').forEach(a => { a.href = 'staymatch-plugin.zip'; a.setAttribute('download', ''); });
     if (mobile) $$('.mobile-hint').forEach(h => { h.hidden = false; });
     const b = /Edg\//.test(ua) ? ['Edge', 'edge://extensions'] : navigator.brave ? ['Brave', 'brave://extensions'] : /OPR\//.test(ua) ? ['Opera', 'opera://extensions'] : /Vivaldi/.test(ua) ? ['Vivaldi', 'vivaldi://extensions'] : null;
     if (b && chromium) { $('#extbrowser').textContent = b[0]; $('#extpath').textContent = b[1]; $('#extcopy').dataset.copy = b[1]; }

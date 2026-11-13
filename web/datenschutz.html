@@ -33,8 +33,15 @@
   Deren Datenschutzhinweise gelten dort.</li>
 <li>Für zehn Städte (Amsterdam, Barcelona, Berlin, Budapest, Lissabon, Madrid, Paris, Prag, Rom, Wien) sind die Orte vorab geladen und liegen auf der eigenen Seite. Für sie entfallen Nominatim und Overpass, die Kartenkacheln bleiben.</li>
 <li>Schrift (Inter) und Karten-Bibliothek (Leaflet) werden von der eigenen Seite geladen, nicht von Google oder unpkg.</li>
-<li>Hosting: Vercel. Dabei fallen die üblichen Server-Protokolle an (IP-Adresse, Zeitpunkt, abgerufene Datei).</li>
+<li>Hosting: Vercel. Dabei fallen die üblichen Server-Protokolle an (IP-Adresse, Zeitpunkt, abgerufene Adresse).</li>
+<li>Ausnahme vom Teil nach <code>#</code>: Der Schnellstart auf der Startseite gibt Stadt, Reisedaten und Personenzahl als Adress-Parameter an den Viertel-Finder weiter (<code>/app?c=…&amp;i=…&amp;o=…&amp;n=…</code>). Diese Adresse erreicht den Server und kann so in den Server-Protokollen von Vercel stehen.</li>
 </ul>
+
+<h2>Schnellsuche und Links zu Airbnb</h2>
+<p>Die Schnellsuche auf der Startseite und die Viertel-Links der Stadtseiten öffnen die normale Airbnb-Suche in einem neuen Tab. Dabei stehen Stadt (bzw. Viertel), Reisedaten und Gästezahl in der Adresse, die dein Browser an Airbnb schickt. Ab dort gelten die Datenschutzhinweise und Cookies von Airbnb. Airbnb kann über den Referrer sehen, dass du von staymatch.pro kommst (nur die Domain, keine Unterseite).</p>
+
+<h2>GitHub</h2>
+<p>Code, Fehlermeldungen („Fehler melden“ im Plugin) und Issues liegen bei GitHub (GitHub, Inc., ein Unternehmen von Microsoft, USA). Was du dort einträgst und abschickst, verarbeitet GitHub nach eigenen Datenschutzbestimmungen, auch in den USA, also außerhalb der EU. StayMatch schickt von sich aus nichts an GitHub; das passiert erst, wenn du dort selbst etwas absendest.</p>
 
 <h2>Cookies und Browser-Speicher</h2>
 <p>Keine Cookies. <code>localStorage</code> speichert Personen, Wünsche, Reise, Design (hell/dunkel) und Zwischenspeicher der Stadtdaten (24 Stunden), <code>sessionStorage</code> hält Stadtdaten für die Dauer des Tabs, wenn der dauerhafte Speicher voll ist. Beides dient nur den eigenen Funktionen und wird nicht gesendet. Darum braucht die Seite kein Cookie-Banner. Löschen: Websitedaten im Browser entfernen.</p>
