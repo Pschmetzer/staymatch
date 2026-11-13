@@ -54,7 +54,7 @@
   function compareAreas(a, b, people) {
     // Wer insgesamt etwas nicht will (Summe der Gewichte < 0), für den ist weniger davon der Sieg
     const sign = k => people.reduce((x, p) => x + ((p.w || weightsOf(p))[k] || 0), 0) < 0 ? -1 : 1;
-    const cats = Object.keys(CATEGORIES).map(k => { const d = ((a.counts[k] || 0) - (b.counts[k] || 0)) * sign(k); return { key: k, label: CATEGORIES[k].label, a: a.counts[k], b: b.counts[k], win: d === 0 ? 0 : d > 0 ? 1 : 2 }; });
+    const cats = Object.keys(CATEGORIES).filter(k => people.some(p => (p.w || weightsOf(p))[k])).map(k => { const d = ((a.counts[k] || 0) - (b.counts[k] || 0)) * sign(k); return { key: k, label: CATEGORIES[k].label, a: a.counts[k], b: b.counts[k], win: d === 0 ? 0 : d > 0 ? 1 : 2 }; });
     const persons = people.map((p, i) => { const x = a.group.scores[i], y = b.group.scores[i]; return { name: p.name, a: x, b: y, win: x === y ? 0 : x > y ? 1 : 2 }; });
     const t = a.group.total === b.group.total ? 0 : a.group.total > b.group.total ? 1 : 2;
     return { cats, persons, total: { a: a.group.total, b: b.group.total, win: t } };
@@ -240,7 +240,7 @@
       const rest = people.filter((_, j) => j !== i);
       let best = null, bt = -1;
       for (const a of areas) { const t = groupScore(a.norm, rest, fairness).total; if (t > bt) { bt = t; best = a; } }
-      if (best && best.name !== bestName) out.push({ name: p.name, area: best.name, total: bt });
+      if (best && (typeof bestName === 'object' ? best !== bestName : best.name !== bestName)) out.push({ name: p.name, area: best.name, total: bt });
     });
     return out;
   }
@@ -377,6 +377,18 @@
     }
     return { areas, pois: dedupePois(raw) };
   }
+  // Budget aufteilen: gesamt, pro Nacht, pro Person (v in Euro, m = total | pp | night)
+  function budgetSplit(v, m, n, g) {
+    const total = m === 'pp' ? v * g : m === 'night' ? v * n : v;
+    return { n, total, perNight: n ? total / n : 0, perPerson: g ? total / g : 0, perPersonNight: n && g ? total / n / g : 0 };
+  }
+  // Kurzbeschreibung der Typen aus den Gewichten (weicht so nie von der Wertung ab): [[Label, Text], …]
+  function typeSummary() {
+    return Object.values(PRESETS).map(v => {
+      const pos = Object.entries(v.w).filter(([, x]) => x >= 0.5).map(([k]) => CATEGORIES[k].label), neg = Object.entries(v.w).filter(([, x]) => x <= -0.3).map(([k]) => CATEGORIES[k].label);
+      return [v.label, `wichtig ${pos.join(', ')}${neg.length ? `; stört ${neg.join(', ')}` : ''}`];
+    });
+  }
   // Budget beim Umstellen des Modus umrechnen (gleiche Gesamtsumme, andere Bedeutung der Zahl)
   function convertBudget(v, from, to, nights, people) {
     const n = nights || 1, g = people || 1, total = from === 'pp' ? v * g : from === 'night' ? v * n : v;
@@ -459,5 +471,71 @@
       }) };
   }
 
-  root.StayMatch = { overpassFetch, tripOf, shareEncode, shareDecode, eligibleAreas, cityKeys, parseCsv, fromFile, buildData, convertBudget, dedupePois, annotateCentre, isSecretTip, median, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
+  // ---- Ergebnis-Karte (HTML aus Vorlagen; jeder Text aus Daten geht durch escapeHtml) ----
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  const LABELS = { party: ['🍸', 'Bars/Clubs'], chill: ['🌿', 'Parks/Cafés'], sights: ['🏛️', 'Sehenswürdigkeiten'], food: ['🍝', 'Restaurants'], transit: ['🚇', 'Stationen'], shop: ['🛍️', 'Einkaufen'], sport: ['🏃', 'Sport'], kids: ['🧸', 'Kinderorte'] };
+  const CORE_CATS = ['party', 'chill', 'sights', 'food', 'transit'], TIERS = ['', '€', '€€', '€€€'];
+  const ico = e => `<span aria-hidden="true">${e}</span>`; // Emoji nicht vorlesen
+  const dec = (v, d = 1) => v.toFixed(d).replace('.', ',');
+  // Wert, nach dem gerade sortiert wird (für „fast gleichauf“); null = Sortierung ohne Wert
+  const sortValue = (a, mode) => mode === 'fair' ? a.group.total : mode === 'avg' ? a.group.avg : /^p:\d+$/.test(mode) ? a.group.scores[+mode.slice(2)] : null;
+  // v: Ansicht (ranked, pois, ppl, r, pool, stats, medCentre, awards, minDist, relevant, byTotal); o: { url, key, fav, cmp, sortMode }
+  function cardHtml(a, i, v, o) {
+    const { ranked, pois, ppl, r, pool, stats, medCentre, awards, minDist, relevant } = v, solo = ppl.length === 1;
+    const best = v.byTotal[0] ? v.byTotal[0].group.total : 0;
+    const usedCats = Object.keys(CATEGORIES).filter(k => ppl.some(p => p.w[k]));
+    const hlCats = relevant.length ? relevant : usedCats.filter(k => k !== 'transit' && k !== 'food');
+    const near = pois.filter(p => p.name && hlCats.includes(p.cat) && distM(a, p) < r)
+      .sort((x, y) => (y.tags.wikidata ? 1 : 0) - (x.tags.wikidata ? 1 : 0) || distM(a, x) - distM(a, y));
+    const seen = new Set(), hl = [];
+    for (const p of near) { if (seen.has(p.name)) continue; seen.add(p.name); hl.push(p); if (hl.length >= 5) break; }
+    // Chips nicht nur über Farbe: Symbol dazu. Anklicken zeigt, woraus der Wert besteht. Allein: Aufschlüsselung direkt.
+    const chips = solo ? '' : ppl.map((p, j) => {
+      const s = a.group.scores[j];
+      return `<button type="button" class="chip btn2 ${s < 40 ? 'low' : s >= 70 ? 'high' : ''}" data-i="${i}" data-p="${j}" aria-expanded="false" aria-controls="bd-${i}">${s < 40 ? '⚠ ' : s >= 70 ? '✓ ' : ''}${escapeHtml(p.name)}: ${s}</button>`;
+    }).join('');
+    const parts = solo ? breakdown(a.norm, ppl[0].w) : [];
+    const solobd = solo && parts.length ? `<div class="muted">So setzt sich der Wert zusammen: ${parts.map(x => `${escapeHtml(x.label)} <b class="${x.pts > 0 ? 'pos' : 'neg'}">${x.pts > 0 ? '+' : ''}${x.pts}</b>`).join(' · ')}</div>` : '';
+    const c = a.counts;
+    // Alle Personen unter 60 erklären, nicht nur die schwächste
+    const whys = ppl.map((p, j) => ({ p, s: a.group.scores[j] })).filter(x => x.s < 60).sort((x, y) => x.s - y.s).slice(0, 3).map(({ p, s }) => {
+      const weak = weakness(a.norm, a.counts, p.w);
+      return weak ? `<div class="muted">${ico('⚠️')} ${escapeHtml(p.name)} (${s}) ${weak.kind === 'missing' ? `vermisst hier: ${weak.label} (nur ${weak.count} im Umkreis)` : `stört: viel ${weak.label} (${weak.count} im Umkreis)`}</div>` : '';
+    }).join('');
+    const thin = thinData(c) ? `<div class="muted">${ico('ℹ️')} Wenig Daten in OpenStreetMap für dieses Viertel (${Object.values(c).reduce((x, y) => x + y, 0)} Orte im Umkreis). Die Wertung ist hier unsicher.</div>` : '';
+    const k = escapeHtml(o.key), name = escapeHtml(a.name);
+    const tip = i > 0 && isSecretTip(a, best, medCentre);
+    const badges = [...awards[i].map(t => `<span class="badge">${escapeHtml(t)}</span>`), tip ? '<span class="badge tip">Geheimtipp</span>' : ''].join('');
+    const delta = a.delta ? `<span class="delta ${a.delta > 0 ? 'up' : 'down'}"><span aria-hidden="true">${a.delta > 0 ? '▲' : '▼'}${Math.abs(a.delta)}</span><span class="sr">${Math.abs(a.delta)} ${Math.abs(a.delta) === 1 ? 'Platz' : 'Plätze'} ${a.delta > 0 ? 'besser' : 'schlechter'} als vorher</span></span>` : '';
+    const next = ranked[i + 1], sv = sortValue(a, o.sortMode);
+    const tie = sv != null && next && sv - sortValue(next, o.sortMode) <= 1 ? `<div class="muted">≈ Fast gleichauf mit Platz ${i + 2} (${escapeHtml(next.name)}). Der Unterschied ist kleiner als die Genauigkeit der Daten.</div>` : '';
+    const mini = usedCats.map(kk => `<div><span>${LABELS[kk][1]}<span class="sr">: ${Math.round(a.norm[kk] * 100)} %</span></span><span class="bar" aria-hidden="true"><i style="width:${Math.round(a.norm[kk] * 100)}%"></i></span></div>`).join('');
+    const countsLine = Object.keys(CATEGORIES).filter(kk => CORE_CATS.includes(kk) || usedCats.includes(kk))
+      .map(kk => `${ico(LABELS[kk][0])} ${c[kk]} ${LABELS[kk][1]}${stats[kk] ? ` (Ø ${stats[kk]})` : ''}`).join(' · ');
+    const tr = a.nearest.transit;
+    const where = `${ico('🚇')} ${tr != null ? `Bahn ${tr} m` : 'keine Bahn im Umkreis von 1,5 km'} · ${ico('📍')} ${dec(a.centerDist / 1000)} km zum Zentrum · Preislage ${TIERS[a.tier]} (grobe Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise)`;
+    const neigh = pool.filter(x => x !== a && !ranked.includes(x) && distM(a, x) < minDist).slice(0, 3)
+      .map(x => `<button type="button" class="link" data-ll="${x.lat},${x.lon}" aria-label="${escapeHtml(x.name)} (${x.group.total}) auf der Karte zeigen">${escapeHtml(x.name)} (${x.group.total})</button>`);
+    const osm = `https://www.openstreetmap.org/?mlat=${a.lat.toFixed(5)}&mlon=${a.lon.toFixed(5)}#map=16/${a.lat.toFixed(5)}/${a.lon.toFixed(5)}`;
+    return `<article class="card result" id="area-${i}" data-i="${i}" tabindex="-1" aria-labelledby="areah-${i}">
+      <div class="rh"><span class="rank-num"><h3 id="areah-${i}">${i + 1}. ${name}</h3> <button type="button" class="fav" data-fav="${k}" aria-pressed="${o.fav}" aria-label="${name} als Favorit ${o.fav ? 'entfernen' : 'merken'}">${o.fav ? '♥' : '♡'}</button>${delta}</span>
+        <span><span class="sr">Gesamtwert ${a.group.total} von 100, ${verdict(a.group.total)}</span><span class="score" aria-hidden="true">${a.group.total}</span><span class="verdict" aria-hidden="true">/100 · ${verdict(a.group.total)}</span></span></div>
+      ${badges ? `<div class="badges">${badges}</div>` : ''}${tip ? '<div class="muted">Geheimtipp: fast so gut wie die Spitze, mit weniger Bars und Sehenswürdigkeiten, weiter vom Zentrum.</div>' : ''}
+      <div class="bar" aria-hidden="true"><i style="width:${a.group.total}%"></i></div>
+      <div>${escapeHtml(summary(a, ppl))}</div>${tie}
+      ${chips ? `<div class="chips" role="group" aria-label="Zufriedenheit je Person. Anklicken zeigt die Zusammensetzung.">${chips}</div>` : ''}${solobd}
+      <div class="breakdown" id="bd-${i}" hidden></div>
+      ${whys}${thin}
+      <div class="mini"><span class="sr">Stärke je Kategorie:</span>${mini}</div>
+      <div class="muted">${countsLine}</div>
+      <div class="muted">${where}</div>
+      ${hl.length ? `<div class="muted">In der Nähe: ${hl.map(p => `<a class="sub2" href="https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=18/${p.lat}/${p.lon}" target="_blank" rel="noopener">${escapeHtml(p.name)}<span class="sr"> (neuer Tab)</span></a>`).join(', ')}</div>` : ''}
+      ${neigh.length ? `<div class="muted">Gehört zur selben Gegend: ${neigh.join(', ')}</div>` : ''}
+      <div class="actions"><a class="btn" href="${o.url}" target="_blank" rel="noopener" aria-label="Unterkünfte hier auf Airbnb ansehen: ${name} (neuer Tab)">Unterkünfte hier auf Airbnb ansehen →</a>
+      <a class="sub2" href="${osm}" target="_blank" rel="noopener" aria-label="Auf Karte ansehen: ${name} (neuer Tab)">Auf Karte ansehen</a>
+      <label class="cmp"><input type="checkbox" data-k="${k}" ${o.cmp ? 'checked' : ''}> Vergleichen</label></div>
+    </article>`;
+  }
+
+  root.StayMatch = { escapeHtml, LABELS, cardHtml, budgetSplit, typeSummary, overpassFetch, tripOf, shareEncode, shareDecode, eligibleAreas, cityKeys, parseCsv, fromFile, buildData, convertBudget, dedupePois, annotateCentre, isSecretTip, median, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,4 +1,10 @@
 const SM = window.StayMatch, C = window.StayMatchCore;
+// Unerwarteter Fehler: Hinweis statt toter Seite, mit Weg zum Zurücksetzen der gespeicherten Eingaben
+const crash = e => {
+  console.error(e); const el = document.getElementById('crash'); if (!el || !el.hidden) return; el.hidden = false;
+  el.querySelector('button').onclick = () => { try { Object.keys(localStorage).filter(k => k.startsWith('sm_')).forEach(k => localStorage.removeItem(k)); } catch {} location.reload(); };
+};
+addEventListener('error', e => crash(e.error || e.message)); addEventListener('unhandledrejection', e => crash(e.reason));
 const $ = id => document.getElementById(id);
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
@@ -6,9 +12,7 @@ const store = {
 };
 const clone = o => JSON.parse(JSON.stringify(o));
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const LABELS = { party: ['🍸', 'Bars/Clubs'], chill: ['🌿', 'Parks/Cafés'], sights: ['🏛️', 'Sehenswürdigkeiten'], food: ['🍝', 'Restaurants'], transit: ['🚇', 'Stationen'], shop: ['🛍️', 'Einkaufen'], sport: ['🏃', 'Sport'], kids: ['🧸', 'Kinderorte'] };
-const CORE_CATS = ['party', 'chill', 'sights', 'food', 'transit'];
-const TIERS = ['', '€', '€€', '€€€'];
+const { escapeHtml } = SM;
 
 // Standard: eine Person (du). Mitreisende sind optional.
 const arr = (v, n = 30) => Array.isArray(v) ? v.slice(0, n) : []; // gespeicherte Listen nie blind benutzen
@@ -190,13 +194,9 @@ function save(own = true) {
   // Änderungen gelten ab jetzt: alten Teilen-Link aus der Adresszeile nehmen, sonst überschreibt ein Neuladen die Eingaben
   if (location.hash.startsWith('#t=')) history.replaceState(null, '', location.pathname + location.search);
 }
-function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function budgetNums() {
-  const n = SM.nights($('checkin').value, $('checkout').value);
-  const v = Math.max(0, +$('budget').value || 0), m = $('budgetMode').value, g = people.length;
-  const total = m === 'pp' ? v * g : m === 'night' ? v * n : v;
-  return { n, total, perNight: n ? total / n : 0, perPerson: g ? total / g : 0, perPersonNight: n && g ? total / n / g : 0 };
+  return SM.budgetSplit(Math.max(0, +$('budget').value || 0), $('budgetMode').value, SM.nights($('checkin').value, $('checkout').value), people.length);
 }
 function updateBudget() {
   guestWarn();
@@ -209,11 +209,15 @@ function updateBudget() {
   $('bedsLabel').textContent = `Mindestens ${Math.max(1, Math.ceil(people.length / 2))} Schlafzimmer in die Airbnb-Suche übernehmen` + (kids + babys ? ` (${kids + babys} Kind${kids + babys > 1 ? 'er' : ''} zählen als Gäste auf Airbnb mit)` : '');
 }
 // Nur Links und Kopfzeile neu setzen, wenn sich Budget/Zeitraum/Gäste ändern (die Wertung bleibt gleich)
+// Nur Airbnb-Links tauschen: offene Aufschlüsselung und Fokus bleiben erhalten
 function refreshLinks() {
   updateBudget(); saveForm(); updateDates();
-  if (lastView) { saveTrip(lastData.geo, lastView.byTotal, lastView.ppl); renderResults(); renderHead(); }
+  if (!lastView) return;
+  saveTrip(lastData.geo, lastView.byTotal, lastView.ppl); renderHead();
+  lastView.ranked.forEach((a, i) => { const l = document.querySelector(`#area-${i} a.btn`); if (l) l.href = airbnbFor(a); });
 }
-['checkin', 'checkout', 'budget', 'kids', 'babys'].forEach(id => $(id).addEventListener('input', refreshLinks));
+let linkTimer = null;
+['checkin', 'checkout', 'budget', 'kids', 'babys'].forEach(id => $(id).addEventListener('input', () => { updateBudget(); clearTimeout(linkTimer); linkTimer = setTimeout(refreshLinks, 300); }));
 let bmPrev = $('budgetMode').value;
 $('budgetMode').addEventListener('change', () => {
   const v = +$('budget').value || 0, to = $('budgetMode').value;
@@ -250,29 +254,34 @@ const groups = () => arr(store.get('sm_groups', []), 8).filter(g => g && typeof 
 function renderTpl() {
   $('tpl').innerHTML = '<option value="">Auswahl …</option>' + groups().map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.people.length})</option>`).join('');
 }
+let tplLast = null;
 $('tpl').onchange = () => {
   const g = groups()[+$('tpl').value];
   if (!g) return;
   const list = (g.people || []).map(SM.cleanPerson).filter(Boolean);
   if (!list.length) return;
   offerUndo(`Auswahl „${g.name}“ geladen.`); people = list; save(); renderPeople();
+  tplLast = g.name; $('tpl').value = ''; // dieselbe Auswahl lässt sich gleich nochmal laden; Löschen merkt sich den Namen
 };
 $('tplSave').onclick = () => {
-  const name = (prompt('Name für diese Auswahl?', people.slice(0, 3).map(p => p.name).join(', ')) || '').trim().slice(0, 40);
-  if (!name) return;
-  store.set('sm_groups', [...groups(), { name, people: clone(people) }].slice(-8)); renderTpl();
+  // Eingabefeld statt prompt(): In-App-Browser (Instagram, WhatsApp) unterdrücken Dialoge
+  const name = ($('tplName').value.trim() || people.slice(0, 3).map(p => p.name).join(', ')).slice(0, 40);
+  const l = groups(), same = l.findIndex(g => g.name === name);
+  if (same >= 0) l.splice(same, 1); // gleicher Name: ersetzen statt doppelt anlegen
+  store.set('sm_groups', [...l, { name, people: clone(people) }].slice(-8)); renderTpl();
+  $('tplName').value = ''; $('tplMsg').textContent = `„${name}“ ${same >= 0 ? 'ersetzt' : 'gespeichert'}.`;
 };
 $('tplDel').onclick = () => {
-  const i = +$('tpl').value; const l = groups();
-  if ($('tpl').value === '' || !l[i] || !confirm(`Auswahl „${l[i].name}“ löschen?`)) return;
-  l.splice(i, 1); store.set('sm_groups', l); renderTpl();
+  // Ohne confirm(): erster Klick fragt nach, zweiter löscht die zuletzt geladene Auswahl
+  const b = $('tplDel'), l = groups(), g = l.find(x => x.name === tplLast);
+  if (!g) { $('tplMsg').textContent = l.length ? 'Erst eine Auswahl laden, dann löschen.' : 'Noch nichts gespeichert.'; return; }
+  if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = `„${g.name}“ wirklich löschen?`; return; }
+  store.set('sm_groups', l.filter(x => x !== g)); renderTpl(); tplLast = null;
+  delete b.dataset.sure; b.textContent = 'Auswahl löschen'; $('tplMsg').textContent = `„${g.name}“ gelöscht.`;
 };
 renderTpl();
 // Kurzbeschreibung der Typen (aus den Gewichten erzeugt, damit sie nie von der Wertung abweicht)
-$('typeInfo').innerHTML = '<ul>' + Object.values(SM.PRESETS).map(v => {
-  const pos = Object.entries(v.w).filter(([, x]) => x >= 0.5).map(([k]) => SM.CATEGORIES[k].label), neg = Object.entries(v.w).filter(([, x]) => x <= -0.3).map(([k]) => SM.CATEGORIES[k].label);
-  return `<li><b>${v.label}</b>: wichtig ${pos.join(', ')}${neg.length ? `; stört ${neg.join(', ')}` : ''}</li>`;
-}).join('') + '</ul><p>Mit ⚙️ an jeder Person stellst du alles einzeln ein oder mischst zwei Typen.</p>';
+$('typeInfo').innerHTML = '<ul>' + SM.typeSummary().map(([l, t]) => `<li><b>${l}</b>: ${t}</li>`).join('') + '</ul><p>Mit ⚙️ an jeder Person stellst du alles einzeln ein oder mischst zwei Typen.</p>';
 // Schnellwahl beliebter Ziele
 // Städte stehen einmal in app.html (Kacheln), die Schnellwahl entsteht daraus
 $('cityChips').innerHTML = [...document.querySelectorAll('#destGrid .dcard')].map(b => `<button type="button">${escapeHtml(b.dataset.city)}</button>`).join('');
@@ -310,10 +319,15 @@ async function prefetched(city, signal) {
 }
 
 // Ergebnis pro Stadt einen Tag lang im Browser merken (spart die langsame Abfrage)
-const CACHE = 'sm_osm3_'; // Version 3: neue Spalten (Einkaufen, Sport, Kinder)
-function cacheGet(k) { try { const c = JSON.parse(sessionStorage.getItem(k) || localStorage.getItem(k)); return c && Date.now() - c.t < 864e5 ? c : null; } catch { return null; } }
+const CACHE = 'sm_osm4_'; // Version 4: Zeilen als Arrays wie in web/data (etwa halb so groß wie Objekte)
+function cacheGet(k) {
+  try {
+    const c = JSON.parse(sessionStorage.getItem(k) || localStorage.getItem(k));
+    return c && Date.now() - c.t < 864e5 && Array.isArray(c.rows) ? { t: c.t, rows: SM.fromFile({ ...c, bbox: [0, 0, 0, 0] }).rows } : null;
+  } catch { return null; }
+}
 function cacheSet(k, rows) {
-  const v = JSON.stringify({ t: Date.now(), rows });
+  const v = JSON.stringify({ t: Date.now(), fields: C.FIELDS, rows: rows.map(r => C.FIELDS.map(f => r[f] || '')) });
   for (let i = 0; i < 4; i++) {
     try { localStorage.setItem(k, v); return; } catch {
       // älteste Stadt löschen (sm_trip bleibt), dann erneut versuchen
@@ -327,7 +341,8 @@ function cacheSet(k, rows) {
 }
 
 // alte Cache-Versionen entfernen
-try { Object.keys(localStorage).filter(k => k.startsWith('sm_osm_') || k.startsWith('sm_osm2_')).forEach(k => localStorage.removeItem(k)); } catch {}
+// alte Versionen und abgelaufene Städte entfernen (sonst bleiben sie liegen, bis der Speicher voll ist)
+try { Object.keys(localStorage).filter(k => /^sm_osm[0-3]?_/.test(k) || (k.startsWith(CACHE) && !cacheGet(k))).forEach(k => localStorage.removeItem(k)); } catch {}
 
 let map, layer, poiLayer, bboxLayer, circles = [], cmp = [], lastData = null, lastView = null; // lastData: geladene Viertel + Orte → Neuberechnung ohne Netz
 const radius = () => +$('radius').value || 800;
@@ -522,68 +537,19 @@ $('sort').addEventListener('change', () => { sortMode = $('sort').value; shown =
 function renderWhatIf(byTotal, ppl) {
   const el = $('whatif');
   if (ppl.length < 2 || !byTotal.length) { el.innerHTML = ''; return; }
-  const list = SM.whatIfWithout(byTotal.slice(0, 250), ppl, fairness, byTotal[0].name).slice(0, 3);
+  const list = SM.whatIfWithout(byTotal.slice(0, 250), ppl, fairness, byTotal[0]).slice(0, 3);
   el.innerHTML = list.length ? '💡 ' + list.map(x => `Ohne <b>${escapeHtml(x.name)}</b> wäre <b>${escapeHtml(x.area)}</b> Platz 1.`).join(' ') : '💡 Das beste Viertel ändert sich nicht, wenn eine einzelne Person fehlt. Die Wahl ist stabil.';
 }
 
+function airbnbFor(a) {
+  const { ppl, geo, r } = lastView, b = budgetNums();
+  return SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length,
+    children: Math.max(0, +$('kids').value || 0), infants: Math.max(0, +$('babys').value || 0), minBedrooms: $('beds').checked ? Math.max(1, Math.ceil(ppl.length / 2)) : 0, priceMaxNight: b.perNight, radius: r });
+}
 function renderResults() {
   if (!lastView) return;
-  const { ranked, pois, ppl, geo, r, pool, stats, medCentre, awards, minDist, relevant } = lastView;
-  const b = budgetNums(), best = lastView.byTotal[0] ? lastView.byTotal[0].group.total : 0, favs = favSet();
-  const kids = Math.max(0, +$('kids').value || 0), babys = Math.max(0, +$('babys').value || 0);
-  const usedCats = Object.keys(SM.CATEGORIES).filter(k => ppl.some(p => p.w[k]));
-  const hlCats = relevant.length ? relevant : usedCats.filter(k => k !== 'transit' && k !== 'food');
-  $('results').innerHTML = ranked.map((a, i) => {
-    const near = pois.filter(p => p.name && hlCats.includes(p.cat) && SM.distM(a, p) < r)
-      .sort((x, y) => (y.tags.wikidata ? 1 : 0) - (x.tags.wikidata ? 1 : 0) || SM.distM(a, x) - SM.distM(a, y));
-    const seen = new Set(), hl = [];
-    for (const p of near) { if (seen.has(p.name)) continue; seen.add(p.name); hl.push(p); if (hl.length >= 5) break; }
-    const url = SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length,
-      children: kids, infants: babys, minBedrooms: $('beds').checked ? Math.max(1, Math.ceil(ppl.length / 2)) : 0, priceMaxNight: b.perNight, radius: r });
-    // Chips nicht nur über Farbe: Symbol dazu. Anklicken zeigt, woraus der Wert besteht.
-    const chips = ppl.map((p, j) => {
-      const s = a.group.scores[j];
-      return `<button type="button" class="chip btn2 ${s < 40 ? 'low' : s >= 70 ? 'high' : ''}" data-i="${i}" data-p="${j}" aria-expanded="false" aria-controls="bd-${i}">${s < 40 ? '⚠ ' : s >= 70 ? '✓ ' : ''}${escapeHtml(p.name)}: ${s}</button>`;
-    }).join('');
-    const c = a.counts;
-    // Alle Personen unter 60 erklären, nicht nur die schwächste
-    const whys = ppl.map((p, j) => ({ p, s: a.group.scores[j] })).filter(x => x.s < 60).sort((x, y) => x.s - y.s).slice(0, 3).map(({ p, s }) => {
-      const weak = SM.weakness(a.norm, a.counts, p.w);
-      return weak ? `<div class="muted">⚠️ ${escapeHtml(p.name)} (${s}) ${weak.kind === 'missing' ? `vermisst hier: ${weak.label} (nur ${weak.count} im Umkreis)` : `stört: viel ${weak.label} (${weak.count} im Umkreis)`}</div>` : '';
-    }).join('');
-    const thin = SM.thinData(c) ? `<div class="muted">ℹ️ Wenig Daten in OpenStreetMap für dieses Viertel (${Object.values(c).reduce((x, y) => x + y, 0)} Orte im Umkreis). Die Wertung ist hier unsicher.</div>` : '';
-    const k = areaKey(a), isFav = favs.has(k);
-    const tip = i > 0 && SM.isSecretTip(a, best, medCentre);
-    const badges = [...awards[i].map(t => `<span class="badge">${escapeHtml(t)}</span>`), tip ? '<span class="badge tip" title="Fast so gut wie die Spitze, aber ruhiger und weiter vom Zentrum">Geheimtipp</span>' : ''].join('');
-    const delta = a.delta ? `<span class="delta ${a.delta > 0 ? 'up' : 'down'}" title="Platzwechsel gegenüber vorher">${a.delta > 0 ? '▲' : '▼'}${Math.abs(a.delta)}</span>` : '';
-    const next = ranked[i + 1];
-    const tie = sortMode === 'fair' && next && a.group.total - next.group.total <= 1 ? `<div class="muted">≈ Fast gleichauf mit Platz ${i + 2} (${escapeHtml(next.name)}). Der Unterschied ist kleiner als die Genauigkeit der Daten.</div>` : '';
-    const mini = usedCats.map(kk => `<div><span>${LABELS[kk][1]}<span class="sr">: ${Math.round(a.norm[kk] * 100)} %</span></span><span class="bar" aria-hidden="true"><i style="width:${Math.round(a.norm[kk] * 100)}%"></i></span></div>`).join('');
-    const countsLine = Object.keys(SM.CATEGORIES).filter(kk => CORE_CATS.includes(kk) || usedCats.includes(kk))
-      .map(kk => `${LABELS[kk][0]} ${c[kk]} ${LABELS[kk][1]}${stats[kk] ? ` (Ø ${stats[kk]})` : ''}`).join(' · ');
-    const tr = a.nearest.transit, km = (a.centerDist / 1000).toFixed(1).replace('.', ',');
-    const where = `${tr != null ? `🚇 Bahn ${tr} m` : '🚇 keine Bahn im Umkreis von 1,5 km'} · 📍 ${km} km zum Zentrum · <span title="Grobe Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise">Preislage (Schätzung): ${TIERS[a.tier]}</span>`;
-    const neigh = pool.filter(x => x !== a && !ranked.includes(x) && SM.distM(a, x) < minDist).slice(0, 3).map(x => `${escapeHtml(x.name)} (${x.group.total})`);
-    const osm = `https://www.openstreetmap.org/?mlat=${a.lat.toFixed(5)}&mlon=${a.lon.toFixed(5)}#map=16/${a.lat.toFixed(5)}/${a.lon.toFixed(5)}`;
-    return `<article class="card result" id="area-${i}" data-i="${i}" tabindex="-1" aria-labelledby="areah-${i}">
-      <h3 id="areah-${i}"><span class="rank-num">${i + 1}. ${escapeHtml(a.name)} <button type="button" class="fav" data-fav="${escapeHtml(k)}" aria-pressed="${isFav}" aria-label="${escapeHtml(a.name)} als Favorit ${isFav ? 'entfernen' : 'merken'}">${isFav ? '♥' : '♡'}</button>${delta}</span>
-        <span><span class="sr">Gesamtwert ${a.group.total} von 100, ${SM.verdict(a.group.total)}</span><span class="score" aria-hidden="true">${a.group.total}</span><span class="verdict" aria-hidden="true">/100 · ${SM.verdict(a.group.total)}</span></span></h3>
-      ${badges ? `<div class="badges">${badges}</div>` : ''}
-      <div class="bar" aria-hidden="true"><i style="width:${a.group.total}%"></i></div>
-      <div>${escapeHtml(SM.summary(a, ppl))}</div>${tie}
-      <div class="chips" role="group" aria-label="Zufriedenheit je Person. Anklicken zeigt die Zusammensetzung.">${chips}</div>
-      <div class="breakdown" id="bd-${i}" hidden></div>
-      ${whys}${thin}
-      <div class="mini"><span class="sr">Stärke je Kategorie:</span>${mini}</div>
-      <div class="muted">${countsLine}</div>
-      <div class="muted">${where}</div>
-      ${hl.length ? `<div class="muted">In der Nähe: ${hl.map(p => `<a class="sub2" href="https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=18/${p.lat}/${p.lon}" target="_blank" rel="noopener">${escapeHtml(p.name)}</a>`).join(', ')}</div>` : ''}
-      ${neigh.length ? `<div class="muted">Gehört zur selben Gegend: ${neigh.join(', ')}</div>` : ''}
-      <div class="actions"><a class="btn" href="${url}" target="_blank" rel="noopener" aria-label="Unterkünfte in ${escapeHtml(a.name)} auf Airbnb ansehen (neuer Tab)">Unterkünfte hier auf Airbnb ansehen →</a>
-      <a class="sub2" href="${osm}" target="_blank" rel="noopener" aria-label="${escapeHtml(a.name)} auf der Karte ansehen">Auf Karte ansehen</a>
-      <label class="cmp"><input type="checkbox" data-k="${escapeHtml(k)}" ${cmp.includes(k) ? 'checked' : ''}> Vergleichen</label></div>
-    </article>`;
-  }).join('');
+  const favs = favSet();
+  $('results').innerHTML = lastView.ranked.map((a, i) => { const k = areaKey(a); return SM.cardHtml(a, i, lastView, { url: airbnbFor(a), key: k, fav: favs.has(k), cmp: cmp.includes(k), sortMode }); }).join('');
 }
 
 // Karte ↔ Liste verbinden: Hover/Fokus auf Karte hebt den Kreis hervor, Klick auf Kreis springt zur Karte
@@ -608,6 +574,8 @@ resultsEl.addEventListener('click', e => {
     if ($('onlyFav').checked) compute(); else { fav.setAttribute('aria-pressed', String(set.has(fav.dataset.fav))); fav.textContent = set.has(fav.dataset.fav) ? '♥' : '♡'; $('favCount').textContent = String(set.size); }
     return;
   }
+  const ll = e.target.closest('button[data-ll]'); // Nachbarviertel auf der Karte zeigen
+  if (ll && map && !$('mapWrap').hidden) { map.setView(ll.dataset.ll.split(',').map(Number), 15); $('map').scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
   const chip = e.target.closest('button.chip[data-p]');
   if (chip && lastView) {
     const i = +chip.dataset.i, j = +chip.dataset.p, box = $('bd-' + i), open = chip.getAttribute('aria-expanded') === 'true';
@@ -664,7 +632,8 @@ $('mapToggle').onclick = () => {
 
 function ensureMap() {
   if (!window.L || map) return !!map;
-  map = L.map('map');
+  map = L.map('map', { scrollWheelZoom: false }); // Mausrad scrollt die Seite; nach Klick in die Karte zoomt es
+  map.on('click', () => map.scrollWheelZoom.enable()); map.on('mouseout', () => map.scrollWheelZoom.disable());
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
   return true;
 }

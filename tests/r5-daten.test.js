@@ -51,10 +51,11 @@ test('data/*.json: Spalte „shop“ vorhanden', { todo: 'Fehler: data/*.json st
   }
 });
 
-// Echter Fehler: app.js bietet „Rom“ als Stadt an, es gibt aber weder rom.json noch einen Index-Eintrag.
-test('Städte-Liste in app.js hat vorab geladene Daten', { todo: 'Fehler: Rom steht in CITIES, aber es gibt kein data/rom.json und keinen Index-Eintrag' }, () => {
-  const src = fs.readFileSync(path.join(web, 'app.js'), 'utf8');
-  const cities = eval(/const CITIES = (\[.*?\]);/.exec(src)[1]);
+// Jede Stadt der Kacheln in app.html hat vorab geladene Daten (R7: Städte stehen nur noch in app.html)
+test('Städte-Liste der App hat vorab geladene Daten', () => {
+  const html = fs.readFileSync(path.join(web, 'app.html'), 'utf8');
+  const cities = [...html.matchAll(/class="dcard" data-city="([^"]+)"/g)].map(m => m[1]);
+  assert.ok(cities.length >= 10, 'Kacheln gefunden');
   for (const c of cities) assert.ok(index[C.normCity(c)], `${c} fehlt im Index`);
 });
 

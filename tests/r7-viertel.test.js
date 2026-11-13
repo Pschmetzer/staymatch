@@ -233,3 +233,69 @@ test('Ergebnisse: Wert und Balken für Screenreader als Text, Vergleich ohne ari
   assert.doesNotMatch(w.document.body.innerHTML, /PRIVACY\.md/);
   assert.equal([...$('radius').options].some(o => o.value === 'auto'), false);
 });
+
+// ---------- Welle 2 ----------
+test('Vorlagen ohne prompt/confirm: speichern, gleicher Name ersetzt, zweimal laden, löschen mit Nachfrage', dom, () => {
+  const w = bootApp({ storage: { sm_people: [{ name: 'Lena', type: 'party' }, { name: 'Tom', type: 'chill' }] } });
+  const $ = id => w.document.getElementById(id);
+  w.prompt = w.confirm = () => { throw new Error('Dialog benutzt'); };
+  $('tplName').value = 'Crew'; $('tplSave').click();
+  $('tplName').value = 'Crew'; $('tplSave').click();
+  assert.equal(JSON.parse(w.localStorage.getItem('sm_groups')).length, 1, 'gleicher Name ersetzt');
+  assert.match($('tplMsg').textContent, /ersetzt/);
+  $('people').querySelector('button[aria-label$="entfernen"]').click();
+  for (let n = 0; n < 2; n++) { $('tpl').value = '0'; $('tpl').dispatchEvent(new w.Event('change')); assert.equal($('tpl').value, ''); }
+  assert.equal($('people').querySelectorAll('.person').length, 2);
+  $('tplDel').click(); assert.match($('tplDel').textContent, /wirklich/);
+  $('tplDel').click(); assert.equal(JSON.parse(w.localStorage.getItem('sm_groups')).length, 0);
+});
+
+test('Globaler Fehlerfang zeigt Hinweis mit Zurücksetzen', dom, () => {
+  const w = bootApp();
+  const $ = id => w.document.getElementById(id);
+  w.console.error = () => {};
+  w.dispatchEvent(new w.ErrorEvent('error', { error: new Error('kaputt'), message: 'kaputt' }));
+  assert.equal($('crash').hidden, false);
+  assert.match($('crash').textContent, /zurücksetzen/);
+});
+
+test('Budget tippen: Links werden ausgetauscht, offene Aufschlüsselung bleibt offen', dom, async () => {
+  const w = bootApp({ storage: { sm_people: [{ name: 'Lena', type: 'party' }, { name: 'Tom', type: 'chill' }] } });
+  const $ = id => w.document.getElementById(id);
+  await search(w, 'Wien');
+  const chip = $('results').querySelector('button.chip'); chip.click();
+  assert.equal($('bd-0').hidden, false);
+  $('budget').value = '1600'; $('budget').dispatchEvent(new w.Event('input'));
+  await tick(400);
+  assert.equal($('bd-0').hidden, false, 'Karte nicht neu aufgebaut');
+  const nights = SM.nights($('checkin').value, $('checkout').value);
+  assert.match($('results').querySelector('a.btn').href, new RegExp(`price_max=${Math.round(1600 / nights)}\\b`));
+});
+
+test('Kartenüberschrift enthält nur Platz und Namen; Seite hat Vorschaubild', dom, async () => {
+  const w = bootApp();
+  await search(w, 'Wien');
+  const h = w.document.querySelector('#results h3').textContent;
+  assert.match(h, /^1\. [^♡♥▲▼]+$/);
+  assert.ok(w.document.querySelector('meta[property="og:image"]'));
+  assert.equal(w.document.querySelector('meta[name="twitter:card"]').content, 'summary_large_image');
+});
+
+test('Tages-Cache: abgelaufene und alte Versionen werden beim Start entfernt', dom, () => {
+  const old = { t: Date.now() - 2 * 864e5, fields: ['lat'], rows: [['1']] };
+  const w = bootApp({ storage: { sm_osm3_x: { t: Date.now(), rows: [] }, sm_osm4_alt: old, sm_osm4_neu: { ...old, t: Date.now() } } });
+  const keys = Object.keys(w.localStorage);
+  assert.ok(!keys.includes('sm_osm3_x') && !keys.includes('sm_osm4_alt') && keys.includes('sm_osm4_neu'), keys.join());
+});
+
+test('Vergleich zeigt nur Kategorien, die jemandem wichtig sind', () => {
+  const mk = n => ({ counts: { party: n, chill: 1, sights: 1, food: 1, transit: 1, shop: 0, sport: 0, kids: 0 }, group: { total: n, scores: [n] } });
+  const c = SM.compareAreas(mk(5), mk(3), [{ name: 'L', type: 'party' }]);
+  assert.ok(!c.cats.some(x => ['shop', 'sport', 'kids'].includes(x.key)), c.cats.map(x => x.key).join());
+});
+
+test('whatIfWithout vergleicht Viertel, nicht Namen', () => {
+  const A = { name: 'Gleich', lat: 1, lon: 1, norm: { party: 1, chill: 0 } }, B = { name: 'Gleich', lat: 2, lon: 2, norm: { party: 0, chill: 1 } };
+  const ppl = withW([{ name: 'P', type: 'party' }, { name: 'C', type: 'chill' }]);
+  assert.equal(SM.whatIfWithout([A, B], ppl, 0.6, A).length, 1, 'Ohne P gewinnt das andere „Gleich“');
+});
