@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StayMatch – das passende Airbnb in 2 Minuten</title>
-<meta name="description" content="StayMatch bewertet jede Unterkunft auf deiner Airbnb-Suche nach Budget, Sternen und Wünschen und zeigt sofort die Top 3. Kostenlos, ohne Konto.">
+<meta name="description" content="Die kostenlose Chrome-Erweiterung StayMatch bewertet jede Unterkunft auf deiner Airbnb-Suche nach Budget, Sternen und Wünschen und zeigt sofort die Top 3. Ohne Konto.">
 <meta name="theme-color" content="#ffffff">
+<meta name="robots" content="max-image-preview:large">
 <link rel="canonical" href="https://staymatch.pro/">
 <link rel="alternate" hreflang="de" href="https://staymatch.pro/">
 <link rel="alternate" hreflang="en" href="https://staymatch.pro/en">
@@ -20,19 +21,15 @@
 <meta property="og:image" content="https://staymatch.pro/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:alt" content="StayMatch: Das passende Airbnb. In 2 Minuten.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="StayMatch – das passende Airbnb in 2 Minuten">
 <meta name="twitter:description" content="Das Plugin bewertet jede Unterkunft auf deiner Airbnb-Suche und zeigt die Top 3 mit Begründung. Kostenlos und Open Source.">
 <meta name="twitter:image" content="https://staymatch.pro/og.png">
+<meta name="twitter:image:alt" content="StayMatch: Das passende Airbnb. In 2 Minuten.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"StayMatch","url":"https://staymatch.pro/","description":"Hilft dir, schneller das passende Airbnb zu finden: bewertet jede Unterkunft auf der Suchseite nach Budget, Sternen und deinen Wünschen und zeigt die Top 3. Optional mit Viertel-Finder, auch für Gruppen.","applicationCategory":"TravelApplication","operatingSystem":"Windows, macOS, Linux, ChromeOS","inLanguage":"de","isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"sameAs":["https://github.com/Pschmetzer/staymatch"],"downloadUrl":"https://staymatch.pro/staymatch-plugin.zip","softwareVersion":"0.5.0","browserRequirements":"Chrome, Edge, Brave oder ein anderer Chromium-Browser am Computer"}
-</script>
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","inLanguage":"de","mainEntity":[{"@type":"Question","name":"Kostet StayMatch etwas?","acceptedAnswer":{"@type":"Answer","text":"Nein. Plugin und Viertel-Finder sind kostenlos und Open Source unter MIT-Lizenz."}},{"@type":"Question","name":"Ist StayMatch von Airbnb?","acceptedAnswer":{"@type":"Answer","text":"Nein. StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Die Links führen zur normalen Suche, gebucht wird dort wie gewohnt."}},{"@type":"Question","name":"Liest das Plugin Airbnb im Hintergrund aus?","acceptedAnswer":{"@type":"Answer","text":"Nein. Es liest nur die Seite, die du selbst geöffnet hast, und stellt keine eigenen Anfragen. Blätterst du weiter, bewertet es die Unterkünfte der neuen Seite. Airbnb kann das Auslesen durch Erweiterungen trotzdem anders sehen, die Nutzungsbedingungen sind ihre. Wer das nicht möchte, nutzt nur den Viertel-Finder."}},{"@type":"Question","name":"Warum muss ich den Entwicklermodus einschalten?","acceptedAnswer":{"@type":"Answer","text":"Das Plugin ist noch nicht im Chrome Web Store. Bis dahin lädst du es als entpackte Erweiterung. Den Code kannst du jederzeit auf GitHub ansehen."}},{"@type":"Question","name":"Das Plugin erscheint nicht. Was tun?","acceptedAnswer":{"@type":"Answer","text":"Prüfe in der Erweiterungs-Seite (siehe Schritt 2), ob StayMatch eingeschaltet ist, und lade die Airbnb-Seite neu. Nach einem Update die alte Version entfernen und den neuen Ordner laden. Hilft das nicht, schreib ein Issue auf GitHub."}},{"@type":"Question","name":"Was passiert mit meinen Daten?","acceptedAnswer":{"@type":"Answer","text":"Wünsche, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: Datenschutz."}},{"@type":"Question","name":"Woher weiß StayMatch, was zu mir passt?","acceptedAnswer":{"@type":"Answer","text":"Aus dem, was du angibst: Budget, Wünsche an die Unterkunft und, wenn du den Viertel-Finder nutzt, deine Interessen für die Gegend. Dazu kommen die Sterne mit Anzahl der Bewertungen und deine 👍 und 👎. Wie daraus der Punktwert wird, steht unter Wie wir rechnen."}},{"@type":"Question","name":"Kann ich auch mit Freunden suchen?","acceptedAnswer":{"@type":"Answer","text":"Ja. Füg im Viertel-Finder Mitreisende hinzu, dann sucht StayMatch das Viertel, in dem alle zufrieden sind, und prüft, ob genug Betten da sind. Den Link schickst du in den Gruppenchat."}},{"@type":"Question","name":"Funktioniert StayMatch auf dem Handy?","acceptedAnswer":{"@type":"Answer","text":"Das Plugin nicht: Browser-Erweiterungen laufen nur in Chrome, Edge und Brave am Computer und nicht in der Airbnb-App. Den Viertel-Finder kannst du auf dem Handy nutzen und dir den Link für den Laptop schicken."}},{"@type":"Question","name":"Welche Städte funktionieren?","acceptedAnswer":{"@type":"Answer","text":"Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt kann bis zu einer Minute dauern. Danach merkt sich dein Browser die Daten einen Tag lang."}},{"@type":"Question","name":"Warum nur Airbnb?","acceptedAnswer":{"@type":"Answer","text":"Weil dort viele Ferienwohnungen zu finden sind und sich die Suche per Link mit Datum und Gästen öffnen lässt. Weitere Portale wie Booking.com sind eine Idee für später, nichts Zugesagtes."}},{"@type":"Question","name":"Wie genau ist die Empfehlung?","acceptedAnswer":{"@type":"Answer","text":"Sie ist ein guter Startpunkt, kein Urteil. StayMatch zeigt immer, warum eine Unterkunft oben steht, und warnt bei Punkten wie zu wenigen Betten oder Preis über Budget."}}]}
-</script>
 <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
@@ -58,7 +55,8 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 Inter, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 Inter, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: clip; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 a { color: inherit; }
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
 @media (max-width: 600px) { .wrap { padding: 0 16px; } }
@@ -76,7 +74,7 @@ nav.top .wrap { display: flex; align-items: center; gap: 28px; height: 68px; }
 .logo i { width: 34px; height: 34px; border-radius: 10px; background: #ff385c; display: grid; place-items: center; }
 .logo i svg { width: 18px; height: 18px; }
 .links { display: flex; gap: 26px; }
-.links a { color: var(--muted); text-decoration: none; font-size: 15px; white-space: nowrap; }
+.links a { color: var(--muted); text-decoration: none; font-size: 15px; white-space: nowrap; padding: 8px 4px; }
 .links a:hover { color: var(--text); }
 .right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
 .theme { display: grid; place-items: center; padding: 0; background: none; border: 1px solid var(--line2); color: var(--muted); border-radius: 10px; width: 38px; height: 38px; cursor: pointer; font-size: 16px; }
@@ -105,9 +103,14 @@ h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), va
 .note { font-size: 14px; color: var(--dim); margin-top: 22px; }
 .quick { display: grid; grid-template-columns: 1.4fr 1fr 1fr .6fr; gap: 8px; margin-top: 22px; max-width: 640px; }
 .quick .btn { grid-column: 1 / -1; justify-self: start; }
-.quick input { min-width: 0; border: 1px solid var(--line2); border-radius: 12px; padding: 11px 12px; background: var(--bg2); color: var(--text); font: inherit; font-size: 15px; }
+.quick input { min-width: 0; min-height: 44px; border: 1px solid var(--line2); border-radius: 12px; padding: 11px 12px; background: var(--bg2); color: var(--text); font: inherit; font-size: 15px; }
+.quick input[aria-invalid="true"] { border-color: var(--warn); }
+.qchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
+.qchips button { font: inherit; font-size: 13px; min-height: 32px; padding: 4px 12px; border: 1px solid var(--line2); border-radius: 999px; background: var(--bg2); color: var(--muted); cursor: pointer; }
+.qchips button:hover { color: var(--text); }
+.langhint { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
 .quick .btn { padding: 11px 16px; font-size: 15px; }
-@media (max-width: 640px) { .quick { grid-template-columns: 1fr 1fr; } .quick input[name=city], .quick .btn { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .quick { grid-template-columns: 1fr 1fr; } .quick input[name=query], .quick .btn { grid-column: 1 / -1; } }
 .mobile-hint { font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 16px; }
 
 /* Hero-Visual: Karte + Panel, nur CSS */
@@ -123,7 +126,7 @@ h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), va
 .road { position: absolute; background: color-mix(in srgb, var(--muted) 22%, transparent); border-radius: 10px; }
 .zone { position: absolute; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; }
 .zone span { background: var(--bg); border: 1px solid var(--line); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-.z1 { width: 170px; height: 170px; left: 20%; top: 6%; background: radial-gradient(circle, rgba(224,71,91,.45), rgba(224,71,91,.08) 70%); border: 2px solid var(--accent); animation: pulse 3.2s ease-in-out infinite; }
+.z1 { width: 170px; height: 170px; left: 20%; top: 6%; background: radial-gradient(circle, rgba(224,71,91,.45), rgba(224,71,91,.08) 70%); border: 2px solid var(--accent); animation: pulse 3.2s ease-in-out 3; }
 .z2 { width: 120px; height: 120px; left: 8%; top: 52%; background: rgba(154,154,164,.12); border: 1px dashed var(--dim); }
 .z3 { width: 110px; height: 110px; left: 66%; top: 60%; background: rgba(154,154,164,.12); border: 1px dashed var(--dim); }
 @keyframes pulse { 50% { box-shadow: 0 0 0 18px rgba(224,71,91,0); } 0%, 100% { box-shadow: 0 0 0 0 rgba(224,71,91,.35); } }
@@ -143,7 +146,7 @@ h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), va
 @media (max-width: 760px) { .cmp { grid-template-columns: 1fr; } }
 .cmp .f ul { margin: 10px 0 0; padding-left: 18px; color: var(--muted); font-size: 15px; } .cmp .f li { margin: 6px 0; }
 .cmp .f.good { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
-.group { position: absolute; left: -6px; top: -18px; display: flex; gap: 6px; flex-wrap: wrap; max-width: 320px; }
+.group { position: absolute; left: -6px; top: -18px; display: flex; gap: 6px; flex-wrap: wrap; max-width: min(320px, calc(100% - 12px)); }
 .chip { background: var(--bg2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .chip.ok { border-color: color-mix(in srgb, var(--good) 60%, var(--line)); }
 
@@ -216,7 +219,7 @@ details { border-top: 1px solid var(--line); padding: 20px 0; }
 details:last-child { border-bottom: 1px solid var(--line); }
 summary { cursor: pointer; font-size: 19px; font-weight: 500; list-style: none; display: flex; justify-content: space-between; gap: 20px; }
 summary::-webkit-details-marker { display: none; }
-summary::after { content: "+"; color: var(--muted); font-size: 24px; line-height: 1; transition: transform .2s; }
+summary::after { content: "+"; content: "+" / ""; color: var(--muted); font-size: 24px; line-height: 1; transition: transform .2s; }
 details[open] summary::after { transform: rotate(45deg); }
 details p { color: var(--muted); margin: 12px 0 0; max-width: 700px; }
 
@@ -263,9 +266,12 @@ section.block.tight { padding-top: 0; }
 @media (max-width: 520px) { .cities { grid-template-columns: repeat(2, 1fr); } }
 .city { position: relative; display: block; border-radius: 16px; overflow: hidden; aspect-ratio: 4 / 3; border: 1px solid var(--line); background: var(--bg2); text-decoration: none; transition: transform .15s; }
 .city:hover { transform: translateY(-2px); }
+.city:focus-visible { outline-offset: -3px; }
 .city img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .city span { position: absolute; left: 10px; bottom: 10px; background: rgba(11, 11, 13, .72); color: #f4f4f6; padding: 3px 10px; border-radius: 999px; font-size: 14px; font-weight: 500; }
-.copy { margin-left: 6px; font: inherit; font-size: 12px; border: 1px solid var(--line2); background: none; color: var(--muted); border-radius: 6px; padding: 1px 8px; cursor: pointer; }
+.copy { margin-left: 6px; font: inherit; font-size: 12px; border: 1px solid var(--line2); background: none; color: var(--muted); border-radius: 6px; padding: 4px 10px; min-height: 28px; cursor: pointer; }
+.scen .more { margin: 12px 0 0; font-size: 15px; }
+.scen .more a { color: var(--text); text-underline-offset: 2px; }
 .copy:hover { color: var(--text); }
 .plugin { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
 @media (max-width: 900px) { .plugin { grid-template-columns: minmax(0, 1fr); } }
@@ -277,6 +283,8 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 480px) { nav.top .right .btn { display: none; } }
 @media (max-width: 640px) { .quick .btn { grid-column: auto; } }
 @media (max-width: 480px) { .btn { white-space: normal; } }
+/* Schwache Handys: kein Blur auf der festen Leiste, kein großer Verlauf hinter dem Hero */
+@media (max-width: 700px) { nav.top { backdrop-filter: none; background: var(--bg); } .hero::before { display: none; } }
 </style>
 
 <script>
@@ -302,7 +310,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       <a class="app" href="/app" data-app>Viertel-Finder</a>
     </div>
     <div class="right">
-      <a class="lang" href="/en" hreflang="en" lang="en" aria-label="English version">EN</a>
+      <a class="lang" href="/en" hreflang="en" lang="en" title="English version">EN</a>
       <button class="theme" id="theme" aria-label="Hell/Dunkel umschalten"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/></svg></button>
       <a class="btn primary small" href="#plugin">Plugin holen</a>
     </div>
@@ -313,27 +321,29 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
 <header class="hero" id="top">
   <div class="wrap">
     <div>
-      <span class="pill"><b></b> Plugin für die Airbnb-Suche · allein, zu zweit oder als Gruppe</span>
+      <p class="langhint" lang="en" hidden>English version available: <a href="/en" hreflang="en">staymatch.pro/en</a></p>
+      <span class="pill"><b></b> Kostenlose Erweiterung (Plugin) für Chrome, Edge und Brave</span>
       <h1>Das passende Airbnb.<br><em>In 2 Minuten.</em></h1>
       <p class="lead">StayMatch bewertet jede Unterkunft auf deiner Suchseite nach Budget, ehrlichen Sternen, Betten und deinen Wünschen und zeigt sofort die drei besten mit Begründung.</p>
       <div class="ctas">
         <a class="btn primary" href="#plugin">Plugin holen <span aria-hidden="true">↓</span></a>
-        <a class="btn ghost" href="/app" data-app>Erst das passende Viertel finden <span aria-hidden="true">→</span></a>
+        <a class="btn ghost" href="/app" data-app>Erst Viertel finden <span aria-hidden="true">→</span></a>
       </div>
+      <p class="mobile-hint" hidden>📱 Das Plugin läuft in Chrome, Edge und Brave am Computer, nicht in der Airbnb-App. Merk dir die Seite für die Suche am Laptop.</p>
       <ul class="trust" aria-label="Auf einen Blick">
         <li>Kostenlos</li><li>Open Source</li><li>Ohne Anmeldung</li><li>Kein Tracking</li>
       </ul>
       <p class="quick-head" id="quick-head">Oder direkt auf Airbnb suchen:</p>
-      <form class="quick" id="quick" aria-labelledby="quick-head">
-        <label class="qcity"><span>Stadt</span><input name="city" required placeholder="z. B. Lissabon" autocomplete="off" list="cities"></label>
+      <form class="quick" id="quick" aria-labelledby="quick-head" action="https://www.airbnb.de/s/homes" method="get" target="_blank">
+        <label class="qcity"><span>Stadt</span><input name="query" required placeholder="z. B. Lissabon" autocomplete="off" list="cities"></label>
         <label><span>Anreise</span><input name="checkin" type="date" id="qci"></label>
         <label><span>Abreise</span><input name="checkout" type="date" id="qco"></label>
-        <label><span>Gäste</span><input name="adults" type="number" min="1" max="16" value="2" inputmode="numeric"></label>
-        <button class="btn primary" type="submit">Auf Airbnb suchen <span aria-hidden="true">↗</span></button>
+        <label><span>Erwachsene</span><input name="adults" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="2"></label>
+        <button class="btn primary" type="submit" aria-describedby="qnights">Auf Airbnb suchen <span aria-hidden="true">↗</span></button>
         <datalist id="cities"><option value="Amsterdam"><option value="Barcelona"><option value="Berlin"><option value="Budapest"><option value="Lissabon"><option value="Madrid"><option value="Paris"><option value="Prag"><option value="Rom"><option value="Wien"></datalist>
       </form>
+      <p class="qchips"><button type="button" data-wknd="0">Nächstes Wochenende</button><button type="button" data-wknd="1">Wochenende danach</button></p>
       <p class="qnote" id="qnights" aria-live="polite">Öffnet die normale Airbnb-Suche in einem neuen Tab.</p>
-      <p class="mobile-hint" hidden>📱 Das Plugin läuft in Chrome, Edge und Brave am Computer, nicht in der Airbnb-App. Merk dir die Seite für die Suche am Laptop.</p>
     </div>
 
     <div class="stage" aria-label="Beispielbild mit erfundenen Werten: Wünsche ganze Wohnung, Superhost, ruhig, bis 140 Euro pro Nacht; passendes Viertel Gràcia mit 84 Punkten; Top 3 Unterkünfte mit 91, 86 und 79 Punkten und Begründung" role="img">
@@ -356,7 +366,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
         <h4>Stay<span>Match</span> · Top 3 für dich</h4>
         <div class="sub"><b style="color:var(--accent)">BEISPIEL</b> · 24 Unterkünfte bewertet · 4 Nächte</div>
         <div class="li"><b>1. Wohnung in Gràcia</b><span class="sc">91</span><small>⭐ 4,86 · 212 Bewertungen · 132 €/Nacht</small><span class="why">✓ ganze Unterkunft · ✓ Superhost · ✓ ruhig laut Gästen</span></div>
-        <div class="li"><b>2. Studio nahe Parc Güell</b><span class="sc">86</span><small>⭐ 4,82 · 94 Bewertungen · 118 €/Nacht</small><span class="why">✓ ganze Unterkunft · ✓ im Budget</span><span class="why w">⚠ Superhost und ruhig: keine Angabe</span></div>
+        <div class="li"><b>2. Studio nahe Park Güell</b><span class="sc">86</span><small>⭐ 4,82 · 94 Bewertungen · 118 €/Nacht</small><span class="why">✓ ganze Unterkunft · ✓ im Budget</span><span class="why w">⚠ Superhost und ruhig: keine Angabe</span></div>
         <div class="li"><b>3. Altbau mit Balkon</b><span class="sc">79</span><small>⭐ 4,71 · 58 Bewertungen · 139 €/Nacht</small><span class="why w">⚠ kein Superhost</span></div>
       </div>
     </div>
@@ -365,7 +375,8 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
 
 <div class="strip">
   <div class="wrap">
-    <div><h3>Top 3 statt 40 Tabs</h3><p>Das Plugin bewertet jede Unterkunft auf deiner Suchseite.</p></div>
+    <h2 class="vh">Auf einen Blick</h2>
+    <div><h3>Top 3 statt 40 Tabs</h3><p>Drei Kandidaten mit Begründung statt Dutzender offener Tabs.</p></div>
     <div><h3>Passend zu dir</h3><p>Budget, Bewertungen und deine Wünsche zählen, auf Wunsch auch das Viertel.</p></div>
     <div><h3>Mit Begründung</h3><p>Du siehst immer, warum eine Unterkunft oben steht, und was nicht passt.</p></div>
     <div><h3>Bleibt bei dir</h3><p>Kein Konto, kein Tracking, keine StayMatch-Datenbank. Wünsche und Verlauf speichert dein Browser.</p></div>
@@ -394,16 +405,15 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
         <h2>Die Top 3 erscheinen von selbst.</h2>
         <p class="intro" style="margin-bottom:28px">Öffne eine beliebige Airbnb-Suche. Das Plugin setzt einen Punktwert an jede Karte und zeigt die drei besten mit Begründung. Die Top 3 gelten je Seite: Blätterst du weiter, bewertet es die dortigen Unterkünfte neu.</p>
         <div class="ctas">
-          <a class="btn primary" href="staymatch-plugin.zip" download>Plugin herunterladen<span class="zipsize"></span> <span aria-hidden="true">↓</span></a>
+          <a class="btn primary" href="staymatch-plugin.zip" download="staymatch-0.5.0.zip">Plugin herunterladen<span class="zipsize"></span> <span aria-hidden="true">↓</span></a>
           <a class="btn ghost" href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">Code auf GitHub</a>
         </div>
         <p class="meta">Für Chrome, Edge, Brave und andere Chromium-Browser am Computer · ohne Konto · noch nicht im Chrome Web Store</p>
         <p class="meta" id="browserhint" hidden>Dieser Browser kann das Plugin nicht nutzen. Den <a href="/app" data-app>Viertel-Finder</a> kannst du hier trotzdem nutzen.</p>
-        <picture class="photo"><source type="image/webp" srcset="media/plugin-640.webp 640w, media/plugin-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 540px"><img src="media/plugin-1280.jpg" srcset="media/plugin-640.jpg 640w, media/plugin-1280.jpg 1280w" sizes="(max-width: 900px) 100vw, 540px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture>
       </div>
       <ol id="steps">
         <li><span>ZIP herunterladen und entpacken. Auf dem Mac reicht ein Doppelklick.</span></li>
-        <li><span>In <span id="extbrowser">Chrome</span> <code id="extpath">chrome://extensions</code> in die Adresszeile eingeben.<button class="copy" type="button" id="extcopy" data-copy="chrome://extensions">Kopieren</button></span></li>
+        <li><span>In <span id="extbrowser">Chrome</span> <code id="extpath">chrome://extensions</code> in die Adresszeile eingeben.<button class="copy" type="button" id="extcopy" data-copy="chrome://extensions">Kopieren</button><span class="vh" role="status" id="copystatus"></span></span></li>
         <li><span>Oben rechts den <b>Entwicklermodus</b> einschalten.</span></li>
         <li><span><b>Entpackte Erweiterung laden</b> und den entpackten Ordner wählen.</span></li>
         <li><span>Airbnb-Suche öffnen, im Panel Budget und Wünsche wählen. Fertig.</span></li>
@@ -472,7 +482,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     <div>
       <span class="eyebrow">Auch für Gruppen</span>
       <h2>Mit Freunden unterwegs? Dann fair für alle.</h2>
-      <p class="intro" style="margin-bottom:0">Füg im Viertel-Finder Mitreisende hinzu, jede Person wählt ihren Typ. StayMatch schaut dann zuerst, wem es am schlechtesten ginge (60 %), und nimmt den Schnitt dazu (40 %). So landet die Gruppe nicht automatisch auf der Partymeile, nur weil zwei feiern wollen.</p>
+      <p class="intro" style="margin-bottom:0">Füg im Viertel-Finder Mitreisende hinzu, jede Person wählt ihren Typ. StayMatch schaut dann zuerst, welcher Typ am schlechtesten wegkommt (60 %), und nimmt den Schnitt dazu (40 %). So landet die Gruppe nicht automatisch auf der Partymeile, nur weil zwei feiern wollen. Die Zahl in Klammern zeigt, wie viele Personen den Typ gewählt haben.</p>
       <picture class="photo side"><source type="image/webp" srcset="media/gepaeck-640.webp 640w, media/gepaeck-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 560px"><img src="media/gepaeck-1280.jpg" srcset="media/gepaeck-640.jpg 640w, media/gepaeck-1280.jpg 1280w" sizes="(max-width: 900px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture>
     </div>
     <div class="vs">
@@ -500,10 +510,10 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     <h2>Für alle, die nicht stundenlang suchen wollen.</h2>
     <p class="intro">Vier Beispiele. Keine echten Nutzerstimmen, nur Szenarien.</p>
     <div class="grid two">
-      <div class="f"><picture><source type="image/webp" srcset="media/allein-640.webp 640w, media/allein-1280.webp 1280w" sizes="(max-width: 640px) 100vw, 560px"><img src="media/allein-1280.jpg" srcset="media/allein-640.jpg 640w, media/allein-1280.jpg 1280w" sizes="(max-width: 640px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture><div class="txt"><h3>Städtetrip allein</h3><p>Ganze Wohnung, ruhig, nah an Cafés und Bahn, höchstens 120 € pro Nacht. StayMatch zeigt die drei, die das erfüllen.</p></div></div>
-      <div class="f"><picture><source type="image/webp" srcset="media/zuzweit-640.webp 640w, media/zuzweit-1280.webp 1280w" sizes="(max-width: 640px) 100vw, 560px"><img src="media/zuzweit-1280.jpg" srcset="media/zuzweit-640.jpg 640w, media/zuzweit-1280.jpg 1280w" sizes="(max-width: 640px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture><div class="txt"><h3>Wochenende zu zweit</h3><p>Superhost, viele gute Bewertungen, kein Hotelzimmer. Statt 40 Tabs vergleichst du drei mit Begründung.</p></div></div>
-      <div class="f"><picture><source type="image/webp" srcset="media/workation-640.webp 640w, media/workation-1280.webp 1280w" sizes="(max-width: 640px) 100vw, 560px"><img src="media/workation-1280.jpg" srcset="media/workation-640.jpg 640w, media/workation-1280.jpg 1280w" sizes="(max-width: 640px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture><div class="txt"><h3>Workation</h3><p>Gutes WLAN und Ruhe zählen mehr als die Partymeile. StayMatch warnt, wenn andere Gäste über WLAN oder Lärm klagen.</p></div></div>
-      <div class="f"><picture><source type="image/webp" srcset="media/gruppe-640.webp 640w, media/gruppe-1280.webp 1280w" sizes="(max-width: 640px) 100vw, 560px"><img src="media/gruppe-1280.jpg" srcset="media/gruppe-640.jpg 640w, media/gruppe-1280.jpg 1280w" sizes="(max-width: 640px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture><div class="txt"><h3>Mit Freunden</h3><p>Die Hälfte will feiern, die anderen Ruhe. Der Viertel-Finder sucht das Viertel, in dem alle zufrieden sind, und prüft die Betten.</p></div></div>
+      <div class="f"><picture><source type="image/webp" srcset="media/allein-640.webp 640w, media/allein-1280.webp 1280w" sizes="(max-width: 640px) 100vw, 560px"><img src="media/allein-1280.jpg" srcset="media/allein-640.jpg 640w, media/allein-1280.jpg 1280w" sizes="(max-width: 640px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture><div class="txt"><h3>Städtetrip allein</h3><p>Ganze Wohnung, ruhig, nah an Cafés und Bahn, höchstens 120 € pro Nacht. StayMatch zeigt die drei, die das erfüllen.</p><p class="more"><a href="#plugin">Plugin holen ↓</a></p></div></div>
+      <div class="f"><picture><source type="image/webp" srcset="media/zuzweit-640.webp 640w, media/zuzweit-1280.webp 1280w" sizes="(max-width: 640px) 100vw, 560px"><img src="media/zuzweit-1280.jpg" srcset="media/zuzweit-640.jpg 640w, media/zuzweit-1280.jpg 1280w" sizes="(max-width: 640px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture><div class="txt"><h3>Wochenende zu zweit</h3><p>Superhost, viele gute Bewertungen, kein Hotelzimmer. Statt 40 Tabs vergleichst du drei mit Begründung.</p><p class="more"><a href="#plugin">Plugin holen ↓</a></p></div></div>
+      <div class="f"><picture><source type="image/webp" srcset="media/workation-640.webp 640w, media/workation-1280.webp 1280w" sizes="(max-width: 640px) 100vw, 560px"><img src="media/workation-1280.jpg" srcset="media/workation-640.jpg 640w, media/workation-1280.jpg 1280w" sizes="(max-width: 640px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture><div class="txt"><h3>Workation</h3><p>Gutes WLAN und Ruhe zählen mehr als die Partymeile. StayMatch warnt, wenn andere Gäste über WLAN oder Lärm klagen.</p><p class="more"><a href="#plugin">Plugin holen ↓</a></p></div></div>
+      <div class="f"><picture><source type="image/webp" srcset="media/gruppe-640.webp 640w, media/gruppe-1280.webp 1280w" sizes="(max-width: 640px) 100vw, 560px"><img src="media/gruppe-1280.jpg" srcset="media/gruppe-640.jpg 640w, media/gruppe-1280.jpg 1280w" sizes="(max-width: 640px) 100vw, 560px" width="1280" height="719" alt="" loading="lazy" decoding="async"></picture><div class="txt"><h3>Mit Freunden</h3><p>Die Hälfte will feiern, die anderen Ruhe. Der Viertel-Finder sucht das Viertel, in dem alle zufrieden sind, und prüft die Betten.</p><p class="more"><a href="/app" data-app>Viertel für die Gruppe finden →</a></p></div></div>
     </div>
   </div>
 </section>
@@ -533,18 +543,18 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     <span class="eyebrow">FAQ</span>
     <h2>Häufige Fragen</h2>
     <div class="faq">
-      <details><summary>Kostet StayMatch etwas?</summary><p>Nein. Plugin und Viertel-Finder sind kostenlos und Open Source unter MIT-Lizenz.</p></details>
-      <details><summary>Ist StayMatch von Airbnb?</summary><p>Nein. StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Die Links führen zur normalen Suche, gebucht wird dort wie gewohnt.</p></details>
-      <details><summary>Liest das Plugin Airbnb im Hintergrund aus?</summary><p>Nein. Es liest nur die Seite, die du selbst geöffnet hast, und stellt keine eigenen Anfragen. Blätterst du weiter, bewertet es die Unterkünfte der neuen Seite. Airbnb kann das Auslesen durch Erweiterungen trotzdem anders sehen, die Nutzungsbedingungen sind ihre. Wer das nicht möchte, nutzt nur den Viertel-Finder.</p></details>
-      <details><summary>Warum muss ich den Entwicklermodus einschalten?</summary><p>Das Plugin ist noch nicht im Chrome Web Store. Bis dahin lädst du es als entpackte Erweiterung. Den Code kannst du jederzeit auf GitHub ansehen.</p></details>
-      <details><summary>Das Plugin erscheint nicht. Was tun?</summary><p>Prüfe in der Erweiterungs-Seite (siehe Schritt 2), ob StayMatch eingeschaltet ist, und lade die Airbnb-Seite neu. Nach einem Update die alte Version entfernen und den neuen Ordner laden. Hilft das nicht, schreib ein Issue auf GitHub.</p></details>
-      <details><summary>Was passiert mit meinen Daten?</summary><p>Wünsche, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: <a href="/datenschutz">Datenschutz</a>.</p></details>
-      <details><summary>Woher weiß StayMatch, was zu mir passt?</summary><p>Aus dem, was du angibst: Budget, Wünsche an die Unterkunft und, wenn du den Viertel-Finder nutzt, deine Interessen für die Gegend. Dazu kommen die Sterne mit Anzahl der Bewertungen und deine 👍 und 👎. Wie daraus der Punktwert wird, steht unter <a href="#rechnen">Wie wir rechnen</a>.</p></details>
-      <details><summary>Kann ich auch mit Freunden suchen?</summary><p>Ja. Füg im Viertel-Finder Mitreisende hinzu, dann sucht StayMatch das Viertel, in dem alle zufrieden sind, und prüft, ob genug Betten da sind. Den Link schickst du in den Gruppenchat.</p></details>
-      <details><summary>Funktioniert StayMatch auf dem Handy?</summary><p>Das Plugin nicht: Browser-Erweiterungen laufen nur in Chrome, Edge und Brave am Computer und nicht in der Airbnb-App. Den Viertel-Finder kannst du auf dem Handy nutzen und dir den Link für den Laptop schicken.</p></details>
-      <details><summary>Welche Städte funktionieren?</summary><p>Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt kann bis zu einer Minute dauern. Danach merkt sich dein Browser die Daten einen Tag lang.</p></details>
-      <details><summary>Warum nur Airbnb?</summary><p>Weil dort viele Ferienwohnungen zu finden sind und sich die Suche per Link mit Datum und Gästen öffnen lässt. Weitere Portale wie Booking.com sind eine Idee für später, nichts Zugesagtes.</p></details>
-      <details><summary>Wie genau ist die Empfehlung?</summary><p>Sie ist ein guter Startpunkt, kein Urteil. StayMatch zeigt immer, warum eine Unterkunft oben steht, und warnt bei Punkten wie zu wenigen Betten oder Preis über Budget.</p></details>
+      <details id="faq-kosten"><summary>Kostet StayMatch etwas?</summary><p>Nein. Plugin und Viertel-Finder sind kostenlos und Open Source unter MIT-Lizenz.</p></details>
+      <details id="faq-airbnb"><summary>Ist StayMatch von Airbnb?</summary><p>Nein. StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Die Links führen zur normalen Suche, gebucht wird dort wie gewohnt.</p></details>
+      <details id="faq-hintergrund"><summary>Liest das Plugin Airbnb im Hintergrund aus?</summary><p>Nein. Es liest nur die Seite, die du selbst geöffnet hast, und stellt keine eigenen Anfragen. Blätterst du weiter, bewertet es die Unterkünfte der neuen Seite. Airbnb kann das Auslesen durch Erweiterungen trotzdem anders sehen, die Nutzungsbedingungen sind ihre. Wer das nicht möchte, nutzt nur den Viertel-Finder.</p></details>
+      <details id="faq-entwicklermodus"><summary>Warum muss ich den Entwicklermodus einschalten?</summary><p>Das Plugin ist noch nicht im Chrome Web Store. Bis dahin lädst du es als entpackte Erweiterung. Den Code kannst du jederzeit auf GitHub ansehen.</p></details>
+      <details id="faq-erscheint-nicht"><summary>Das Plugin erscheint nicht. Was tun?</summary><p>Prüfe in der Erweiterungs-Seite (siehe Schritt 2), ob StayMatch eingeschaltet ist, und lade die Airbnb-Seite neu. Nach einem Update die alte Version entfernen und den neuen Ordner laden. Hilft das nicht, schreib ein Issue auf GitHub.</p></details>
+      <details id="faq-daten"><summary>Was passiert mit meinen Daten?</summary><p>Wünsche, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: <a href="/datenschutz#viertel-finder">Datenschutz</a>.</p></details>
+      <details id="faq-passt"><summary>Woher weiß StayMatch, was zu mir passt?</summary><p>Aus dem, was du angibst: Budget, Wünsche an die Unterkunft und, wenn du den Viertel-Finder nutzt, deine Interessen für die Gegend. Dazu kommen die Sterne mit Anzahl der Bewertungen und deine 👍 und 👎. Wie daraus der Punktwert wird, steht unter <a href="#rechnen">Wie wir rechnen</a>.</p></details>
+      <details id="faq-freunde"><summary>Kann ich auch mit Freunden suchen?</summary><p>Ja. Füg im Viertel-Finder Mitreisende hinzu, dann sucht StayMatch das Viertel, in dem alle zufrieden sind, und prüft, ob genug Betten da sind. Den Link schickst du in den Gruppenchat.</p></details>
+      <details id="faq-handy"><summary>Funktioniert StayMatch auf dem Handy?</summary><p>Das Plugin nicht: Browser-Erweiterungen laufen nur in Chrome, Edge und Brave am Computer und nicht in der Airbnb-App. Den Viertel-Finder kannst du auf dem Handy nutzen und dir den Link für den Laptop schicken.</p></details>
+      <details id="faq-staedte"><summary>Welche Städte funktionieren?</summary><p>Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt kann bis zu einer Minute dauern. Danach merkt sich dein Browser die Daten einen Tag lang.</p></details>
+      <details id="faq-nur-airbnb"><summary>Warum nur Airbnb?</summary><p>Weil dort viele Ferienwohnungen zu finden sind und sich die Suche per Link mit Datum und Gästen öffnen lässt. Weitere Portale wie Booking.com sind eine Idee für später, nichts Zugesagtes.</p></details>
+      <details id="faq-genauigkeit"><summary>Wie genau ist die Empfehlung?</summary><p>Sie ist ein guter Startpunkt, kein Urteil. StayMatch zeigt immer, warum eine Unterkunft oben steht, und warnt bei Punkten wie zu wenigen Betten oder Preis über Budget.</p></details>
     </div>
   </div>
 </section>
@@ -559,6 +569,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       <details><summary>Die Seitenstruktur von Airbnb ändert sich</summary><p>Das Plugin nutzt zuerst die Adresse und strukturierte Daten und lässt fehlende Felder weg. Es kann also vorkommen, dass eine Karte keinen Wert bekommt.</p></details>
       <details><summary>Die Kartenserver sind manchmal langsam</summary><p>Die öffentlichen OpenStreetMap-Server brauchen für eine neue Stadt bis zu etwa einer Minute. Ergebnisse bleiben einen Tag im Browser.</p></details>
     </div>
+    <p class="intro" style="margin:28px 0 0">Etwas klappt nicht? <a href="https://github.com/Pschmetzer/staymatch/issues" target="_blank" rel="noopener">Fehler auf GitHub melden</a> oder <a href="#plugin">das Plugin trotzdem ausprobieren</a>.</p>
   </div>
 </section>
 
@@ -571,9 +582,10 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     <h2>Weniger klicken, schneller buchen.</h2>
     <p class="intro" style="margin:0 auto 34px">Plugin laden, Airbnb öffnen, Top 3 nehmen. Kostenlos und ohne Konto.</p>
     <div class="ctas">
-      <a class="btn primary" href="staymatch-plugin.zip" download>Plugin herunterladen<span class="zipsize"></span> <span aria-hidden="true">↓</span></a>
-      <a class="btn ghost" href="/app" data-app>Erst das passende Viertel finden <span aria-hidden="true">→</span></a>
+      <a class="btn primary" href="staymatch-plugin.zip" download="staymatch-0.5.0.zip">Plugin herunterladen<span class="zipsize"></span> <span aria-hidden="true">↓</span></a>
+      <a class="btn ghost" href="/app" data-app>Erst Viertel finden <span aria-hidden="true">→</span></a>
     </div>
+    <p style="margin:22px 0 0"><a href="#quick-head">Oder direkt auf Airbnb suchen ↑</a></p>
   </div>
 </section>
 
@@ -581,14 +593,14 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
 
 <footer>
   <div class="wrap">
-    <span>© 2026 StayMatch · Open Source (MIT) · <a href="/datenschutz">Datenschutz</a> · <a href="/impressum">Impressum</a> · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/Pschmetzer/staymatch/blob/main/LICENSE" target="_blank" rel="noopener">Lizenzen</a></span>
+    <span>© 2026 StayMatch · Open Source (MIT) · <a href="/datenschutz">Datenschutz</a> · <a href="/impressum">Impressum</a> · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/Pschmetzer/staymatch/blob/main/LICENSE" target="_blank" rel="noopener">Lizenzen</a> · Bilder KI-generiert (<a href="https://github.com/Pschmetzer/staymatch/blob/main/web/media/NOTICE.md" target="_blank" rel="noopener">Hinweis</a>)</span>
     <span>Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden. Airbnb ist eine Marke der Airbnb, Inc., Chrome eine Marke der Google LLC.</span>
   </div>
 </footer>
 
 <script>
   // Texte dieser Sprachversion (index.html und en.html teilen sonst dasselbe Skript)
-  const T = { nights: n => n === 1 ? '1 Nacht' : n + ' Nächte', newTab: 'Öffnet die normale Airbnb-Suche in einem neuen Tab.', toLight: 'Zu Hell wechseln', toDark: 'Zu Dunkel wechseln', copy: 'Kopieren', copied: 'Kopiert ✓', airbnb: 'https://www.airbnb.de' };
+  const T = { nights: n => n === 1 ? '1 Nacht' : n + ' Nächte', newTab: 'Öffnet die normale Airbnb-Suche in einem neuen Tab.', toLight: 'Zu Hell wechseln', toDark: 'Zu Dunkel wechseln', copy: 'Kopieren', copied: 'Kopiert ✓', copyKey: 'Markiert: Strg+C drücken', badDates: 'Die Abreise muss nach der Anreise liegen.', afterSearch: 'Mit dem Plugin siehst du dort sofort die Top 3.', getPlugin: 'Plugin holen ↓', airbnb: 'https://www.airbnb.de' };
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
   // Hell/Dunkel: eigene Wahl merken, Beschriftung, Browserleisten-Farbe und Fotos mitziehen
@@ -597,14 +609,15 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     const cur = () => root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     const paint = () => {
       const t = cur();
-      btn.setAttribute('aria-label', t === 'light' ? T.toDark : T.toLight);
+      btn.setAttribute('aria-label', t === 'light' ? T.toDark : T.toLight); btn.title = btn.getAttribute('aria-label');
       $$('meta[name="theme-color"]').forEach(m => { m.content = t === 'light' ? '#ffffff' : '#0b0b0d'; });
-      // Helle Seite: helle Fotos (media/*-hell-*), dunkle Seite: die abendlichen Originale
-      $$('picture.photo, picture.bgimg').forEach(pic => $$('source, img', pic).forEach(el => {
+      // Helle Seite: helle Fotos (media/*-hell-*), dunkle Seite: die abendlichen Originale.
+      // Das Schlussbild liegt unter einem dunklen Overlay und bleibt in beiden Modi das Original.
+      $$('picture.photo').forEach(pic => $$('source, img', pic).forEach(el => {
         for (const a of ['srcset', 'src']) {
           const v = el.getAttribute(a); if (!v) continue;
-          const plain = v.replace(/media\/(laptop|gepaeck|wohnung)-hell-/g, 'media/$1-');
-          el.setAttribute(a, t === 'light' ? plain.replace(/media\/(laptop|gepaeck|wohnung)-/g, 'media/$1-hell-') : plain);
+          const plain = v.replace(/media\/(laptop|gepaeck)-hell-/g, 'media/$1-');
+          el.setAttribute(a, t === 'light' ? plain.replace(/media\/(laptop|gepaeck)-/g, 'media/$1-hell-') : plain);
         }
       }));
     };
@@ -619,31 +632,51 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
   // Schnellstart: öffnet die normale Airbnb-Suche (URL-Format nicht offiziell dokumentiert)
   // und gibt die Eingaben an alle Viertel-Finder-Links weiter (Deeplink /app?c=…&i=…&o=…&n=…).
   (() => {
-    const form = $('#quick'), ci = $('#qci'), co = $('#qco'), out = $('#qnights');
+    const form = $('#quick'), ci = $('#qci'), co = $('#qco'), out = $('#qnights'), city = form.elements.query, ad = form.elements.adults;
     const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
     const today = iso(new Date());
     ci.min = today; co.min = today;
+    // Eingaben nur für diesen Tab merken (zurück vom Airbnb-Tab, Neuladen)
+    try {
+      const s = JSON.parse(sessionStorage.getItem('sm_quick') || '{}');
+      if (s.c) city.value = s.c;
+      if (s.i >= today) ci.value = s.i;
+      if (s.o > ci.value) co.value = s.o;
+      if (s.n) ad.value = s.n;
+    } catch {}
+    const plusDays = (v, n) => { const d = new Date(v + 'T12:00'); d.setDate(d.getDate() + n); return iso(d); };
     ci.addEventListener('change', () => {
-      if (ci.value && (!co.value || co.value <= ci.value)) { const d = new Date(ci.value + 'T12:00'); d.setDate(d.getDate() + 3); co.value = iso(d); }
+      if (ci.value && (!co.value || co.value <= ci.value)) co.value = plusDays(ci.value, 3);
     });
+    // Schnellwahl: Freitag bis Sonntag am nächsten Wochenende bzw. eine Woche später
+    $$('[data-wknd]').forEach(b => b.addEventListener('click', () => {
+      const d = new Date(today + 'T12:00'); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7) + 7 * Number(b.dataset.wknd));
+      ci.value = iso(d); co.value = plusDays(ci.value, 2); sync();
+    }));
+    let shown = null;
+    const say = (key, ...parts) => { if (key !== shown) { shown = key; out.replaceChildren(...parts); } };
     const sync = () => {
       if (ci.value) co.min = ci.value;
-      if (co.value && ci.value && co.value <= ci.value) co.value = '';
-      const n = ci.value && co.value ? Math.round((new Date(co.value) - new Date(ci.value)) / 864e5) : 0;
-      out.innerHTML = n > 0 ? `<b>${T.nights(n)}</b> · ${T.newTab}` : T.newTab;
-      const f = new FormData(form), q = new URLSearchParams(), city = String(f.get('city') || '').trim();
-      if (city) q.set('c', city);
+      const bad = !!(co.value && ci.value && co.value <= ci.value);
+      co.toggleAttribute('aria-invalid', bad); if (bad) co.setAttribute('aria-invalid', 'true');
+      const n = ci.value && co.value && !bad ? Math.round((new Date(co.value) - new Date(ci.value)) / 864e5) : 0;
+      if (bad) say('bad', T.badDates);
+      else if (n > 0) say(n, Object.assign(document.createElement('b'), { textContent: T.nights(n) }), ' · ' + T.newTab);
+      else say(0, T.newTab);
+      const q = new URLSearchParams(), c = city.value.trim();
+      if (c) q.set('c', c);
       if (ci.value) q.set('i', ci.value);
-      if (co.value) q.set('o', co.value);
-      if (Number(f.get('adults')) > 1) q.set('n', String(f.get('adults')));
+      if (co.value && !bad) q.set('o', co.value);
+      if (Number(ad.value) > 1) q.set('n', String(ad.value));
       $$('a[data-app]').forEach(a => { a.href = '/app' + (q.size ? '?' + q : ''); });
+      try { sessionStorage.setItem('sm_quick', JSON.stringify({ c, i: ci.value, o: bad ? '' : co.value, n: ad.value })); } catch {}
     };
     form.addEventListener('input', sync);
     form.addEventListener('change', sync);
     form.addEventListener('submit', e => {
       e.preventDefault();
       const f = new FormData(form), q = new URLSearchParams();
-      const city = String(f.get('city') || '').trim(); if (!city) return;
+      const city = String(f.get('query') || '').trim(); if (!city) return;
       const ad = Math.max(1, Math.min(16, Number(f.get('adults')) || 1));
       if (ci.value) q.set('checkin', ci.value);
       if (co.value && (!ci.value || co.value > ci.value)) q.set('checkout', co.value);
@@ -651,6 +684,9 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       // Link statt window.open: wird von Pop-up-Blockern nicht abgefangen
       const a = Object.assign(document.createElement('a'), { href: `${T.airbnb}/s/${encodeURIComponent(city)}/homes?${q}`, target: '_blank', rel: 'noopener' });
       a.click();
+      // Wer ohne Plugin auf Airbnb landet, sieht dort keine Top 3: kurzer Hinweis
+      shown = 'sent';
+      out.replaceChildren(T.afterSearch + ' ', Object.assign(document.createElement('a'), { href: '#plugin', textContent: T.getPlugin }));
     });
     sync();
   })();
@@ -661,12 +697,22 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     const chromium = /Chrome|Chromium|Edg\//.test(ua) && !mobile;
     if (!chromium) { const h = $('#browserhint'); if (h) h.hidden = false; }
     // Chromium am Computer: Hero-Knopf lädt direkt herunter und springt danach zu den Schritten
-    if (chromium) $$('.hero .ctas a[href="#plugin"]').forEach(a => { a.href = 'staymatch-plugin.zip'; a.setAttribute('download', ''); });
+    if (chromium) $$('.hero .ctas a[href="#plugin"]').forEach(a => { a.href = 'staymatch-plugin.zip'; a.setAttribute('download', 'staymatch-0.5.0.zip'); });
     if (mobile) $$('.mobile-hint').forEach(h => { h.hidden = false; });
     const b = /Edg\//.test(ua) ? ['Edge', 'edge://extensions'] : navigator.brave ? ['Brave', 'brave://extensions'] : /OPR\//.test(ua) ? ['Opera', 'opera://extensions'] : /Vivaldi/.test(ua) ? ['Vivaldi', 'vivaldi://extensions'] : null;
     if (b && chromium) { $('#extbrowser').textContent = b[0]; $('#extpath').textContent = b[1]; $('#extcopy').dataset.copy = b[1]; }
+    const status = $('#copystatus');
     $$('[data-copy]').forEach(btn => btn.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = T.copied; setTimeout(() => { btn.textContent = T.copy; }, 1600); } catch {}
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy);
+        btn.textContent = T.copied; status.textContent = T.copied;
+      } catch {
+        // Ohne Zwischenablage-Recht: Text markieren und zum Kopieren per Tastatur auffordern
+        const r = document.createRange(); r.selectNodeContents($('#extpath'));
+        getSelection().removeAllRanges(); getSelection().addRange(r);
+        btn.textContent = T.copyKey; status.textContent = T.copyKey;
+      }
+      setTimeout(() => { btn.textContent = T.copy; status.textContent = ''; }, 2400);
     }));
     fetch('staymatch-plugin.zip', { method: 'HEAD' }).then(r => {
       const n = Number(r.headers.get('content-length'));
@@ -681,14 +727,32 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     }));
   })();
 
-  // Navigation: aktiven Abschnitt markieren; Balken füllen sich beim Scrollen
+  // FAQ-Fragen sind verlinkbar: passender Anker öffnet die Frage
+  (() => {
+    const open = () => { const d = location.hash.length > 1 && document.getElementById(decodeURIComponent(location.hash.slice(1))); if (d && d.tagName === 'DETAILS') d.open = true; };
+    open(); addEventListener('hashchange', open);
+  })();
+
+  // Sprachhinweis: dezent, keine Umleitung. DE-Seite für nicht-deutsche Browser, EN-Seite für deutsche.
+  (() => {
+    const de = /^de\b/i.test(navigator.language || '');
+    if (de !== (document.documentElement.lang === 'de')) $$('.langhint').forEach(h => { h.hidden = false; });
+  })();
+
+  // Navigation: aktiven Abschnitt markieren; Balken füllen sich beim Scrollen; Sprachumschalter behält den Abschnitt
+  let section = '';
+  $$('a.lang').forEach(a => a.addEventListener('click', () => {
+    const id = location.hash.slice(1) || section;
+    if (id && id !== 'top') a.href = a.getAttribute('href').split('#')[0] + '#' + id;
+  }));
   (() => {
     if (!('IntersectionObserver' in window)) { $$('.bars').forEach(b => b.classList.add('in')); return; }
     const links = new Map($$('.links a[href^="#"]').map(a => [a.getAttribute('href').slice(1), a]));
     const spy = new IntersectionObserver(es => es.forEach(e => {
       if (!e.isIntersecting) return;
+      section = e.target.id;
       links.forEach(a => { a.classList.remove('on'); a.removeAttribute('aria-current'); });
-      const a = links.get(e.target.id); if (a) { a.classList.add('on'); a.setAttribute('aria-current', 'true'); }
+      const a = links.get(e.target.id); if (a) { a.classList.add('on'); a.setAttribute('aria-current', 'location'); }
     }), { rootMargin: '-45% 0px -50% 0px' });
     $$('main [id]').forEach(s => { if (s.tagName === 'SECTION' || s.tagName === 'HEADER') spy.observe(s); });
     const bars = $$('.bars');
@@ -696,6 +760,12 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .35 });
     bars.forEach(b => io.observe(b));
   })();
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"StayMatch","url":"https://staymatch.pro/","description":"Hilft dir, schneller das passende Airbnb zu finden: bewertet jede Unterkunft auf der Suchseite nach Budget, Sternen und deinen Wünschen und zeigt die Top 3. Optional mit Viertel-Finder, auch für Gruppen.","applicationCategory":"TravelApplication","operatingSystem":"Windows, macOS, Linux, ChromeOS","inLanguage":"de","isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"sameAs":["https://github.com/Pschmetzer/staymatch"],"downloadUrl":"https://staymatch.pro/staymatch-plugin.zip","softwareVersion":"0.5.0","browserRequirements":"Chrome, Edge, Brave oder ein anderer Chromium-Browser am Computer"}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","inLanguage":"de","mainEntity":[{"@type":"Question","name":"Kostet StayMatch etwas?","acceptedAnswer":{"@type":"Answer","text":"Nein. Plugin und Viertel-Finder sind kostenlos und Open Source unter MIT-Lizenz."}},{"@type":"Question","name":"Ist StayMatch von Airbnb?","acceptedAnswer":{"@type":"Answer","text":"Nein. StayMatch ist ein unabhängiges Projekt und nicht mit Airbnb verbunden. Die Links führen zur normalen Suche, gebucht wird dort wie gewohnt."}},{"@type":"Question","name":"Liest das Plugin Airbnb im Hintergrund aus?","acceptedAnswer":{"@type":"Answer","text":"Nein. Es liest nur die Seite, die du selbst geöffnet hast, und stellt keine eigenen Anfragen. Blätterst du weiter, bewertet es die Unterkünfte der neuen Seite. Airbnb kann das Auslesen durch Erweiterungen trotzdem anders sehen, die Nutzungsbedingungen sind ihre. Wer das nicht möchte, nutzt nur den Viertel-Finder."}},{"@type":"Question","name":"Warum muss ich den Entwicklermodus einschalten?","acceptedAnswer":{"@type":"Answer","text":"Das Plugin ist noch nicht im Chrome Web Store. Bis dahin lädst du es als entpackte Erweiterung. Den Code kannst du jederzeit auf GitHub ansehen."}},{"@type":"Question","name":"Das Plugin erscheint nicht. Was tun?","acceptedAnswer":{"@type":"Answer","text":"Prüfe in der Erweiterungs-Seite (siehe Schritt 2), ob StayMatch eingeschaltet ist, und lade die Airbnb-Seite neu. Nach einem Update die alte Version entfernen und den neuen Ordner laden. Hilft das nicht, schreib ein Issue auf GitHub."}},{"@type":"Question","name":"Was passiert mit meinen Daten?","acceptedAnswer":{"@type":"Answer","text":"Wünsche, Likes, Notizen und Verlauf bleiben lokal im Browser bzw. im Plugin-Speicher, es gibt kein Konto und keinen StayMatch-Server. Im Viertel-Finder gehen der Ortsname und deine IP-Adresse an die Kartendienste von OpenStreetMap (Ortssuche, Orte-Abfrage) und die Kartenkacheln kommen von dort. Schrift und Karten-Bibliothek kommen von unserer eigenen Seite, nicht von Google. Details: Datenschutz."}},{"@type":"Question","name":"Woher weiß StayMatch, was zu mir passt?","acceptedAnswer":{"@type":"Answer","text":"Aus dem, was du angibst: Budget, Wünsche an die Unterkunft und, wenn du den Viertel-Finder nutzt, deine Interessen für die Gegend. Dazu kommen die Sterne mit Anzahl der Bewertungen und deine 👍 und 👎. Wie daraus der Punktwert wird, steht unter Wie wir rechnen."}},{"@type":"Question","name":"Kann ich auch mit Freunden suchen?","acceptedAnswer":{"@type":"Answer","text":"Ja. Füg im Viertel-Finder Mitreisende hinzu, dann sucht StayMatch das Viertel, in dem alle zufrieden sind, und prüft, ob genug Betten da sind. Den Link schickst du in den Gruppenchat."}},{"@type":"Question","name":"Funktioniert StayMatch auf dem Handy?","acceptedAnswer":{"@type":"Answer","text":"Das Plugin nicht: Browser-Erweiterungen laufen nur in Chrome, Edge und Brave am Computer und nicht in der Airbnb-App. Den Viertel-Finder kannst du auf dem Handy nutzen und dir den Link für den Laptop schicken."}},{"@type":"Question","name":"Welche Städte funktionieren?","acceptedAnswer":{"@type":"Answer","text":"Jede Stadt, für die OpenStreetMap Viertel kennt, also fast alle größeren Städte weltweit. Die erste Suche pro Stadt kann bis zu einer Minute dauern. Danach merkt sich dein Browser die Daten einen Tag lang."}},{"@type":"Question","name":"Warum nur Airbnb?","acceptedAnswer":{"@type":"Answer","text":"Weil dort viele Ferienwohnungen zu finden sind und sich die Suche per Link mit Datum und Gästen öffnen lässt. Weitere Portale wie Booking.com sind eine Idee für später, nichts Zugesagtes."}},{"@type":"Question","name":"Wie genau ist die Empfehlung?","acceptedAnswer":{"@type":"Answer","text":"Sie ist ein guter Startpunkt, kein Urteil. StayMatch zeigt immer, warum eine Unterkunft oben steht, und warnt bei Punkten wie zu wenigen Betten oder Preis über Budget."}}]}
 </script>
 </body>
 </html>

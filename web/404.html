@@ -2,17 +2,41 @@
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Seite nicht gefunden · StayMatch</title>
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#fbfaf8">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/legal.css?v=0c051186">
+<script>try { if (localStorage.getItem('sm_theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch {}</script>
 <style>
-@font-face{font-family:Inter;font-style:normal;font-weight:100 900;font-display:swap;src:url(/fonts/inter-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
-:root{color-scheme:dark light;--bg:#0b0b0d;--text:#f4f4f6;--muted:#a3a3ad;--line:#26262d}
-@media (prefers-color-scheme:light){:root{--bg:#fbfaf8;--text:#141416;--muted:#55555e;--line:#e6e3dd}}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--text);font:16px/1.6 Inter,system-ui,-apple-system,sans-serif;text-align:center;padding:24px}
-h1{font-size:clamp(56px,14vw,88px);margin:0;font-weight:500;letter-spacing:-.035em;line-height:1}
-p{color:var(--muted);margin:10px 0 26px}
+main{min-height:100vh;display:flex;flex-direction:column;justify-content:center;text-align:center}
+h1{font-size:clamp(56px,14vw,88px);margin:0;line-height:1}
+.lead{margin:10px 0 26px}
 .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-a{display:inline-block;text-decoration:none;padding:12px 20px;border-radius:14px;font-weight:600;border:1px solid var(--line)}
-a.main{background:#e0475b;color:#fff;border-color:#e0475b}a{color:var(--text)}a.main{color:#fff}
-a:focus-visible{outline:2px solid #e0475b;outline-offset:3px}
-</style></head><body><main><h1>404</h1><p>Dieses Viertel gibt es hier nicht.</p><div class="row"><a class="main" href="/">Zur Startseite</a><a href="/app">Viertel finden</a></div></main></body></html>
+.row a{display:inline-block;text-decoration:none;padding:12px 20px;border-radius:14px;font-weight:600;border:1px solid var(--line);color:var(--text)}
+.row a.main{background:var(--accent);border-color:var(--accent);color:#fff}
+#guess{margin:0 0 22px;color:var(--text)}
+footer{text-align:center}
+</style></head><body><main>
+<h1>404</h1>
+<p class="lead">Dieses Viertel gibt es hier nicht.</p>
+<p id="guess" hidden></p>
+<div class="row"><a class="main" href="/">Zur Startseite</a><a href="/app">Viertel finden</a></div>
+<footer><a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a></footer>
+</main>
+<script>
+  // Falsch getippte Stadtseite (/staedte/lisbon): „Meintest du Lissabon?“
+  (() => {
+    const m = /^\/staedte\/([^/?#]+)/.exec(location.pathname); if (!m) return;
+    const cities = { amsterdam: 'Amsterdam', barcelona: 'Barcelona', berlin: 'Berlin', budapest: 'Budapest', lissabon: 'Lissabon', madrid: 'Madrid', paris: 'Paris', prag: 'Prag', rom: 'Rom', wien: 'Wien' };
+    const alias = { lisbon: 'lissabon', lisboa: 'lissabon', prague: 'prag', praha: 'prag', rome: 'rom', roma: 'rom', vienna: 'wien' };
+    const dist = (a, b) => { const d = Array.from({ length: b.length + 1 }, (_, i) => i); for (let i = 1; i <= a.length; i++) { let p = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, p + (a[i - 1] === b[j - 1] ? 0 : 1)); p = t; } } return d[b.length]; };
+    const q = decodeURIComponent(m[1]).toLowerCase().replace(/\.html$/, '');
+    let best = alias[q], score = 0;
+    if (!best) [best, score] = Object.keys(cities).map((k) => [k, dist(q, k)]).sort((x, y) => x[1] - y[1])[0];
+    if (score > 3) return;
+    const p = document.getElementById('guess'), a = document.createElement('a');
+    a.href = '/staedte/' + best; a.textContent = cities[best];
+    p.append('Meintest du ', a, '?'); p.hidden = false;
+  })();
+</script>
+</body></html>
