@@ -60,6 +60,7 @@
         "parse.js",
         "rank.js",
         "hints.js",
+        "extras.js",
         "pool.js",
         "content-common.js",
         "content-search.js",

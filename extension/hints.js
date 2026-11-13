@@ -23,6 +23,23 @@
     ['Reinigungsgebühr hoch', /\b(hohe|hohen|teure|teuren|überteuerte|high|expensive|steep)\s+(reinigungsgebühr\w*|endreinigung|putzgebühr\w*|cleaning fee)|\b(reinigungsgebühr\w*|endreinigung|putzgebühr\w*|cleaning fee)\b[^.]{0,40}\b(hoch|teuer|überteuert|zu viel|high|expensive|steep)\b/, false, false],
     ['ohne Klimaanlage', /\b(kein\w*|ohne)\s+klima\w*|\bno (air ?conditioning|a\/c)\b|\b(zu heiß|too hot)\b/, false, false],
     ['anders als im Inserat', /\b(anders als (auf )?(den )?(fotos|bildern)|nicht wie (auf )?(den )?(fotos|bildern)|not as (pictured|described)|misleading (photos|pictures))\b/, false, false],
+    // R7 E: weitere Kategorien (Runde 7 E, Bewertungs-Analyse)
+    ['Matratze schlecht', /\b(matratze\w*\s+(war\s+)?(durchgelegen|alt|weich|hart|kaputt)|durchgelegen\w*|schlafsofa\s+(war\s+)?(hart|unbequem)|(saggy|old|worn|lumpy|hard)\s+mattress\w*|mattress\s+(was\s+)?(saggy|old|worn|lumpy|hard))\b/, false, false],
+    ['Warmwasser', /\b(kein\w*\s+warm(es)?\s*wasser|warmwasser\s+(war\s+)?(knapp|kalt|aus)|boiler\s+(zu\s+)?klein|wenig\s+wasserdruck|wasserdruck\s+(war\s+)?(schwach|gering)|no hot water|(low|poor|weak) water pressure|hot water ran out)\b/, false, false],
+    ['Geruch/Feuchtigkeit', /\b(schimmel\w*|muffig\w*|modrig\w*|feucht\w*|rauchgeruch|roch nach (rauch|zigaretten)|mou?ld\w*|musty|damp|mildew|smelled of smoke|smell of smoke)\b/, false, true, 'kein Geruch'],
+    ['Nachbarn-Ärger', /\b(nachbarn?\s+(haben\s+sich\s+)?beschwer\w*|hausverwaltung\s+kam|neighbou?rs?\s+complained|building manager came)\b/, false, false],
+    ['sichere Gegend', /\b(nachts\s+sicher|sichere\w*\s+(gegend|viertel|nachbarschaft)|felt (very )?safe|safe (area|neighbou?rhood))\b/, true, true, 'Gegend unsicher'],
+    ['unsicher', /\b(unsichere\w*\s+(gegend|viertel|straße)|(fühlte\w*)\s+(mich|uns)\s+(nachts\s+)?unsicher|dunkle\w*\s+hinterhof|dunkle\w*\s+gasse|felt unsafe|unsafe (area|neighbou?rhood)|sketchy)\b/, false, false],
+    ['Gastgeber löst Probleme', /\b(sofort\s+(reagiert|repariert|gekümmert)|schnell\s+(repariert|behoben|gelöst)|innerhalb\s+(einer|1)\s+stunde\s+(repariert|behoben|da)|fixed (it )?(right away|immediately|quickly)|responded immediately|resolved (it )?quickly)\b/, true, false],
+    ['Gäste kamen wieder', /\b(zum\s+(zweiten|dritten|vierten|\d+\.)\s+mal|kommen\s+(gerne\s+)?wieder|wiederkommen|stayed here (again|before)|(second|third|fourth) (time|stay)|will (definitely )?(be back|come back|return))\b/, true, true, 'würden nicht wiederkommen'],
+    ['Gastgeber hat storniert', /\b(gastgeber\w*\s+hat\s+[^.]{0,40}storniert|host canceled|host cancelled|l'hôte a annulé|el anfitrión canceló)\b/, false, false],
+    ['Ohrstöpsel nötig', /\b(ohrstöpsel|oropax|earplugs?)\b/, false, false],
+    ['Klimaanlage laut', /\b(klimaanlage\s+(war\s+)?(sehr\s+)?laut|laute\s+klimaanlage|(ac|air conditioning|air conditioner)\s+(was\s+)?(very\s+)?(loud|noisy)|noisy (ac|air conditioning))\b/, false, false],
+    ['hell', /\b(lichtdurchflutet\w*|sehr\s+hell(?!hörig)\w*|viel\s+(tages)?licht|bright and|so bright|lots of (natural )?light|flooded with light)\b/, true, false],
+    ['dunkel', /\b((wohnung|zimmer|apartment|room)\s+(war\s+|was\s+)?(sehr\s+|very\s+)?dunkel|wenig\s+(tages)?licht|kaum\s+licht|(dark|gloomy) (apartment|room|flat)|not much (natural )?light)\b/, false, false],
+    ['mit Rollstuhl/Rollator', /\b(mit\s+(dem\s+|meinem\s+|unserem\s+)?(rollstuhl|rollator)|(in|with) a wheelchair|wheelchair user|with (my |our )?walker)\b/, true, false],
+    ['mit Hund da', /\b(mit\s+(unserem|meinem|dem)\s+hund|with (our|my) dog|hundefreundlich|dog[- ]friendly)\b/, true, false],
+    ['ruhig', /\b(schlafzimmer\s+zum\s+hof|schallisoliert\w*|sehr\s+ruhig|absolut\s+ruhig|very quiet|super quiet|soundproof\w*)\b/, true, false],
   ].map(([label, re, pos, flip, negLabel]) => [label, U(re), pos, flip, negLabel]);
   const NEG = U(/\b(nicht|kein|keine|keinen|nie|not|never|no|wasn't|isn't)\b/);
   // R7: „nicht nur sauber, sondern …“ ist keine Verneinung
@@ -50,5 +67,67 @@
 
   const warnings = hints => (hints || []).filter(x => String(x).startsWith('⚠️'));
 
-  root.StayMatchHints = { reviewHints, warnings, HINTS };
+  // ---------- R7 E: Auswertungen über einzelne Bewertungen (reviewTexts: je Bewertung ein Text) ----------
+  const critical = t => reviewHints(t).some(x => x.startsWith('⚠️'));
+  // „4 von 30 Bewertungen kritisch“; ein Kritiker unter vielen Lobenden ist ein Einzelfall
+  function criticalShare(texts) {
+    const list = (texts || []).filter(Boolean);
+    if (list.length < 5) return null;
+    const n = list.filter(critical).length;
+    return { critical: n, total: list.length, single: n === 1 && list.length >= 15 };
+  }
+  // Wann ist es laut? Uhrzeiten in Sätzen mit Lärm-Wörtern
+  const NOISE = U(/\b(laut(?!\s+(?:der|dem|den|des|beschreibung))|lärm\w*|noisy|noise|müllabfuhr|garbage truck|party|feiern|bars?)\b/);
+  function noiseTimes(texts) {
+    let night = 0, morning = 0;
+    for (const s of String((texts || []).join('\n')).split(/(?<=[.!?\n])\s+/)) {
+      if (!NOISE.test(s)) continue;
+      for (const m of s.matchAll(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(uhr|h\b|am|pm|a\.m\.|p\.m\.)/gi)) {
+        let h = +m[1]; const ap = m[3].toLowerCase();
+        if (ap.startsWith('p') && h < 12) h += 12; if (ap.startsWith('a') && h === 12) h = 0;
+        if (h >= 22 || h <= 4) night++; else if (h >= 5 && h <= 9) morning++;
+      }
+      if (/nachts|in der nacht|at night|all night|bis spät/i.test(s)) night++;
+      if (/morgens|früh am morgen|in the morning|early morning/i.test(s)) morning++;
+    }
+    if (!night && !morning) return null;
+    return night >= morning ? 'meist nachts' : 'meist morgens';
+  }
+  // Gästemix: wer war dort?
+  const MIX = [['Paare', /\b(mein(e|em|er)? (freund|freundin|partner\w*|mann|frau)|wir (beide|zwei)|romantisch\w*|my (husband|wife|partner|boyfriend|girlfriend)|couple|honeymoon)\b/], ['Familien', /\b(kinder|kids|familie|family|baby|tochter|sohn|daughter|son)\b/], ['Dienstreisen', /\b(dienstreise|geschäftsreise|business trip|work trip|arbeiten|homeoffice|remote work)\b/], ['Freunde', /\b(freunde\w*|freundesgruppe|mädelstrip|jungs|friends|group of)\b/]].map(([l, re]) => [l, U(re)]);
+  function guestMix(texts) {
+    const c = {}; let n = 0;
+    for (const t of texts || []) { const hit = MIX.filter(([, re]) => re.test(t)); if (hit.length) n++; for (const [l] of hit) c[l] = (c[l] || 0) + 1; }
+    const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
+    return top && n >= 4 && top[1] / n >= 0.5 ? { top: top[0], share: top[1] / n, n } : null;
+  }
+  // Sprachen der Bewertungen über häufige Füllwörter (grob, nur Hinweis)
+  const LANGS = { de: /\b(und|nicht|sehr|wir|war)\b/i, en: /\b(the|and|was|very|we)\b/i, fr: /\b(et|très|nous|était|le|la)\b/i, es: /\b(muy|y|el|la|nosotros|fue)\b/i, it: /\b(molto|e|era|abbiamo|il)\b/i, nl: /\b(het|en|zeer|was|wij|erg)\b/i, pt: /\b(muito|e|foi|nós|o)\b/i };
+  function languages(texts) {
+    const seen = new Set();
+    for (const t of texts || []) { let best = null, bs = 0; for (const [k, re] of Object.entries(LANGS)) { const n = (String(t).match(new RegExp(re.source, 'gi')) || []).length; if (n > bs) { bs = n; best = k; } } if (best && bs >= 2) seen.add(best); }
+    return seen.size;
+  }
+  // Konkrete Zahlen aus Bewertungen („10 Minuten zur Metro“, „3. Stock ohne Aufzug“)
+  function numberFacts(texts) {
+    const out = [];
+    const re = /\b\d{1,2}\s*(?:min(?:uten|\.)?|minutes?)\s+(?:zu[mr]?|bis zu[mr]?|to the|from the|walk to)\s+[\p{L}-]{3,20}|\b\d{1,2}\.\s*(?:stock|etage)\s+ohne\s+(?:aufzug|lift)|\b\d{1,2}(?:st|nd|rd|th)\s+floor\s+(?:without|no)\s+(?:elevator|lift)/giu;
+    for (const t of texts || []) for (const m of String(t).matchAll(re)) { const s = m[0].trim(); if (!out.some(x => x.toLowerCase() === s.toLowerCase())) out.push(s); if (out.length >= 4) return out; }
+    return out;
+  }
+  // Renovierung: „neu renoviert“, „neue Matratzen“ in den jüngsten Bewertungen
+  const RENOV = U(/\b(neu\s+renoviert|frisch\s+renoviert|renovier\w*|neue\s+matratze\w*|newly renovated|just renovated|new mattress\w*)\b/);
+  const renovated = (texts, recent = 5) => (texts || []).slice(0, recent).some(t => RENOV.test(t));
+  // Stichwort-Trend: Lob „sauber“ in den neuesten 10 gegen ältere (Reihenfolge wie auf der Seite: neueste zuerst)
+  function keywordTrend(texts, label = 'sauber') {
+    const list = texts || []; if (list.length < 16) return null;
+    const rate = a => a.filter(t => reviewHints(t).some(x => x.startsWith('👍 ' + label))).length / a.length;
+    const neu = rate(list.slice(0, 10)), alt = rate(list.slice(10));
+    if (alt >= 0.3 && neu <= alt / 2) return `„${label}“ früher oft gelobt, zuletzt selten`;
+    return null;
+  }
+  // Höflichkeits-Bewertung: 5 Sterne, Text nennt Mängel (reviews: [{ rating, text }])
+  function politeFives(reviews) { return (reviews || []).filter(r => +r.rating === 5 && r.text && critical(r.text)).length; }
+
+  root.StayMatchHints = { reviewHints, warnings, HINTS, criticalShare, noiseTimes, guestMix, languages, numberFacts, renovated, keywordTrend, politeFives };
 })(typeof window !== 'undefined' ? window : globalThis);

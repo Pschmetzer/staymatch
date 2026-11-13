@@ -2,7 +2,7 @@
 // Suchseite: bewertet alle sichtbaren Unterkünfte und zeigt die Top 3.
 // Unterkunftsseite: merkt sich den Besuch, 👍/👎, Notiz, Bewertungs-Stichworte.
 // Keine eigenen Anfragen an Airbnb, kein Abfangen von Airbnb-Daten, alles lokal.
-// Dateien (Reihenfolge in manifest.json): core.js, parse.js, rank.js, hints.js, pool.js, content-common.js, content-search.js, content-listing.js.
+// Dateien (Reihenfolge in manifest.json): core.js, parse.js, rank.js, hints.js, extras.js, pool.js, content-common.js, content-search.js, content-listing.js.
 // content-common.js: Speicher, DOM-Helfer, Panel und Router. Die Seiten-Module tragen sich in window.StayMatchContent ein,
 // content-listing.js startet zuletzt den Router.
 (() => {
@@ -136,6 +136,8 @@
     .item.hotel .stars { color: var(--fg); font-weight: 600; white-space: nowrap; }
     .item.hotel .price { margin-top: 2px; }
     .row { display: flex; gap: 6px; margin: 6px 0; } .row button { flex: 1; }
+    details { margin: 6px 0; } summary { cursor: pointer; color: var(--muted); font-size: 12px; } details ul { font-size: 12px; }
+    .box { font-size: calc(13px * var(--sm-scale, 1)); }
   `;
 
   function panel(id, title, bodyNodes, opts = {}) {
