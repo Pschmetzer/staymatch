@@ -28,6 +28,7 @@
 <li><a href="#airbnb">Schnellsuche und Links zu Airbnb</a></li>
 <li><a href="#github">GitHub</a></li>
 <li><a href="#cookies">Cookies und Browser-Speicher</a></li>
+<li><a href="#nachpruefen">Selbst nachprüfen</a></li>
 <li><a href="#kontakt">Kontakt</a></li>
 </ol>
 </nav>
@@ -62,16 +63,25 @@
 </ul>
 
 <h2 id="startseite">Startseite und Stadtseiten</h2>
-<p>Startseite, Stadtseiten und diese Rechtsseiten laden nichts von Dritten: Schrift, Bilder und Skripte kommen von staymatch.pro. Gespeichert wird nur deine Design-Wahl (hell/dunkel) und, nur für den geöffneten Tab, was du in die Schnellsuche eingibst. Die Startseite fragt beim eigenen Server die Größe der Plugin-Datei ab, um sie am Download-Knopf anzuzeigen.</p>
+<p>Startseite, Stadtseiten und diese Rechtsseiten laden nichts von Dritten: Schrift, Bilder und Skripte kommen von staymatch.pro. Gespeichert wird nur deine Design-Wahl (hell/dunkel) und, nur für den geöffneten Tab, was du in die Schnellsuche eingibst (auch Kinderzahl und Budget). Häkchen der Checkliste, die Link-Prüfung und die Regler zum Ausprobieren arbeiten nur im Browser und speichern oder senden nichts. „Seite teilen“ öffnet das Teilen-Menü deines Geräts oder kopiert den Link; wohin du teilst, entscheidest du dort selbst. Die Startseite fragt beim eigenen Server die Größe der Plugin-Datei ab, um sie am Download-Knopf anzuzeigen.</p>
 
 <h2 id="airbnb">Schnellsuche und Links zu Airbnb</h2>
-<p>Die Schnellsuche auf der Startseite und die Viertel-Links der Stadtseiten öffnen die normale Airbnb-Suche in einem neuen Tab. Dabei stehen Stadt (bzw. Viertel), Reisedaten und Gästezahl in der Adresse, die dein Browser an Airbnb schickt. Ab dort gelten die Datenschutzhinweise und Cookies von Airbnb. Airbnb kann über den Referrer sehen, dass du von staymatch.pro kommst (nur die Domain, keine Unterseite).</p>
+<p>Die Schnellsuche auf der Startseite und die Viertel-Links der Stadtseiten öffnen die normale Airbnb-Suche in einem neuen Tab. Dabei stehen Stadt (bzw. Viertel), Reisedaten, Gästezahl und, wenn du sie angibst, Kinderzahl und Preisgrenze pro Nacht in der Adresse, die dein Browser an Airbnb schickt. Ab dort gelten die Datenschutzhinweise und Cookies von Airbnb. Airbnb kann über den Referrer sehen, dass du von staymatch.pro kommst (nur die Domain, keine Unterseite).</p>
 
 <h2 id="github">GitHub</h2>
 <p>Code, Fehlermeldungen („Fehler melden“ im Plugin) und Issues liegen bei GitHub (GitHub, Inc., ein Unternehmen von Microsoft, USA). Was du dort einträgst und abschickst, verarbeitet GitHub nach eigenen Datenschutzbestimmungen, auch in den USA, also außerhalb der EU. StayMatch schickt von sich aus nichts an GitHub; das passiert erst, wenn du dort selbst etwas absendest.</p>
 
 <h2 id="cookies">Cookies und Browser-Speicher</h2>
 <p>Diese Website setzt keine Cookies. Seiten, die du von hier aus öffnest (Airbnb, GitHub, OpenStreetMap), haben eigene Regeln und setzen eventuell eigene Cookies. <code>localStorage</code> speichert Personen, Wünsche, Reise, Design (hell/dunkel) und Zwischenspeicher der Stadtdaten (24 Stunden). <code>sessionStorage</code> hält die Eingaben der Schnellsuche und, wenn der dauerhafte Speicher voll ist, Stadtdaten für die Dauer des Tabs. Beides dient nur den eigenen Funktionen und wird nicht gesendet. Darum braucht die Seite kein Cookie-Banner. Löschen: Websitedaten im Browser entfernen.</p>
+
+<h2 id="nachpruefen">Selbst nachprüfen</h2>
+<p>Du musst uns nicht glauben, du kannst es prüfen:</p>
+<ol>
+<li>Startseite oder Viertel-Finder öffnen, dann die Entwicklerwerkzeuge (F12 bzw. Cmd+Alt+I) und dort den Reiter „Netzwerk“.</li>
+<li>Seite neu laden. Anfragen gehen nur an staymatch.pro und, im Viertel-Finder, an die OpenStreetMap-Dienste aus Abschnitt 2. Keine Werbe- oder Analysedienste.</li>
+<li>Plugin: Es hat kein Hintergrundskript und keinen Netzwerkaufruf im Code. In <code>chrome://extensions</code> steht bei StayMatch darum kein „Service Worker“, und eine Suche nach <code>fetch(</code> im Ordner <code>extension/</code> auf GitHub findet nichts. Das Popup kannst du per Rechtsklick → „Untersuchen“ ebenfalls im Reiter „Netzwerk“ beobachten.</li>
+<li>Gespeichertes ansehen: Reiter „Anwendung“ (Application), dort Local Storage und Session Storage.</li>
+</ol>
 
 <h2 id="kontakt">Kontakt</h2>
 <p>Fragen oder Löschwünsche: <a href="https://github.com/Pschmetzer/staymatch/issues" rel="noopener">Issue im Repository</a>. Bitte keine persönlichen Daten in öffentliche Issues schreiben.</p>
