@@ -696,7 +696,7 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
   })();
 
   // Schnellstart: öffnet die normale Airbnb-Suche (URL-Format nicht offiziell dokumentiert)
-  // und gibt die Eingaben an alle Viertel-Finder-Links weiter (Deeplink /app?c=…&i=…&o=…&n=…).
+  // und gibt die Eingaben an alle Viertel-Finder-Links weiter (Deeplink /app?c=…&i=…&o=…&n=…&k=…&b=…).
   (() => {
     const form = $('#quick'), ci = $('#qci'), co = $('#qco'), out = $('#qnights'), city = form.elements.query, ad = form.elements.adults;
     const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
@@ -737,6 +737,8 @@ footer a { text-decoration: underline; text-underline-offset: 2px; }
       if (ci.value) q.set('i', ci.value);
       if (co.value && !bad) q.set('o', co.value);
       if (Number(ad.value) > 1) q.set('n', String(ad.value));
+      const kn = Math.floor(form.elements.children.value), bn = Math.floor(form.elements.price_max.value);
+      if (kn > 0) q.set('k', kn); if (bn > 0) q.set('b', bn); // Kinder, Budget pro Nacht (Übernahme in app-extra.js)
       $$('a[data-app]').forEach(a => { a.href = '/app' + (q.size ? '?' + q : ''); });
       try { sessionStorage.setItem('sm_quick', JSON.stringify({ c, i: ci.value, o: bad ? '' : co.value, n: ad.value, k: form.elements.children.value, b: form.elements.price_max.value })); } catch {}
     };

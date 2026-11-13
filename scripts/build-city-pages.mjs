@@ -26,6 +26,17 @@ const TYPES = [
   ['foodie', 'Essen und Trinken', 'Die dichteste Auswahl an Restaurants und Cafés.'],
 ];
 const TOP = 5;
+// „Kurz und einfach“ (R7-742): kurze Sätze, Inhalt nur aus rankCity (Platz 1 je Reisetyp, Anzahl Viertel), nichts erfunden
+export function simpleSection(name, r) {
+  const items = TYPES.map(([key, label]) => r.top[key][0] ? `<li>Für ${esc(label)}: <b>${esc(r.top[key][0].a.name)}</b>.</li>` : '').filter(Boolean);
+  return `<section class="simple" aria-labelledby="kurz"><h2 id="kurz">Kurz und einfach</h2>
+<p>Wir haben ${r.areas} Viertel in ${esc(name)} verglichen. Nach unserer Rechnung passen diese am besten:</p>
+<ul>
+${items.join('\n')}
+</ul>
+<p>Die Punkte kommen aus Karten-Daten. Sie sagen nichts über Preise oder Unterkünfte.</p>
+</section>`;
+}
 // legal.css wird lange gecacht; die Version im Link ändert sich mit dem Inhalt
 const CSS_V = createHash('sha256').update(readFileSync(path.join(web, 'legal.css'))).digest('hex').slice(0, 8);
 
@@ -71,12 +82,13 @@ ${r.top[key].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s}
 <meta name="theme-color" content="#fbfaf8">
 <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/legal.css?v=${CSS_V}">
-<style>.pts{color:var(--muted);font-size:14px;margin-left:6px}ol{padding-left:22px}.bnb{display:block;width:fit-content;font-size:14px;color:var(--muted)}.ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.cta{display:inline-block;padding:10px 18px;border-radius:999px;background:var(--accent);color:#fff;text-decoration:none}.cta.alt{background:none;color:var(--text);border:1px solid var(--muted)}</style>
+<style>.pts{color:var(--muted);font-size:14px;margin-left:6px}ol{padding-left:22px}.bnb{display:block;width:fit-content;font-size:14px;color:var(--muted)}.ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.cta{display:inline-block;padding:10px 18px;border-radius:999px;background:var(--accent);color:#fff;text-decoration:none}.cta.alt{background:none;color:var(--text);border:1px solid var(--muted)}.simple{border:1px solid var(--muted);border-radius:12px;padding:4px 16px;margin:20px 0}</style>
 </head><body><main>
 <nav class="crumbs" aria-label="Brotkrümel"><a href="/">StayMatch</a> › <a href="/#staedte">Städte</a> › <span aria-current="page">${esc(name)}</span></nav>
 <h1>Beste Viertel in ${esc(name)}</h1>
 <p class="stand">Stand der Daten: ${date}. Bewertet werden Bars, Restaurants, Sehenswürdigkeiten, Bahnhöfe, Parks und mehr im Umkreis von ${r.radius} m um jedes Viertel (${r.areas} Viertel, ${r.pois} Orte).</p>
 <p class="stand">Punkte von 0 bis 100: 100 hieße, dass ein Viertel in allen für diesen Reisetyp wichtigen Kategorien die dichteste Auswahl der Stadt hat. <a href="/#rechnen">Wie StayMatch rechnet</a></p>
+${simpleSection(name, r)}
 ${sections}
 <p class="ctas"><a class="cta" href="/app">Eigene Gruppe in ${esc(name)} vergleichen</a><a class="cta alt" href="/#plugin">Unterkünfte dort bewerten: Plugin holen</a></p>
 <footer>

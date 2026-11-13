@@ -65,8 +65,11 @@ for (const file of Object.values(pages)) {
     assert.equal(d.querySelector('.qmore').open, true);
     f.elements.price_max.value = '120'; fire(w, f.elements.price_max);
     assert.equal(JSON.parse(w.sessionStorage.getItem('sm_quick')).b, '120');
-    // Viertel-Finder-Deeplink bleibt bei c/i/o/n (app.js liest nur diese)
-    assert.ok(!/[?&](k|b|price_max)=/.test(d.querySelector('a[data-app]').getAttribute('href')));
+    // Viertel-Finder-Deeplink nimmt Kinder (k) und Budget pro Nacht (b) mit (Übernahme in app-extra.js), nie price_max
+    const href = new URL(d.querySelector('a[data-app]').getAttribute('href'), 'https://x');
+    assert.equal(href.searchParams.get('k'), '1');
+    assert.equal(href.searchParams.get('b'), '120');
+    assert.equal(href.searchParams.get('price_max'), null);
   });
 
   test(`${file}: Sterne-Regler rechnet wie ratingScore im Plugin`, { skip }, () => {

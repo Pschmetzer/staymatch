@@ -806,6 +806,7 @@ $('city').addEventListener('input', () => {
     if (n > 1 && n <= 16 && people.length === 1) people = Array.from({ length: n }, (_, i) => i ? { name: `Person ${i + 1}`, type: 'chill' } : people[0]);
     saveForm(); store.set('sm_people', people);
   }
+  window.SMDeepLink = q; // k (Kinder) und b (Budget pro Nacht) übernimmt app-extra.js
   if (location.search) history.replaceState(null, '', location.pathname + location.hash); // sonst gewinnt ?c= bei jedem Neuladen
 }
 function openShared() {

@@ -20,6 +20,19 @@
   const theme = $('theme');
   if (theme) { theme.before(fsBtn('fsDown', 'A−', -1), fsBtn('fsUp', 'A+', 1)); $('fsDown').setAttribute('aria-label', 'Schrift kleiner'); applyFs(); }
 
+  // ---------- Startseite → Viertel-Finder: Kinder und Budget aus der Schnellsuche (?k=…&b=…) ----------
+  // app.js räumt die Adresse vorher auf und merkt sich die Parameter in window.SMDeepLink. Ein geteilter Link (#t=) hat Vorrang.
+  const deep = window.SMDeepLink;
+  if (deep && !location.hash.startsWith('#t=')) {
+    const k = Math.floor(+deep.get('k')), b = Math.floor(+deep.get('b'));
+    const fire = (id, ev) => $(id).dispatchEvent(new Event(ev));
+    if (k > 0) { $('kids').value = Math.min(10, k); fire('kids', 'change'); fire('kids', 'input'); }
+    if (b > 0 && b <= 99999) { // wie wishGo: erst 0, dann Modus, dann Betrag, sonst rechnet der Modus-Wechsel um
+      $('budget').value = 0; $('budgetMode').value = 'night'; fire('budgetMode', 'change');
+      $('budget').value = b; fire('budget', 'input');
+    }
+  }
+
   // ---------- Formular: Wünsche aus einem Satz, Interessen in eigenen Worten, eigene Orte ----------
   const wishBox = $('wishes');
   const tools = el('div', { id: 'xformTools' }, `

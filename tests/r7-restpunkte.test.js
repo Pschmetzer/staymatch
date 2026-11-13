@@ -49,3 +49,47 @@ test('Betrugsverdacht: Unterkunftsseite verlinkt die Hilfe auf der Startseite', 
   // Ziel existiert auf beiden Startseiten
   for (const f of ['index.html', 'en.html']) assert.match(fs.readFileSync(path.join(ROOT, 'web', f), 'utf8'), /<details id="verdacht"/);
 });
+
+// ---------- Startseite → Viertel-Finder ----------
+const { bootApp, until: untilApp, hasDom } = require('./helpers/app-dom.js');
+const bootExtra = opt => { const w = bootApp(opt); w.eval(fs.readFileSync(path.join(ROOT, 'web', 'app-extra.js'), 'utf8') + '\n//# sourceURL=app-extra.js'); return w; };
+
+test('Startseite: Schnellsuche gibt Kinder und Budget pro Nacht an die Viertel-Finder-Links weiter (DE und EN gleich)', () => {
+  const de = fs.readFileSync(path.join(ROOT, 'web', 'index.html'), 'utf8'), en = fs.readFileSync(path.join(ROOT, 'web', 'en.html'), 'utf8');
+  for (const s of [de, en]) {
+    assert.match(s, /if \(kn > 0\) q\.set\('k', kn\); if \(bn > 0\) q\.set\('b', bn\);/);
+    assert.match(s, /form\.elements\.children\.value/);
+    assert.match(s, /form\.elements\.price_max\.value/);
+  }
+});
+
+test('Viertel-Finder übernimmt ?k= und ?b= aus der Startseite (Budget pro Nacht), Adresse wird aufgeräumt', { skip: !hasDom && 'jsdom fehlt' }, async () => {
+  const w = bootExtra({ url: 'http://localhost/app?c=Lissabon&n=2&k=3&b=140' });
+  const $ = id => w.document.getElementById(id);
+  assert.equal($('city').value, 'Lissabon');
+  assert.equal($('kids').value, '3');
+  assert.equal($('budgetMode').value, 'night');
+  assert.equal($('budget').value, '140');
+  assert.equal(w.location.search, '');
+  await untilApp(() => JSON.parse(w.localStorage.getItem('sm_form') || '{}').b === 140);
+  const f = JSON.parse(w.localStorage.getItem('sm_form'));
+  assert.equal(f.bm, 'night'); assert.equal(f.k, 3);
+  // Geteilter Link hat Vorrang, Unsinn wird ignoriert
+  const w2 = bootExtra({ url: 'http://localhost/app?c=Rom&k=abc&b=-5' });
+  assert.equal(w2.document.getElementById('kids').value, '0');
+  assert.notEqual(w2.document.getElementById('budget').value, '-5');
+});
+
+test('R7-742 Stadtseiten: „Kurz und einfach“ nennt genau Platz 1 je Reisetyp und die Zahl der Viertel', async () => {
+  const B = await import('../scripts/build-city-pages.mjs');
+  for (const f of ['rom.json', 'berlin.json']) {
+    const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'web', 'data', f), 'utf8'));
+    const r = B.rankCity(d), html = B.renderPage(f, d);
+    const sec = html.match(/<section class="simple"[\s\S]*?<\/section>/)[0];
+    const named = [...sec.matchAll(/<b>([^<]+)<\/b>/g)].map(m => m[1]);
+    const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    assert.deepEqual(named, ['party', 'family', 'chill', 'sights', 'foodie'].map(k => esc(r.top[k][0].a.name)));
+    assert.match(sec, new RegExp(`Wir haben ${r.areas} Viertel`));
+    assert.ok(html.indexOf('Kurz und einfach') < html.indexOf('<h2>Party und Nachtleben</h2>'), 'steht vor den Listen');
+  }
+});
