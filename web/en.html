@@ -125,7 +125,7 @@ input[type=range] { accent-color: var(--accent); width: 100%; min-height: 32px; 
 .linkbtn { font: inherit; background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; }
 #lc-out.ok { color: var(--good); } #lc-out.warn { color: var(--warn); }
 #vorbereiten li { color: var(--muted); }
-@media print { .pc body * { visibility: hidden; } .pc #vorbereiten, .pc #vorbereiten * { visibility: visible; color: #000 !important; } .pc #vorbereiten { position: absolute; inset: 0 auto auto 0; } .pc #vorbereiten .faq, .pc .ckbar { display: none; } }
+@media print { .pc nav.top, .pc footer, .pc main > :not(#vorbereiten), .pc #vorbereiten .faq, .pc .ckbar { display: none; } .pc #vorbereiten * { color: #000 !important; } }
 @media (max-width: 640px) { .quick { grid-template-columns: 1fr 1fr; } .quick input[name=query], .quick .btn { grid-column: 1 / -1; } }
 .mobile-hint { font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 16px; }
 

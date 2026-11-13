@@ -25,7 +25,7 @@ footer{text-align:center}
 </main>
 <script>
   // Englisch für /en/… und nicht-deutsche Browser (keine Umleitung, nur Text und Startseiten-Link)
-  const en = location.pathname.startsWith('/en') || !/^de\b/i.test(navigator.language || '');
+  const en = /^\/en(\/|$)/.test(location.pathname) || !/^de\b/i.test(navigator.language || '');
   if (en) {
     document.documentElement.lang = 'en'; document.title = 'Page not found · StayMatch';
     document.getElementById('lead').textContent = 'This neighborhood doesn’t exist here.';

@@ -147,7 +147,7 @@ test('DE und EN: Skript außer den Texten (T) und CSS sind identisch', () => {
 });
 
 test('DE und EN: dieselben IDs, Formularfelder und Anker', () => {
-  const ids = (h) => [...h.matchAll(/\b(?:id|name|href="#)="?([\w-]+)/g)].map((m) => m[0]).sort();
+  const ids = (h) => [...h.matchAll(/\b(?:id|name)="([\w-]+)"|href="#([\w-]+)"/g)].map((m) => m[0]).sort();
   assert.deepEqual(ids(read('en.html')), ids(read('index.html')));
 });
 
@@ -161,6 +161,7 @@ test('Startseite: neue Werkzeuge wecken keine Erwartungen an Dienste Dritter', (
     const h = read(file);
     assert.ok(!/whatsapp|twitter\.com\/intent|facebook\.com\/sharer|t\.me\/share|mailto:/i.test(h), `${file}: Teilen-Link zu Drittdienst`);
     assert.ok(!/localStorage\.setItem\('sm_check/.test(h), `${file}: Checkliste soll nichts speichern`);
+    assert.match(h, /@media print \{ \.pc nav\.top, \.pc footer, \.pc main > :not\(#vorbereiten\)/, `${file}: Druck blendet den Rest aus (keine Leerseiten)`);
   }
 });
 
@@ -175,6 +176,7 @@ test('404: englischer Text für nicht-deutsche Browser und /en-Pfade, sonst deut
   assert.match(en.getElementById('guess').textContent, /^Did you mean Lissabon\?$/);
   const enPath = run('https://staymatch.pro/en/xyz', 'de-DE');
   assert.equal(enPath.documentElement.lang, 'en');
+  assert.equal(run('https://staymatch.pro/entdecken', 'de-DE').documentElement.lang, 'de');
   const de = run('https://staymatch.pro/staedte/lisbon', 'de-DE');
   assert.equal(de.documentElement.lang, 'de');
   assert.equal(de.getElementById('home').getAttribute('href'), '/');
