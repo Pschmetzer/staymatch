@@ -67,3 +67,10 @@ test('R7E Unterkunftsseite: Teilnoten-Konflikt, Last-Minute, Kopier-Warnung bei 
   const box2 = await until(() => /nur über Airbnb/.test(shadow(doc, 'sm-room')?.querySelector('.box')?.textContent || '') && shadow(doc, 'sm-room').querySelector('.box'));
   assert.ok(box2);
 });
+
+test('R7E Beschreibung gegen Bewertungen', () => {
+  const x = X.roomExtras({ desc: 'Ruhige Wohnung mit schnellem WLAN (Glasfaser).' });
+  assert.deepEqual(x.claims, ['ruhig', 'schnelles WLAN']);
+  assert.deepEqual(X.claimConflicts(x.claims, ['⚠️ laut (3×)', '👍 sauber']), ['Inserat sagt „ruhig“, Gäste sagen „laut (3×)“']);
+  assert.deepEqual(X.claimConflicts(x.claims, ['👍 sauber']), []);
+});

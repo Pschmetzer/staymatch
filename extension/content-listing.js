@@ -141,6 +141,7 @@
     const nf = H.numberFacts?.(t) || [];
     if (nf.length) out.info.push(`Gäste nennen: ${nf.map(x => `„${x}“`).join(', ')}`);
     if (H.renovated?.(t)) out.info.push('Neuere Bewertungen erwähnen Renovierung oder neue Matratzen: ältere Kritik ist evtl. überholt');
+    for (const c of X?.claimConflicts(item.extra?.claims, item.hints) || []) out.warn.push(c);
     const hr = H.hostReplies?.(t);
     if (hr) out.info.push(hr.replied ? `Gastgeber hat auf ${hr.replied} von ${hr.critical} kritischen Bewertungen geantwortet${hr.fixing ? `, ${hr.fixing}× mit Lösung („behoben“, „ersetzt“)` : ''}` : `Keine Antwort des Gastgebers auf ${hr.critical} kritische Bewertungen gelesen`);
     const tr = H.keywordTrend?.(t);

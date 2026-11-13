@@ -266,6 +266,15 @@
     return 2 * Math.acos(cosH) / rad / 15;
   }
 
+  // Was die Beschreibung verspricht (für „Inserat sagt X, Gäste sagen Y“)
+  const CLAIMS = [['ruhig', /\bruhig\w*|quiet|calme|tranquil/i, /⚠️ (laut|hellhörig|Baustelle|Ohrstöpsel)/], ['schnelles WLAN', /schnell\w* (wlan|internet|wifi)|fast (wifi|internet)|glasfaser|fibre|fiber/i, /⚠️ WLAN/],
+    ['sauber', /blitzsauber|sehr sauber|spotless|impeccably clean/i, /⚠️ (schmutzig|Geruch|Ungeziefer)/], ['hell', /lichtdurchflutet|sehr hell|bright|lumineux|luminoso/i, /⚠️ dunkel/]];
+  const claims = t => CLAIMS.filter(([, re]) => re.test(S(t))).map(([l]) => l);
+  // Abgleich mit den Bewertungs-Stichworten
+  function claimConflicts(cl, hints) {
+    return (cl || []).map(l => { const c = CLAIMS.find(x => x[0] === l); const bad = c && (hints || []).find(x => c[2].test(x)); return bad ? `Inserat sagt „${l}“, Gäste sagen „${bad.replace(/^⚠️\s*/, '')}“` : null; }).filter(Boolean);
+  }
+
   // ---------- Alles auf einmal für die Unterkunftsseite ----------
   // sec: { desc, rules, amen, host, book }  (reine Texte)
   function roomExtras(sec = {}) {
@@ -279,7 +288,7 @@
       notForKids: NOT_FOR_KIDS.test(S(sec.rules)), noVisitors: NO_VISITORS.test(S(sec.rules)), minAge: minAge(sec.rules), smokingOk: SMOKING_OK.test(S(sec.rules)),
       petLimits: petLimits(sec.rules), petFee: petFee(all), allergy: allergy(S(sec.desc) + '\n' + S(sec.rules)), rules: ruleCount(sec.rules),
       host: hostExtra(sec.host), license: license(all), green: greenClaims(all), superlatives: superlatives(sec.desc),
-      amenRead: !!S(sec.amen).trim(),
+      amenRead: !!S(sec.amen).trim(), claims: claims(sec.desc),
     };
   }
 
@@ -754,7 +763,7 @@
   }
 
   root.StayMatchExtras = {
-    lastMinute, discountHonesty, subRatings, subRatingNotes, contactLike, hostReviewCount, cancelTradeoff, lastYear,
+    claimConflicts, lastMinute, discountHonesty, subRatings, subRatingNotes, contactLike, hostReviewCount, cancelTradeoff, lastYear,
     linkCheck, friendIds, tripsText, storageSummary,
     priceAnchor, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
     budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, mainCurrency,
