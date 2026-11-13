@@ -27,6 +27,8 @@ test('Tageslicht: Oslo im Dezember etwa 6 Stunden, Barcelona im Juni über 15', 
   assert.equal(SM.dayLength(50, 'kaputt'), null);
   assert.match(SM.daylightText(59.91, '2026-12-21'), /Früh dunkel/);
   assert.match(SM.daylightText(59.91, '2026-06-21'), /Verdunkelung/);
+  assert.match(SM.sundayNote('2026-11-15'), /Anreise am Sonntag/); // Sonntag
+  assert.equal(SM.sundayNote('2026-11-16'), '');
 });
 
 test('Wünsche aus einem Satz: Häkchen und Budget mit Modus', () => {

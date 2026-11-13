@@ -574,6 +574,8 @@
       : h > 16 ? ' Lange hell: Verdunkelung im Schlafzimmer hilft beim Schlafen.' : '');
   }
 
+  // Anreise am Sonntag: in vielen Ländern (etwa Deutschland, Österreich, Schweiz) sind Läden dann zu
+  const sundayNote = day => new Date(String(day) + 'T12:00:00Z').getUTCDay() === 0 ? 'Anreise am Sonntag: In manchen Ländern, etwa Deutschland, Österreich und der Schweiz, haben Läden dann zu. Vorher einkaufen.' : '';
   // Was fehlt diesem Viertel bis Platz 1? Punkte und die zwei Kategorien mit dem größten Rückstand (gewichtet nach der Gruppe).
   function gapToFirst(a, first, ppl) {
     if (!a || !first || a === first) return null;
@@ -843,7 +845,7 @@
     return { mem: all, hint: p && ppl.some(x => x.name === p.name) && p.s < 70 ? { name: p.name, score: p.s, city: p.q, area: p.a } : null };
   }
 
-  Object.assign(root.StayMatch, { dayLength, daylightText, gapToFirst, gapText, worstAreas, groupConflicts, robustness, robustText, oddOneOut, plainText, familySpots,
+  Object.assign(root.StayMatch, { dayLength, daylightText, sundayNote, gapToFirst, gapText, worstAreas, groupConflicts, robustness, robustText, oddOneOut, plainText, familySpots,
     parseWishes, interestsToWeights, duelPairs, duelWeights, stayWeights, stayNote, parsePlaces, placesNear, cleanVotes, tallyVotes, cleanLegs, legIssues, legsText,
     decisionQuestions, areasText, fairMemory, groupSig });
 })(typeof window !== 'undefined' ? window : globalThis);

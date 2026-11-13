@@ -121,7 +121,7 @@
     if (!v || !d || !v.ranked.length || !$('results').children.length) { box.innerHTML = ''; return; }
     const ppl = v.ppl, best = v.byTotal[0], info = [];
     const sn = SM.stayNote(A.nights()); if (sn) info.push(esc(sn));
-    const dl = SM.daylightText(d.geo.lat, $('checkin').value); if (dl) info.push(esc(dl));
+    const dl = SM.daylightText(d.geo.lat, $('checkin').value); if (dl) info.push(esc(dl)); const su = SM.sundayNote($('checkin').value); if (su) info.push(esc(su));
     for (const c of SM.groupConflicts(ppl)) info.push('↔️ ' + esc(c.text));
     const rb = SM.robustText(SM.robustness(v.okAreas, ppl, A.fair())); if (rb) info.push(esc(rb));
     // Fairness-Konto: wer kam bei der letzten Reise dieser Gruppe zu kurz?
