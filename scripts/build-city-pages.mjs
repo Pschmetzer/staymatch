@@ -35,16 +35,10 @@ const slug = file => file.replace(/\.json$/, '');
 const airbnb = (area, city) => `https://www.airbnb.de/s/${encodeURIComponent(`${area}, ${city}`)}/homes`;
 
 export function rankCity(d) {
-  const rows = d.rows.map(v => Object.fromEntries(d.fields.map((f, i) => [f, v[i]]).filter(([, x]) => x !== '' && x != null)));
-  const areas = [], raw = [];
-  for (const t of rows) {
-    const lat = +t.lat, lon = +t.lon;
-    if (!lat) continue;
-    if (t.place && t.name) { if (!areas.some(a => a.name === t.name && SM.distM(a, { lat, lon }) < 1500)) areas.push({ name: t.name, lat, lon }); continue; }
-    for (const cat of SM.categoriesOf(t)) raw.push({ lat, lon, cat, name: t.name, tags: t });
-  }
+  // Gleiche Logik wie die Web-App (shared/core.js): nur echte Viertel, Plätze zählen als Orte
+  const { areas, raw } = C.splitRows(C.rowsToTags(d.fields, d.rows), SM.categoriesOf);
   const pois = SM.dedupePois(raw);
-  const radius = pois.filter(p => p.cat === 'transit').length >= 60 ? 1200 : 800;
+  const radius = C.autoRadius(pois);
   SM.scoreAreas(areas, pois, radius);
   const out = {};
   for (const [key] of TYPES) {

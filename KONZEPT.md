@@ -9,10 +9,10 @@
 ## Teile
 
 ### 1. Web-App „Viertel-Finder“ (`web/`)
-- Stadt, Zeitraum, Gesamtbudget und Interessen eingeben (Typen: Party, Chill, Sightseeing, Foodie, Familie, Natur). Standard ist eine Person, Mitreisende sind optional.
+- Stadt, Zeitraum, Gesamtbudget und Interessen eingeben (Typen: Party, Chill, Sightseeing, Foodie, Familie, Natur, Shopping, Sport, Kultur; je Person mit ⚙️ einzeln einstellbar oder aus zwei Typen gemischt). Standard ist eine Person, Mitreisende sind optional.
 - Wünsche an die Unterkunft: ganze Unterkunft, kein gewerblicher Anbieter, Superhost/Gäste-Favorit, mind. 20 Bewertungen (prüft das Plugin auf der Suchseite) sowie ruhig, sauber, gutes WLAN (prüft das Plugin auf der Unterkunftsseite anhand der Bewertungs-Stichworte).
-- Die App holt aus OpenStreetMap alle Viertel und Orte der Stadt (Bars, Clubs, Parks, Cafés, Sehenswürdigkeiten, Restaurants, ÖPNV).
-- Jedes Viertel bekommt pro Person einen Wert von 0 bis 100. Bei Gruppen setzt sich die Wertung zu **60 % aus der am wenigsten zufriedenen Person** und zu 40 % aus dem Schnitt zusammen. So gewinnt nicht einfach die Mehrheit.
+- Die App holt aus OpenStreetMap alle Viertel und Orte der Stadt (Bars, Clubs, Parks, Cafés, Sehenswürdigkeiten, Restaurants, ÖPNV, Einkaufen, Sport, Kinder).
+- Jedes Viertel bekommt pro Person einen Wert von 0 bis 100. Bei Gruppen setzt sich die Wertung standardmäßig zu **60 % aus der am wenigsten zufriedenen Person** und zu 40 % aus dem Schnitt zusammen; der Anteil ist mit dem Fairness-Regler einstellbar. So gewinnt nicht einfach die Mehrheit.
 - Budget wird umgerechnet: pro Nacht und pro Person.
 - Für jedes Top-Viertel gibt es einen Link in die Unterkunftssuche mit Datum, Personenzahl, Preisgrenze und Kartenausschnitt.
 - Karte mit den Top-Vierteln und Highlights in der Nähe.
@@ -25,7 +25,7 @@
 - **Gefällt mir / Nein** plus Notiz pro Unterkunft.
 - **Bewertungen:** Sterne, Anzahl und erkannte Stichworte aus den Rezensionen (sauber, Lage, laut, WLAN …).
 - **Dein Geschmack:** Preis, Bewertung, Stichworte und Orte aus deinen 👍-Unterkünften.
-- Export als JSON. Alles bleibt in `chrome.storage.local`.
+- Export als JSON oder CSV, Import aus JSON. Alles bleibt in `chrome.storage.local`.
 
 ## Die Wünsche und wo sie umgesetzt sind
 | Wunsch | Umsetzung |
@@ -43,7 +43,7 @@
 - Die Seitenstruktur von Airbnb ändert sich oft. Die Erweiterung nutzt deshalb zuerst die URL und strukturierte Daten (JSON-LD) und lässt fehlende Felder weg.
 - Das Plugin bewertet je Suchseite. Ein Sammeln über mehrere Seiten gibt es noch nicht, die Top 3 gelten für die geöffnete Seite. Es läuft nur in Chrome-Browsern am Computer, nicht auf dem Handy.
 - Das Geschmacksprofil fließt nur mit kleinem Gewicht (5 %) in die Plugin-Wertung ein.
-- Die öffentlichen OpenStreetMap-Server (Overpass) sind manchmal langsam (bis ca. 1 Minute). Ergebnisse werden einen Tag im Browser zwischengespeichert.
+- Die öffentlichen OpenStreetMap-Server (Overpass) sind manchmal langsam (bis ca. 1 Minute). Ergebnisse werden einen Tag im Browser zwischengespeichert. Für die zehn beliebtesten Städte liegen die Daten vorab auf der Website (`web/data/`), dort entfällt die Wartezeit ganz.
 
 ## Ideen von bestehenden Tools
 - **CompareBNB:** Unterkünfte nebeneinander vergleichen, Gesamtpreis pro Person.
@@ -53,7 +53,7 @@
 
 ## Roadmap
 **Als Nächstes für Einzelreisende:**
-- Mehrere Interessen pro Person mit Schiebereglern statt eines Typs.
+- Mehrere Interessen pro Person: umgesetzt (⚙️ je Person, Regler je Kategorie oder Mischung aus zwei Typen). Offen: diese Einstellung auch im Plugin-Popup ändern.
 - Weitere Wünsche, sobald die Daten sie sicher hergeben: Küche, Arbeitsplatz, Self-Check-in, Haustiere (Ausstattung steht erst auf der Unterkunftsseite).
 - Wünsche direkt im Plugin-Popup ändern, ohne zurück auf die Website.
 - Vergleichsansicht der gemerkten 👍-Unterkünfte nebeneinander.

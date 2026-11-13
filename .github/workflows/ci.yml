@@ -2,25 +2,28 @@ name: CI
 on:
   push: { branches: [main] }
   pull_request:
+  # Wöchentlich auch ohne Push: zeitabhängige Fehler (Datenalter, security.txt, tote Links) fallen so auf
   schedule: [{ cron: "17 5 * * 1" }]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Nur PR-Läufe abbrechen; Läufe auf main sollen immer einen Status hinterlassen
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   check:
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        node: [22, 24, 26]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      # Actions per Commit-SHA gepinnt (Tags sind verschiebbar); Dependabot aktualisiert SHA und Kommentar
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: "${{ matrix.node }}", cache: npm, cache-dependency-path: tests/package-lock.json }
       - name: Syntax aller JavaScript-Dateien
         run: |
@@ -36,16 +39,42 @@ jobs:
         run: node .github/scripts/check-domains.mjs
       - name: Größengrenzen für web/*.js und index.html
         run: node .github/scripts/check-size.mjs
-      - name: jsdom für die DOM-Tests des Plugins
-        run: npm ci --prefix tests --no-audit --no-fund
+      - name: Städtedaten (Schema, Viertel-Typen, Alter, Größe)
+        run: node scripts/check-data.mjs
+      - name: jsdom für die DOM-Tests des Plugins (ohne Install-Skripte)
+        run: npm ci --prefix tests --no-audit --no-fund --ignore-scripts
       - name: jsdom ist wirklich da (sonst würden DOM-Tests still übersprungen)
         run: node -e "require('./tests/node_modules/jsdom')"
       - name: Tests
-        run: node --test tests/*.test.js
+        if: matrix.node != 24
+        run: node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./.github/scripts/gh-annotate.mjs --test-reporter-destination=stdout tests/*.test.js
+      - name: Tests mit Abdeckung (mindestens 90 % der Zeilen)
+        if: matrix.node == 24
+        run: >-
+          node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-exclude='tests/**'
+          --test-reporter=spec --test-reporter-destination=stdout
+          --test-reporter=./.github/scripts/gh-annotate.mjs --test-reporter-destination=stdout tests/*.test.js
+      # ZIP nur einmal bauen (gleicher Inhalt in jedem Node-Bein) und als Artefakt ablegen
       - name: Plugin-ZIP lässt sich bauen
+        if: matrix.node == 24
         run: ./scripts/build-plugin-zip.sh
-      - name: ZIP-Inhalt (keine versteckten Dateien, keine Tests)
+      - name: ZIP-Inhalt (keine versteckten Dateien, keine Tests, Version)
+        if: matrix.node == 24
         run: node .github/scripts/check-zip.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.node == 24
+        with: { name: staymatch-plugin, path: "web/staymatch-plugin.zip*", retention-days: 14 }
+
+  dependency-review:
+    # Neue oder geänderte Abhängigkeiten (tests/package-lock.json, Actions) auf bekannte Lücken prüfen
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with: { fail-on-severity: moderate }
 
   links:
     # Online-Linkcheck nur wöchentlich und von Hand: fremde 5xx sollen keine PRs blockieren.
@@ -53,8 +82,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 22 }
       - name: Tote Links in Markdown-Dateien
         run: node .github/scripts/check-links.mjs --online

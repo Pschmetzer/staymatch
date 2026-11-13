@@ -15,7 +15,10 @@
     "check:domains": "node .github/scripts/check-domains.mjs",
     "check:size": "node .github/scripts/check-size.mjs",
     "check:links": "node .github/scripts/check-links.mjs",
+    "check:data": "node scripts/check-data.mjs",
     "check:zip": "node .github/scripts/check-zip.mjs",
-    "check": "npm run check:js && npm run check:html && npm run check:domains && npm run check:size && npm run check:links && npm run build --silent && npm run check:zip"
+    "check:static": "npm run check:js && npm run check:html && npm run check:domains && npm run check:size && npm run check:links && npm run check:data",
+    "check": "npm run check:static && npm run build --silent && npm run check:zip",
+    "data:reprocess": "node scripts/prefetch-cities.mjs --reprocess"
   }
 }

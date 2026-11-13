@@ -138,12 +138,12 @@ test('App startet mit kaputtem localStorage (Vorlagen, Personen, Formular)', dom
   assert.deepEqual(w.errors, []);
 });
 
-test('Shopping allein in Wien zeigt Viertel und einen Hinweis zu fehlenden Daten', dom, async () => {
+test('Shopping allein in Wien zeigt Viertel (Städtedaten haben jetzt die Spalte shop)', dom, async () => {
   const w = bootApp({ storage: { sm_people: [{ name: 'Du', type: 'shopping' }] } });
   await search(w, 'Wien');
   const $ = id => w.document.getElementById(id);
   assert.ok($('results').children.length >= 5, $('status').textContent);
-  assert.match($('status').textContent, /Einkaufen hat OpenStreetMap hier kaum Daten/);
+  assert.doesNotMatch($('status').textContent, /Einkaufen hat OpenStreetMap hier kaum Daten/);
 });
 
 test('„Barcelona, Spanien“ nutzt die Vorab-Datei; ein Index-Fehler wird nicht gemerkt', dom, async () => {

@@ -20,7 +20,11 @@ for (const n of names) {
 }
 if (!names.includes('manifest.json')) errors.push('manifest.json liegt nicht im Wurzelordner des ZIPs');
 else {
-  const m = JSON.parse(readFileSync('extension/manifest.json', 'utf8'));
+  // Manifest aus dem ZIP lesen (nicht von der Platte): ein altes ZIP fällt so auf
+  let m;
+  try { m = JSON.parse(execFileSync('unzip', ['-p', zip, 'manifest.json'], { encoding: 'utf8' })); } catch (e) { errors.push(`manifest.json im ZIP nicht lesbar: ${e.message}`); m = {}; }
+  const disk = JSON.parse(readFileSync('extension/manifest.json', 'utf8'));
+  if (m.version !== disk.version) errors.push(`ZIP hat Version ${m.version}, extension/manifest.json ${disk.version}: ZIP neu bauen`);
   const need = [...(m.content_scripts || []).flatMap((s) => s.js || []), m.action?.default_popup, ...Object.values(m.icons || {})];
   for (const f of need.filter(Boolean)) if (!names.includes(f)) errors.push(`Im ZIP fehlt ${f}`);
 }

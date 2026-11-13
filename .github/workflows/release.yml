@@ -1,20 +1,23 @@
 name: Release
-# Bei einem Tag wie v0.5.1: Prüfungen und Tests laufen, das Plugin-ZIP wird gebaut und an ein GitHub-Release gehängt
-# (mit SHA-256-Prüfsumme und Herkunftsnachweis). Es wird nichts deployt.
+# Bei einem Tag wie v0.5.1: Prüfungen und Tests laufen, das Plugin-ZIP wird gebaut und als ENTWURF an ein GitHub-Release
+# gehängt (mit SHA-256-Prüfsumme und Herkunftsnachweis). Veröffentlichen von Hand auf GitHub. Es wird nichts deployt.
 on:
   push:
     tags: ["v*"]
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
-  release:
+  build:
+    # Nur Leserechte: Abhängigkeiten, Tests und Bau laufen ohne Schreib-Token
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 22, cache: npm, cache-dependency-path: tests/package-lock.json }
       - name: Tag passt zu Manifest- und package.json-Version
         env:
@@ -38,28 +41,49 @@ jobs:
             if(!m||!m[1].trim()){console.error("CHANGELOG.md hat keinen Abschnitt für "+v);process.exit(1)}
             fs.writeFileSync("release-notes.md",m[1].trim()+"\n");
           ' "$v"
-      - name: jsdom für die DOM-Tests des Plugins
-        run: npm ci --prefix tests --no-audit --no-fund
+      - name: jsdom für die DOM-Tests des Plugins (ohne Install-Skripte)
+        run: npm ci --prefix tests --no-audit --no-fund --ignore-scripts
       - name: jsdom ist wirklich da (sonst würden DOM-Tests still übersprungen)
         run: node -e "require('./tests/node_modules/jsdom')"
       - name: Tests
         run: npm test
-      - name: Alle Prüfungen
-        run: npm run check
-      - name: ZIP bauen und prüfen
+      - name: Prüfungen ohne ZIP (das Release-ZIP wird unten genau einmal gebaut)
+        run: npm run check:static
+      - name: ZIP bauen und prüfen (Skript schreibt auch die .sha256)
         env:
           TAG: ${{ github.ref_name }}
         run: |
           ./scripts/build-plugin-zip.sh "staymatch-plugin-$TAG.zip"
           node .github/scripts/check-zip.mjs "staymatch-plugin-$TAG.zip"
-          sha256sum "staymatch-plugin-$TAG.zip" > "staymatch-plugin-$TAG.zip.sha256"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: |
+            staymatch-plugin-${{ github.ref_name }}.zip
+            staymatch-plugin-${{ github.ref_name }}.zip.sha256
+            release-notes.md
+          retention-days: 7
+
+  publish:
+    # Schreibrechte nur hier: Herkunftsnachweis und Release-Entwurf, kein npm, keine Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: release }
       - name: Herkunftsnachweis (Provenance)
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: staymatch-plugin-${{ github.ref_name }}.zip
-      - name: Release anlegen
+      - name: Release als Entwurf anlegen (Freigabe von Hand)
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" "staymatch-plugin-$TAG.zip" "staymatch-plugin-$TAG.zip.sha256" --title "StayMatch $TAG" --notes-file release-notes.md --verify-tag
+          gh release create "$TAG" "staymatch-plugin-$TAG.zip" "staymatch-plugin-$TAG.zip.sha256" --draft --title "StayMatch $TAG" --notes-file release-notes.md --verify-tag

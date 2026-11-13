@@ -1,6 +1,6 @@
 name: Idee
 description: Ein Vorschlag für StayMatch. Vorher kurz in IDEEN.md schauen, ob es ihn schon gibt.
-labels: [idee]
+labels: [enhancement]
 body:
   - type: textarea
     id: problem

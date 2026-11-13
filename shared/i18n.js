@@ -1,5 +1,5 @@
 // StayMatch – Übersetzungen (Gerüst, noch ungenutzt).
-// NUR HIER bearbeiten, danach `node scripts/sync-core.mjs` (kopiert nach web/ und extension/).
+// NUR HIER bearbeiten, danach `node scripts/sync-core.mjs` (kopiert nach extension/; die Website lädt es noch nicht).
 // t('key', { n: 3 }) → Text aus dem Wörterbuch, {n} wird ersetzt. Unbekannter Schlüssel → der Schlüssel selbst.
 (function (root) {
   const DICT = {

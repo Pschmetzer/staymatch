@@ -25,10 +25,10 @@ Download als ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (wird be
 2. Oben rechts den **Entwicklermodus** einschalten
 3. **Entpackte Erweiterung laden** → Ordner `extension/` wählen
 
-Alle Daten bleiben lokal in `chrome.storage.local`. Das Plugin liest nur Seiten, die du selbst öffnest: keine eigenen Anfragen an Airbnb, kein Hintergrund-Crawling, kein Abfangen von Netzwerkdaten.
+Alle Daten bleiben lokal in `chrome.storage.local`. Das Plugin liest nur Seiten, die du selbst öffnest: kein Abrufen von Airbnb-Seiten oder -Daten, kein Hintergrund-Crawling, kein Abfangen von Netzwerkdaten. Einzige Netzwerkanfragen: die Vorschaubilder der Top 3 im Panel, geladen vom Bild-Server von Airbnb ohne Referrer.
 
 ## Daten und Hinweise
-- Orte und Viertel: © [OpenStreetMap](https://www.openstreetmap.org/copyright)-Mitwirkende (ODbL), über Nominatim und Overpass.
+- Orte und Viertel: © [OpenStreetMap](https://www.openstreetmap.org/copyright)-Mitwirkende (ODbL), über Nominatim und Overpass. Vorab geladene Städtedaten und ihre Entstehung: [web/data/NOTICE.md](web/data/NOTICE.md).
 - Kein offizielles Produkt und nicht mit Airbnb verbunden. Die Erweiterung liest nur Seiten, die du selbst öffnest.
 
 Lizenz: Code MIT, Kartendaten ODbL (siehe [THIRD_PARTY.md](THIRD_PARTY.md))
@@ -37,9 +37,9 @@ Lizenz: Code MIT, Kartendaten ODbL (siehe [THIRD_PARTY.md](THIRD_PARTY.md))
 ```bash
 npm ci --prefix tests              # einmalig: jsdom für die DOM-Tests (sonst werden sie übersprungen)
 npm test                             # Tests
-npm run check                        # alle Prüfungen (Syntax, HTML, Größen, Links, ZIP)
+npm run check                        # alle Prüfungen (Syntax, HTML, Größen, Städtedaten, Links, ZIP)
 node scripts/sync-core.mjs           # shared/ nach web/ und extension/ kopieren (nach Änderungen am Kern)
-./scripts/deploy.sh         # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
-node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/)
+./scripts/deploy.sh                  # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
+node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/), Ablauf in CONTRIBUTING.md
 ```
 Mitmachen: [CONTRIBUTING.md](CONTRIBUTING.md) · Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md) · Sicherheit: [SECURITY.md](SECURITY.md)

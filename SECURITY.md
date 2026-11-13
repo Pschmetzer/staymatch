@@ -15,7 +15,7 @@ Hilfreich sind: betroffener Teil (Web-App oder Plugin), Schritte zum Nachstellen
 - Plugin: unerwartete Datenabflüsse, Codeausführung durch präparierte Seiten oder importierte Dateien, zu weite Berechtigungen.
 - Web-App: Skriptinjektion (XSS) über Teilen-Link oder Eingaben, Lücken in der Content-Security-Policy.
 
-Das Plugin braucht nur die Berechtigung `storage` und sendet keine Daten an eigene Server. Details: [PRIVACY.md](PRIVACY.md).
+Das Plugin nutzt die Berechtigung `storage` und Zugriff auf Airbnb-Seiten (24 Länder-Domains, zum Lesen der geöffneten Seite) sowie auf die StayMatch-Website (Reise übernehmen); siehe `content_scripts` in `extension/manifest.json`. Es sendet keine Daten an eigene Server. Details: [PRIVACY.md](PRIVACY.md).
 
 ## Unterstützte Versionen
 
