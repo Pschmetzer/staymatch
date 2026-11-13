@@ -15,12 +15,13 @@ test('Suchseite: Panel mit Top 3, Plaketten an den Karten, Preis pro Person und 
   assert.ok(box, 'Panel fehlt');
   assert.equal(box.querySelectorAll('.item').length, 3);
   assert.match(box.textContent, /4 Unterkünfte/);
-  assert.match(box.textContent, /pro Person und Nacht/);
+  assert.match(box.textContent, /\d+ € p\. P\.\/Nacht/); // seit #44: Hotel-Karte mit Kurzform
   const badges = [...doc.querySelectorAll('[data-staymatch-badge]')];
   assert.equal(badges.length, 4);
   assert.match(badges[0].textContent, /^StayMatch \d+ · \d+ € p\. P\.\/Nacht$/);
   // Gast-Favorit 111 (4,92 bei 210, 5 Betten) steht vorne
-  assert.match(box.querySelector('.item a').textContent, /^1\. Titel 111/);
+  assert.equal(box.querySelector('.item .rank').textContent, '1');
+  assert.match(box.querySelector('.item a.name').textContent, /^Titel 111/);
 });
 
 test('Suchseite: Texte der Seite werden nie als HTML eingesetzt', { skip }, async () => {
@@ -30,7 +31,10 @@ test('Suchseite: Texte der Seite werden nie als HTML eingesetzt', { skip }, asyn
   const box = await until(() => shadow(doc, 'sm-search')?.querySelector('.box'));
   assert.ok(box);
   assert.equal(w.pwned, undefined);
-  assert.equal(box.querySelectorAll('img').length, 0);
+  // seit #44 zeigt die Karte das Kartenfoto (nur https), aber nie ein eingeschleustes Bild
+  for (const img of box.querySelectorAll('img')) { assert.match(img.getAttribute('src'), /^https:\/\//); assert.equal(img.getAttribute('onerror'), null); }
+  assert.equal(box.querySelectorAll('img[src="x"]').length, 0);
+  assert.equal(box.querySelectorAll('[onerror]').length, 0, 'kein onerror-Attribut im Panel');
   void evil;
 });
 
@@ -117,7 +121,7 @@ test('Mehrere Seiten: Blättern sammelt, Top 3 kommt aus allen Seiten, Leeren se
   assert.deepEqual(chrome.data.pool.pages, ['0', '18']);
   assert.deepEqual(Object.keys(chrome.data.pool.items).sort(), ['111', '222', '333', '999']);
   assert.match(box.textContent, /4 Unterkünfte von 2 Seiten/);
-  assert.match(box.querySelector('.item a').textContent, /^1\. Titel 999/);
+  assert.match(box.querySelector('.item a.name').textContent, /^Titel 999/);
   assert.equal(p2.doc.querySelectorAll('[data-staymatch-badge]').length, 2, 'Plaketten nur an sichtbaren Karten');
   [...box.querySelectorAll('button')].find(b => b.textContent === 'Sammlung leeren').click();
   await until(() => chrome.data.pool?.pages.length === 1);
