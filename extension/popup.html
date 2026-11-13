@@ -18,7 +18,7 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <div id="trip"></div>
 <nav role="tablist" aria-label="Ansicht"><button role="tab" id="tab-top" aria-selected="true" aria-controls="list" data-tab="top" class="on">Empfehlungen</button><button role="tab" id="tab-all" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="all">Verlauf</button><button role="tab" id="tab-liked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="liked">Gefällt mir</button><button role="tab" id="tab-disliked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="disliked">Nein</button></nav>
 <input type="search" id="search" placeholder="Suchen (Titel, Ort, Notiz)" aria-label="Verlauf durchsuchen" hidden>
-<div id="list" role="tabpanel" aria-labelledby="tab-top"></div>
+<div id="list" role="tabpanel" aria-labelledby="tab-top" tabindex="0"></div>
 <div id="opts" style="padding:6px 14px;font-size:12px;border-top:1px solid #eee">
 <label style="display:block"><input type="checkbox" id="optBadges" checked> Punkte an den Airbnb-Karten anzeigen</label>
 <label style="display:block;margin-top:4px">Panel-Design: <select id="optTheme"><option value="auto">automatisch</option><option value="light">hell</option><option value="dark">dunkel</option></select></label>

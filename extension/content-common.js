@@ -53,7 +53,7 @@
   const themeClass = () => settings.theme === 'dark' ? ' dark' : settings.theme === 'light' ? ' light' : '';
   function applyTheme() {
     for (const id of ['sm-search', 'sm-room', 'sm-error']) {
-      const box = document.getElementById(id)?.shadowRoot?.querySelector('.box');
+      const box = rootOf(id)?.querySelector('.box');
       if (box) { box.classList.toggle('dark', settings.theme === 'dark'); box.classList.toggle('light', settings.theme === 'light'); }
     }
   }
@@ -68,22 +68,35 @@
 
   async function copyText(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch {}
-    try { // Rückfall, falls die Seite die Zwischenablage-Schnittstelle sperrt
-      const ta = h('textarea', { 'data-staymatch': '1', style: 'position:fixed;left:-999px;top:0' });
-      ta.value = text; document.body.append(ta); ta.select();
-      const ok = document.execCommand('copy'); ta.remove(); return ok;
+    // Rückfall, falls die Seite die Zwischenablage-Schnittstelle sperrt.
+    // R7: Textfeld im eigenen (geschlossenen) Shadow Root statt in Airbnbs DOM; Fokus danach zurückgeben.
+    const prev = document.activeElement;
+    let tmp = null;
+    try {
+      const root = host('sm-clip');
+      tmp = document.getElementById('sm-clip');
+      const ta = h('textarea', { 'aria-hidden': 'true', style: 'position:fixed;left:-999px;top:0' });
+      ta.value = text; root.append(ta); ta.select();
+      return document.execCommand('copy');
     } catch { return false; }
+    finally { tmp?.remove(); try { prev?.focus?.({ preventScroll: true }); } catch {} }
   }
 
+  // R7: geschlossener Shadow Root: Airbnbs Skripte kommen über el.shadowRoot nicht an Notiz, Budget und Gründe.
+  // Die Referenz bleibt hier (WeakMap), Tests erreichen sie über T.shadow.
+  const roots = new WeakMap();
+  function rootOf(id) { const el = document.getElementById(id); return el ? roots.get(el) || null : null; }
   function host(id) {
     let el = document.getElementById(id);
-    if (!el) {
+    if (!el || !roots.has(el)) {
+      el?.remove();
       el = h('div', { id, 'data-staymatch': '1' });
-      el.attachShadow({ mode: 'open' });
+      roots.set(el, el.attachShadow({ mode: 'closed' }));
       document.documentElement.appendChild(el);
     }
-    return el.shadowRoot;
+    return roots.get(el);
   }
+  T.shadow = rootOf;
 
   const CSS = `
     :host { all: initial; }
@@ -104,7 +117,7 @@
     b.brand span { color: var(--accent); }
     button { font: inherit; color: inherit; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; cursor: pointer; }
     button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-    button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .muted { color: var(--muted); font-size: 12px; }
     .item { border-top: 1px solid var(--line); padding: 8px 0; }
     .item a { color: var(--fg); font-weight: 600; text-decoration: none; }
@@ -128,8 +141,11 @@
   function panel(id, title, bodyNodes, opts = {}) {
     const { minimized = false } = opts;
     const root = host(id);
-    root.replaceChildren();
-    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': title });
+    // R7: Live-Region bleibt beim Neuaufbau bestehen, sonst sagt der Screenreader die Änderung nicht an
+    const live = root.querySelector('.sr-live') || h('div', { class: 'sr-live', role: 'status', 'aria-live': 'polite', style: 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap' });
+    root.replaceChildren(live);
+    if (opts.announce != null && live.textContent !== opts.announce) setTimeout(() => { live.textContent = opts.announce; }, 50);
+    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
     const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');
     box.append(h('style', {}, CSS),
@@ -148,14 +164,20 @@
     const act = keys[e.code];
     if (act) { e.preventDefault(); act(); }
   }
-  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) document.getElementById(id)?.shadowRoot?.querySelector('.box')?.classList.toggle('min'); };
+  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) rootOf(id)?.querySelector('.box')?.classList.toggle('min'); };
   document.addEventListener('keydown', onKey, true);
 
     // Kartenverschieben und Zoomen ändert nur diese Parameter; das ist keine neue Suche (Panel und Budgeteingabe bleiben)
   const MAP_PARAMS = ['ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'center_lat', 'center_lng', 'search_by_map', 'map_toggle', 'viewport_width', 'viewport_height', 'update_selected_filters'];
   const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
-  const SMC = window.StayMatchContent = { searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, search: null, room: null, start };
+  const SMC = window.StayMatchContent = { rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, search: null, room: null, start };
   function start() {
+    // R7: fehlt ein Seiten-Modul (Syntaxfehler, halbes Update), nicht in jedem route() stumm werfen
+    if (!SMC.search || !SMC.room) {
+      console.debug('StayMatch: Modul fehlt', { search: !!SMC.search, room: !!SMC.room });
+      if (/^\/s\//.test(location.pathname) || P.ROOM_RE.test(location.pathname)) panel('sm-error', 'Plugin unvollständig', [h('div', { class: 'err' }, 'Ein Teil des Plugins wurde nicht geladen. Bitte das Plugin unter chrome://extensions neu laden.')]);
+      return;
+    }
     let lastUrl = '', lastKey = '', debounce = null, emptyTimer = null;
     const relevant = () => /^\/s\//.test(location.pathname) || P.ROOM_RE.test(location.pathname);
     function route() {
@@ -182,9 +204,9 @@
       clearTimeout(debounce); debounce = setTimeout(route, T.debounce ?? 700);
     }).observe(document.body, { childList: true, subtree: true });
     // Seitenwechsel ohne Neuladen: Navigation API (Chrome 102+), sonst Rückfall auf langsames Abfragen
+    // R7: mit Navigation API kein zusätzliches popstate (sonst lief route() bei Zurück doppelt)
     if (window.navigation?.addEventListener) window.navigation.addEventListener('navigatesuccess', () => route());
-    else setInterval(() => { if (location.href !== lastUrl) route(); }, 1000);
-    window.addEventListener('popstate', () => route());
+    else { setInterval(() => { if (location.href !== lastUrl) route(); }, 1000); window.addEventListener('popstate', () => route()); }
     T.api = { route, handleSearch: () => SMC.search.handle(), handleRoom: id => SMC.room.handle(id), checkEmpty: () => SMC.search.checkEmpty(), onKey };
     route();
   }
