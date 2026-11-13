@@ -14,7 +14,7 @@
       people: list(t.people, 30, p => p && typeof p === 'object' ? { name: str(p.name, 40) || '', type: str(p.type, 20) || '' } : typeof p === 'string' ? { name: p.slice(0, 40), type: '' } : undefined),
       wishes: list(t.wishes, 30, w => typeof w === 'string' ? w.slice(0, 40) : undefined),
       // R7: ohne Wert (total) ist ein Viertel nutzlos und machte den Passt-Wert NaN
-      areas: list(t.areas, 60, a => a && typeof a === 'object' && num(a.total, 0, 100) !== undefined ? Object.fromEntries(Object.entries({
+      areas: list(t.areas, 300, a => a && typeof a === 'object' && num(a.total, 0, 100) !== undefined ? Object.fromEntries(Object.entries({
         name: str(a.name, 80), lat: num(a.lat, -90, 90), lon: num(a.lon, -180, 180),
         total: num(a.total, 0, 100), min: num(a.min, 0, 100), minName: str(a.minName, 40),
       }).filter(([, v]) => v !== undefined)) : undefined),
@@ -29,5 +29,7 @@
   }
   sync();
   window.addEventListener('staymatch:trip', sync); // Web-App feuert das nach jeder Suche
+  // R7: in einem anderen Tab der Web-App gerechnet → kommt als storage-Event an
+  window.addEventListener('storage', e => { if (!e || e.key === 'sm_trip' || e.key === null) sync(); });
   document.documentElement.dataset.staymatchExtension = '1'; // Web-App kann anzeigen: Plugin verbunden
 })();

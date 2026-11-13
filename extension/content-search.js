@@ -30,7 +30,7 @@
     const { ctx } = lastView;
     const text = R.shareText(top.map(l => ({ ...l, score: l.rank.score, url: url(l) })), {
       title: ctx.people > 1 ? 'Unsere Top 3 (StayMatch)' : 'Meine Top 3 (StayMatch)',
-      sub: [ctx.people && `${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}`, ctx.nights && `${ctx.nights} Nächte`, ctx.budget && `Budget ${ctx.budget} €`].filter(Boolean).join(' · '),
+      sub: [ctx.people && `${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}`, ctx.nights && `${ctx.nights} Nächte`, ctx.budget && `Budget ${Math.round(R.effectiveBudget(ctx))} €`].filter(Boolean).join(' · '),
     });
     flash = (await copyText(text)) ? 'Kopiert ✓ – jetzt einfügen, wo du willst' : 'Kopieren ging nicht (Seite blockiert die Zwischenablage)';
     renderSearch();
@@ -72,7 +72,8 @@
       chrome.storage.local.set({ quick });
     }
     // R5-101: Gästezahl der Airbnb-Suche. R5-100: Reise-Budget ist immer in €. R5-92: flexible Daten/Monatsmiete → kein Preisvergleich. R5-102: Median-Profil je Währung
-    const ctx = { people, adults: sp.adults || null, nights, budget: trip?.budget || null, budgetCurrency: trip?.budget ? '€' : (quick.budgetCurrency || null), priceUnsure: !!sp.flexible, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: R.buildTaste(items), seen, disliked, known, wishes: quick.wishes };
+    // R7: tripNights, damit effectiveBudget das Reisebudget auf die Nächte dieser Suche umrechnet (Kopf und Rechnung gleich)
+    const ctx = { people, adults: sp.adults || null, nights, tripNights: trip?.nights || null, budget: trip?.budget || null, budgetCurrency: trip?.budget ? '€' : (quick.budgetCurrency || null), priceUnsure: !!sp.flexible, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: R.buildTaste(items), seen, disliked, known, wishes: quick.wishes };
     const ranked = R.rankListings(listings, ctx);
 
     filters = stored.filters || {};
@@ -104,14 +105,17 @@
 
   function renderSearch() {
     const { ctx, trip, count, pages, quality: q } = lastView;
-    const old = document.getElementById('sm-search')?.shadowRoot?.querySelector('.box');
+    const old = SMC.rootOf('sm-search')?.querySelector('.box');
     const minimized = old ? old.classList.contains('min') : lastView.min;
     const top = currentTop();
-    const cur = l => l.currency || '€';
+    const M = (v, l) => R.money(v, l.currency); // R7: keine erfundene „€“-Angabe
     // Teilweise erkannt? Dann ehrlich sagen, was fehlt.
     const lacking = q && q.n >= 3 ? [q.noPrice > q.n / 2 && 'Preise', q.noRating > q.n / 2 && 'Sterne', q.noBeds > q.n / 2 && 'Betten'].filter(Boolean) : [];
-    const bd = l => [['Viertel', 'area'], ['Sterne', 'rating'], ['Preis', 'price'], ['Wünsche', 'wishes'], ['Betten', 'beds']]
-      .filter(([, k]) => l.rank.parts[k] != null).map(([n, k]) => `${n} ${Math.round(l.rank.parts[k] * 100)}`).join(' · ');
+    // R7: Punkte aus breakdown (summieren sich zum Grundwert) plus Abzüge, statt Rohwerte der Teile
+    const PART_NAMES = { area: 'Viertel', rating: 'Sterne', price: 'Preis', wishes: 'Wünsche', beds: 'Betten', taste: 'Geschmack' };
+    const bd = l => [...(l.rank.breakdown || []).map(b => `${PART_NAMES[b.key] || b.key} ${Math.round(b.points)}`),
+      l.rank.adjust ? `Abzüge ${l.rank.adjust}` : null].filter(Boolean).join(' · ');
+    const eb = R.effectiveBudget(ctx);
     const budgetKnown = !!(R.effectiveBudget(ctx) || ctx.budgetPerNight);
     const setQuick = async patch => { quick = { ...quick, ...patch }; await chrome.storage.local.set({ quick }); lastSig = ''; handleSearch(); };
     const budgetInput = h('input', { type: 'number', min: '0', step: '10', inputmode: 'numeric', placeholder: 'z. B. 120', 'aria-label': 'Budget pro Nacht in Euro',
@@ -119,7 +123,7 @@
     budgetInput.value = quick.budgetNight || '';
     budgetInput.onchange = () => { const v = Math.round(Number(budgetInput.value)); setQuick({ budgetNight: v > 0 ? v : null }); };
     panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : 'Top 3 auf dieser Seite', [
-      h('div', { class: 'muted' }, `${count} Unterkünfte${pages > 1 ? ` von ${pages} Seiten, die du geöffnet hast,` : ' auf dieser Seite'} bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget ? ` · Budget ${ctx.budget} €` : ''}`),
+      h('div', { class: 'muted' }, `${count} Unterkünfte${pages > 1 ? ` von ${pages} Seiten, die du geöffnet hast,` : ' auf dieser Seite'} bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget && eb ? ` · Budget ${Math.round(eb)} €${ctx.nights ? ` für ${ctx.nights} Nächte` : ''}` : ''}`),
       quick.wishes.includes('luxury') ? h('div', { class: 'muted' }, `✨ ${lastView.ranked.filter(l => l.rank.luxury?.state === true).length} von ${count} als Luxus erkannt (Stichwörter im Titel, Preislage, Bäder).${lastView.ranked.some(l => l.rank.luxury?.state === true) ? '' : ' Keine Treffer: Suche nach „Villa“ oder „Penthouse“ verfeinern.'}`) : null,
       lacking.length ? h('div', { class: 'err muted' }, `⚠️ ${lacking.join(', ')} bei den meisten Karten nicht gelesen. Airbnb hat vermutlich etwas geändert, die Wertung ist ungenauer.`) : null,
       !trip ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, 'Budget pro Nacht (€):'), budgetInput) : null,
@@ -154,9 +158,9 @@
           h('a', { class: 'name', href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener' }, l.title || l.kind),
           l.rating != null ? h('span', { class: 'stars' }, `★ ${String(l.rating).replace('.', ',')}${l.reviewCount ? ` (${l.reviewCount})` : ''}`) : null),
         h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · ')),
-        l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, `${l.totalPrice} ${cur(l)}`), l.isTotal ? ' gesamt' : ' pro Nacht', l.rank.ppn?.person ? ` · ${l.rank.ppn.person} ${cur(l)} p. P./Nacht` : '') : null,
+        l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, M(l.totalPrice, l)), l.isTotal ? ' gesamt' : ' pro Nacht', l.rank.ppn?.person ? ` · ${M(l.rank.ppn.person, l)} p. P./Nacht` : '') : null,
         h('ul', {}, l.rank.why.map(w => h('li', {}, w)), l.rank.warn.map(w => h('li', { class: 'warn' }, '⚠️ ' + w))),
-        h('div', { class: 'muted' }, 'Zusammensetzung: ' + bd(l))))
+        h('div', { class: 'muted' }, 'Zusammensetzung (Punkte): ' + bd(l))))
         : !top.length ? h('div', { class: 'muted' }, 'Keine Unterkunft erfüllt alle Filter. Filter lockern oder weiterblättern.') : null,
       h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → die Seiten, die du öffnest, werden zusammen bewertet. Es wird nichts von selbst nachgeladen.'),
       pages > 1 ? h('div', { class: 'row' }, h('button', { onclick: async () => { await chrome.storage.local.remove('pool'); lastSig = ''; lastView = null; SMC.route?.(); } }, 'Sammlung leeren')) : null,
@@ -169,6 +173,8 @@
   function applyBadges() {
     if (!lastView) return;
     const byId = new Map(lastView.ranked.map(l => [l.id, l]));
+    const t = lastView.trip || {};
+    const privateNames = [...(t.people || []).map(p => p?.name), ...(t.areas || []).map(a => a?.minName)].filter(n => typeof n === 'string' && n.trim().length >= 2).map(n => n.trim());
     for (const card of document.querySelectorAll('[data-testid="card-container"]')) {
       const id = card.querySelector('a[href*="/rooms/"]')?.getAttribute('href')?.match(P.ROOM_RE)?.[1];
       const l = id && byId.get(id);
@@ -183,8 +189,9 @@
       const bg = s >= 75 ? '#1f9d6b' : s >= 55 ? '#d68a00' : '#9a9aa0';
       b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;pointer-events:none`;
       const pp = l.rank.ppn?.person;
-      b.textContent = `StayMatch ${s}${pp ? ` · ${pp} ${l.currency || '€'} p. P./Nacht` : ''}`;
-      b.title = [...l.rank.why, ...l.rank.warn].join(' · ');
+      b.textContent = `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;
+      // R7: Airbnbs Skripte können das title-Attribut lesen: keine Namen der Mitreisenden hinein
+      b.title = [...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n))).join(' · ');
       card.style.opacity = l.rank.disliked ? '0.45' : !passes(l) ? '0.35' : '';
     }
   }

@@ -84,7 +84,8 @@ function makePage({ body = '', url = 'https://www.airbnb.de/s/Barcelona/homes?ch
 
 const searchBody = (cards = DEFAULT, state = true) => (state ? statePage(cards) : '') + `<main>${cards.map(cardHtml).join('')}</main>`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const shadow = (doc, id) => doc.getElementById(id)?.shadowRoot;
+// Shadow Root ist seit R7 geschlossen: Zugriff über den Test-Haken des Plugins
+const shadow = (doc, id) => doc.defaultView?.__STAYMATCH_TEST__?.shadow?.(id) || doc.getElementById(id)?.shadowRoot || null;
 async function until(fn, ms = 1500) { const t = Date.now(); while (Date.now() - t < ms) { const v = fn(); if (v) return v; await sleep(10); } return fn(); }
 
 module.exports = { CONTENT_SCRIPTS, track: w => open.push(w), closeAll, JSDOM, makePage, chromeMock, searchBody, cardHtml, statePage, DEFAULT, sleep, shadow, until, EXT, src };

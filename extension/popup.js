@@ -35,16 +35,28 @@ async function load() {
 function profile(items) {
   const liked = items.filter(i => i.vote === 1);
   if (!liked.length) return ['Markiere Unterkünfte mit 👍, dann lernt StayMatch deinen Geschmack.'];
-  const p = avg(liked.map(i => i.pricePerNight).filter(Boolean)), r = avg(liked.map(i => i.rating).filter(Boolean));
+  // R7: Preis je Währung (wie im Ranking), nicht € und $ gemischt
+  const byCur = window.StayMatchRank.buildTaste(items)?.avgPricePerNightByCurrency || {};
+  const prices = Object.entries(byCur).map(([c, v]) => `≈ ${Math.round(v)} ${c}/Nacht`);
+  const r = avg(liked.map(i => i.rating).filter(Boolean));
   const places = [...new Set(liked.map(i => i.locality).filter(Boolean))].slice(0, 3);
-  return [h('b', {}, 'Dein Geschmack'), ` (aus ${liked.length} 👍): `, [p && `≈ ${Math.round(p)} €/Nacht`, r && `⭐ ab ${r.toFixed(2)}`, places.length && `Orte: ${places.join(', ')}`].filter(Boolean).join(' · ')];
+  return [h('b', {}, 'Dein Geschmack'), ` (aus ${liked.length} 👍): `, [...prices, r && `⭐ ab ${r.toFixed(2)}`, places.length && `Orte: ${places.join(', ')}`].filter(Boolean).join(' · ')];
+}
+
+// R7: gemerkte Reisedaten an den Link hängen (Preis und Verfügbarkeit gleich sichtbar), nur gültige, nicht vergangene Daten
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+function roomLink(i) {
+  const u = safeUrl(i.url);
+  if (u === '#' || !DATE.test(i.checkin || '') || !DATE.test(i.checkout || '') || i.checkout <= i.checkin || i.checkin < new Date().toISOString().slice(0, 10)) return u;
+  const x = new URL(u); x.searchParams.set('check_in', i.checkin); x.searchParams.set('check_out', i.checkout);
+  return x.href;
 }
 
 function itemRow(i) {
-  return h('a', { class: 'item', href: safeUrl(i.url), target: '_blank' },
+  return h('a', { class: 'item', href: roomLink(i), target: '_blank' },
     h('div', {},
       h('div', {}, (i.vote === 1 ? '👍 ' : i.vote === -1 ? '👎 ' : '') + (i.title || 'Unterkunft')),
-      h('div', { class: 'muted' }, [i.rating && '⭐ ' + i.rating, i.pricePerNight && i.pricePerNight + ' ' + (i.currency || '€') + '/Nacht', i.locality, (i.visits || 1) + '× angesehen', i.lastSeen && new Date(i.lastSeen).toLocaleDateString('de-DE')].filter(Boolean).join(' · ')),
+      h('div', { class: 'muted' }, [i.rating && '⭐ ' + i.rating, i.pricePerNight && window.StayMatchRank.money(i.pricePerNight, i.currency) + '/Nacht', i.locality, (i.visits || 1) + '× angesehen', i.lastSeen && new Date(i.lastSeen).toLocaleDateString('de-DE')].filter(Boolean).join(' · ')),
       i.lastSeen && Date.now() - i.lastSeen > STALE_MS && i.pricePerNight ? h('div', { class: 'muted warn' }, 'Preis älter als 24 h, auf der Seite neu prüfen') : null,
       i.hints?.length ? h('div', { class: 'muted' }, i.hints.slice(0, 4).join(' · ')) : null,
       i.note ? h('div', { class: 'muted' }, '📝 ' + i.note) : null));
@@ -52,10 +64,10 @@ function itemRow(i) {
 
 // R7: Einheit aus der Suche; ältere Einträge ohne isTotal: Reisesumme (stay) falls bekannt, sonst ohne Einheit
 function topPrice(l) {
-  const c = l.currency || '€';
-  if (l.isTotal === true) return `${l.totalPrice} ${c} gesamt`;
-  if (l.isTotal === false) return `${l.totalPrice} ${c} pro Nacht`;
-  return l.stay != null ? `${l.stay} ${c} gesamt` : `${l.totalPrice} ${c}`;
+  const M = v => window.StayMatchRank.money(v, l.currency);
+  if (l.isTotal === true) return `${M(l.totalPrice)} gesamt`;
+  if (l.isTotal === false) return `${M(l.totalPrice)} pro Nacht`;
+  return l.stay != null ? `${M(l.stay)} gesamt` : M(l.totalPrice);
 }
 
 function topRow(l, n) {

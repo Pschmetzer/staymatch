@@ -13,7 +13,7 @@
   // Wörter, die einen Gesamtpreis (statt Preis pro Nacht) anzeigen. Ungeprüft live: welche Wörter Airbnb je Sprache nutzt.
   const TOTAL_RE = /gesamt|insgesamt|total|totaal|totalt|totale|łącznie|razem|celkem|samlet|i alt|yhteensä|összesen|toplam|σύνολο|συνολικ/i;
 
-  const NIGHT_RE = /pro nacht|per night|par nuit|por noche|por noite|a notte|per nacht|za noc|na noc|natt\b|pr\.? nat\b|per nat\b|\/ ?nat\b|\/ ?yö\b|gecelik|gece başına|ανά βράδυ|ανά νύχτα/i;
+  const NIGHT_RE = /pro nacht|per night|par nuit|por noche|por noite|a notte|per nacht|za noc|na noc|natt\b|pr\.? nat\b|per nat\b|\/ ?nat\b|\/ ?yö\b|gecelik|gece başına|ανά βράδυ|ανά νύχτα|\bnight\b|\bnacht\b|\bnuit\b|\bnoche\b|\bnotte\b/i; // R7: auch „$120 night“, „80 € Nacht“
 
   function toNumber(s) {
     const m = String(s).match(new RegExp(`^(\\d{1,2}(?:,\\d{2})+,\\d{3}|\\d{1,3}(?:[.,\\u00a0\\u202f\\u2009 ]\\d{3})+|\\d+)(?:[.,](\\d{1,2}))?$`));
@@ -56,7 +56,8 @@
   const isNewLabel = s => /^\s*(?:neu|new|nouveau|nuevo|nuovo|nieuw|novo|nowy|ny|uusi|yeni|νέο)\s*$/i.test(String(s || ''));
   // R5-81: „Nicht verfügbar“ ist kein Mehrfachangebot
   const NOT_AVAIL = /nicht verfügbar|not available|unavailable|indisponible|no disponible|non disponibile|niet beschikbaar|indisponível|niedostępn\w*|ikke tilgængelig/gi;
-  const isMultiUnit = t => /verfügbar|available|disponible|beschikbaar|disponibile|disponível|dostępn\w*/i.test(String(t || '').replace(NOT_AVAIL, ''));
+  // R7: nur mit Anzahl davor („3 Wohnungen verfügbar“), nicht „Self check-in available“ oder „Sofort verfügbar“
+  const isMultiUnit = t => /\d+\s+[\p{L} -]{0,30}?(?:verfügbar|available|disponibles?|beschikbaar|disponibili|disponíve(?:l|is)|dostępn\p{L}*)/iu.test(String(t || '').replace(NOT_AVAIL, ''));
   // R5-95: Badge-Art vereinheitlichen, egal in welcher Sprache Airbnb den Text liefert
   const FAV_RE = /Gäste-?Favorit|Guest favou?rite|Coup de c(?:œ|oe)ur|Préféré des voyageurs|Preferito dagli ospiti|Gasten-?favoriet|Favorito (?:dos hóspedes|entre huéspedes)|Ulubione/i;
   function normBadge(b) {
@@ -101,7 +102,7 @@
       beds = any ? n : null;
     }
     return {
-      bedrooms: g(/(\d+)\s*(?:Schlafzimmer|bedrooms?|chambres?|dormitorios?|habitaciones|camere|slaapkamers?|quartos?|sypialni\w*|soveværelser?|sovrum|soverom|makuuhuonetta|makuuhuone\w*|υπνοδωμάτι\w*|ložnic\w*|yatak odası)/i),
+      bedrooms: g(/(\d+)\s*(?:Schlafzimmer|bedrooms?|chambres?|dormitorios?|habitaci(?:ón|ones)|camere|camera da letto|slaapkamers?|quartos?|sypialni\w*|soveværelser?|sovrum|soverom|makuuhuonetta|makuuhuone\w*|υπνοδωμάτι\w*|ložnic\w*|yatak odası)/i),
       beds,
       baths: bath ? +bath[1].replace(',', '.') : null,
       pro: /gewerblich|professional host|hôte professionnel|anfitrión profesional/i.test(t),
@@ -119,7 +120,7 @@
   // "Ferienwohnung in Gràcia" → "Gràcia"; nimmt die LETZTE Präposition ("Zimmer im Zentrum in Rom" → "Rom")
   function localityFromTitle(kind) {
     // R5-88: „Wohnung in Gràcia, Barcelona“ → „Gràcia“ (erster Teil vor dem Komma)
-    const m = String(kind || '').match(/^.*(?:^|\s)(?:in|im|à|en|a|i|em|ad|bei|dans|nel|nella)\s+(.+?)\s*$/i);
+    const m = String(kind || '').match(/^.*(?:^|\s)(?:in|im|à|en|a|i|em|ad|bei|dans|nel|nella|w|v|ve|am|auf|σε|στο|στη)\s+(.+?)\s*$/i); // R7: w, v, am, auf, σε
     return m ? m[1].split(',')[0].trim() || null : null;
   }
 
@@ -239,7 +240,9 @@
       if (!s) { out.push(c); continue; }
       const stale = c.totalPrice != null && s.totalPrice != null && c.totalPrice !== s.totalPrice;
       const skip = stale || (c.totalPrice != null && s.totalPrice == null) ? PRICE_KEYS : [];
-      const fromS = Object.fromEntries(Object.entries(s).filter(([k, v]) => v != null && v !== '' && !skip.includes(k)));
+      // R7: leere State-Werte (badges: [], pro: false) überschreiben keinen DOM-Treffer
+      const empty = v => v === false || (Array.isArray(v) && !v.length);
+      const fromS = Object.fromEntries(Object.entries(s).filter(([k, v]) => v != null && v !== '' && !skip.includes(k) && !(empty(v) && c[k] != null && !empty(c[k]))));
       const merged = { ...c, ...fromS, id: c.id, source: 'state+dom', coordsMissing: s.lat == null || s.lon == null, priceFromDom: stale };
       if (stale && !c.priceWord) merged.isTotal = s.isTotal;
       // R5-98: DOM-Preis noch nicht da → der State-Preis kann nach Datumswechsel veraltet sein
@@ -249,7 +252,8 @@
       out.push(merged);
     }
     // Sicherheitsnetz: falls keine Karten gefunden wurden, nur State
-    return out.length ? out : state.filter(s => s.id);
+    // R7: dann können die Preise nach Blättern oder Datumswechsel veraltet sein
+    return out.length ? out : state.filter(s => s.id).map(s => s.totalPrice != null ? { ...s, priceStale: true } : s);
   }
 
   // Selbstdiagnose: Warum haben wir (nichts) gefunden? Liefert nur Zahlen und Stichworte, keine Seiteninhalte.
@@ -324,10 +328,12 @@
   // Nr. 186/408 Hausregeln
   function houseRules(text) {
     const t = String(text || '');
-    const q = t.match(/(?:ruhezeit(?:en)?|quiet hours|heures? de silence|horas? de silencio|ore di silenzio)[^0-9]{0,20}(\d{1,2})[:.]?(\d{2})?\s*(?:uhr|h|pm|am)?\s*(?:-|–|bis|to|and|y|à|a|et|e)\s*(\d{1,2})[:.]?(\d{2})?/i);
+    const q = t.match(/(?:ruhezeit(?:en)?|quiet hours|heures? de silence|horas? de silencio|ore di silenzio)[^0-9]{0,20}(\d{1,2})[:.]?(\d{2})?\s*(uhr|h|[ap]\.?m\.?)?\s*(?:-|–|bis|to|and|y|à|a|et|e)\s*(\d{1,2})[:.]?(\d{2})?\s*([ap]\.?m\.?)?/i);
+    // R7: „10 pm to 8 am“ → 22 bis 8
+    const h24 = (h, ap) => { const x = String(ap || '').toLowerCase()[0]; return x === 'p' && h < 12 ? h + 12 : x === 'a' && h === 12 ? 0 : h; };
     return {
       noParties: has(t, /keine?\s+(?:partys?|feiern|veranstaltungen)|no (?:parties|events)|pas de (?:fêtes|soirées)|no (?:se permiten )?fiestas|vietato far feste/i),
-      quietHours: q ? { from: +q[1], to: +q[3] } : has(t, /ruhezeit|quiet hours|heures de silence|horas de silencio|ore di silenzio/i) ? true : false,
+      quietHours: q ? { from: h24(+q[1], q[3]), to: h24(+q[4], q[6]) } : has(t, /ruhezeit|quiet hours|heures de silence|horas de silencio|ore di silenzio/i) ? true : false,
       noSmoking: has(t, /nichtraucher|rauchen (?:ist )?(?:verboten|nicht erlaubt)|no smoking|non[- ]fumeur|prohibido fumar|vietato fumare/i),
       noPets: has(t, /keine haustiere|haustiere (?:sind )?nicht erlaubt|no pets|animaux non admis|no se admiten mascotas|animali non ammessi/i),
       petsAllowed: has(t, /haustiere (?:sind )?(?:erlaubt|willkommen)|pets allowed|animaux admis|se admiten mascotas|animali ammessi/i),
@@ -358,11 +364,11 @@
     kitchen: /küche|kitchen|cuisine|cocina|cucina/i,
     ac: /klimaanlage|air conditioning|climatisation|aire acondicionado|aria condizionata|\bAC\b/i,
     parking: /parkplatz|parking|stellplatz|garage|aparcamiento|parcheggio/i,
-    pool: /\bpool\b|schwimmbad|piscine|piscina|swimming/i,
+    pool: /\bpool\b(?!\s*(?:table|tisch|billard))|schwimmbad|piscine|piscina|swimming/i, // R7: nicht „Pool table“
     washer: /waschmaschine|(?<!dish)washer|washing machine|lave-linge|lavadora|lavatrice/i,
     dishwasher: /geschirrspüler|spülmaschine|dishwasher|lave-vaisselle|lavavajillas|lavastoviglie|vaatwasser/i, // R7: eigenes Merkmal
     heating: /heizung|heating|chauffage|calefacción|riscaldamento/i,
-    elevator: /aufzug|fahrstuhl|elevator|lift|ascenseur|ascensor|ascensore/i,
+    elevator: /aufzug|fahrstuhl|elevator|(?<![\p{L}])(?<!ski[\s-])lift(?![\p{L}])|ascenseur|ascensor|ascensore/iu, // R7: nicht „Skilift“
   };
   function amenities(text) {
     const t = String(text || ''), out = {};
@@ -425,6 +431,6 @@
   root.StayMatchParse = {
     ratingFromAria, isNewLabel, isMultiUnit, normBadge, priceOf, decodeId, findKey,
     diagnose, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, currency, rating, details, detailsExt, localityFromTitle, ROOM_RE,
-    searchKey, mergeSearchResults, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, hostInfo, scamSignals, touristTax, TOTAL_RE,
+    searchKey, mergeSearchResults, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, safeImage, hostInfo, scamSignals, touristTax, TOTAL_RE,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

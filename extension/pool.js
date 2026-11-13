@@ -29,14 +29,16 @@
     let p = pool && pool.key === key && now - pool.at < TTL ? pool : { key, at: now, pages: [], items: {} };
     const items = { ...p.items };
     for (const l of listings) if (l.id) items[l.id] = { ...slim(l), page };
-    // bei Überlauf die ältesten Seiten zuerst verwerfen
-    let ids = Object.keys(items);
+    const pages = p.pages.includes(page) ? p.pages : [...p.pages, page];
+    // bei Überlauf die ältesten Seiten zuerst verwerfen. R7: nach Seitenreihenfolge, nicht nach Object.keys
+    // (das sortiert kurze, numerische Ids immer nach vorn)
+    const ids = Object.keys(items);
     if (ids.length > MAX) {
       const cur = new Set(listings.map(l => l.id));
-      ids = ids.filter(i => !cur.has(i)).slice(0, ids.length - MAX);
-      for (const i of ids) delete items[i];
+      const age = i => { const k = pages.indexOf(items[i].page); return k < 0 ? -1 : k; };
+      const drop = ids.filter(i => !cur.has(i)).sort((a, b) => age(a) - age(b)).slice(0, ids.length - MAX);
+      for (const i of drop) delete items[i];
     }
-    const pages = p.pages.includes(page) ? p.pages : [...p.pages, page];
     return { key, at: now, pages, items };
   }
 

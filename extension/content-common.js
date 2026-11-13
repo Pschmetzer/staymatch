@@ -53,7 +53,7 @@
   const themeClass = () => settings.theme === 'dark' ? ' dark' : settings.theme === 'light' ? ' light' : '';
   function applyTheme() {
     for (const id of ['sm-search', 'sm-room', 'sm-error']) {
-      const box = document.getElementById(id)?.shadowRoot?.querySelector('.box');
+      const box = rootOf(id)?.querySelector('.box');
       if (box) { box.classList.toggle('dark', settings.theme === 'dark'); box.classList.toggle('light', settings.theme === 'light'); }
     }
   }
@@ -75,15 +75,21 @@
     } catch { return false; }
   }
 
+  // R7: geschlossener Shadow Root: Airbnbs Skripte kommen über el.shadowRoot nicht an Notiz, Budget und Gründe.
+  // Die Referenz bleibt hier (WeakMap), Tests erreichen sie über T.shadow.
+  const roots = new WeakMap();
+  function rootOf(id) { const el = document.getElementById(id); return el ? roots.get(el) || null : null; }
   function host(id) {
     let el = document.getElementById(id);
-    if (!el) {
+    if (!el || !roots.has(el)) {
+      el?.remove();
       el = h('div', { id, 'data-staymatch': '1' });
-      el.attachShadow({ mode: 'open' });
+      roots.set(el, el.attachShadow({ mode: 'closed' }));
       document.documentElement.appendChild(el);
     }
-    return el.shadowRoot;
+    return roots.get(el);
   }
+  T.shadow = rootOf;
 
   const CSS = `
     :host { all: initial; }
@@ -129,7 +135,7 @@
     const { minimized = false } = opts;
     const root = host(id);
     root.replaceChildren();
-    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': title });
+    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
     const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');
     box.append(h('style', {}, CSS),
@@ -148,13 +154,13 @@
     const act = keys[e.code];
     if (act) { e.preventDefault(); act(); }
   }
-  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) document.getElementById(id)?.shadowRoot?.querySelector('.box')?.classList.toggle('min'); };
+  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) rootOf(id)?.querySelector('.box')?.classList.toggle('min'); };
   document.addEventListener('keydown', onKey, true);
 
     // Kartenverschieben und Zoomen ändert nur diese Parameter; das ist keine neue Suche (Panel und Budgeteingabe bleiben)
   const MAP_PARAMS = ['ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'center_lat', 'center_lng', 'search_by_map', 'map_toggle', 'viewport_width', 'viewport_height', 'update_selected_filters'];
   const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
-  const SMC = window.StayMatchContent = { searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, search: null, room: null, start };
+  const SMC = window.StayMatchContent = { rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, search: null, room: null, start };
   function start() {
     let lastUrl = '', lastKey = '', debounce = null, emptyTimer = null;
     const relevant = () => /^\/s\//.test(location.pathname) || P.ROOM_RE.test(location.pathname);

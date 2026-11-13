@@ -139,8 +139,9 @@
     if (!liked.length) return null;
     const median = a => { const s = a.filter(x => x != null && isFinite(x)).sort((x, y) => x - y); if (!s.length) return null; const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
     const byCurrency = {};
-    for (const cur of new Set(liked.map(i => i.currency || '€'))) {
-      const m = median(liked.filter(i => (i.currency || '€') === cur).map(i => i.pricePerNight).filter(Boolean));
+    const ck = i => normCur(i.currency) || '€'; // R7: „EUR“ = „€“
+    for (const cur of new Set(liked.map(ck))) {
+      const m = median(liked.filter(i => ck(i) === cur).map(i => i.pricePerNight).filter(Boolean));
       if (m) byCurrency[cur] = m;
     }
     const mr = median(liked.map(i => i.rating).filter(Boolean));
@@ -157,7 +158,7 @@
   function tasteScore(l, taste) {
     if (!taste || !taste.likedCount) return null;
     let s = 0.5;
-    const cur = l.currency || '€';
+    const cur = normCur(l.currency) || '€';
     const ref = taste.avgPricePerNightByCurrency ? taste.avgPricePerNightByCurrency[cur] : taste.avgPricePerNight;
     const ppn = perNight(l, l.nights);
     if (ref && ppn) { const r = ppn / ref; s += r < 1.25 && r > 0.6 ? 0.2 : -0.1; }
@@ -244,6 +245,8 @@
   // R5-100: Währungen vergleichbar machen („€“ = „EUR“)
   const CUR_ALIAS = { EUR: '€', GBP: '£', USD: '$', 'US$': '$' };
   const normCur = c => (c ? CUR_ALIAS[String(c).trim().toUpperCase()] || String(c).trim() : null);
+  // R7: Betrag mit Währung; ohne gelesene Währung nur die Zahl (nicht still „€“)
+  const money = (v, c) => (c ? `${v} ${c}` : `${v}`);
 
   const median = a => { const x = a.filter(v => v != null && isFinite(v)).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
 
@@ -316,7 +319,8 @@
     if (area?.approx) warn.push('Viertel nur ungefähr bestimmt (mehrere Teil-Viertel)');
     if (!solo && area?.minName && area.min < 40) warn.push(`${area.minName} wäre dort eher unzufrieden (${area.min})`);
     if (l.rating != null) {
-      const txt = `⭐ ${sepNum(l.rating, 2)} bei ${l.reviewCount || 0} Bewertungen`;
+      // R7: Note aus dem aria-label hat keine Anzahl: nicht „bei 0 Bewertungen“
+      const txt = l.reviewCount != null ? `⭐ ${sepNum(l.rating, 2)} bei ${l.reviewCount} Bewertungen` : `⭐ ${sepNum(l.rating, 2)} (Anzahl unbekannt)`;
       (parts.rating >= 0.7 ? why : parts.rating < 0.35 ? warn : why).push(txt);
       (parts.rating < 0.35 ? short.warn : short.why).push(`⭐ ${sepNum(l.rating, 2)}`);
     } else if (l.isNew) { warn.push('neu, noch keine Bewertungen'); short.warn.push('neu'); }
@@ -329,18 +333,23 @@
 
     // Preis: Beschriftung je nach Gesamt- oder Nachtpreis; Pro-Kopf immer auf die Reisesumme bezogen
     if (l.totalPrice != null) {
-      const cur = l.currency || '€', pp = people > 1 && total != null ? Math.round(total / people) : null;
+      // R7: ohne gelesene Währung keine erfundene „€“-Angabe
+      const M = v => money(v, l.currency), pp = people > 1 && total != null ? Math.round(total / people) : null;
       const unsure = l.multiUnit ? ' (ab-Preis, je nach Wohnung)' : '';
+      const nightLabel = `${M(l.totalPrice)} pro Nacht${total != null ? ` (${M(Math.round(total))} gesamt)` : ''}`;
       if (parts.price != null) {
         const ok = parts.price >= 0.75;
-        const label = l.isTotal ? `${l.totalPrice} ${cur} gesamt` : `${l.totalPrice} ${cur} pro Nacht${total != null ? ` (${Math.round(total)} ${cur} gesamt)` : ''}`;
+        const label = l.isTotal ? `${M(l.totalPrice)} gesamt` : nightLabel;
         (ok ? why : warn).push(`${label}${pp ? ` (${pp} pro Person)` : ''}${ok ? '' : ' – über Budget'}${unsure}`);
-        (ok ? short.why : short.warn).push(`${Math.round(total ?? l.totalPrice)} ${cur}${total == null ? '/Nacht' : ''}`);
+        (ok ? short.why : short.warn).push(`${M(Math.round(total ?? l.totalPrice))}${total == null ? '/Nacht' : ''}`);
         if (parts.price < 0.3) unsuitableReasons.push('deutlich über Budget');
       } else if (l.isTotal) {
-        why.push(`${l.totalPrice} ${cur} gesamt${pp ? ` (${pp} pro Person)` : ''}${unsure}`);
+        why.push(`${M(l.totalPrice)} gesamt${pp ? ` (${pp} pro Person)` : ''}${unsure}`);
+      } else if (ctx.nights) {
+        // R7: normaler Nachtpreis ohne Budget ist keine Warnung
+        why.push(`${nightLabel}${pp ? ` (${pp} pro Person)` : ''}${unsure}`);
       } else {
-        warn.push(`${l.totalPrice} ${cur} pro Nacht${ctx.nights ? '' : ' (Nächtezahl fehlt, Preis nicht bewertet)'}${unsure}`);
+        warn.push(`${M(l.totalPrice)} pro Nacht (Nächtezahl fehlt, Preis nicht bewertet)${unsure}`);
       }
       if (curMismatch) warn.push(`Preis in ${l.currency}, Budget in ${ctx.budgetCurrency}: Preis nicht bewertet`);
       if (ctx.priceUnsure) warn.push('Flexible Daten oder Monatsmiete: Preis nicht bewertet');
@@ -424,9 +433,9 @@
     const rows = [
       ['Passt-Wert', l => `${l.rank.score}/100`],
       ['Viertel', l => l.rank.area ? `${l.rank.area.name} (${l.rank.area.total})` : (l.locality || '–')],
-      ['Gesamtpreis', l => l.rank.stay == null ? '–' : `${l.rank.stay} ${l.currency || '€'}`],
-      ['pro Nacht', l => l.rank.ppn?.night == null ? '–' : `${l.rank.ppn.night} ${l.currency || '€'}`],
-      ...(ctx.people > 1 ? [['pro Person/Nacht', l => l.rank.ppn?.person == null ? '–' : `${l.rank.ppn.person} ${l.currency || '€'}`]] : []),
+      ['Gesamtpreis', l => l.rank.stay == null ? '–' : money(l.rank.stay, l.currency)],
+      ['pro Nacht', l => l.rank.ppn?.night == null ? '–' : money(l.rank.ppn.night, l.currency)],
+      ...(ctx.people > 1 ? [['pro Person/Nacht', l => l.rank.ppn?.person == null ? '–' : money(l.rank.ppn.person, l.currency)]] : []),
       ['Sterne', l => l.rating == null ? 'neu' : `${String(l.rating).replace('.', ',')} (${l.reviewCount || 0})`],
       ['Betten', l => fmt(l.beds)],
       ['Schlafzimmer', l => fmt(l.bedrooms)],
@@ -444,8 +453,8 @@
     items.forEach((l, i) => {
       const bits = [l.locality, l.rating != null && `⭐ ${String(l.rating).replace('.', ',')}`,
         l.score != null && `${l.score}/100`,
-        (l.rank?.stay ?? l.stay) != null && `${l.rank?.stay ?? l.stay} ${l.currency || '€'} gesamt`,
-        (l.rank?.ppn?.person ?? l.ppnPerson) != null && `${l.rank?.ppn?.person ?? l.ppnPerson} ${l.currency || '€'} p. P./Nacht`].filter(Boolean);
+        (l.rank?.stay ?? l.stay) != null && `${money(l.rank?.stay ?? l.stay, l.currency)} gesamt`,
+        (l.rank?.ppn?.person ?? l.ppnPerson) != null && `${money(l.rank?.ppn?.person ?? l.ppnPerson, l.currency)} p. P./Nacht`].filter(Boolean);
       lines.push('', `${i + 1}. ${l.title || l.kind || 'Unterkunft'}${bits.length ? ' – ' + bits.join(' · ') : ''}`);
       if (l.note) lines.push(`   Notiz: ${l.note}`);
       if (l.url) lines.push(`   ${l.url}`);
@@ -455,6 +464,6 @@
 
   root.StayMatchRank = {
     rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
-    weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur,
+    weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur, money,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

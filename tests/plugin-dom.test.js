@@ -198,7 +198,8 @@ test('Plugin lädt keine fremden Adressen nach (kein fetch/XHR/WebSocket im Code
 
 test('Popup: Einstellungen funktionieren ohne vorherigen Import, Merkliste wird kopiert', { skip }, async () => {
   const fs = require('node:fs'), path = require('node:path');
-  const chrome = chromeMock({ settings: { showBadges: true }, trip: TRIP, 'l:1': { id: '1', title: 'Loft', vote: 1, rating: 4.8, pricePerNight: 200, url: 'https://www.airbnb.de/rooms/1', locality: 'Gràcia', note: 'Balkon' }, 'l:2': { id: '2', title: 'Nein', vote: -1 } });
+  // R7: Währung steht beim Eintrag (ohne gelesene Währung wird kein „€“ mehr erfunden)
+  const chrome = chromeMock({ settings: { showBadges: true }, trip: TRIP, 'l:1': { id: '1', title: 'Loft', vote: 1, rating: 4.8, pricePerNight: 200, currency: '€', url: 'https://www.airbnb.de/rooms/1', locality: 'Gràcia', note: 'Balkon' }, 'l:2': { id: '2', title: 'Nein', vote: -1 } });
   const dom = new D.JSDOM(fs.readFileSync(path.join(D.EXT, 'popup.html'), 'utf8').replace(/<script[^>]*><\/script>/g, ''), { runScripts: 'outside-only', url: 'chrome-extension://x/popup.html' });
   const w = dom.window; w.chrome = chrome; D.track(w);
   let copied = null;
