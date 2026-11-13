@@ -17,6 +17,7 @@
     const ratingVal = parseFloat(String(ld.aggregateRating?.ratingValue ?? '').replace(',', '.')); // R7: „4,9“ wurde NaN
     const meta = n => document.querySelector(`meta[property="${n}"],meta[name="${n}"]`)?.content;
     const sp = P.searchParams(location.href);
+    const ogParts = String(meta('og:title') || '').split(/\s[·•|]\s/);
     // Preis nur aus dem Buchungsbereich, nicht aus "ähnliche Unterkünfte"
     const book = document.querySelector('[data-testid="book-it-default"], [data-section-id="BOOK_IT_SIDEBAR"], [data-plugin-in-point-id="BOOK_IT_SIDEBAR"]');
     // R7: Währung vorn oder hinten, alle Währungen aus parse.js, bei Rabatt der aktuelle Preis
@@ -52,7 +53,8 @@
       reviewCount: +(ld.aggregateRating?.ratingCount || ld.aggregateRating?.reviewCount || 0) || null,
       lat: ld.geo?.latitude ?? null, lon: ld.geo?.longitude ?? null,
       // R7: addressLocality ist meist die Stadt; das Viertel steht eher im Titel („Wohnung in Gràcia · ★4,9“). Ungeprüft live.
-      locality: P.localityFromTitle(String(meta('og:title') || '').split(/\s[·•|]\s/)[0]) || ld.address?.addressLocality || null,
+      // Nur das strukturierte Format („Art in Ort · ★…“) nutzen, kein freier Inseratsname („Penthouse am Meer“)
+      locality: (ogParts.length > 1 && P.localityFromTitle(ogParts[0])) || ld.address?.addressLocality || null,
       city: ld.address?.addressLocality || null,
       pricePerNight: bp.night != null ? bp.night : bp.total != null && sp.nights ? Math.round(bp.total / sp.nights) : null,
       currency: bp.currency,

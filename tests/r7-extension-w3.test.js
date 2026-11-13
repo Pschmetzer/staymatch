@@ -56,6 +56,10 @@ test('R7: Merge: propertyId und Listing-Id getrennt, Rabatt bleibt, fehlender Ti
   const out = P.parseSearch(doc(state, [{ id: '8', text: 'x', price: '896 € 702 € gesamt' }]));
   assert.equal(out[0].title, 'Acht');
   assert.equal(out[0].discounted, true);
+  // gleicher Betrag: State-Einheit (pro Nacht) gilt weiter, auch wenn die DOM-Zeile ein Gesamt-Wort enthält
+  const night = P.parseSearch(doc([{ demandStayListing: { id: b64('DemandStayListing:3') }, structuredDisplayPrice: { primaryLine: { accessibilityLabel: '120 € pro Nacht' } } }],
+    [{ id: '3', text: 'x', price: '120 € pro Nacht · 480 € gesamt' }]));
+  assert.equal(night[0].isTotal, false);
   const lone = P.parseSearch(doc([], [{ id: '9', text: 'x', price: '100 € gesamt' }]));
   assert.equal(P.quality(lone).noTitle, 1);
 });

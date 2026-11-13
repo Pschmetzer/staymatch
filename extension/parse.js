@@ -250,9 +250,11 @@
       if (!s) { out.push(c); continue; }
       const stale = c.totalPrice != null && s.totalPrice != null && c.totalPrice !== s.totalPrice;
       const skip = stale || (c.totalPrice != null && s.totalPrice == null) ? PRICE_KEYS : [];
-      // R7: leere State-Werte (badges: [], pro: false) überschreiben keinen DOM-Treffer
+      // R7: leere State-Werte (badges: [], pro: false, multiUnit: false) überschreiben keinen DOM-Treffer.
+      // Nur diese Merkmale: bei isTotal/priceWord gilt weiter der State (er kennt die Einheit sicher).
+      const KEEP_DOM = ['badges', 'pro', 'multiUnit'];
       const empty = v => v === false || (Array.isArray(v) && !v.length);
-      const fromS = Object.fromEntries(Object.entries(s).filter(([k, v]) => v != null && v !== '' && !skip.includes(k) && !(empty(v) && c[k] != null && !empty(c[k]))));
+      const fromS = Object.fromEntries(Object.entries(s).filter(([k, v]) => v != null && v !== '' && !skip.includes(k) && !(KEEP_DOM.includes(k) && empty(v) && c[k] != null && !empty(c[k]))));
       const merged = { ...c, ...fromS, id: c.id, source: 'state+dom', coordsMissing: s.lat == null || s.lon == null, priceFromDom: stale };
       if (stale && !c.priceWord) merged.isTotal = s.isTotal;
       if (s.title) merged.titleFallback = false;
