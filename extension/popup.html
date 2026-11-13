@@ -10,6 +10,7 @@ nav{display:flex;border-bottom:1px solid #eee} nav button{color:inherit;flex:1;b
 .score{float:right;font-weight:700}.warn{color:#9a5b00}#search{box-sizing:border-box;width:calc(100% - 28px);margin:6px 14px;padding:5px 8px;font:inherit}#search[hidden]{display:none}button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #e0475b;outline-offset:2px}
 @media (prefers-color-scheme: dark){body{background:#1e1e22;color:#f2f2f4}.muted{color:#a0a0a8}.warn{color:#e0a040}select,input[type=search]{background:#26262b;color:inherit;border:1px solid #34343a}#opts{border-color:#34343a!important}#profile{background:#26262b!important}header,nav,.item,#trip{border-color:#34343a!important}}
 #profile{padding:10px 14px;background:#faf8f5;font-size:12px} footer{padding:8px 14px;display:flex;justify-content:space-between}
+button.lnk{font-size:12px;color:#e0475b;background:none;border:0;cursor:pointer;padding:0} #profile button{font-size:11px;background:none;border:0;cursor:pointer;color:#e0475b;padding:0 2px}
 footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cursor:pointer;padding:0}
 </style></head>
 <body>
@@ -23,10 +24,29 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <label style="display:block"><input type="checkbox" id="optBadges" checked> Punkte an den Airbnb-Karten anzeigen</label>
 <label style="display:block;margin-top:4px">Panel-Design: <select id="optTheme"><option value="auto">automatisch</option><option value="light">hell</option><option value="dark">dunkel</option></select></label>
 <button id="share" style="margin-top:6px;font-size:12px;color:#e0475b;background:none;border:0;cursor:pointer;padding:0">Merkliste kopieren</button>
+<div id="backup" class="muted warn" hidden></div>
+<div id="stats" class="muted"></div>
+<details id="more"><summary>Mehr Einstellungen und Werkzeuge</summary>
+<label style="display:block;margin-top:4px">Textgröße im Panel: <select id="optScale"><option value="1">100 %</option><option value="1.15">115 %</option><option value="1.3">130 %</option><option value="1.5">150 %</option></select></label>
+<label style="display:block"><input type="checkbox" id="optScoreOnly"> Screenshot-Modus: an den Karten nur die Punkte</label>
+<label style="display:block"><input type="checkbox" id="optBlind"> Blindverkostung: Fotos auf der Suchseite ausblenden</label>
+<div style="margin-top:4px">Kopiertexte: <label><input type="checkbox" id="optNoPrices"> ohne Preise</label> <label><input type="checkbox" id="optNoEmoji"> ohne Emojis</label> <label><input type="checkbox" id="optMarkdown"> als Markdown-Tabelle</label></div>
+<div style="margin-top:4px"><button id="pause" class="lnk">Spuren-Pause: 1 Stunde ohne Verlauf</button> <span id="pauseInfo" class="muted"></span></div>
+<div style="margin-top:4px"><button id="trips" class="lnk">Gebuchte Etappen kopieren</button></div>
+<label style="display:block;margin-top:6px">Link prüfen: <input type="url" id="linkCheck" placeholder="https://…" style="width:60%"></label>
+<div id="linkResult" class="muted" role="status"></div>
+<label style="display:block;margin-top:6px">Merkliste eines Freundes (kopierter Text): <textarea id="friendText" rows="2" style="width:100%;box-sizing:border-box"></textarea></label>
+<button id="friendAdd" class="lnk">Übernehmen</button> <span id="friendInfo" class="muted"></span>
+<div style="margin-top:6px"><button id="dataInfo" class="lnk">Was ist gespeichert?</button></div>
+<div id="dataOut" class="muted"></div>
+<div id="aiInfo" class="muted"></div>
+<details style="margin-top:4px"><summary class="muted">Selbst prüfen: keine Anfragen</summary><div class="muted">Rechtsklick auf das Popup → „Untersuchen“ → Reiter „Netzwerk“. Auf Airbnb: Entwicklerwerkzeuge (F12) → „Netzwerk“, Filter „chrome-extension“. StayMatch stellt keine eigenen Anfragen; Bilder kommen nur von Airbnb selbst.</div></details>
+</details>
 </div>
 <footer><a id="app" target="_blank">Viertel-Finder öffnen</a><span><button id="csv">CSV</button> · <button id="export">JSON</button> · <button id="import">Import</button> · <button id="wipe">Löschen…</button></span></footer>
 <input type="file" id="file" accept="application/json" hidden>
 <script src="core.js"></script>
 <script src="rank.js"></script>
+<script src="extras.js"></script>
 <script src="popup.js"></script>
 </body></html>

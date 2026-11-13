@@ -184,7 +184,7 @@ test('Manifest: Version 0.5.0, keine neuen Berechtigungen, alle Skripte vorhande
   assert.deepEqual(m.permissions, ['storage']);
   assert.equal(m.host_permissions, undefined);
   const js = m.content_scripts[0].js;
-  assert.deepEqual(js, ['core.js', 'parse.js', 'rank.js', 'hints.js', 'pool.js', 'content-common.js', 'content-search.js', 'content-listing.js']);
+  assert.deepEqual(js, ['core.js', 'parse.js', 'rank.js', 'hints.js', 'extras.js', 'pool.js', 'content-common.js', 'content-search.js', 'content-listing.js']);
   for (const f of m.content_scripts.flatMap(c => c.js)) assert.ok(require('node:fs').existsSync(require('node:path').join(__dirname, '..', 'extension', f)), f);
 });
 
