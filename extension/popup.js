@@ -2,7 +2,8 @@ const { APP_URL } = window.StayMatchCore;
 document.getElementById('app').href = APP_URL;
 let tab = 'top', listings = {}, lastSearch = null, trip = null, query = '';
 const LIMIT = 100, STALE_MS = 24 * 3600 * 1000;
-const safeSearchUrl = u => /^https:\/\/www\.airbnb\.[a-z.]+\/s\//.test(u || '') ? u : null;
+// R7: gleiche Hostprüfung wie isRoomUrl (Regex ließ „www.airbnb.evil.com“ durch)
+const safeSearchUrl = u => { const x = parseUrl(u); const d = StayMatchCore.AIRBNB_DOMAINS; return x && x.protocol === 'https:' && d.some(h => x.hostname === h || x.hostname === 'www.' + h) && x.pathname.startsWith('/s/') ? u : null; };
 
 const $ = id => document.getElementById(id);
 function h(tag, attrs = {}, ...kids) {
@@ -19,8 +20,15 @@ const safeUrl = u => isRoomUrl(u) ? u : '#';
 // Bilder nur vom Airbnb-CDN (verhindert Tracking-Pixel über importierte Dateien)
 const isCdnImage = u => { const x = parseUrl(u); return !!x && x.protocol === 'https:' && (x.hostname === 'muscache.com' || x.hostname.endsWith('.muscache.com')); };
 
+// R7: nur die nötigen Schlüssel lesen (nicht Pool, Bewertungstexte usw.), wenn der Browser getKeys kennt (Chrome 130+)
+async function readStore() {
+  const s = chrome.storage.local;
+  if (typeof s.getKeys !== 'function') return s.get(null);
+  const keys = (await s.getKeys()).filter(k => k.startsWith('l:') || ['listings', 'lastSearch', 'trip'].includes(k));
+  return keys.length ? s.get(keys) : {};
+}
 async function load() {
-  const all = await chrome.storage.local.get(null);
+  const all = await readStore();
   // Umzug vom alten Format (v0.1: ein großes Objekt "listings")
   if (all.listings) {
     const moved = Object.fromEntries(Object.entries(all.listings).map(([id, v]) => ['l:' + id, { ...v, id }]));
@@ -79,18 +87,20 @@ function topRow(l, n) {
     (l.warn || []).length ? h('div', { class: 'muted warn' }, '⚠️ ' + l.warn.slice(0, 2).join(' · ')) : null);
 }
 
+// R7: ein Einstiegstext, Direktweg zuerst
+const START_TEXT = 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Optional findet der Viertel-Finder vorher das passende Viertel, auch für Gruppen.';
 function render() {
   const items = Object.values(listings).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
   $('profile').replaceChildren(...profile(items));
   $('trip').replaceChildren(trip
     ? `Reise: ${trip.city || '?'} · ${trip.people?.length || '?'} ${trip.people?.length === 1 ? 'Person' : 'Personen'} · ${trip.nights || '?'} Nächte · ${trip.budget || '?'} € · ${trip.areas?.length || 0} Viertel bewertet`
-    : 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Optional findet der Viertel-Finder vorher das passende Viertel, auch für Gruppen.');
+    : START_TEXT);
   let rows;
   if (tab === 'top') {
     rows = lastSearch?.top?.length
       ? [h('div', { class: 'item muted', style: 'display:block' }, `Letzte Suche vom ${new Date(lastSearch.at).toLocaleString('de-DE')}`,
           safeSearchUrl(lastSearch.url) ? [' · ', h('a', { href: safeSearchUrl(lastSearch.url), target: '_blank', rel: 'noopener' }, 'Suche wieder öffnen')] : null), ...lastSearch.top.map((l, n) => topRow(l, n + 1))]
-      : [h('div', { class: 'item muted' }, 'Öffne im Viertel-Finder „Unterkünfte ansehen“. StayMatch bewertet die Seite automatisch.')];
+      : [h('div', { class: 'item muted' }, trip ? START_TEXT : 'Noch keine Suche bewertet.')];
   } else {
     const q = query.trim().toLowerCase();
     const shown = items.filter(i => (tab === 'all' || (tab === 'liked' ? i.vote === 1 : i.vote === -1)) &&
@@ -129,20 +139,28 @@ $('export').onclick = () => {
   download('staymatch.json', JSON.stringify({ listings: ls, trip: t }, null, 2), 'application/json');
 };
 $('csv').onclick = () => {
-  const cols = ['title', 'locality', 'rating', 'reviewCount', 'pricePerNight', 'currency', 'vote', 'visits', 'note', 'url'];
+  // R7: wie beim JSON-Export nach Notizen fragen; Datum und Art als eigene Spalten (ISO-Datum)
+  const withNotes = confirm('Notizen mit exportieren?\n\nOK = mit, Abbrechen = ohne (gut zum Teilen).');
+  const iso = t => t ? new Date(t).toISOString().slice(0, 10) : '';
+  const cols = ['title', 'kind', 'locality', 'rating', 'reviewCount', 'pricePerNight', 'currency', 'checkin', 'checkout', 'lastSeen', 'vote', 'visits', ...(withNotes ? ['note'] : []), 'url'];
   const esc = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; };
-  download('staymatch.csv', '\ufeff' + [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(i[c])).join(';'))].join('\n'), 'text/csv;charset=utf-8');
+  const val = (i, c) => c === 'lastSeen' ? iso(i.lastSeen) : i[c];
+  download('staymatch.csv', '\ufeff' + [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(val(i, c))).join(';'))].join('\n'), 'text/csv;charset=utf-8');
 };
 $('import').onclick = () => $('file').click();
 $('file').onchange = async e => {
   try {
     const j = JSON.parse(await e.target.files[0].text());
     const src = j.listings || j;
-    const entries = Object.values(src).filter(v => v && v.id && /^\d+$/.test(String(v.id)))
+    const all = Object.values(src);
+    const entries = all.filter(v => v && v.id && /^\d+$/.test(String(v.id)))
       .map(v => ({ ...v, image: isCdnImage(v.image) ? v.image : undefined, url: isRoomUrl(v.url) ? v.url : undefined }));
     await chrome.storage.local.set(Object.fromEntries(entries.map(v => ['l:' + v.id, v])));
-    load();
+    await load();
+    // R7: R\u00fcckmeldung, was \u00fcbernommen wurde
+    $('list').prepend(h('div', { class: 'item muted', role: 'status' }, `${entries.length} \u00fcbernommen, ${all.length - entries.length} \u00fcbersprungen`));
   } catch { alert('Datei konnte nicht gelesen werden.'); }
+  e.target.value = ''; // R7: dieselbe Datei l\u00e4sst sich erneut w\u00e4hlen
 };
 chrome.storage.local.get('settings').then(r => {
   $('optBadges').checked = (r.settings || {}).showBadges !== false;
@@ -159,7 +177,9 @@ $('share').onclick = async () => {
   const liked = Object.values(listings).filter(i => i.vote === 1).sort((a, b) => (b.rating || 0) - (a.rating || 0));
   if (!liked.length) { $('share').textContent = 'Erst 👍 vergeben'; return; }
   const n = trip?.people?.length || 0;
-  const text = window.StayMatchRank.shareText(liked.map(i => ({ ...i, stay: null, ppnPerson: n > 1 && i.pricePerNight ? Math.round(i.pricePerNight / n) : null })), { title: n > 1 ? 'Unsere Merkliste (StayMatch)' : 'Meine Merkliste (StayMatch)' });
+  // R7: private Notizen gehen nur auf Wunsch in den Gruppenchat
+  const notes = liked.some(i => i.note) && !!confirm('Deine Notizen mit in den Text nehmen?\n\nOK = mit, Abbrechen = ohne.');
+  const text = window.StayMatchRank.shareText(liked.map(i => ({ ...i, stay: null, ppnPerson: n > 1 && i.pricePerNight ? Math.round(i.pricePerNight / n) : null })), { title: n > 1 ? 'Unsere Merkliste (StayMatch)' : 'Meine Merkliste (StayMatch)', notes });
   try { await navigator.clipboard.writeText(text); $('share').textContent = 'Kopiert ✓'; } catch { $('share').textContent = 'Nicht möglich'; }
   setTimeout(() => { $('share').textContent = 'Merkliste kopieren'; }, 2500);
 };
@@ -171,7 +191,7 @@ $('wipe').onclick = async () => {
   const keys = Object.keys(await chrome.storage.local.get(null));
   const pick = {
     verlauf: x => x.startsWith('l:') || x === 'listings',
-    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters'].includes(x),
+    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters'].includes(x) || x.startsWith('min:'), // R7: auch Einklapp-Zustand
     reise: x => x === 'trip',
     alles: x => x !== 'settings',
   }[k];

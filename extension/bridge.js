@@ -3,7 +3,8 @@
 // Nur bekannte Felder mit begrenzter Länge werden übernommen (kein blindes Kopieren der ganzen Seite).
 (() => {
   const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : undefined;
-  const num = (v, lo, hi) => Number.isFinite(+v) && v !== null && v !== '' && +v >= lo && +v <= hi ? +v : undefined;
+  // R7: nur Zahl oder Zahl-Text (true wäre sonst 1)
+  const num = (v, lo, hi) => (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '')) && Number.isFinite(+v) && +v >= lo && +v <= hi ? +v : undefined;
   const list = (v, max, fn) => Array.isArray(v) ? v.slice(0, max).map(fn).filter(x => x !== undefined) : undefined;
   function clean(t) {
     if (!t || typeof t !== 'object' || !num(t.savedAt, 1, 1e14)) return null;

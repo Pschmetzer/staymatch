@@ -27,16 +27,19 @@
       if (hits.length === 1) return { ...hits[0], dist: null };
       if (hits.length > 1) {
         const avg = k => { const v = hits.map(a => a[k]).filter(Number.isFinite); return v.length ? Math.round(v.reduce((s, x) => s + x, 0) / v.length) : null; };
-        return { name: listing.locality, lat: hits[0].lat, lon: hits[0].lon, total: avg('total'), min: avg('min'), minName: null, approx: true, dist: null };
+        // R7: Koordinate = Schwerpunkt der Teilviertel (nicht die des ersten), sonst null
+        const ctr = k => { const v = hits.map(a => a[k]).filter(Number.isFinite); return v.length === hits.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+        return { name: listing.locality, lat: ctr('lat'), lon: ctr('lon'), total: avg('total'), min: avg('min'), minName: null, approx: true, dist: null };
       }
     }
     return null;
   }
 
   // Bayes-Mittel: 5,0 bei 3 Bewertungen zählt weniger als 4,9 bei 300
-  function ratingScore(value, count) {
+  // R7: Prior = Notenmedian der Seite (rankListings), sonst 4,6
+  function ratingScore(value, count, prior = 4.6) {
     if (value == null) return null;
-    const m = 20, C = 4.6, n = count || 0;
+    const m = 20, C = prior, n = count || 0;
     const bay = (value * n + C * m) / (n + m);
     return Math.max(0, Math.min(1, (bay - 4.2) / 0.75));
   }
@@ -137,7 +140,6 @@
   function buildTaste(items) {
     const liked = (items || []).filter(i => i.vote === 1);
     if (!liked.length) return null;
-    const median = a => { const s = a.filter(x => x != null && isFinite(x)).sort((x, y) => x - y); if (!s.length) return null; const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
     const byCurrency = {};
     const ck = i => normCur(i.currency) || '€'; // R7: „EUR“ = „€“
     for (const cur of new Set(liked.map(ck))) {
@@ -147,8 +149,7 @@
     const mr = median(liked.map(i => i.rating).filter(Boolean));
     return {
       likedCount: liked.length,
-      avgPricePerNightByCurrency: byCurrency,
-      avgPricePerNight: Object.values(byCurrency)[0] ?? null,
+      avgPricePerNightByCurrency: byCurrency, // R7: nur noch je Währung (das alte Feld nahm irgendeine)
       minRating: mr != null ? mr - 0.05 : null,
       localities: [...new Set(liked.map(i => i.locality).filter(Boolean))],
     };
@@ -159,7 +160,7 @@
     if (!taste || !taste.likedCount) return null;
     let s = 0.5;
     const cur = normCur(l.currency) || '€';
-    const ref = taste.avgPricePerNightByCurrency ? taste.avgPricePerNightByCurrency[cur] : taste.avgPricePerNight;
+    const ref = taste.avgPricePerNightByCurrency?.[cur];
     const ppn = perNight(l, l.nights);
     if (ref && ppn) { const r = ppn / ref; s += r < 1.25 && r > 0.6 ? 0.2 : -0.1; }
     if (taste.localities?.length && l.locality && taste.localities.some(x => norm(x) === norm(l.locality))) s += 0.2;
@@ -178,7 +179,7 @@
       const k = l.kind || l.title || ''; // erst die Art, freier Titel nur ohne Art („2 Schlafzimmer in …“)
       return PRIVATE_ROOM.test(k) || SHARED_ROOM.test(k) || ROOM_ONLY.test(k) ? false : WHOLE_PLACE.test(k) ? true : null;
     } },
-    trusted: { label: '🏅 Superhost/Favorit', ok: 'Superhost oder Gäste-Favorit', no: 'kein Superhost/Gäste-Favorit', check: l => (l.badges || []).some(b => /favorit|superhost/i.test(b)) },
+    trusted: { label: '🏅 Superhost/Favorit', ok: 'Superhost oder Gäste-Favorit', no: 'kein Superhost/Gäste-Favorit', check: l => isTrusted(l) },
     reviews: { label: '💬 ab 20 Bewertungen', ok: 'viele Bewertungen', no: 'weniger als 20 Bewertungen', check: l => l.reviewCount == null ? null : l.reviewCount >= 20 },
     luxury: { label: '✨ Luxus', ok: (l, ctx) => { const w = luxuryInfo(l, ctx).words; return `Luxus-Unterkunft${w.length ? ` (${w.slice(0, 3).join(', ')})` : ''}`; }, no: 'eher einfache Unterkunft',
       check: (l, ctx) => luxuryInfo(l, ctx).state },
@@ -218,9 +219,21 @@
   const LUX_WEAK = /\bsuite\b|\bspa\b|sauna|\bpool\b|duplex|maisonette/i;
   const LUX_SOFT = /premium|designer|exklusiv|exclusive|prestige|skyline|panorama|k[üu]stenlage|waterfront/i; // Werbewörter, auch bei billigen Zimmern
   // Treffer-Wörter für die Anzeige, ohne Doppelungen und in Originalschreibweise des Titels
-  const hits = (re, txt) => { const g = new RegExp(re.source, 'gi'); const out = []; for (const m of txt.matchAll(g)) { const w = m[0].trim(); if (w && !out.some(x => x.toLowerCase() === w.toLowerCase())) out.push(w); } return out; };
+  // R7: eine Stelle für „Superhost oder Gäste-Favorit“ (vorher dreimal dieselbe Regex)
+  const isTrusted = l => (l.badges || []).some(b => /favorit|superhost/i.test(b));
+  const GLOBAL_RE = new Map(); // R7: globale Fassung je Muster nur einmal bauen
+  const hits = (re, txt) => { let g = GLOBAL_RE.get(re); if (!g) GLOBAL_RE.set(re, g = new RegExp(re.source, 'gi')); g.lastIndex = 0; const out = []; for (const m of txt.matchAll(g)) { const w = m[0].trim(); if (w && !out.some(x => x.toLowerCase() === w.toLowerCase())) out.push(w); } return out; };
   // state: true = Luxus erkannt, false = klar kein Luxus (Zimmer), null = unbekannt (nie geraten)
+  // R7: je Unterkunft und Kontext nur einmal rechnen (check, ok und rankListings fragen alle)
+  const LUX_MEMO = new WeakMap();
   function luxuryInfo(l, ctx) {
+    const m = LUX_MEMO.get(l);
+    if (m && m.ctx === ctx) return m.v;
+    const v = luxuryCalc(l, ctx);
+    LUX_MEMO.set(l, { ctx, v });
+    return v;
+  }
+  function luxuryCalc(l, ctx) {
     const txt = `${l.kind || ''} ${l.title || ''}`;
     if (PRIVATE_ROOM.test(txt) || SHARED_ROOM.test(txt)) return { state: false, words: [], level: 0 };
     const soft = hits(LUX_SOFT, txt), strong = hits(LUX_STRONG, txt), weak = hits(LUX_WEAK, txt).filter(w => !strong.some(x => x.toLowerCase() === w.toLowerCase()));
@@ -246,7 +259,9 @@
   const CUR_ALIAS = { EUR: '€', GBP: '£', USD: '$', 'US$': '$' };
   const normCur = c => (c ? CUR_ALIAS[String(c).trim().toUpperCase()] || String(c).trim() : null);
   // R7: Betrag mit Währung; ohne gelesene Währung nur die Zahl (nicht still „€“)
-  const money = (v, c) => (c ? `${v} ${c}` : `${v}`);
+  // R7: Zahlen gerundet und gruppiert („1.235“ statt „1234.5“)
+  const fmtNum = v => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v).toLocaleString('de-DE') : String(v));
+  const money = (v, c) => (c ? `${fmtNum(v)} ${c}` : fmtNum(v));
 
   const median = a => { const x = a.filter(v => v != null && isFinite(v)).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
 
@@ -291,7 +306,7 @@
     const priceBlocked = curMismatch || !!ctx.priceUnsure || !!l.priceImplausible;
     const parts = {
       area: area ? area.total / 100 : null,
-      rating: ratingScore(effectiveRating(l), l.reviewCount),
+      rating: ratingScore(effectiveRating(l), l.reviewCount, ctx.ratingPrior ?? 4.6),
       // ohne Nächtezahl bei Nachtpreis: nur mit Budget pro Nacht vergleichbar (Direkt-Modus), sonst kein Preis-Teil
       price: priceBlocked ? null : total != null ? priceScore(total, budget) : (!l.isTotal && ctx.budgetPerNight ? priceScore(l.totalPrice, ctx.budgetPerNight) : null),
       wishes: wish.value,
@@ -379,12 +394,16 @@
     if (l.pro) { warn.push('Gewerblicher Gastgeber'); adjust -= 2; }
 
     if (l.badges?.length) why.push(l.badges.join(' · '));
-    if (ctx.seen?.has(l.id)) why.push('schon angesehen');
+    // R7: neutrale Infos (kein Vorzug, keine Warnung)
+    const info = [];
+    if (ctx.seen?.has(l.id)) info.push('schon angesehen');
     if (disliked) warn.push('von dir mit 👎 markiert');
     if (pe.mismatch) warn.push(`Airbnb zeigt ${pe.mismatch.airbnb} Gäste, in deiner Reise stehen ${pe.mismatch.trip}: bewertet mit ${pe.mismatch.airbnb}`);
 
     for (const x of hintWarn) warn.push(`Bewertungen: ${x} (aus deinem Besuch)`);
-    if (hintWarn.length) adjust -= Math.min(8, 4 * hintWarn.length);
+    // R7: nach Häufigkeit staffeln: einmal 3 Punkte, „(4×)“ bis 6 Punkte; zusammen höchstens 10
+    const hintCost = x => 3 + Math.min(3, (+(String(x).match(/\((\d+)×\)\s*$/)?.[1] || 1)) - 1);
+    if (hintWarn.length) adjust -= Math.min(10, hintWarn.reduce((s, x) => s + hintCost(x), 0));
 
     let score = Math.round(base) + adjust;
     // R5-107: kein Extra-Bonus für Favorit/Superhost: steckt schon in der Note und würde doppelt zählen
@@ -397,7 +416,7 @@
     const night = perNight(l, ctx.nights);
     const ppn = { night: night == null ? null : Math.round(night), person: night != null && people > 1 ? Math.round(night / people) : null };
     return {
-      score, parts, area, why, warn, ppn, stay: total == null ? null : Math.round(total),
+      score, parts, area, why, warn, info, ppn, stay: total == null ? null : Math.round(total),
       disliked, unsuitable, unsuitableReasons, badgeReason,
       breakdown, adjust, people, peopleMismatch: pe.mismatch,
       budgetKnown: !!(budget || ctx.budgetPerNight), tripTotal: total, priceUncertain: !!l.multiUnit,
@@ -410,11 +429,19 @@
     for (const l of norm) { const v = l.priceImplausible ? null : perNight(l, ctx.nights); if (v) (byCur[normCur(l.currency) || '€'] ||= []).push(v); }
     const medianNight = {};
     for (const [c, v] of Object.entries(byCur)) if (v.length >= 5) medianNight[c] = median(v);
-    const ctx2 = { ...ctx, medianNight };
-    return norm.map(l => ({ ...l, rank: { ...scoreListing(l, ctx2), luxury: luxuryInfo(l, ctx2) } })).sort((a, b) => b.rank.score - a.rank.score || b.rank.luxury.level - a.rank.luxury.level);
+    // R7: Bayes-Prior aus dem Notenmedian der Seite (ab 5 Noten, begrenzt auf 4,4–4,9)
+    const ratings = norm.map(l => l.rating).filter(v => v != null && isFinite(v));
+    const ratingPrior = ctx.ratingPrior ?? (ratings.length >= 5 ? Math.max(4.4, Math.min(4.9, median(ratings))) : 4.6);
+    const ctx2 = { ...ctx, medianNight, ratingPrior };
+    // R7: Gleichstand: mit Wunsch „Luxus“ die luxuriösere, sonst die günstigere zuerst (unbekannter Preis zuletzt)
+    const wantsLux = (ctx.wishes || []).includes('luxury');
+    const pn = l => { const v = perNight(l, ctx.nights); return v == null ? Infinity : v; };
+    return norm.map(l => ({ ...l, rank: { ...scoreListing(l, ctx2), luxury: luxuryInfo(l, ctx2) } }))
+      .sort((a, b) => b.rank.score - a.rank.score || (wantsLux ? b.rank.luxury.level - a.rank.luxury.level : pn(a) - pn(b)));
   }
 
   // Nr. 399: Filter. minRating: Zahl oder true (= 4,7). Reihenfolge der Liste bleibt.
+  // R7: einzige Filterfunktion (auch fürs Panel), kennt jetzt auch „nur Luxus“
   function filterListings(list, f = {}) {
     const min = f.minRating === true ? 4.7 : f.minRating;
     return list.filter(l => {
@@ -422,7 +449,8 @@
       // ohne bekanntes Budget kann der Filter nichts aussortieren
       if (f.inBudget && l.rank?.budgetKnown && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
       if (f.enoughBeds && l.rank?.parts.beds != null && l.rank.parts.beds < 1) return false; // unbekannt zählt als ok
-      if (f.favorite && !(l.badges || []).some(x => /favorit|superhost/i.test(x))) return false;
+      if (f.lux && l.rank?.luxury?.state !== true) return false;
+      if (f.favorite && !isTrusted(l)) return false;
       return true;
     });
   }
@@ -439,7 +467,7 @@
       ['Sterne', l => l.rating == null ? 'neu' : `${String(l.rating).replace('.', ',')} (${l.reviewCount || 0})`],
       ['Betten', l => fmt(l.beds)],
       ['Schlafzimmer', l => fmt(l.bedrooms)],
-      ['Gastgeber', l => (l.badges || []).join(', ') || '–'],
+      ['Auszeichnung', l => (l.badges || []).join(', ') || '–'], // R7: „Gäste-Favorit“ ist keine Gastgeber-Eigenschaft
       ['Warnungen', l => l.rank.warn.length ? String(l.rank.warn.length) + ': ' + l.rank.warn.slice(0, 2).join('; ') : 'keine'],
     ];
     return rows.map(([label, f]) => ({ label, cells: top.map(f) }));
@@ -456,7 +484,7 @@
         (l.rank?.stay ?? l.stay) != null && `${money(l.rank?.stay ?? l.stay, l.currency)} gesamt`,
         (l.rank?.ppn?.person ?? l.ppnPerson) != null && `${money(l.rank?.ppn?.person ?? l.ppnPerson, l.currency)} p. P./Nacht`].filter(Boolean);
       lines.push('', `${i + 1}. ${l.title || l.kind || 'Unterkunft'}${bits.length ? ' – ' + bits.join(' · ') : ''}`);
-      if (l.note) lines.push(`   Notiz: ${l.note}`);
+      if (l.note && meta.notes) lines.push(`   Notiz: ${l.note}`); // R7: private Notizen nur auf Wunsch
       if (l.url) lines.push(`   ${l.url}`);
     });
     return lines.join('\n');
@@ -464,6 +492,6 @@
 
   root.StayMatchRank = {
     rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
-    weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur, money,
+    weightsFor, buildTaste, effectiveBudget, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur, money, isTrusted,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -214,6 +214,7 @@ test('Popup: Einstellungen funktionieren ohne vorherigen Import, Merkliste wird 
   await until(() => chrome.data.settings.showBadges === false);
   assert.equal(chrome.data.settings.showBadges, false);
   assert.equal(chrome.data.settings.theme, 'dark');
+  w.confirm = () => true; // R7: Notizen nur auf Nachfrage
   w.document.getElementById('share').click();
   await until(() => copied);
   assert.match(copied, /^Unsere Merkliste \(StayMatch\)\n\n1\. Loft – Gràcia · ⭐ 4,8 · 50 € p\. P\.\/Nacht\n {3}Notiz: Balkon\n {3}https:\/\/www\.airbnb\.de\/rooms\/1$/);
@@ -249,6 +250,7 @@ test('Popup, eine Person: „Meine Merkliste“ ohne Preis pro Person', { skip }
   await until(() => chrome.data.settings.showBadges === false);
   assert.equal(chrome.data.settings.showBadges, false);
   assert.equal(chrome.data.settings.theme, 'dark');
+  w.confirm = () => true; // R7: Notizen nur auf Nachfrage
   w.document.getElementById('share').click();
   await until(() => copied);
   assert.match(copied, /^Meine Merkliste \(StayMatch\)\n\n1\. Loft – Gràcia · ⭐ 4,8\n {3}Notiz: Balkon\n {3}https:\/\/www\.airbnb\.de\/rooms\/1$/);
