@@ -1,7 +1,7 @@
 // Größengrenzen, damit die Seite schlank bleibt (Bytes, unkomprimiert). Anpassen nur mit Begründung im PR.
 import { readdirSync, statSync, existsSync, appendFileSync } from 'node:fs';
 
-const LIMITS = { 'web/index.html': 80_000, 'web/app.html': 40_000, jsEach: 60_000, jsTotal: 150_000 };
+const LIMITS = { 'web/index.html': 80_000, 'web/app.html': 40_000, jsEach: 60_000, jsTotal: 170_000 }; // R7: app-extra.js (Viertel-Features) kam dazu; unkomprimiert gemessen, ausgeliefert mit Brotli
 const errors = [];
 const warnings = [];
 const WARN_AT = 0.9; // Frühwarnung ab 90 % der Grenze
