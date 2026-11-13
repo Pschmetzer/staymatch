@@ -78,7 +78,7 @@ test('compareAreas: Gewinner je Kategorie, je Person und gesamt', () => {
   const A = { counts: { party: 10, chill: 3, sights: 5, food: 8, transit: 1 }, group: { total: 70, scores: [80, 60] } };
   const B = { counts: { party: 4, chill: 3, sights: 9, food: 8, transit: 2 }, group: { total: 55, scores: [50, 60] } };
   const c = SM.compareAreas(A, B, [{ name: 'L', type: 'party' }, { name: 'M', type: 'party' }]);
-  assert.deepEqual(c.cats.map(x => x.win), [1, 0, 2, 0, 2, 0, 0, 0]);
+  assert.deepEqual(c.cats.map(x => x.win), [1, 0, 2, 0, 2], 'R7: Einkaufen, Sport, Kinder sind dem Party-Typ egal und fehlen');
   const neg = SM.compareAreas(A, B, [{ name: 'L', type: 'chill' }]); // Chill-Typ: mehr Party ist kein Sieg (R5-35)
   assert.equal(neg.cats[0].win, 2);
   assert.deepEqual(c.persons.map(x => x.win), [1, 0]);

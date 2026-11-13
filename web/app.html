@@ -10,7 +10,12 @@
 <meta property="og:title" content="StayMatch – dein passendes Airbnb finden">
 <meta property="og:description" content="Sag, was dir wichtig ist. StayMatch findet das passende Viertel.">
 <meta property="og:type" content="website">
-<meta name="twitter:card" content="summary">
+<meta property="og:url" content="https://staymatch.pro/app">
+<meta property="og:image" content="https://staymatch.pro/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://staymatch.pro/og.png">
 <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23e0475b%22/><path d=%22M50 25 78 52H68v23H32V52H22z%22 fill=%22white%22/></svg>">
@@ -23,6 +28,8 @@
 :root { --brand:#ff385c; }
 .skip { position:absolute; left:-999px; top:8px; z-index:50; background:var(--btn); color:var(--btnText); padding:8px 14px; border-radius:8px; } .skip:focus { left:8px; }
 .fav { min-width:28px; min-height:28px; }
+.trow.mix { grid-template-columns:86px 1fr; }
+.mapfit { width:30px; height:30px; background:#fff; color:#222; border:2px solid rgba(0,0,0,.2); border-radius:4px; font-size:16px; cursor:pointer; }
 .result, #status, #results { scroll-margin-top:80px; }
 * { box-sizing:border-box; }
 [hidden] { display:none !important; }
@@ -64,7 +71,8 @@ button.link { background:none; border:0; color:var(--accent); padding:4px 0; }
 #status { color:var(--muted); margin:6px 0 12px; }
 #map { height:340px; border-radius:20px; border:1px solid var(--line); margin-bottom:16px; }
 .result { display:grid; gap:9px; margin-bottom:14px; }
-.result h3 { margin:0; display:flex; justify-content:space-between; gap:8px; align-items:baseline; font-weight:500; font-size:19px; }
+.rh h3 { display:inline; font:inherit; margin:0; }
+.result .rh { margin:0; display:flex; justify-content:space-between; gap:8px; align-items:baseline; font-weight:500; font-size:19px; }
 .score { font-size:26px; font-weight:700; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .bar { height:6px; background:var(--bg2); border-radius:3px; overflow:hidden; } .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
@@ -150,9 +158,10 @@ form#f { border-radius:16px; padding:24px; box-shadow:var(--shadow); }
 .seg .cell:nth-child(even) { border-left:1px solid var(--muted); }
 .seg .full { grid-column:1 / -1; border-top:0; border-radius:11px 11px 0 0; }
 .seg .cell:last-child { border-radius:0 0 11px 0; } .seg .cell:nth-last-child(2) { border-radius:0 0 0 11px; }
-.seg label { margin:0; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text); }
+.seg label { margin:0; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text); }
 .seg input, .seg select { border:0; background:transparent; padding:2px 0 0; border-radius:0; font-size:15px; outline:none; }
 .seg input[type=search]::-webkit-search-cancel-button { display:none; }
+@media (forced-colors: active) { .seg .cell:focus-within, :focus-visible { outline:2px solid CanvasText; outline-offset:2px; } }
 .seg .cell:focus-within { z-index:1; box-shadow:0 0 0 2px var(--text); border-color:transparent; border-radius:10px; background:var(--card); }
 .cities { gap:8px; margin-top:12px; }
 .cities button { font-size:13px; padding:6px 14px; border-radius:999px; background:var(--card); border:1px solid var(--line); transition:border-color .15s, box-shadow .15s; }
@@ -206,7 +215,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     <a class="logo" href="/"><i><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg></i>StayMatch</a>
     <div class="right">
       <a href="/#plugin">Plugin</a>
-      <button class="theme" id="theme" aria-label="Hell/Dunkel umschalten">◐</button>
+      <button class="theme" id="theme" aria-label="Dunkles Design" aria-pressed="false">◐</button>
     </div>
   </div>
 </nav>
@@ -232,6 +241,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 
     <label id="peopleLabel" class="sec">Was ist dir in der Gegend wichtig?</label>
     <div id="people"></div>
+    <p class="hint warn" id="peopleWarn" role="status"></p>
     <div class="tools">
       <button type="button" class="link" id="addPerson">+ Person hinzufügen</button>
       <button type="button" class="link" id="example">Beispiel mit Mitreisenden laden</button>
@@ -251,12 +261,12 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     <div class="undo" id="undo" role="status" hidden><span id="undoMsg"></span><button type="button" class="link" id="undoBtn">Rückgängig</button></div>
     <details>
       <summary>Reisende aus Text einfügen</summary>
-      <div class="body"><textarea id="paste" aria-label="Reisende als Text" placeholder="Lena Party, Mia Chill, Tom Sightseeing"></textarea><button type="button" class="link" id="pasteGo">Übernehmen</button></div>
+      <div class="body"><textarea id="paste" aria-label="Reisende als Text" placeholder="Lena Party, Mia Chill, Tom Sightseeing"></textarea><button type="button" class="link" id="pasteGo">Übernehmen</button><p class="hint warn" id="pasteMsg" role="status"></p></div>
     </details>
     <details>
       <summary>Gespeicherte Reisende</summary>
       <div class="body"><select id="tpl" aria-label="Gespeicherte Reisende laden"></select>
-        <div class="tools"><button type="button" class="link" id="tplSave">Aktuelle Reisende speichern</button><button type="button" class="link" id="tplDel">Auswahl löschen</button></div></div>
+        <div class="tools"><input id="tplName" maxlength="40" autocomplete="off" aria-label="Name für diese Auswahl" placeholder="Name für diese Auswahl"><button type="button" class="link" id="tplSave">Aktuelle Reisende speichern</button><button type="button" class="link" id="tplDel">Auswahl löschen</button></div><p class="hint" id="tplMsg" role="status"></p></div>
     </details>
     <details>
       <summary>Was bedeuten die Typen?</summary>
@@ -274,7 +284,6 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
       <div class="body">
         <label for="radius">Umkreis um das Viertel</label>
         <select id="radius">
-          <option value="auto">Automatisch (1,2 km mit viel Bahn, sonst 800 m)</option>
           <option value="500">500 m (kurze Wege)</option>
           <option value="800" selected>800 m (Standard)</option>
           <option value="1200">1,2 km</option>
@@ -297,14 +306,15 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     </div>
     <button type="button" class="link" id="share" style="display:block;margin-top:6px">🔗 Link zum Teilen kopieren</button>
     <div class="hint" id="shareMsg" role="status" aria-live="polite">Mit dem Link öffnest du deine Suche auf einem anderen Gerät oder teilst sie mit Mitreisenden. Die Daten stehen nur im Link.</div>
-    <div class="hint">Daten: OpenStreetMap (Orte im Umkreis, nähere zählen mehr). Für Ortssuche, Orte und Kartenkacheln werden OpenStreetMap-Dienste angefragt. <a href="https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md">Datenschutz</a>.</div>
+    <div class="hint">Daten: OpenStreetMap (Orte im Umkreis, nähere zählen mehr). Für Ortssuche, Orte und Kartenkacheln werden OpenStreetMap-Dienste angefragt. <a href="/datenschutz">Datenschutz</a>.</div>
     <details>
       <summary>Wie wird gewertet?</summary>
       <div class="body">Standardmäßig zählt (wenn ihr mehrere seid) zu 60 % die am wenigsten zufriedene Person und zu 40 % der Schnitt, so gewinnt nicht einfach die Mehrheit. Mit dem Fairness-Regler änderst du das Verhältnis. Das Budget ändert die Wertung nicht, es filtert nur die Airbnb-Suche. Die Preislage je Viertel ist eine grobe Schätzung aus Lage und Sehenswürdigkeiten. Ändern sich Reisende oder Umkreis, wird sofort neu gerechnet.</div>
     </details>
   </form>
   <section>
-    <p id="status" role="status" aria-live="polite">Stadt, Zeitraum, Budget und deine Wünsche eingeben.</p>
+    <p class="warn" id="crash" role="alert" hidden>Etwas ging schief. Bitte die Seite neu laden. Hilft das nicht: <button type="button" class="link">gespeicherte Eingaben zurücksetzen und neu laden</button></p>
+    <p id="status" role="status" aria-live="polite" tabindex="-1">Stadt, Zeitraum, Budget und deine Wünsche eingeben.</p>
     <div id="choices" class="choices" role="group" aria-label="Mehrere Orte gefunden" hidden></div>
     <button class="link" id="retry" hidden>↻ Nochmal versuchen</button>
     <div class="card loader" id="loader" hidden>
@@ -317,6 +327,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
         <ol class="steps" id="ldSteps" aria-hidden="true"><li>Stadt finden</li><li>Orte laden</li><li>Viertel bewerten</li></ol>
         <p class="ldnote" id="ldNote" aria-hidden="true"></p>
         <p class="ldtip" id="ldTip" aria-hidden="true"></p>
+        <ul id="ldTips" hidden><li>Gezählt werden Bars, Cafés, Parks, Sehenswürdigkeiten und Haltestellen im Umkreis jedes Viertels.</li><li>Mit Mitreisenden zählt die am wenigsten zufriedene Person am meisten, so gewinnt nicht einfach die Mehrheit.</li><li>Die Daten kommen live von OpenStreetMap, gepflegt von Freiwilligen. Große Städte brauchen etwas länger.</li><li>Die Städte unter „Beliebte Ziele“ sind vorgeladen und erscheinen sofort.</li><li>Ist eine Stadt einmal geladen, geht jede weitere Suche dort heute ohne Wartezeit.</li><li>Mit dem Plugin für Chrome siehst du auf Airbnb direkt die drei besten Unterkünfte.</li></ul>
       </div>
     </div>
     <div class="card" id="intro">
@@ -325,7 +336,18 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     </div>
     <div id="dest" aria-labelledby="destH">
       <h2 id="destH">Beliebte Ziele</h2>
-      <div class="dgrid" id="destGrid"></div>
+      <div class="dgrid" id="destGrid">
+        <button type="button" class="dcard" data-city="Barcelona" aria-label="Viertel in Barcelona finden"><span class="ph"><img src="media/staedte/barcelona.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Barcelona</b><span class="s">Strand, Tapas, Altstadt</span></button>
+        <button type="button" class="dcard" data-city="Lissabon" aria-label="Viertel in Lissabon finden"><span class="ph"><img src="media/staedte/lissabon.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Lissabon</b><span class="s">Hügel, Aussichtspunkte, Fado</span></button>
+        <button type="button" class="dcard" data-city="Rom" aria-label="Viertel in Rom finden"><span class="ph"><img src="media/staedte/rom.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Rom</b><span class="s">Piazzas, Trattorien, Antike</span></button>
+        <button type="button" class="dcard" data-city="Wien" aria-label="Viertel in Wien finden"><span class="ph"><img src="media/staedte/wien.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Wien</b><span class="s">Kaffeehäuser, Parks, Kultur</span></button>
+        <button type="button" class="dcard" data-city="Berlin" aria-label="Viertel in Berlin finden"><span class="ph"><img src="media/staedte/berlin.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Berlin</b><span class="s">Kieze, Bars, Spreeufer</span></button>
+        <button type="button" class="dcard" data-city="Paris" aria-label="Viertel in Paris finden"><span class="ph"><img src="media/staedte/paris.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Paris</b><span class="s">Cafés, Museen, Seine</span></button>
+        <button type="button" class="dcard" data-city="Madrid" aria-label="Viertel in Madrid finden"><span class="ph"><img src="media/staedte/madrid.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Madrid</b><span class="s">Dachterrassen, Tapas, Parks</span></button>
+        <button type="button" class="dcard" data-city="Prag" aria-label="Viertel in Prag finden"><span class="ph"><img src="media/staedte/prag.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Prag</b><span class="s">Altstadt, Brücken, Bier</span></button>
+        <button type="button" class="dcard" data-city="Amsterdam" aria-label="Viertel in Amsterdam finden"><span class="ph"><img src="media/staedte/amsterdam.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Amsterdam</b><span class="s">Grachten, Fahrrad, Cafés</span></button>
+        <button type="button" class="dcard" data-city="Budapest" aria-label="Viertel in Budapest finden"><span class="ph"><img src="media/staedte/budapest.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Budapest</b><span class="s">Donau, Thermen, Ruinenbars</span></button>
+      </div>
     </div>
     <p class="muted" id="extHint" hidden>Tipp: Mit dem StayMatch-Plugin für Chrome werden die Unterkünfte auf Airbnb automatisch für dich bewertet.</p>
     <div id="mapSection" hidden>
@@ -336,35 +358,40 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
       <div id="mapWrap">
         <div class="poitog" id="poiToggles" role="group" aria-label="Orte auf der Karte zeigen"></div>
         <div id="map" role="region" aria-label="Karte der besten Viertel. Dieselben Informationen stehen in der Liste darunter."></div>
-        <div class="hint">Nummern = beste Viertel, kleine Punkte = weitere bewertete Viertel (grün gut, rot schwach). Gestrichelt: ausgewertete Fläche.</div>
+        <p class="hint warn" id="tileMsg" role="status" hidden>Kartenbild nicht verfügbar. Die Liste unten gilt trotzdem.</p>
+        <div class="hint" id="mapLegend">Nummern = beste Viertel, kleine Punkte = weitere bewertete Viertel (grün gut, rot schwach). Gestrichelt: ausgewertete Fläche.</div>
       </div>
     </div>
     <div class="stale" id="stale" role="status" hidden></div>
     <div class="reshead" id="reshead" hidden>
       <span id="resSummary"></span>
-      <label for="sort">Sortieren <select id="sort" aria-label="Sortierung"></select></label>
+      <label for="sort">Sortieren <select id="sort"></select></label>
       <label><input type="checkbox" id="onlyFav"> Nur Favoriten (<span id="favCount">0</span>)</label>
     </div>
     <div class="whatif" id="whatif" aria-live="polite"></div>
-    <div id="compare" aria-live="polite"></div>
+    <div id="compare"></div><p class="sr" id="cmpMsg" role="status"></p>
     <h2 class="sr">Ergebnisse</h2>
     <div id="results" aria-busy="false"></div>
     <button type="button" class="link" id="more" hidden>Mehr Viertel anzeigen</button>
   </section>
 </main>
 <footer>
-  <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden.</div>
+  <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden. · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a></div>
 </footer>
-<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/leaflet/leaflet.js" defer></script>
 <!-- Reihenfolge wichtig: core.js zuerst (klassische Skripte, gemeinsamer globaler Bereich) -->
-<script src="core.js"></script>
-<script src="scoring.js"></script>
-<script src="app.js"></script>
+<script src="core.js" defer></script>
+<script src="scoring.js" defer></script>
+<script src="app.js" defer></script>
 <script>
+  addEventListener('DOMContentLoaded', () => {
   document.getElementById('theme').onclick = () => {
     const root = document.documentElement, next = root.dataset.theme === 'light' ? 'dark' : 'light';
     root.dataset.theme = next; try { localStorage.setItem('sm_theme', next); } catch {}
+    document.getElementById('theme').setAttribute('aria-pressed', String(next === 'dark'));
   };
+  document.getElementById('theme').setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
+  });
 </script>
 </body>
 </html>
