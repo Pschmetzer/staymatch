@@ -131,7 +131,7 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
 .mini div { display:grid; grid-template-columns:76px 1fr; gap:6px; align-items:center; font-size:12px; color:var(--muted); }
 .mini .bar { height:5px; }
 .fav { background:none; border:0; font-size:18px; padding:0 4px; line-height:1; } .fav[aria-pressed=true] { color:var(--accent); }
-.rank-num { white-space:nowrap; }
+.rank-num { min-width:0; overflow-wrap:anywhere; } /* lange Viertelnamen umbrechen statt die Seite zu verbreitern */
 .result.hl { outline:2px solid var(--accent); }
 .result a.sub2 { color:var(--muted); font-size:13px; }
 .numpin { background:var(--accent); color:#fff; border:2px solid #fff; border-radius:50%; width:24px !important; height:24px !important; display:grid; place-items:center; font-size:12px; font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,.4); }
@@ -204,6 +204,17 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 .dcard:focus-visible { outline:2px solid var(--text); outline-offset:3px; border-radius:12px; }
 .dcard b { display:block; font-weight:600; font-size:15px; margin-top:8px; color:var(--text); }
 .dcard span.s { display:block; font-size:13px; color:var(--muted); }
+/* Zusatzfunktionen (app-extra.js) */
+.xbox { margin:10px 0; } .xbox ul { margin:6px 0; padding-left:20px; } .xbox li { margin:3px 0; }
+.xtools { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin-top:8px; }
+.xtools select, .xform input[type=text], .xform select { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card, transparent); color:inherit; max-width:100%; }
+.xform { display:flex; flex-wrap:wrap; gap:6px; align-items:center; } .xform input[type=text] { flex:1 1 200px; min-width:0; }
+.xcard { margin-top:6px; font-size:.93em; } .xcard > div { margin:2px 0; } .xplain { font-weight:500; }
+.xduel { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0; } .xduel button { text-align:left; padding:10px; border:1px solid var(--line); border-radius:10px; background:none; color:inherit; font:inherit; cursor:pointer; }
+.xduel button:hover, .xduel button:focus-visible { border-color:var(--accent); } .xduel small { display:block; opacity:.75; }
+.xfs { background:none; border:1px solid var(--line); color:var(--muted); border-radius:10px; height:38px; padding:0 9px; cursor:pointer; font:inherit; font-size:14px; }
+#reshead label, #reshead select { max-width:100%; }
+@media (max-width:520px) { .xduel { grid-template-columns:1fr; } }
 </style>
 <script>(function () { let t = 'light'; try { t = localStorage.getItem('sm_theme') || 'light'; } catch {} document.documentElement.dataset.theme = t; })();</script>
 </head>
@@ -383,6 +394,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 <script src="core.js" defer></script>
 <script src="scoring.js" defer></script>
 <script src="app.js" defer></script>
+<script src="app-extra.js" defer></script>
 <script>
   addEventListener('DOMContentLoaded', () => {
   document.getElementById('theme').onclick = () => {

@@ -487,6 +487,7 @@ function clearResults(msg, keepHead) {
   layer = poiLayer = null; circles = []; renderMap.key = null;
   if (!keepHead) lastView = null;
   if (msg) $('status').textContent = msg;
+  dispatchEvent(new Event('staymatch:render'));
 }
 function compute() {
   if (!lastData) return;
@@ -495,7 +496,7 @@ function compute() {
   const r = radius();
   SM.scoreAreas(areas, pois, r);
   SM.annotateCentre(areas, geo);
-  const ppl = people.map(p => ({ ...p, w: SM.weightsOf(p) }));
+  const ppl = people.map(p => ({ ...p, w: SM.stayWeights(p, SM.weightsOf(p), budgetNums().n) })); // Kurztrip/lange Reise passt Gewichte leicht an
   for (const a of areas) { a.group = SM.groupScore(a.norm, ppl, fairness); a.vetoes = SM.vetoes(a.norm, ppl, a.counts); }
   // Viertel ohne nennenswerte Infrastruktur ausblenden, auch ohne die Orte, die die Gruppe sucht. Viertel mit Veto und zu weit vom Zentrum ebenso.
   const { withData, relevant, empty } = SM.eligibleAreas(areas, ppl, (+$('maxcenter').value || 0) * 1000);
@@ -534,6 +535,7 @@ function compute() {
   $('more').textContent = `${Math.min(8, left)} weitere Viertel anzeigen (${left} übrig)`;
   renderCompare();
   renderMap(ranked, geo, r, pois);
+  dispatchEvent(new Event('staymatch:render'));
 }
 let rescoreTimer = null;
 const rescore = () => { clearTimeout(rescoreTimer); rescoreTimer = setTimeout(() => { try { compute(); } catch (e) { console.debug(e); } }, 250); };
@@ -765,7 +767,7 @@ $('f').addEventListener('submit', e => { e.preventDefault(); run(); });
 
 // ---- Reise per Link teilen (alles steht im Teil nach #, wird nie an einen Server geschickt) ----
 const mapState = () => ({ m: [...$('poiToggles').querySelectorAll('input:checked')].map(x => x.dataset.poi), mw: $('mapWho').value || 'g' });
-const shareState = () => ({ ...formState(), ...mapState(), fairness, people, wishes });
+const shareState = () => ({ ...formState(), ...mapState(), fairness, people, wishes, votes: window.SMExtra && SMExtra.votes() });
 let mapPending = null; // Kartenzustand aus einem Teilen-Link, wird beim ersten Zeichnen übernommen
 let sharedPast = false;
 function applyShared(h) {
@@ -841,3 +843,7 @@ new MutationObserver(extCheck).observe(document.documentElement, { attributes: t
 extCheck(); setTimeout(extCheck, 800);
 renderWishes();
 renderPeople();
+// Schnittstelle für app-extra.js (Zusatzfunktionen, eigenes Modul wegen der Größengrenze)
+window.SMApp = { view: () => lastView, data: () => lastData, people: () => people, fair: () => fairness, nights: () => budgetNums().n, store, areaKey, offerUndo, rescore,
+  setPeople(p) { people = p; save(); renderPeople(); }, setFair(f) { fairness = SM.cleanFairness(f); store.set('sm_fair', fairness); updateFair(); rescore(); },
+  setWishes(w) { wishes = cleanWishes(w); store.set('sm_wishes', wishes); renderWishes(); } };

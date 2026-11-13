@@ -409,7 +409,8 @@
   function shareEncode(st) {
     const { c, i, o, b, bm, r, mc, k, y, bd, m, mw } = st;
     return b64.enc({ c, i, o, b, bm, r, mc, k, y, bd, m, mw, f: Math.round(st.fairness * 100),
-      p: st.people.map(p => [p.name, p.type, p.custom ? Object.keys(CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: st.wishes });
+      p: st.people.map(p => [p.name, p.type, p.custom ? Object.keys(CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: st.wishes,
+      v: st.votes && Object.keys(st.votes).length ? st.votes : undefined }); // v: Stimmen der Gruppen-Abstimmung
   }
   // Nie dem Link trauen: alles prüfen und begrenzen. null = kaputt.
   function shareDecode(h) {
@@ -426,7 +427,7 @@
       })).filter(Boolean);
       if (!people.length) return null;
       const map = { m: Array.isArray(s.m) ? s.m.filter(k => CATEGORIES[k]) : [], mw: /^(g|\d{1,2})$/.test(s.mw) ? s.mw : 'g' };
-      return { people, map, wishes: Array.isArray(s.w) ? s.w : null, fairness: s.f != null ? cleanFairness(+s.f / 100) : null,
+      return { people, map, votes: s.v ? root.StayMatch.cleanVotes(s.v) : {}, wishes: Array.isArray(s.w) ? s.w : null, fairness: s.f != null ? cleanFairness(+s.f / 100) : null,
         form: { c: str(s.c, 80), i: day(s.i), o: day(s.o), b: Math.max(0, Math.min(1e6, +s.b || 0)), bm: s.bm, r: s.r, mc: s.mc, k: s.k, y: s.y, bd: s.bd } };
     } catch { return null; }
   }
@@ -550,4 +551,301 @@
   }
 
   root.StayMatch = { escapeHtml, LABELS, cardHtml, budgetSplit, typeSummary, overpassFetch, tripOf, shareEncode, shareDecode, eligibleAreas, cityKeys, parseCsv, fromFile, buildData, convertBudget, dedupePois, annotateCentre, isSecretTip, median, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
+  // ---- Runde 7: Zusatzfunktionen des Viertel-Finders (reine Rechnung; Anzeige in app-extra.js) ----
+  const KEYS = Object.keys(CATEGORIES);
+  const wOf = p => p.w || weightsOf(p);
+  const meanW = (ppl, k) => ppl.length ? ppl.reduce((x, p) => x + (wOf(p)[k] || 0), 0) / ppl.length : 0;
+  const lbl = k => CATEGORIES[k].label;
+
+  // Tageslänge in Stunden aus Breitengrad und Datum (Näherung ohne Netz, ±10 Minuten). 0 = Polarnacht, 24 = Mitternachtssonne.
+  function dayLength(lat, day) {
+    const d = new Date(String(day) + 'T12:00:00Z');
+    if (isNaN(d) || !Number.isFinite(+lat)) return null;
+    const doy = Math.floor((d - Date.UTC(d.getUTCFullYear(), 0, 0)) / 864e5);
+    const rad = Math.PI / 180, decl = 23.44 * rad * Math.sin(2 * Math.PI / 365 * (doy - 81)), phi = lat * rad;
+    const x = (Math.sin(-0.833 * rad) - Math.sin(phi) * Math.sin(decl)) / (Math.cos(phi) * Math.cos(decl));
+    return x >= 1 ? 0 : x <= -1 ? 24 : 2 * Math.acos(x) / rad / 15;
+  }
+  function daylightText(lat, checkin) {
+    const h = dayLength(lat, checkin);
+    if (h == null) return '';
+    const hm = `${Math.floor(h)} Std. ${String(Math.round((h % 1) * 60) % 60).padStart(2, '0')} Min.`;
+    return `Tageslicht am Anreisetag: etwa ${hm}` + (h < 9 ? ' Früh dunkel: Ankunft und Schlüsselübergabe möglichst im Hellen planen.'
+      : h > 16 ? ' Lange hell: Verdunkelung im Schlafzimmer hilft beim Schlafen.' : '');
+  }
+
+  // Anreise am Sonntag: in vielen Ländern (etwa Deutschland, Österreich, Schweiz) sind Läden dann zu
+  const sundayNote = day => new Date(String(day) + 'T12:00:00Z').getUTCDay() === 0 ? 'Anreise am Sonntag: In manchen Ländern, etwa Deutschland, Österreich und der Schweiz, haben Läden dann zu. Vorher einkaufen.' : '';
+  // Was fehlt diesem Viertel bis Platz 1? Punkte und die zwei Kategorien mit dem größten Rückstand (gewichtet nach der Gruppe).
+  function gapToFirst(a, first, ppl) {
+    if (!a || !first || a === first) return null;
+    const pts = first.group.total - a.group.total;
+    if (pts <= 0) return null;
+    const cats = KEYS.map(k => ({ k, d: meanW(ppl, k) * ((first.norm[k] || 0) - (a.norm[k] || 0)) })).filter(x => x.d > 0.02).sort((x, y) => y.d - x.d).slice(0, 2);
+    return { pts, cats: cats.map(x => ({ key: x.k, label: lbl(x.k), more: meanW(ppl, x.k) > 0 })) };
+  }
+  function gapText(g) {
+    if (!g) return '';
+    const why = g.cats.map(c => c.more ? `weniger ${c.label}` : `mehr ${c.label}`);
+    return `Bis Platz 1 fehlen ${g.pts} ${g.pts === 1 ? 'Punkt' : 'Punkte'}${why.length ? `, vor allem ${why.join(' und ')}` : ''}.`;
+  }
+
+  // Diese Viertel passen nicht: die schwächsten mit Grund (für wen, was fehlt oder stört)
+  function worstAreas(areas, ppl, n = 3) {
+    return [...areas].sort((a, b) => a.group.total - b.group.total).slice(0, n).map(a => {
+      const i = a.group.scores.indexOf(Math.min(...a.group.scores)), p = ppl[i] || ppl[0];
+      const w = p ? weakness(a.norm, a.counts, wOf(p)) : null;
+      const who = ppl.length === 1 ? 'dich' : p.name;
+      return { name: a.name, total: a.group.total, reason: !w ? 'kaum etwas, was ihr sucht' : w.kind === 'missing' ? `wenig ${w.label} für ${who}` : `zu viel ${w.label} für ${who}` };
+    });
+  }
+
+  // Wo liegt die Gruppe auseinander? Kategorien, die einer will und eine andere stört (oder sehr unterschiedlich wichtig sind)
+  function groupConflicts(ppl, max = 3) {
+    if (ppl.length < 2) return [];
+    const out = [];
+    for (const k of KEYS) {
+      const ws = ppl.map(p => wOf(p)[k] || 0);
+      const hi = ws.indexOf(Math.max(...ws)), lo = ws.indexOf(Math.min(...ws));
+      if (ws[hi] >= 0.5 && ws[lo] <= -0.3) out.push({ key: k, gap: ws[hi] - ws[lo], text: `${ppl[hi].name} will ${lbl(k)}, ${ppl[lo].name} stört es.` });
+      else if (ws[hi] - ws[lo] >= 0.8) out.push({ key: k, gap: ws[hi] - ws[lo], text: `${ppl[hi].name} legt Wert auf ${lbl(k)}, ${ppl[lo].name} eher nicht.` });
+    }
+    return out.sort((a, b) => b.gap - a.gap).slice(0, max);
+  }
+
+  // Robuste Empfehlung: bleibt Platz 1 vorn, wenn Fairness oder einzelne Wünsche etwas anders zählen?
+  function robustness(areas, ppl, fairness = 0.6) {
+    const pool = [...areas].sort((a, b) => b.group.total - a.group.total).slice(0, 60);
+    if (pool.length < 2 || !ppl.length) return null;
+    const best = (people, f) => { let b = null, bt = -1; for (const a of pool) { const t = groupScore(a.norm, people, f).total; if (t > bt) { bt = t; b = a; } } return b; };
+    const top = best(ppl, fairness), variants = [];
+    if (ppl.length > 1) for (const f of [fairness - 0.3, fairness + 0.3]) if (f >= 0 && f <= 1) variants.push({ why: f < fairness ? 'mehr auf den Schnitt' : 'mehr auf die Unzufriedenste', ppl, f });
+    for (const k of KEYS) if (ppl.some(p => wOf(p)[k])) for (const m of [0.7, 1.3]) variants.push({ why: `${lbl(k)} ${m > 1 ? 'etwas wichtiger' : 'etwas unwichtiger'}`, ppl: ppl.map(p => ({ ...p, w: Object.fromEntries(KEYS.map(j => [j, (wOf(p)[j] || 0) * (j === k ? m : 1)])) })), f: fairness });
+    const flips = variants.map(v => ({ why: v.why, area: best(v.ppl, v.f) })).filter(v => v.area !== top);
+    return { top: top.name, total: variants.length, kept: variants.length - flips.length, flips: flips.slice(0, 2).map(v => ({ why: v.why, name: v.area.name })) };
+  }
+  function robustText(r) {
+    if (!r) return '';
+    if (!r.flips.length) return `Empfehlung stabil: ${r.top} bleibt vorn, auch wenn einzelne Wünsche etwas mehr oder weniger zählen.`;
+    const share = r.kept / r.total;
+    return `${share >= 0.75 ? 'Empfehlung recht stabil' : 'Knappe Empfehlung'}: ${r.top} bleibt in ${r.kept} von ${r.total} Varianten vorn. Zählt ${r.flips[0].why}, wäre ${r.flips[0].name} Platz 1.`;
+  }
+
+  // Mal was anderes: gut bewertet, aber anders als Platz 1 (gegen die eigene Filterblase)
+  function oddOneOut(areas, best, minDist = 1200) {
+    if (!best) return null;
+    let pick = null, pd = 0;
+    for (const a of areas) {
+      if (a === best || a.group.total < Math.max(50, best.group.total - 20) || distM(a, best) < minDist) continue;
+      const d = Math.sqrt(KEYS.reduce((x, k) => x + ((a.norm[k] || 0) - (best.norm[k] || 0)) ** 2, 0));
+      if (d > pd) { pd = d; pick = a; }
+    }
+    if (!pick || pd < 0.35) return null;
+    const k = KEYS.filter(k => k !== 'transit').sort((x, y) => ((pick.norm[y] || 0) - (best.norm[y] || 0)) - ((pick.norm[x] || 0) - (best.norm[x] || 0)))[0];
+    return { area: pick, label: lbl(k) };
+  }
+
+  // Einfache Sprache: kurze Sätze ohne Fachwörter
+  function plainText(a, ppl) {
+    const t = a.group.total, s = [t >= 80 ? 'Sehr gut.' : t >= 65 ? 'Gut.' : t >= 50 ? 'Geht so.' : 'Passt eher nicht.'];
+    const top = KEYS.filter(k => k !== 'transit' && (a.counts[k] || 0) >= 3).sort((x, y) => (a.norm[y] || 0) - (a.norm[x] || 0)).slice(0, 2);
+    for (const k of top) s.push(`Viel ${lbl(k)}.`);
+    const tr = a.nearest && a.nearest.transit;
+    s.push(tr == null ? 'Keine Bahn in der Nähe.' : tr <= 400 ? 'Bahn ganz nah.' : tr <= 900 ? 'Bahn zu Fuß gut erreichbar.' : 'Bahn etwas weiter weg.');
+    if (a.centerDist != null) s.push(a.centerDist <= 2000 ? 'Nah am Zentrum.' : a.centerDist <= 5000 ? 'Etwas außerhalb.' : 'Weit vom Zentrum.');
+    if (ppl.length > 1 && Math.min(...a.group.scores) < 50) s.push('Nicht für alle gut.');
+    return s.join(' ');
+  }
+
+  // Spielplatz mit Café daneben (Eltern sitzen, Kinder spielen) und nächster Markt, aus den geladenen Orten
+  function familySpots(a, pois, radius = RADIUS.area, near = 120) {
+    const inR = pois.filter(p => p.tags && Math.abs(p.lat - a.lat) < radius / 111320 * 1.1 && distM(a, p) <= radius);
+    const play = inR.filter(p => p.tags.leisure === 'playground'), cafes = inR.filter(p => p.tags.amenity === 'cafe');
+    const pairs = play.filter(p => cafes.some(c => distM(p, c) <= near)).length;
+    let market = null;
+    for (const p of inR) if (p.tags.amenity === 'marketplace') { const d = Math.round(distM(a, p)); if (!market || d < market.d) market = { d, name: p.name || '' }; }
+    return { pairs, market };
+  }
+
+  // Wünsche aus einem Satz: „ruhige ganze Wohnung mit WLAN unter 120“ → Wunsch-Häkchen und Budget (ohne KI, nur Muster)
+  const WISH_RE = [
+    ['whole', /ganze?[nrs]?\s+(wohnung|unterkunft|haus|apartment)|eigene\s+wohnung|kein\s+zimmer|entire|whole/],
+    ['luxury', /luxus|luxuri|edel|suite|villa|penthouse|hotel-?stil|luxury/],
+    ['private', /privat(e[rn]?)?\s+(vermieter|gastgeber|anbieter)|kein(e[nr]?)?\s+(gewerblich|agentur|firma)|nicht\s+gewerblich/],
+    ['trusted', /superhost|g[äa]ste-?favorit|guest\s*favou?rite/],
+    ['reviews', /(viele|genug|mindestens\s+\d+)\s+bewertungen|many\s+reviews/],
+    ['quiet', /ruhig|leise|quiet|kein\s+l[äa]rm/],
+    ['clean', /sauber|clean/],
+    ['wifi', /wlan|wi-?fi|internet/],
+  ];
+  function parseWishes(text) {
+    const t = String(text || '').toLowerCase().slice(0, 300);
+    const wishes = WISH_RE.filter(([, re]) => re.test(t)).map(([k]) => k);
+    const m = /(?:unter|bis|max(?:imal)?\.?|höchstens|budget|<)\s*(\d{2,6})\s*(?:€|euro|eur)?\s*(pro\s+nacht|die\s+nacht|\/\s*nacht|nacht|pro\s+person|p\.?\s?p\.?|insgesamt|gesamt)?/.exec(t)
+      || /(\d{2,6})\s*(?:€|euro|eur)\s*(pro\s+nacht|\/\s*nacht|pro\s+person|insgesamt|gesamt)?/.exec(t);
+    const mode = !m ? null : /nacht/.test(m[2] || '') ? 'night' : /person|p\.?\s?p/.test(m[2] || '') ? 'pp' : /gesamt/.test(m[2] || '') ? 'total' : +m[1] <= 400 ? 'night' : 'total';
+    return { wishes, budget: m ? Math.min(1e6, +m[1]) : null, mode };
+  }
+
+  // Freitext-Interessen → eigene Gewichte (Wortliste, ohne KI). „keine Bars“ zählt negativ.
+  const INTEREST_WORDS = {
+    party: /bars?|kneipe|club|party|nachtleben|jazz|cocktail|pubs?|bier|feiern|ausgehen/,
+    chill: /parks?|caf[eé]s?|kaffee|ruhe|ruhig|garten|strand|entspann|spa|grün/,
+    sights: /museum|museen|sehensw|kultur|galerie|kunst|geschichte|denkmal|aussicht|architektur|altstadt/,
+    food: /essen|restaurant|food|tapas|pizza|kulinar|imbiss|lokal/,
+    transit: /bahn|metro|öpnv|oepnv|tram|bus|anbindung/,
+    shop: /shopping|einkauf|flohmarkt|markt|mall|läden|laden|boutique/,
+    sport: /sport|fitness|gym|laufen|joggen|schwimm|kletter|yoga/,
+    kids: /kind|spielpl|zoo|familie|freizeitpark/,
+  };
+  function interestsToWeights(text) {
+    const parts = String(text || '').toLowerCase().slice(0, 300).split(/[,;.\n]+|\s+(?:und|and|oder|sowie)\s+/).map(x => x.trim()).filter(Boolean);
+    const w = Object.fromEntries(KEYS.map(k => [k, 0])), hits = [];
+    for (const part of parts) {
+      const neg = /\b(kein\w*|ohne|nicht|wenig|hasse|mag\s+keine?)\b/.test(part);
+      for (const k of KEYS) if (INTEREST_WORDS[k].test(part) && !(neg && w[k] > 0)) { w[k] = neg ? -0.6 : 1; hits.push((neg ? 'kein ' : '') + lbl(k)); } // „Jazzbars, aber keine Clubs“: das Ja gewinnt
+    }
+    if (!hits.length) return null;
+    for (const k of ['food', 'transit']) if (!w[k]) w[k] = 0.3; // etwas Essen und Bahn will jeder
+    return { w, hits: [...new Set(hits)].filter(h => !h.startsWith('kein ') || w[KEYS.find(k => lbl(k) === h.slice(5))] < 0) };
+  }
+
+  // Paarweises Duell: Viertelpaare, die sich je Runde in einer Kategorie stark unterscheiden; aus den Antworten Gewichte schätzen
+  function duelPairs(areas, rounds = 8) {
+    const pool = areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10);
+    const keys = KEYS.filter(k => k !== 'transit' && pool.some(a => (a.norm[k] || 0) > 0.3));
+    const out = [], used = new Set();
+    for (let r = 0; r < rounds && keys.length; r++) {
+      const k = keys[r % keys.length], s = pool.filter(a => !used.has(a)).sort((a, b) => (b.norm[k] || 0) - (a.norm[k] || 0));
+      if (s.length < 2) break;
+      const a = s[0], b = s[s.length - 1 - (r % Math.max(1, Math.floor(s.length / 4)))];
+      if (!b || a === b) break;
+      used.add(a); used.add(b); out.push(r % 2 ? [b, a] : [a, b]);
+    }
+    return out;
+  }
+  function duelWeights(choices) {
+    const ok = choices.filter(c => c && c.win && c.lose && c.win.norm && c.lose.norm);
+    if (ok.length < 3) return null;
+    const raw = Object.fromEntries(KEYS.map(k => [k, ok.reduce((x, c) => x + (c.win.norm[k] || 0) - (c.lose.norm[k] || 0), 0) / ok.length]));
+    const max = Math.max(...Object.values(raw).map(Math.abs)) || 1;
+    return Object.fromEntries(KEYS.map(k => [k, Math.round(Math.max(-1, Math.min(1, raw[k] / max)) * 10) / 10]));
+  }
+
+  // Gewichte nach Aufenthaltsdauer: Kurztrip → Bahn und Sehenswertes zählen mehr; lange Reise → Einkaufen und Ruhe. Eigene Regler bleiben unverändert.
+  function stayWeights(p, w, nights) {
+    if (!w || !p || p.custom || !nights || (nights > 2 && nights < 10)) return w;
+    const f = nights <= 2 ? { transit: 1.3, sights: 1.2 } : { shop: 1.4, chill: 1.2, sport: 1.2 };
+    return Object.fromEntries(Object.entries(w).map(([k, v]) => [k, v > 0 && f[k] ? Math.min(1, Math.round(v * f[k] * 100) / 100) : v]));
+  }
+  function stayNote(nights) {
+    return !nights ? '' : nights <= 2 ? 'Kurztrip: Bahn und Sehenswertes zählen etwas mehr.' : nights >= 10 ? 'Lange Reise: Einkaufen, Ruhe und Sport zählen etwas mehr.' : '';
+  }
+
+  // Eigene Ortsliste (GeoJSON oder KML, z. B. aus einer gespeicherten Kartenliste). Nur Punkte, höchstens 500.
+  function parsePlaces(text) {
+    const s = String(text || '').trim(), out = [];
+    const add = (lat, lon, name) => { lat = +lat; lon = +lon; if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && out.length < 500) out.push({ lat, lon, name: String(name || '').slice(0, 80) }); };
+    if (/^[[{]/.test(s)) {
+      let j; try { j = JSON.parse(s); } catch { return []; }
+      const feats = Array.isArray(j) ? j : j.type === 'FeatureCollection' ? j.features : [j];
+      for (const f of feats || []) {
+        const g = f && (f.geometry || f), pr = (f && f.properties) || {};
+        if (g && g.type === 'Point' && Array.isArray(g.coordinates)) add(g.coordinates[1], g.coordinates[0], pr.name || pr.title || (pr.location && pr.location.name));
+      }
+      return out;
+    }
+    const re = /<Placemark\b[\s\S]*?<\/Placemark>/gi;
+    for (const pm of s.match(re) || []) {
+      const c = /<Point\b[\s\S]*?<coordinates>\s*([-\d.]+)\s*,\s*([-\d.]+)/i.exec(pm);
+      const n = /<name>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/name>/i.exec(pm);
+      if (c) add(c[2], c[1], n ? n[1].replace(/<[^>]*>/g, '').trim() : '');
+    }
+    return out;
+  }
+  function placesNear(a, places, radius = RADIUS.area) { return places.filter(p => distM(a, p) <= radius); }
+
+  // Gruppen-Abstimmung per Link: { Name: [Viertel-Schlüssel] }, nie dem Link trauen
+  const VOTE_KEY = /^[^@]{1,80}@-?\d{1,3}\.\d{4}$/;
+  function cleanVotes(v) {
+    const out = {};
+    if (!v || typeof v !== 'object') return out;
+    for (const [n, keys] of (Array.isArray(v) ? v : Object.entries(v)).slice(0, 30)) {
+      const name = typeof n === 'string' ? n.trim().slice(0, 40) : '';
+      const ks = Array.isArray(keys) ? [...new Set(keys.filter(k => typeof k === 'string' && VOTE_KEY.test(k)))].slice(0, 20) : [];
+      if (name && ks.length) out[name] = ks;
+    }
+    return out;
+  }
+  function tallyVotes(votes) {
+    const m = new Map();
+    for (const [n, ks] of Object.entries(cleanVotes(votes))) for (const k of ks) (m.get(k) || m.set(k, []).get(k)).push(n);
+    return [...m].map(([key, names]) => ({ key, name: key.split('@')[0], names })).sort((a, b) => b.names.length - a.names.length || a.name.localeCompare(b.name));
+  }
+
+  // Etappen (mehrere Städte): Lücken und Überschneidungen finden, Kopiertext bauen
+  const fmtD = d => { const [y, m, t] = String(d).split('-'); return y && m && t ? `${t}.${m}.` : ''; };
+  function cleanLegs(legs) {
+    return (Array.isArray(legs) ? legs : []).filter(l => l && typeof l.c === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(l.i) && /^\d{4}-\d{2}-\d{2}$/.test(l.o))
+      .slice(0, 12).map(l => ({ c: l.c.slice(0, 80), i: l.i, o: l.o, a: String(l.a || '').slice(0, 80), t: Math.max(0, Math.min(100, +l.t || 0)) })).sort((x, y) => x.i.localeCompare(y.i));
+  }
+  function legIssues(legs) {
+    const L = cleanLegs(legs), out = [];
+    for (let i = 1; i < L.length; i++) {
+      const gap = nights(L[i - 1].o, L[i].i);
+      if (L[i].i < L[i - 1].o) out.push(`Etappe ${i + 1} (${L[i].c}) beginnt vor dem Ende von Etappe ${i} (${L[i - 1].c}).`);
+      else if (gap > 0) out.push(`Zwischen ${L[i - 1].c} und ${L[i].c} ${gap === 1 ? 'fehlt 1 Nacht' : `fehlen ${gap} Nächte`}.`);
+    }
+    return out;
+  }
+  function legsText(legs, { emoji = true } = {}) {
+    const L = cleanLegs(legs);
+    return L.map((l, i) => `${emoji ? '📍 ' : ''}Etappe ${i + 1}: ${l.c}, ${fmtD(l.i)}–${fmtD(l.o)} (${nights(l.i, l.o)} ${nights(l.i, l.o) === 1 ? 'Nacht' : 'Nächte'})${l.a ? `, Viertel ${l.a} (${l.t}/100)` : ''}`).join('\n')
+      + (L.length ? `\n${nights(L[0].i, L[L.length - 1].o)} Nächte insgesamt.` : '');
+  }
+
+  // Kopiertext der besten Viertel: Liste oder Markdown-Tabelle, mit oder ohne Symbole, mit Datenstand und zwei Entscheidungsfragen
+  function decisionQuestions(A, B) {
+    if (!A || !B) return [];
+    const d = KEYS.filter(k => k !== 'transit').map(k => ({ k, d: (A.norm[k] || 0) - (B.norm[k] || 0) }));
+    const a = d.filter(x => x.d > 0.1).sort((x, y) => y.d - x.d)[0], b = d.filter(x => x.d < -0.1).sort((x, y) => x.d - y.d)[0];
+    const q = [];
+    if (a && b) q.push(`Lieber mehr ${lbl(a.k)} (${A.name}) oder mehr ${lbl(b.k)} (${B.name})?`);
+    else if (a) q.push(`Ist euch mehr ${lbl(a.k)} in ${A.name} wichtig, oder reicht ${B.name}?`);
+    const ta = A.nearest && A.nearest.transit, tb = B.nearest && B.nearest.transit;
+    if (A.centerDist != null && B.centerDist != null && Math.abs(A.centerDist - B.centerDist) > 800) q.push(`Wie wichtig ist die Nähe zum Zentrum (${A.name} ${(A.centerDist / 1000).toFixed(1).replace('.', ',')} km, ${B.name} ${(B.centerDist / 1000).toFixed(1).replace('.', ',')} km)?`);
+    else if (ta != null && tb != null && Math.abs(ta - tb) > 250) q.push(`Wie wichtig ist der kurze Weg zur Bahn (${A.name} ${ta} m, ${B.name} ${tb} m)?`);
+    return q.slice(0, 2);
+  }
+  function areasText(list, { city = '', ppl = [], md = false, emoji = true, questions = true, stamp = '' } = {}) {
+    const km = a => a.centerDist != null ? `${(a.centerDist / 1000).toFixed(1).replace('.', ',')} km` : '?';
+    const tr = a => a.nearest && a.nearest.transit != null ? `${a.nearest.transit} m` : 'weit';
+    const head = `${emoji ? '🏘️ ' : ''}Passende Viertel${city ? ` in ${city}` : ''}${ppl.length > 1 ? ` für ${ppl.length} Personen` : ''}`;
+    const rows = list.slice(0, 5);
+    const body = md
+      ? ['| Platz | Viertel | Wert | Bahn | Zentrum |', '| --- | --- | --- | --- | --- |', ...rows.map((a, i) => `| ${i + 1} | ${String(a.name).replace(/\|/g, '/')} | ${a.group.total}/100 | ${tr(a)} | ${km(a)} |`)].join('\n')
+      : rows.map((a, i) => `${i + 1}. ${a.name}: ${a.group.total}/100 (${verdict(a.group.total)}), Bahn ${tr(a)}, ${km(a)} zum Zentrum`).join('\n');
+    const qs = questions ? decisionQuestions(rows[0], rows[1]) : [];
+    return [md ? `**${head}**` : head, body, qs.length ? (md ? '' : '') + `${emoji ? '🤔 ' : ''}Zum Entscheiden:\n${qs.map(q => `- ${q}`).join('\n')}` : '',
+      `Daten: OpenStreetMap${stamp ? `, Stand ${stamp}` : ''}. Werte sind Schätzungen, keine Preise.`].filter(Boolean).join('\n\n');
+  }
+
+  // Fairness-Konto: wer war bei der letzten Reise derselben Gruppe am wenigsten zufrieden?
+  const groupSig = ppl => ppl.map(p => p.name.trim().toLowerCase()).sort().join('|');
+  function fairMemory(mem, ppl, q, best) {
+    if (ppl.length < 2 || !best) return { mem, hint: null };
+    const all = mem && typeof mem === 'object' && !Array.isArray(mem) ? { ...mem } : {}, sig = groupSig(ppl);
+    const e = all[sig] && typeof all[sig] === 'object' ? { ...all[sig] } : {};
+    const i = best.group.scores.indexOf(Math.min(...best.group.scores));
+    const now = { q: String(q).slice(0, 80), name: ppl[i].name, s: best.group.scores[i], a: best.name };
+    if (e.last && e.last.q !== now.q) e.prev = e.last;
+    e.last = now; all[sig] = e;
+    const keys = Object.keys(all); if (keys.length > 20) delete all[keys[0]];
+    const p = e.prev;
+    return { mem: all, hint: p && ppl.some(x => x.name === p.name) && p.s < 70 ? { name: p.name, score: p.s, city: p.q, area: p.a } : null };
+  }
+
+  Object.assign(root.StayMatch, { dayLength, daylightText, sundayNote, gapToFirst, gapText, worstAreas, groupConflicts, robustness, robustText, oddOneOut, plainText, familySpots,
+    parseWishes, interestsToWeights, duelPairs, duelWeights, stayWeights, stayNote, parsePlaces, placesNear, cleanVotes, tallyVotes, cleanLegs, legIssues, legsText,
+    decisionQuestions, areasText, fairMemory, groupSig });
 })(typeof window !== 'undefined' ? window : globalThis);
