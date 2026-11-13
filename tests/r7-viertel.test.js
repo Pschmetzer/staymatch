@@ -385,3 +385,14 @@ test('sm_trip nur mit Plugin; Teilen-Link trägt den Kartenzustand und bleibt bi
   assert.equal(w2.location.hash, '', 'eigene Änderung: Link weg');
   assert.deepEqual(SM.shareDecode(SM.shareEncode(st)).map, { m: ['party'], mw: 'g' });
 });
+
+test('Vorlage löschen: Nachfrage gilt nur für die zuletzt genannte Vorlage', dom, () => {
+  const w = bootApp({ storage: { sm_groups: [{ name: 'A', people: [{ name: 'a', type: 'party' }] }, { name: 'B', people: [{ name: 'b', type: 'chill' }] }] } });
+  const $ = id => w.document.getElementById(id);
+  const load = i => { $('tpl').value = String(i); $('tpl').dispatchEvent(new w.Event('change')); };
+  load(0); $('tplDel').click(); assert.match($('tplDel').textContent, /„A“/);
+  load(1); $('tplDel').click();
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('sm_groups')).map(g => g.name), ['A', 'B'], 'B nicht ohne Nachfrage gelöscht');
+  assert.match($('tplDel').textContent, /„B“ wirklich/);
+});
+

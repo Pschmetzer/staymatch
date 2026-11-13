@@ -41,6 +41,9 @@ function offerUndo(msg, full) {
   undoSticky = !!full; $('undoMsg').textContent = msg; $('undo').hidden = false;
   armUndo();
 }
+// Eigene Eingabe irgendwo im Formular beendet das dauerhafte Rückgängig nach einem Teilen-Link
+const endSticky = () => { if (undoSticky) { undoSticky = false; armUndo(); } };
+$('f').addEventListener('input', endSticky); $('f').addEventListener('change', endSticky);
 const armUndo = () => { clearTimeout(undoTimer); if (!undoSticky) undoTimer = setTimeout(() => { $('undo').hidden = true; }, 15000); };
 // Toast bleibt, solange Maus oder Fokus darauf liegen (WCAG 2.2.1)
 $('undo').addEventListener('mouseenter', () => clearTimeout(undoTimer)); $('undo').addEventListener('focusin', () => clearTimeout(undoTimer));
@@ -193,7 +196,7 @@ function tunePanel(p, n) {
   return el;
 }
 function save(own = true) {
-  if (own && undoSticky) { undoSticky = false; armUndo(); }
+  if (own) endSticky();
   store.set('sm_people', people);
   rescore();
   // Änderungen gelten ab jetzt: alten Teilen-Link aus der Adresszeile nehmen, sonst überschreibt ein Neuladen die Eingaben
@@ -263,7 +266,9 @@ function renderTpl() {
   $('tpl').innerHTML = '<option value="">Auswahl …</option>' + groups().map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.people.length})</option>`).join('');
 }
 let tplLast = null;
+const tplUnsure = () => { delete $('tplDel').dataset.sure; $('tplDel').textContent = 'Auswahl löschen'; };
 $('tpl').onchange = () => {
+  tplUnsure();
   const g = groups()[+$('tpl').value];
   if (!g) return;
   const list = (g.people || []).map(SM.cleanPerson).filter(Boolean);
@@ -273,6 +278,7 @@ $('tpl').onchange = () => {
 };
 $('tplSave').onclick = () => {
   // Eingabefeld statt prompt(): In-App-Browser (Instagram, WhatsApp) unterdrücken Dialoge
+  tplUnsure();
   const name = ($('tplName').value.trim() || people.slice(0, 3).map(p => p.name).join(', ')).slice(0, 40);
   const l = groups(), same = l.findIndex(g => g.name === name);
   if (same >= 0) l.splice(same, 1); // gleicher Name: ersetzen statt doppelt anlegen
@@ -523,8 +529,9 @@ function compute() {
   renderHead();
   renderWhatIf(byTotal, ppl);
   renderResults();
-  $('more').hidden = !(ranked.length >= shown && pool.length > ranked.length);
-  $('more').textContent = `${Math.min(8, pool.length - ranked.length)} weitere Viertel anzeigen (${pool.length - ranked.length} übrig)`;
+  const left = (onlyFav ? pool.length : SM.pickDiverse(pool, Infinity, minDist).length) - ranked.length; // nur, was „Mehr“ wirklich zeigen kann
+  $('more').hidden = !(ranked.length >= shown && left > 0);
+  $('more').textContent = `${Math.min(8, left)} weitere Viertel anzeigen (${left} übrig)`;
   renderCompare();
   renderMap(ranked, geo, r, pois);
 }
@@ -640,12 +647,12 @@ function buildMapBar(ppl) {
   const want = mapPending ? mapPending.mw : keep;
   if ([...sel.options].some(o => o.value === want)) sel.value = want;
   $('mapWhoWrap').hidden = ppl.length < 2; // allein: Auswahl ist sinnlos
-  mapPending = null;
   if (!$('poiToggles').children.length) {
     $('poiToggles').innerHTML = Object.entries(SM.CATEGORIES).map(([k, c]) => `<label><input type="checkbox" data-poi="${k}"> <i class="dot" style="background:${POI_COLORS[k]}"></i>${c.label}</label>`).join('');
-    if (mapPending) $('poiToggles').querySelectorAll('input').forEach(x => { x.checked = mapPending.m.includes(x.dataset.poi); });
     $('poiToggles').onchange = () => lastView && renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois);
   }
+  if (mapPending) $('poiToggles').querySelectorAll('input').forEach(x => { x.checked = mapPending.m.includes(x.dataset.poi); });
+  mapPending = null;
 }
 $('mapWho').addEventListener('change', () => lastView && renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois));
 function setMapHidden(hide) { // nur DOM: läuft schon beim Start (applyForm), bevor die Karte existiert
