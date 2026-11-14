@@ -199,7 +199,7 @@ test('Manifest: Version 0.5.0, keine neuen Berechtigungen, alle Skripte vorhande
 
 test('Plugin lädt keine fremden Adressen nach (kein fetch/XHR/WebSocket im Code)', () => {
   const fs = require('node:fs');
-  for (const f of [...D.CONTENT_SCRIPTS, 'popup.js', 'bridge.js']) {
+  for (const f of [...D.CONTENT_SCRIPTS, 'popup.js', 'bridge.js', 'import.js', 'options.js']) {
     const s = fs.readFileSync(require('node:path').join(__dirname, '..', 'extension', f), 'utf8');
     assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon|chrome\.(tabs|webRequest|scripting|alarms)/.test(s), f);
   }
@@ -213,7 +213,7 @@ test('Popup: Einstellungen funktionieren ohne vorherigen Import, Merkliste wird 
   const w = dom.window; w.chrome = chrome; D.track(w);
   let copied = null;
   Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { copied = t; } }, configurable: true });
-  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('popup.js'));
+  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('import.js')); w.eval(D.src('popup.js'));
   await until(() => w.document.getElementById('optTheme').value === 'auto' && w.document.getElementById('list').children.length);
   const theme = w.document.getElementById('optTheme'); theme.value = 'dark'; theme.dispatchEvent(new w.Event('change'));
   await until(() => chrome.data.settings.theme === 'dark');
@@ -249,7 +249,7 @@ test('Popup, eine Person: „Meine Merkliste“ ohne Preis pro Person', { skip }
   const w = dom.window; w.chrome = chrome; D.track(w);
   let copied = null;
   Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { copied = t; } }, configurable: true });
-  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('popup.js'));
+  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('import.js')); w.eval(D.src('popup.js'));
   await until(() => w.document.getElementById('optTheme').value === 'auto' && w.document.getElementById('list').children.length);
   const theme = w.document.getElementById('optTheme'); theme.value = 'dark'; theme.dispatchEvent(new w.Event('change'));
   await until(() => chrome.data.settings.theme === 'dark');

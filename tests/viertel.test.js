@@ -29,7 +29,7 @@ test('scoreAreas mit Raster = Ergebnis der einfachen Doppelschleife, dazu nächs
 
 test('Mischtyp ist der Mittelwert, eigene Werte gehen vor', () => {
   const w = SM.weightsOf({ type: 'party', type2: 'chill' });
-  assert.equal(w.party, 0.3); assert.equal(w.chill, 0.6);
+  assert.equal(w.party, 0); assert.equal(w.chill, 0.6); // party (1 + (−1)) / 2
   assert.deepEqual(SM.weightsOf({ type: 'party', type2: 'party' }), SM.PRESETS.party.w);
   assert.equal(SM.cleanPerson({ name: 'x', type: 'party', type2: 'gibts-nicht' }).type2, undefined);
   assert.equal(SM.cleanPerson({ name: 'x', type: 'party', type2: 'sport' }).type2, 'sport');

@@ -44,10 +44,9 @@ test('parseOverpassCsv: Kopfzeile weg, „|“ im Namen verwirft die Zeile und w
   assert.equal(r.dropped, 1);
 });
 
-test('autoRadius: ab 60 ÖPNV-Orten 1200 m, sonst RADIUS.area', () => {
+test('autoRadius: wie die App immer RADIUS.area (800 m), nie die alten 1200 m', () => {
   const t = n => Array.from({ length: n }, () => ({ cat: 'transit' }));
-  assert.equal(C.autoRadius(t(59)), C.RADIUS.area);
-  assert.equal(C.autoRadius(t(60)), 1200);
+  for (const n of [0, 59, 60, 600]) assert.equal(C.autoRadius(t(n)), C.RADIUS.area);
 });
 
 test('nominatimUrl: limit einstellbar, Standard 1', () => {

@@ -116,6 +116,6 @@ test('Umkreis: Auswahl der Person gilt, C.autoRadius (Stadtseiten) überstimmt s
   w.document.getElementById('radius').value = '500';
   await search(w, CITY);
   const { pois } = w.SMApp.data();
-  assert.equal(C.autoRadius(pois), 1200, 'Testdaten wären für autoRadius eine Großstadt');
+  assert.equal(C.autoRadius(pois), 800, 'autoRadius der Stadtseiten = App-Standard, nicht die Auswahl der Person');
   assert.equal(w.SMApp.view().r, 500);
 });
