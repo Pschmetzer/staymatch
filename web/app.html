@@ -216,7 +216,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 #reshead label, #reshead select { max-width:100%; }
 @media (max-width:520px) { .xduel { grid-template-columns:1fr; } }
 </style>
-<script>(function () { let t = 'light'; try { t = localStorage.getItem('sm_theme'); } catch {} document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light'; })();</script>
+<script src="theme-app.js"></script>
 </head>
 <body>
 <a class="skip" href="#f">Zum Formular springen</a> <a class="skip" href="#status">Zu den Ergebnissen springen</a>
@@ -393,39 +393,12 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 <footer>
   <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden. · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a></div>
 </footer>
-<script>
-// Leaflet (150 KB) erst bei der ersten Eingabe oder im Leerlauf laden, nicht im kritischen Pfad. Danach die Karte neu zeichnen lassen,
-// falls schon Ergebnisse da sind (app.js zeichnet sie bei Änderung von #mapWho neu). Service Worker: App-Shell und Städte offline.
-(function () {
-  let started = false;
-  function loadMap() {
-    if (started) return; started = true;
-    const css = new Promise((ok) => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'vendor/leaflet/leaflet.css'; l.onload = l.onerror = ok; document.head.appendChild(l); });
-    const js = new Promise((ok) => { const s = document.createElement('script'); s.src = 'vendor/leaflet/leaflet.js'; s.onload = s.onerror = ok; document.head.appendChild(s); });
-    Promise.all([css, js]).then(() => { const w = document.getElementById('mapWho'); if (window.L && w) w.dispatchEvent(new Event('change')); });
-  }
-  ['pointerdown', 'keydown', 'touchstart'].forEach((t) => addEventListener(t, loadMap, { once: true, passive: true }));
-  addEventListener('load', () => { if (window.requestIdleCallback) requestIdleCallback(loadMap, { timeout: 4000 }); else setTimeout(loadMap, 3000); });
-  if ('serviceWorker' in navigator) addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/app' }).then(() => navigator.serviceWorker.ready)
-      .then((r) => setTimeout(() => r.active && r.active.postMessage('warm'), 3000)).catch(() => {});
-  });
-})();
-</script>
+<script src="app-boot.js"></script>
 <!-- Reihenfolge wichtig: core.js zuerst (klassische Skripte, gemeinsamer globaler Bereich) -->
 <script src="core.js" defer></script>
 <script src="scoring.js" defer></script>
 <script src="app.js" defer></script>
 <script src="app-extra.js" defer></script>
-<script>
-  addEventListener('DOMContentLoaded', () => {
-  document.getElementById('theme').onclick = () => {
-    const root = document.documentElement, next = root.dataset.theme === 'light' ? 'dark' : 'light';
-    root.dataset.theme = next; try { localStorage.setItem('sm_theme', next); } catch {}
-    document.getElementById('theme').setAttribute('aria-pressed', String(next === 'dark'));
-  };
-  document.getElementById('theme').setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
-  });
-</script>
+<script src="app-ui.js"></script>
 </body>
 </html>

@@ -83,7 +83,8 @@ if (process.argv.includes('--check')) {
   for (const p of walk(SRC)) if (!existsSync(join(OUT, relative(SRC, p)))) { console.error(`Fehlt in dist/: ${relative(SRC, p)}`); process.exit(1); }
 }
 const MAX_JS = 115_000; // Budget für web/*.js nach Minify (Bytes; ausgeliefert zusätzlich mit Brotli)
-const jsTotal = sizes.filter(([f]) => f.endsWith('.js')).reduce((n, [, , b]) => n + b, 0);
+const PAGE_JS = /^(theme-[a-z]+|home-[a-z]+|page404|app-boot|app-ui)\.js$/; // Seitenskripte (früher inline), zählen nicht zum App-Budget
+const jsTotal = sizes.filter(([f]) => f.endsWith('.js') && !PAGE_JS.test(f)).reduce((n, [, , b]) => n + b, 0);
 if (process.argv.includes('--check') && jsTotal > MAX_JS) { console.error(`Minifizierte JS zusammen ${jsTotal} > ${MAX_JS} Bytes`); process.exit(1); }
 const kb = (n) => (n / 1024).toFixed(1);
 for (const [f, a, b] of sizes) console.log(`${f.padEnd(14)} ${kb(a).padStart(6)} KB → ${kb(b).padStart(6)} KB`);
