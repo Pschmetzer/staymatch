@@ -5,6 +5,7 @@
 //   --force      auch schreiben, wenn die neue Datei deutlich weniger Zeilen hat als die alte
 //   --geocode    vorhandene Städte neu bei Nominatim suchen (sonst bleiben Suchfläche und Zentrum der alten Datei)
 //   --resume     nach Abbruch weitermachen: Städte überspringen, die der letzte (abgebrochene) Lauf schon geschrieben hat
+//   --no-reduce  neue Stadt ohne Datenreduktion (sonst fehlen unbenannte Gärten, siehe Feld reduced und city-data.mjs)
 //   --reprocess  nichts holen: vorhandene Dateien neu aufbereiten (Format, Filter) und Index/NOTICE neu schreiben
 // Rücksicht auf die freiwilligen Server: eine Stadt nach der anderen, Pause dazwischen.
 // Ablauf einer Datenauffrischung: CONTRIBUTING.md, Abschnitt „Städtedaten aktualisieren“.
@@ -12,6 +13,7 @@ import { writeFile, readFile, rename, mkdir, readdir, rm } from 'node:fs/promise
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { brotliCompressSync, constants as zc } from 'node:zlib';
 import { buildCity, serialize, summary, queryHash, overpassQueryTab, parseOverpassTsv, MIN_ROWS, MIN_SHARE, NAME_WARN, LICENSE, ATTRIBUTION } from './city-data.mjs';
 
 // gemeinsamer Kern (gleiche Abfrage, gleiche Felder, gleiche Ortsauswahl wie die Web-App)
@@ -23,11 +25,14 @@ const SM = globalThis.StayMatch;
 const OUT = new URL('../web/data/', import.meta.url);
 const LIST = new URL('cities.json', import.meta.url);
 const NOTICE = new URL('NOTICE.md', OUT);
+const EXTRAS = new URL('areas-extra.json', import.meta.url);
+const BR_TOTAL = 2_500_000; // wie scripts/check-data.mjs
 const FIELDS = C.FIELDS, SERVERS = C.OVERPASS_SERVERS;
 const UA = 'StayMatch-prefetch (+https://github.com/Pschmetzer/staymatch)';
 const args = process.argv.slice(2);
 const flag = f => args.includes(f);
 const DRY = flag('--dry-run'), FORCE = flag('--force'), REPROCESS = flag('--reprocess'), RESUME = flag('--resume'), GEOCODE = flag('--geocode');
+const NO_REDUCE = flag('--no-reduce');
 const names = args.filter(a => !a.startsWith('--'));
 
 const norm = C.normCity; // muss zur Suche in der Web-App passen
@@ -68,6 +73,7 @@ async function overpass(bbox) {
   throw last;
 }
 
+const brLen = text => brotliCompressSync(Buffer.from(text), { params: { [zc.BROTLI_PARAM_QUALITY]: 5 } }).length;
 const pct = (a, b) => (b ? `${a >= b ? '+' : ''}${Math.round((a / b - 1) * 100)} %` : 'neu');
 const report = [];
 function addReport(key, old, d, extra = '') {
@@ -80,6 +86,8 @@ function logStats(stats) {
   if (stats.outside) parts.push(`${stats.outside} außerhalb der bbox verworfen`);
   if (stats.placeCleared) parts.push(`${stats.placeCleared}× place ohne Viertel-Typ geleert`);
   console.log('  ' + parts.join(', '));
+  const x = stats.extra;
+  if (x && (x.dropped || x.far || x.added)) console.log(`  areas-extra: ${x.added} ergänzt, ${x.dropped} entfernt, ${x.far} als Vorort entfernt`);
   for (const n of stats.longNames.slice(0, 5)) console.warn(`  Warnung: Name über ${NAME_WARN} Zeichen: ${n}`);
 }
 
@@ -97,6 +105,13 @@ async function writeNotice(files) {
 }
 
 const list = await readJson(LIST, {});
+const extras = await readJson(EXTRAS, {});
+// Brotli-Summe der vorhandenen Dateien (ohne die Stadt, die gerade neu geschrieben wird): zeigt vor dem Schreiben, ob das Budget reicht
+async function brotliOthers(skip) {
+  let sum = 0;
+  for (const f of (await readdir(OUT)).filter(f => f.endsWith('.json') && f !== 'index.json' && f !== skip)) sum += brLen(await readFile(new URL(f, OUT)));
+  return sum;
+}
 const index = await readJson(new URL('index.json', OUT), {});
 await mkdir(OUT, { recursive: true });
 const wanted = names.length ? Object.fromEntries(names.map(c => [slug(c), list[slug(c)] || [norm(c)]])) : list;
@@ -116,7 +131,7 @@ for (const key of todo) {
     let built;
     if (REPROCESS) {
       if (!old) throw new Error('keine Datei zum Neuaufbereiten');
-      built = buildCity({ ...old, queryHash: old.queryHash }, old.fields, old.rows);
+      built = buildCity({ ...old, key, extras: extras[key], queryHash: old.queryHash }, old.fields, old.rows);
     } else {
       // Vorhandene Stadt: gespeicherte Suchfläche und Zentrum behalten (Nominatim verschiebt Treffer mitunter,
       // z. B. Budapest), neu suchen nur mit --geocode
@@ -126,16 +141,21 @@ for (const key of todo) {
       const res = await overpass(geo.bbox);
       const { rows, dropped } = parseOverpassTsv(res.text);
       if (dropped) console.warn(`  ${dropped} Zeilen mit falscher Spaltenzahl (z. B. Tabulator im Namen) verworfen`);
-      built = buildCity({ t: Date.now(), city: geo.name, center: [geo.lat, geo.lon], bbox: geo.bbox, source: res.source, ms: res.ms, queryHash: queryHash() }, FIELDS, rows);
+      // Neue Städte reduziert aufbauen (Budget); vorhandene behalten ihr Format, damit sich ihre Wertung nicht ändert
+      const reduced = old ? old.reduced : (NO_REDUCE ? null : ['unnamedGarden']);
+      built = buildCity({ t: Date.now(), city: geo.name, center: [geo.lat, geo.lon], bbox: geo.bbox, source: res.source, ms: res.ms, queryHash: queryHash(), key, extras: extras[key], reduced }, FIELDS, rows);
     }
     const { data, stats } = built;
     logStats(stats);
     if (data.rows.length < MIN_ROWS) throw new Error(`nur ${data.rows.length} Zeilen (Minimum ${MIN_ROWS}), Datei bleibt unverändert`);
     if (!REPROCESS && old && old.rows && data.rows.length < old.rows.length * MIN_SHARE && !FORCE)
       throw new Error(`nur ${data.rows.length} statt bisher ${old.rows.length} Zeilen (unter ${MIN_SHARE * 100} %), Teilantwort? Mit --force trotzdem schreiben`);
-    addReport(key, old, data, data.source ? `${data.source}, ${Math.round(data.ms / 1000)} s` : '');
+    const text = serialize(data), br = brLen(text), total = (await brotliOthers(`${key}.json`)) + br;
+    console.log(`  Brotli ${Math.round(br / 1024)} KB, Summe mit allen Dateien ${Math.round(total / 1024)} von ${Math.round(BR_TOTAL / 1024)} KB`);
+    if (total > BR_TOTAL) throw new Error('Brotli-Budget überschritten, Datei wird nicht geschrieben');
+    addReport(key, old, data, `${data.source ? `${data.source}, ${Math.round(data.ms / 1000)} s, ` : ''}${Math.round(br / 1024)} KB Brotli`);
     if (DRY) continue;
-    await writeAtomic(file, serialize(data));
+    await writeAtomic(file, text);
     for (const a of [...aliases, norm(data.city)]) index[a] = `${key}.json`;
     await writeAtomic(new URL('index.json', OUT), JSON.stringify(index, null, 1) + '\n');
     // Per Argument geholte Städte in die Standardliste aufnehmen, sonst frischt sie der nächste Lauf nie auf

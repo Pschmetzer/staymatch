@@ -76,7 +76,7 @@ export function rankCity(d) {
 
 // Hinweise zur Viertel-Ebene je Stadt (OSM trägt je Stadt unterschiedlich feine Ebenen ein; siehe web/data/NOTICE.md)
 const LEVEL_NOTES = {
-  barcelona: 'Der Eixample ist in OpenStreetMap in mehrere Teilviertel zerlegt (Dreta, Antiga und Nova Esquerra, Sud); sie können nebeneinander in einer Liste stehen.',
+  barcelona: 'Der Eixample ist in OpenStreetMap in mehrere Teilviertel zerlegt (Dreta, Antiga und Nova Esquerra); sie können nebeneinander in einer Liste stehen.',
   budapest: 'Ein großer Teil der Einträge sind Wohnsiedlungen (Lakótelep) und Stadtteile am Rand, die kaum Orte für Reisende haben.',
   lissabon: 'Lissabon ist in OpenStreetMap sehr fein in kleine Freguesias unterteilt; eine Gegend kann daher mehrfach auftauchen.',
 };
@@ -112,7 +112,7 @@ ${r.top[k].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} v
   ] };
   const ld = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
   const ctaTop = `<p class="ctas"><a class="cta" href="${esc(appUrl)}">Eigene Gruppe in ${esc(name)} vergleichen</a></p>`;
-  const note = LEVEL_NOTES[key] ? ` ${esc(LEVEL_NOTES[key])}` : '';
+  const note = (LEVEL_NOTES[key] ? ` ${esc(LEVEL_NOTES[key])}` : '') + (d.reduced && d.reduced.includes('unnamedGarden') ? ' Unbenannte Gärten (meist private) sind in den Daten dieser Stadt nicht enthalten.' : '');
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>

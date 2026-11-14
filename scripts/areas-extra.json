@@ -1,0 +1,50 @@
+{
+ "_hinweis": "Ergänzungen und Filter für die Viertel je Stadt (Schlüssel = Dateiname in web/data). add: fehlende Viertel mit Koordinate (zählen wie OSM-Viertel, ein echter OSM-Eintrag gleichen Namens im Umkreis von 800 m hat Vorrang). drop: Viertel entfernen (Name, optional mit Koordinate, damit nur der eine Eintrag fällt). maxKm: Viertel weiter als das vom Stadtzentrum entfallen (Vororte). Wirkt beim Abruf und bei --reprocess, nur in den Daten, nicht in der App.",
+ "lissabon": { "add": [
+  { "name": "Príncipe Real", "lat": 38.7160, "lon": -9.1495 },
+  { "name": "Belém", "lat": 38.6967, "lon": -9.2060 },
+  { "name": "Alcântara", "lat": 38.7054, "lon": -9.1787 },
+  { "name": "Campo de Ourique", "lat": 38.7165, "lon": -9.1650 }
+ ] },
+ "paris": {
+  "maxKm": 6,
+  "drop": [{ "name": "Paris 13e Arrondissement" }, { "name": "République - Point-du-Jour" }],
+  "add": [
+   { "name": "Canal Saint-Martin", "lat": 48.8717, "lon": 2.3653 },
+   { "name": "Oberkampf", "lat": 48.8650, "lon": 2.3790 },
+   { "name": "Trocadéro", "lat": 48.8627, "lon": 2.2876 },
+   { "name": "Montorgueil", "lat": 48.8651, "lon": 2.3472 },
+   { "name": "Île de la Cité", "lat": 48.8550, "lon": 2.3470 },
+   { "name": "Île Saint-Louis", "lat": 48.8518, "lon": 2.3568 }
+  ] },
+ "barcelona": {
+  "maxKm": 6.5,
+  "drop": [{ "name": "Eixample Sud" }, { "name": "Ciutat Vella" }, { "name": "Sants-Montjuïc" }, { "name": "Sant Martí" }, { "name": "Sarrià - Sant Gervasi" }, { "name": "Horta-Guinardó" }, { "name": "Nou Barris" }],
+  "add": [{ "name": "El Born", "lat": 41.3850, "lon": 2.1833 }]
+ },
+ "madrid": { "add": [
+  { "name": "Huertas", "lat": 40.4130, "lon": -3.6985 },
+  { "name": "Moncloa", "lat": 40.4350, "lon": -3.7190 }
+ ] },
+ "rom": { "add": [
+  { "name": "Campo de' Fiori", "lat": 41.8956, "lon": 12.4722 },
+  { "name": "Piazza Navona", "lat": 41.8992, "lon": 12.4731 },
+  { "name": "Ghetto", "lat": 41.8925, "lon": 12.4763 }
+ ] },
+ "amsterdam": { "add": [
+  { "name": "Westerpark", "lat": 52.3880, "lon": 4.8750 },
+  { "name": "Haarlemmerbuurt", "lat": 52.3825, "lon": 4.8900 },
+  { "name": "Negen Straatjes", "lat": 52.3704, "lon": 4.8855 },
+  { "name": "Rembrandtplein", "lat": 52.3660, "lon": 4.8960 }
+ ] },
+ "berlin": { "add": [
+  { "name": "Alexanderplatz", "lat": 52.5219, "lon": 13.4132 },
+  { "name": "Kollwitzplatz", "lat": 52.5390, "lon": 13.4128 },
+  { "name": "Savignyplatz", "lat": 52.5055, "lon": 13.3230 }
+ ] },
+ "wien": { "add": [
+  { "name": "Landstraße", "lat": 48.2020, "lon": 16.3930 },
+  { "name": "Naschmarkt", "lat": 48.1985, "lon": 16.3630 }
+ ] },
+ "budapest": { "add": [{ "name": "Józsefváros", "lat": 47.4900, "lon": 19.0840 }] }
+}
