@@ -511,7 +511,7 @@
     if (!topIds?.length || listings.length < 4) return null;
     const changed = [];
     for (const [k, name] of [['price', 'Preis'], ['rating', 'Sterne'], ['area', 'Viertel']]) {
-      const r = R().rankListings(listings, { ...ctx, weightTweak: { [k]: 1.3 } }).filter(l => !ctx.disliked?.has?.(l.id)).map(l => l.id);
+      const r = R().rankListings(listings, { ...ctx, weightTweak: { ...ctx.weightTweak, [k]: (Number(ctx.weightTweak?.[k]) || 1) * 1.3 } }).filter(l => !ctx.disliked?.has?.(l.id)).map(l => l.id);
       if (r[0] !== topIds[0]) changed.push(name);
     }
     return changed.length ? { stable: false, text: `Empfehlung knapp: zählt ${changed.join(' oder ')} etwas mehr, wäre ein anderes Inserat vorn` } : { stable: true, text: 'Empfehlung stabil: Platz 1 bleibt, auch wenn Preis, Sterne oder Viertel etwas mehr zählen' };

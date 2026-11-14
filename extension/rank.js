@@ -313,6 +313,13 @@
     });
   }
 
+  // Eigene Gewichte: nur bekannte Teile, endliche Zahlen, begrenzt auf 0,25 bis 3 (1 = unverändert)
+  function cleanTweak(t) {
+    const out = {};
+    if (t && typeof t === 'object') for (const k of Object.keys(WEIGHTS)) { const f = Number(t[k]); if (Number.isFinite(f) && f !== 1) out[k] = Math.max(0.25, Math.min(3, f)); }
+    return out;
+  }
+
   // ctx: { people, adults?, budget, budgetPerNight?, tripNights?, nights, areas, taste, seen, disliked, wishes? }
   function scoreListing(l, ctx) {
     const pe = resolvePeople(ctx), people = pe.people, solo = people === 1;
@@ -337,7 +344,8 @@
     };
     const weights = weightsFor(people, ctx.wishes);
     // R7 E: Stabilitätsprüfung rechnet mit leicht geänderten Gewichten
-    if (ctx.weightTweak) for (const [k, f] of Object.entries(ctx.weightTweak)) if (weights[k] != null) weights[k] *= f;
+    // und mit den Reglern aus dem Panel (ctx.weightTweak, je Teil 0,25 bis 3)
+    for (const [k, f] of Object.entries(cleanTweak(ctx.weightTweak))) if (weights[k] != null) weights[k] *= f;
     // fehlende Teile weglassen und Gewichte neu verteilen
     let s = 0, w = 0;
     for (const [k, v] of Object.entries(parts)) if (v != null) { s += v * weights[k]; w += weights[k]; }
@@ -571,7 +579,7 @@
   }
 
   root.StayMatchRank = {
-    rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
+    rankListings, cleanTweak, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
     weightsFor, buildTaste, effectiveBudget, feeShareOf, realSleeps, decisionQuestions, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur, money, isTrusted,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -86,7 +86,7 @@
     // R7 E: Geschmack ohne Orte, die du im Popup gestrichen hast
     const ign = new Set((stored.tasteIgnore || []).map(x => String(x).toLowerCase()));
     const tasteItems = ign.size ? items.map(i => ign.has(String(i.locality || '').toLowerCase()) ? { ...i, locality: null } : i) : items;
-    const ctx = { ownBed: !!quick.ownBed, people, adults: delta ? people : sp.adults || null, nights, tripNights: trip?.nights || null, budget: trip?.budget || null, budgetCurrency: trip?.budget ? '€' : (quick.budgetCurrency || null), priceUnsure: !!sp.flexible, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: R.buildTaste(tasteItems), seen, disliked, known, wishes: quick.wishes };
+    const ctx = { ownBed: !!quick.ownBed, people, adults: delta ? people : sp.adults || null, nights, tripNights: trip?.nights || null, budget: trip?.budget || null, budgetCurrency: trip?.budget ? '€' : (quick.budgetCurrency || null), priceUnsure: !!sp.flexible, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], weightTweak: R.cleanTweak(quick.weights), taste: R.buildTaste(tasteItems), seen, disliked, known, wishes: quick.wishes };
     const ranked = R.rankListings(listings, ctx);
     // R7 E: Merklisten von Freunden („Lena mag das“), nur aus dem, was du im Popup eingefügt hast
     const fl = stored.friendLikes || {};
@@ -115,7 +115,7 @@
     if (now && !paused && !log.some(e => e.path === now.path && e.ci === now.ci && e.nights === now.nights)) chrome.storage.local.set({ priceLog: [...log, now].slice(-60) }).catch?.(() => {});
     const booked = items.filter(i => i.booked && sp.checkin && i.booked.checkin === sp.checkin);
     const lastYear = X && anchor ? X.lastYear(items.filter(i => i.booked && i.booked.checkin !== sp.checkin), location.pathname, anchor.median, anchor.currency) : null;
-    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear };
+    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear, openWishes: lastView?.openWishes };
     // R7 E: Seiten-Auswertung einmal je Suche rechnen (nicht bei jedem Chip-Klick)
     const top0 = currentTop();
     lastView.insights = X ? X.pageInsights(ranked.filter(l => !l.rank.disliked), top0, ctx, { pool, history, lastYear, listings: listings.length <= 300 ? listings : null }) : [];
@@ -163,6 +163,7 @@
     // Teilweise erkannt? Dann ehrlich sagen, was fehlt.
     const lacking = q && q.n >= 3 ? [q.noPrice > q.n / 2 && 'Preise', q.noRating > q.n / 2 && 'Sterne', q.noBeds > q.n / 2 && 'Betten', q.noTitle > q.n / 2 && 'Titel'].filter(Boolean) : [];
     const af = activeFilters();
+    const weightWord = (name, f) => f === 1 ? 'Standard' : f > 1 ? `wichtiger (×${String(f).replace('.', ',')})` : `weniger wichtig (×${String(f).replace('.', ',')})`;
     const resetFilters = async () => { filters = {}; await chrome.storage.local.set({ filters }); applyBadges(); renderSearch(); };
     const cut = (s, n) => { const a = Array.from(String(s || '')); return a.length > n ? a.slice(0, n).join('') + '…' : a.join(''); }; // R7: Emoji nicht zerschneiden
     const chip = label => { const m = String(label).match(/^(\S+)\s(.+)$/); return m && /\p{Extended_Pictographic}/u.test(m[1]) ? [h('span', { 'aria-hidden': 'true' }, m[1]), ' ', m[2]] : label; }; // R7: Emoji nicht vorlesen
@@ -191,11 +192,22 @@
     const latOf = (lastView?.ranked || []).find(l => l.lat != null)?.lat;
     const hostLat = /\.(?:com\.au|co\.nz|com\.br|co\.za|com\.ar|cl|com\.pe|com\.py|co\.id)$/.test(location.hostname) ? -35 : null;
     const winter = X ? X.isColdSeason(latOf ?? hostLat, mon) : [10, 11, 12, 1, 2, 3].includes(mon);
-    const moreWishes = X ? h('details', { open: lastView.openWishes ? '' : null, ontoggle: e => { lastView.openWishes = e.target.open; } }, h('summary', {}, `Mehr Wünsche und Gruppe${xwOn ? ` (${xwOn} aktiv)` : ''}`),
+    // Eigene Gewichte: Regler 0,5 bis 2 (1 = Standard), gespeichert in quick.weights, wirken auf alle Wertungen
+    const WLABEL = { price: 'Preis', rating: 'Sterne', area: 'Viertel', wishes: 'Wünsche', beds: 'Betten' };
+    const weightsUi = h('div', { role: 'group', 'aria-label': 'Eigene Gewichte' }, h('div', { class: 'muted' }, 'Was zählt für dich mehr? Mitte = Standard.'),
+      Object.entries(WLABEL).map(([k, name]) => {
+        const cur = Number(quick.weights?.[k]) || 1;
+        const inp = h('input', { type: 'range', min: '0.5', max: '2', step: '0.25', value: String(cur), 'aria-label': `${name} wichtiger oder weniger wichtig`, 'aria-valuetext': weightWord(name, cur), style: 'width:100%' });
+        inp.onchange = () => { const v = Number(inp.value); const w = { ...(quick.weights || {}) }; if (v === 1) delete w[k]; else w[k] = v; setQuick({ weights: w }); };
+        return h('label', { style: 'display:block' }, h('span', { class: 'muted' }, `${name}: ${weightWord(name, cur)}`), inp);
+      }),
+      quick.weights && Object.keys(quick.weights).length ? h('button', { onclick: () => setQuick({ weights: {} }) }, 'Gewichte zurücksetzen') : null);
+    const moreWishes = X ? h('details', { open: lastView.openWishes ? '' : null, ontoggle: e => { lastView.openWishes = e.target.open; } }, h('summary', {}, `Mehr Wünsche und Gruppe${xwOn || Object.keys(quick.weights || {}).length ? ` (${xwOn + Object.keys(quick.weights || {}).length} aktiv)` : ''}`),
       h('div', { class: 'muted' }, 'Ausstattung prüft StayMatch nur bei Unterkünften, deren Seite du geöffnet hast.'),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Wunsch-Profile' }, Object.entries(X.PROFILES).map(([k, p]) => h('button', { title: p.wishes.join(', '), onclick: () => setQuick({ wishes: p.wishes.filter(w => R.WISHES[w] || R.REVIEW_WISHES[w] || XW[w]), profile: k }) }, chip(p.label)))),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Ausstattungs-Wünsche' }, Object.entries(XW).filter(([k, w]) => w.season !== 'winter' || winter || quick.wishes.includes(k)).map(([k, w]) => h('button', { class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)), title: `Quelle: ${w.src}`, onclick: () => toggleWish(k) }, chip(w.label)))),
       sentence,
+      weightsUi,
       ctx.people ? h('div', { class: 'row', style: 'align-items:center;gap:6px' },
         h('span', { class: 'muted' }, `Personen: ${ctx.people}${lastView.delta ? ` (Airbnb: ${lastView.basePeople})` : ''}`),
         h('button', { 'aria-label': 'Eine Person weniger', onclick: () => setQuick({ deltaKey: lastView.deltaKey, peopleDelta: Math.max(1 - (lastView.basePeople || 1), lastView.delta - 1) }) }, '−1'),
