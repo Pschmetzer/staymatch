@@ -70,9 +70,10 @@ test('Städte-Liste der App hat vorab geladene Daten', () => {
 test('Aliase aus scripts/cities.json zeigen alle auf die Datei der Stadt', () => {
   const list = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'scripts', 'cities.json'), 'utf8'));
   for (const [key, aliases] of Object.entries(list)) {
+    const fetched = fs.existsSync(path.join(__dirname, '..', 'web', 'data', `${key}.json`)); // vorgemerkte Städte ohne Datei: nur die Form prüfen
     for (const a of aliases) {
       assert.equal(C.normCity(a), a, `Alias „${a}“ ist nicht in normCity-Form`);
-      assert.equal(index[a], `${key}.json`, `Alias „${a}“ fehlt im Index oder zeigt woandershin`);
+      if (fetched) assert.equal(index[a], `${key}.json`, `Alias „${a}“ fehlt im Index oder zeigt woandershin`);
     }
   }
   assert.equal(index[C.normCity('Wien')], 'wien.json');

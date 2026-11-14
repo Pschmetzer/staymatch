@@ -4,12 +4,15 @@
 //   --dry-run    holen, prüfen, Bericht ausgeben, nichts schreiben
 //   --force      auch schreiben, wenn die neue Datei deutlich weniger Zeilen hat als die alte
 //   --geocode    vorhandene Städte neu bei Nominatim suchen (sonst bleiben Suchfläche und Zentrum der alten Datei)
+//   --resume     nach Abbruch weitermachen: Städte überspringen, die der letzte (abgebrochene) Lauf schon geschrieben hat
 //   --reprocess  nichts holen: vorhandene Dateien neu aufbereiten (Format, Filter) und Index/NOTICE neu schreiben
 // Rücksicht auf die freiwilligen Server: eine Stadt nach der anderen, Pause dazwischen.
 // Ablauf einer Datenauffrischung: CONTRIBUTING.md, Abschnitt „Städtedaten aktualisieren“.
-import { writeFile, readFile, rename, mkdir, readdir } from 'node:fs/promises';
+import { writeFile, readFile, rename, mkdir, readdir, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { buildCity, serialize, summary, queryHash, MIN_ROWS, MIN_SHARE, NAME_WARN, LICENSE, ATTRIBUTION } from './city-data.mjs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { buildCity, serialize, summary, queryHash, overpassQueryTab, parseOverpassTsv, MIN_ROWS, MIN_SHARE, NAME_WARN, LICENSE, ATTRIBUTION } from './city-data.mjs';
 
 // gemeinsamer Kern (gleiche Abfrage, gleiche Felder, gleiche Ortsauswahl wie die Web-App)
 const require = createRequire(import.meta.url);
@@ -24,7 +27,7 @@ const FIELDS = C.FIELDS, SERVERS = C.OVERPASS_SERVERS;
 const UA = 'StayMatch-prefetch (+https://github.com/Pschmetzer/staymatch)';
 const args = process.argv.slice(2);
 const flag = f => args.includes(f);
-const DRY = flag('--dry-run'), FORCE = flag('--force'), REPROCESS = flag('--reprocess'), GEOCODE = flag('--geocode');
+const DRY = flag('--dry-run'), FORCE = flag('--force'), REPROCESS = flag('--reprocess'), RESUME = flag('--resume'), GEOCODE = flag('--geocode');
 const names = args.filter(a => !a.startsWith('--'));
 
 const norm = C.normCity; // muss zur Suche in der Web-App passen
@@ -55,7 +58,7 @@ async function overpass(bbox) {
   for (let round = 0; round < 2; round++) for (const url of SERVERS) {
     try {
       const t0 = Date.now();
-      const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(C.overpassQuery(bbox)), headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(120000) });
+      const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(overpassQueryTab(bbox)), headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(120000) });
       const t = await r.text();
       if (r.ok && t.startsWith('@lat')) return { text: t, source: new URL(url).host, ms: Date.now() - t0 };
       last = new Error(`${url}: ${r.status}`);
@@ -98,8 +101,14 @@ const index = await readJson(new URL('index.json', OUT), {});
 await mkdir(OUT, { recursive: true });
 const wanted = names.length ? Object.fromEntries(names.map(c => [slug(c), list[slug(c)] || [norm(c)]])) : list;
 let failed = 0, listChanged = false;
+// Wiederaufnahme-Marker: erledigte Städte des laufenden Datenlaufs (liegt im Temp-Ordner, nie im Repo)
+const STATE = new URL('file://' + path.join(tmpdir(), 'staymatch-prefetch-state.json'));
+const state = RESUME ? await readJson(STATE, { done: [] }) : { done: [] };
+const todo = Object.keys(wanted).filter(k => !state.done.includes(k));
+if (RESUME && state.done.length) console.log(`--resume: übersprungen (schon geholt): ${state.done.filter(k => k in wanted).join(', ') || '–'}`);
 
-for (const [key, aliases] of Object.entries(wanted)) {
+for (const key of todo) {
+  const aliases = wanted[key];
   const file = new URL(`${key}.json`, OUT);
   const old = await readJson(file, null);
   try {
@@ -115,8 +124,8 @@ for (const [key, aliases] of Object.entries(wanted)) {
         ? { name: old.city, lat: old.center[0], lon: old.center[1], bbox: old.bbox }
         : await geocode(key).then(async g => { await sleep(1500); return g; });
       const res = await overpass(geo.bbox);
-      const { rows, dropped } = C.parseOverpassCsv(res.text);
-      if (dropped) console.warn(`  ${dropped} Zeilen mit falscher Spaltenzahl (z. B. „|“ im Namen) verworfen`);
+      const { rows, dropped } = parseOverpassTsv(res.text);
+      if (dropped) console.warn(`  ${dropped} Zeilen mit falscher Spaltenzahl (z. B. Tabulator im Namen) verworfen`);
       built = buildCity({ t: Date.now(), city: geo.name, center: [geo.lat, geo.lon], bbox: geo.bbox, source: res.source, ms: res.ms, queryHash: queryHash() }, FIELDS, rows);
     }
     const { data, stats } = built;
@@ -131,8 +140,10 @@ for (const [key, aliases] of Object.entries(wanted)) {
     await writeAtomic(new URL('index.json', OUT), JSON.stringify(index, null, 1) + '\n');
     // Per Argument geholte Städte in die Standardliste aufnehmen, sonst frischt sie der nächste Lauf nie auf
     if (!list[key]) { list[key] = aliases; listChanged = true; }
+    state.done.push(key);
+    if (!REPROCESS) await writeAtomic(STATE, JSON.stringify(state));
   } catch (e) { failed++; console.error('  Fehler', key, e.message); }
-  if (!REPROCESS) await sleep(30000);
+  if (!REPROCESS && key !== todo[todo.length - 1]) await sleep(30000); // Pause nur zwischen zwei Städten
 }
 
 if (!DRY) {
@@ -141,4 +152,5 @@ if (!DRY) {
 }
 console.log(`\nÄnderungsbericht (${LICENSE}, ${ATTRIBUTION}):\n| Stadt | Zeilen | Viertel | KB | Quelle |\n| --- | --- | --- | --- | --- |\n${report.join('\n')}`);
 if (!DRY && !REPROCESS) console.log('\nDanach: node scripts/build-city-pages.mjs && npm test && npm run check:data');
+if (!failed && !DRY && !REPROCESS) await rm(STATE, { force: true }); // Lauf vollständig: Marker löschen
 if (failed) { console.error(`${failed} Stadt/Städte fehlgeschlagen`); process.exitCode = 1; }

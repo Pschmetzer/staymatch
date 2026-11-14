@@ -52,5 +52,48 @@
   "budapest",
   "budapeste",
   "boedapest"
+ ],
+ "warschau": [
+  "warschau",
+  "warszawa",
+  "warsaw",
+  "varsovie",
+  "varsavia"
+ ],
+ "salzburg": [
+  "salzburg"
+ ],
+ "antwerpen": [
+  "antwerpen",
+  "anvers",
+  "antwerp",
+  "anversa"
+ ],
+ "palma": [
+  "palma",
+  "palma de mallorca",
+  "palma di maiorca"
+ ],
+ "malaga": [
+  "malaga"
+ ],
+ "bologna": [
+  "bologna",
+  "bologne",
+  "bolonia"
+ ],
+ "brussel": [
+  "brussel",
+  "bruessel",
+  "bruxelles",
+  "brussels",
+  "bruselas",
+  "bruxelas"
+ ],
+ "zurich": [
+  "zurich",
+  "zuerich",
+  "zurigo",
+  "zurych"
  ]
 }
