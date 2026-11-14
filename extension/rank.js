@@ -98,15 +98,18 @@
   function bedScore(l, people, ownBed) {
     if (!people) return null;
     if (ownBed && people >= 2) {
-      const n = l.bedKinds ? Object.entries(l.bedKinds).reduce((s, [k, v]) => s + (k === 'bunk' ? 2 : 1) * v, 0) : l.beds;
+      // R8: Schlafsofa zählt überall halb (wie realSleeps)
+      const n = l.bedKinds ? Object.entries(l.bedKinds).reduce((s, [k, v]) => s + (k === 'bunk' ? 2 : k === 'sofa' ? 0.5 : 1) * v, 0) : l.beds;
       if (n == null) return null;
       return n >= people ? 1 : n * 1.5 >= people ? 0.65 : 0.25;
     }
     // R5-106: ein Paar teilt sich ein Bett
-    if (people <= 2 && (l.sleeps >= 1 || l.beds >= 1)) return 1;
-    if (l.sleeps != null) {
-      if (l.sleeps >= people) return 1;
-      return l.sleeps * 1.5 >= people ? 0.65 : 0.25;
+    // R8: nur ohne bekannte Bettarten; „1 Einzelbett“ für zwei ist kein volles Bett
+    const sl = l.bedKinds ? realSleeps(l) : l.sleeps;
+    if (people <= 2 && sl == null && l.beds >= 1) return 1;
+    if (sl != null) {
+      if (sl >= people) return 1;
+      return sl * 1.5 >= people ? 0.65 : 0.25;
     }
     if (l.beds == null) return null; // unbekannt (auch wenn nur Schlafzimmer bekannt), nicht 0
     if (l.beds >= people) return 1;
@@ -239,12 +242,17 @@
   const hits = (re, txt) => { let g = GLOBAL_RE.get(re); if (!g) GLOBAL_RE.set(re, g = new RegExp(re.source, 'gi')); g.lastIndex = 0; const out = []; for (const m of txt.matchAll(g)) { const w = m[0].trim(); if (w && !out.some(x => x.toLowerCase() === w.toLowerCase())) out.push(w); } return out; };
   // state: true = Luxus erkannt, false = klar kein Luxus (Zimmer), null = unbekannt (nie geraten)
   // R7: je Unterkunft und Kontext nur einmal rechnen (check, ok und rankListings fragen alle)
+  // R8: Schlüssel = Kontext + Id (scoreListing rechnet mit einer Kopie von l: Objekt-Schlüssel griff daneben)
   const LUX_MEMO = new WeakMap();
   function luxuryInfo(l, ctx) {
-    const m = LUX_MEMO.get(l);
-    if (m && m.ctx === ctx) return m.v;
+    if (!ctx || typeof ctx !== 'object') return luxuryCalc(l, ctx);
+    let byId = LUX_MEMO.get(ctx);
+    if (!byId) LUX_MEMO.set(ctx, byId = { ids: new Map(), objs: new WeakMap() });
+    const hit = l.id != null ? byId.ids.get(l.id) : byId.objs.get(l);
+    if (hit && hit.k === `${l.kind}|${l.title}|${(l.badges || []).join()}|${l.totalPrice}|${l.isTotal}`) return hit.v;
     const v = luxuryCalc(l, ctx);
-    LUX_MEMO.set(l, { ctx, v });
+    const rec = { k: `${l.kind}|${l.title}|${(l.badges || []).join()}|${l.totalPrice}|${l.isTotal}`, v };
+    if (l.id != null) byId.ids.set(l.id, rec); else byId.objs.set(l, rec);
     return v;
   }
   function luxuryCalc(l, ctx) {
@@ -264,7 +272,7 @@
     return { state: level >= 0.7 ? true : null, words, level };
   }
   const ROOM_ONLY = /\bzimmer in\b|hotelzimmer|\broom in\b|hotel room|chambre d'hôtel|habitación en|stanza in/i;
-  const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|entire|logement entier|intero|hele |ganze|alojamento inteiro|cały|\bhaus\b|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
+  const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|entire|entero|logement entier|intero|hele |ganze|alojamento inteiro|cały|haus\b|\bpiso\b|vivienda|\bflat\b|\bcabin\b|h[üu]tte|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
   const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|\bkamer\b/i;
   const SHARED_ROOM = /gemeinsch|geteilt\w* zimmer|shared room|chambre partagée|habitación compartida|camera condivisa|hostel|schlafsaal|\bdorm\b|dormitory/i;
   const sepNum = (n, d = 1) => String(Math.round(n * 10 ** d) / 10 ** d).replace('.', ',');
@@ -485,7 +493,8 @@
     return list.filter(l => {
       if (min && !(l.rating >= min)) return false;
       // ohne bekanntes Budget kann der Filter nichts aussortieren
-      if (f.inBudget && l.rank?.budgetKnown && !(l.rank.parts.price != null && l.rank.parts.price >= 0.75)) return false;
+      // R8: unbekannter Preis fliegt nicht still raus (wie bei Betten: unbekannt zählt als ok)
+      if (f.inBudget && l.rank?.budgetKnown && l.rank.parts.price != null && l.rank.parts.price < 0.75) return false;
       if (f.enoughBeds && l.rank?.parts.beds != null && l.rank.parts.beds < 1) return false; // unbekannt zählt als ok
       if (f.lux && l.rank?.luxury?.state !== true) return false;
       if (f.favorite && !isTrusted(l)) return false;
@@ -525,10 +534,12 @@
     const stamp = meta.stamp && !meta.noPrices ? `Preise Stand ${new Date(meta.stamp).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}, können sich ändern` : null;
     let out;
     if (meta.markdown) {
-      const esc = v => String(v ?? '–').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+      // R8: auch Markdown-Zeichen maskieren, sonst wird ein Hosttitel „[x](https://…)“ im Chat zum Link
+      const esc = v => String(v ?? '–').replace(/[\r\n]+/g, ' ').replace(/[\\|[\]()<>*_`~]/g, '\\$&');
+      const safeUrl = u => String(u).replace(/[()<>\s]/g, c => encodeURIComponent(c));
       const cols = ['#', 'Unterkunft', 'Ort', 'Sterne', 'Wert', ...(meta.noPrices ? [] : ['Preis']), 'Link'];
-      const rows = items.map((l, i) => [i + 1, l.title || l.kind || 'Unterkunft', l.locality || '–', l.rating != null ? String(l.rating).replace('.', ',') : 'neu', l.score != null ? `${l.score}/100` : '–', ...(meta.noPrices ? [] : [price(l).join(', ') || '–']), l.url ? `[öffnen](${l.url})` : '–']);
-      out = [`**${head}**`, meta.sub ? `_${meta.sub}_` : null, '', `| ${cols.join(' | ')} |`, `|${cols.map(() => ' --- ').join('|')}|`, ...rows.map(r => `| ${r.map(esc).join(' | ')} |`), stamp ? `\n_${stamp}_` : null].filter(x => x != null).join('\n');
+      const rows = items.map((l, i) => [i + 1, l.title || l.kind || 'Unterkunft', l.locality || '–', l.rating != null ? String(l.rating).replace('.', ',') : 'neu', l.score != null ? `${l.score}/100` : '–', ...(meta.noPrices ? [] : [price(l).join(', ') || '–'])].map(esc).concat(l.url ? `[öffnen](${safeUrl(l.url)})` : '–'));
+      out = [`**${head}**`, meta.sub ? `_${meta.sub}_` : null, '', `| ${cols.join(' | ')} |`, `|${cols.map(() => ' --- ').join('|')}|`, ...rows.map(r => `| ${r.join(' | ')} |`), stamp ? `\n_${stamp}_` : null].filter(x => x != null).join('\n');
     } else {
       const lines = [head];
       if (meta.sub) lines.push(meta.sub);
@@ -550,7 +561,7 @@
     const q = [];
     const [a, b] = top;
     const pa = a.rank?.stay, pb = b.rank?.stay;
-    if (pa != null && pb != null && Math.abs(pa - pb) / Math.min(pa, pb) >= 0.15) q.push(`${pa > pb ? '1' : '2'} kostet ${money(Math.abs(pa - pb), a.currency)} mehr: ist es das wert?`);
+    if (pa != null && pb != null && Math.abs(pa - pb) / Math.min(pa, pb) >= 0.15) q.push(`Platz ${pa > pb ? '1' : '2'} kostet ${money(Math.abs(pa - pb), a.currency)} mehr: ist es das wert?`);
     if (a.rank?.area && b.rank?.area && a.rank.area.name !== b.rank.area.name) q.push(`Lieber ${a.rank.area.name} oder ${b.rank.area.name}?`);
     if (a.rating != null && b.rating != null && Math.abs(a.rating - b.rating) >= 0.15) q.push(`Sind uns ${sepNum(Math.abs(a.rating - b.rating), 2)} Sterne Unterschied wichtig?`);
     if (a.bedrooms != null && b.bedrooms != null && a.bedrooms !== b.bedrooms) q.push(`Brauchen wir ${Math.max(a.bedrooms, b.bedrooms)} Schlafzimmer oder reichen ${Math.min(a.bedrooms, b.bedrooms)}?`);
