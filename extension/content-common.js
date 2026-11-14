@@ -93,7 +93,7 @@
   function applyTheme() {
     for (const id of ['sm-search', 'sm-room', 'sm-error']) {
       const box = rootOf(id)?.querySelector('.box');
-      if (box) { box.classList.toggle('dark', settings.theme === 'dark'); box.classList.toggle('light', settings.theme === 'light'); box.style.setProperty('--sm-scale', String(scale())); }
+      if (box) { box.classList.toggle('dark', settings.theme === 'dark'); box.classList.toggle('light', settings.theme === 'light'); box.classList.toggle('left', settings.panelSide === 'left'); box.style.setProperty('--sm-scale', String(scale())); }
     }
   }
   // R7 E: Textgröße 100–150 % (Popup)
@@ -148,6 +148,7 @@
       --bg: #fff; --fg: #1d1d1f; --muted: #6b6b70; --line: #e4e2dc; --accent: #e0475b; --good: #1f9d6b; --warn: #b86e00; }
     @media (prefers-color-scheme: dark) { .box:not(.light) { --bg: #1e1e22; --fg: #f2f2f4; --muted: #a0a0a8; --line: #34343a; } }
     .box.dark { --bg: #1e1e22; --fg: #f2f2f4; --muted: #a0a0a8; --line: #34343a; }
+    .box.left { right: auto; left: 16px; }
     .box.wide { width: min(560px, calc(100vw - 32px)); }
     table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 6px 0; }
     th, td { text-align: left; vertical-align: top; padding: 4px 6px; border-top: 1px solid var(--line); }
@@ -195,7 +196,7 @@
     const live = root.querySelector('.sr-live') || h('div', { class: 'sr-live', role: 'status', 'aria-live': 'polite', style: 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap' });
     root.replaceChildren(live);
     if (opts.announce != null && live.textContent !== opts.announce) setTimeout(() => { live.textContent = opts.announce; }, 50);
-    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
+    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (settings.panelSide === 'left' ? ' left' : '') + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
     box.style.setProperty('--sm-scale', String(scale()));
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
     const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');

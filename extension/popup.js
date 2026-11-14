@@ -206,6 +206,7 @@ $('import').onclick = () => {
   const url = chrome.runtime?.getURL?.('options.html');
   if (url) window.open(url, '_blank'); else $('file').click(); // window.open: keine zusätzliche Berechtigung nötig
 };
+$('options').onclick = () => { try { chrome.runtime.openOptionsPage(); } catch { $('import').click(); } };
 $('file').onchange = async e => {
   try {
     const parsed = I.parseImport(await e.target.files[0].text(), { isRoomUrl, isCdnImage });
