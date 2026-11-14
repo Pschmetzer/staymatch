@@ -40,12 +40,12 @@
   <div class="row"><label for="fair">Fairness for groups</label><input type="range" id="fair" min="0" max="100" value="60"><output id="fairOut" for="fair"></output></div>
   <div class="row"><label for="tier">Price range (estimate)</label><select id="tier"></select></div>
   <button type="submit" class="btn primary" id="go">Compare cities</button>
-  <p class="hint">The first comparison downloads about 13 MB of pre-computed city data (OpenStreetMap) once. After that every change applies instantly. Your input never leaves the browser.</p>
+  <p class="hint">The first comparison downloads about 2.5 MB of compressed pre-computed city data (OpenStreetMap) once. After that every change applies instantly. Your input never leaves the browser.</p>
 </form>
 <p id="status" role="status" aria-live="polite"></p>
 <ol class="rank" id="out" aria-label="City ranking" hidden></ol>
 <h2 class="sec">How we calculate</h2>
-<ul class="vhow"><li>Each city is scored like in the neighbourhood finder: bars, parks, sights, restaurants, stations and more within 800 m of each neighbourhood.</li><li>For the city comparison one common yardstick applies to all cities. Cities with many mapped places look denser, and OpenStreetMap is sometimes thinner in small cities.</li><li>The city score is 70% the best neighbourhood and 30% the average of the three best.</li><li>The price range is an estimate from location and sights, not real prices.</li><li>“See neighbourhoods” opens the app (in German) with the city and type. Further people travel as a wish link in the fragment (after the #), not in the address.</li></ul>
+<ul class="vhow"><li>Each city is scored like in the neighbourhood finder: bars, parks, sights, restaurants, stations and more within 800 m of each neighbourhood.</li><li>For the city comparison one common yardstick applies to all cities. Cities with many mapped places look denser, and OpenStreetMap is sometimes thinner in small cities.</li><li>The city score (common yardstick) is 70% the best neighbourhood and 30% the average of the three best.</li><li>The price range is an estimate from location and sights, not real prices.</li><li>Neighbourhood points are relative to their own city, as in the app. “See neighbourhoods” opens the app (in German) with the city and type. Further people travel as a wish link in the fragment (after the #), not in the address.</li></ul>
 </main>
 <script src="/core.js" defer></script>
 <script src="/scoring.js" defer></script>

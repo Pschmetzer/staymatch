@@ -26,14 +26,34 @@ test('loadCities: alle Vorab-Städte, einheitlicher Maßstab (Normwerte 0..1, Sp
   assert.deepEqual(failed, []);
   assert.ok(cs.length >= 18);
   for (const c of cs) { assert.ok(c.id && c.name && c.areas.length > 5, c.id); }
-  const norms = cs.flatMap(c => c.areas.map(a => a.norm));
+  const norms = cs.flatMap(c => c.areas.map(a => a.pnorm));
   assert.ok(norms.every(n => Object.values(n).every(v => v >= 0 && v <= 1)));
   for (const k of Object.keys(SM.CATEGORIES)) if (k !== 'shop') assert.ok(Math.max(...norms.map(n => n[k])) > 0.99, k + ' erreicht die gemeinsame Spitze');
   // gleicher Maßstab: Paris hat mehr Party-Orte als Salzburg, also höhere Normwerte
-  const top = id => Math.max(...cs.find(c => c.id === id).areas.map(a => a.norm.party));
+  const top = id => Math.max(...cs.find(c => c.id === id).areas.map(a => a.pnorm.party));
   assert.ok(top('paris') > top('salzburg'));
   assert.equal(typeof norms[0].quiet, 'number'); // Ruhe-Wert (nicht aufzählbar) bleibt vorhanden
   assert.ok(!Object.keys(norms[0]).includes('quiet'));
+});
+
+test('Bestes Viertel je Stadt = Platz 1 der App-Rechnung (Normwerte je Stadt), nicht das des gemeinsamen Maßstabs', async () => {
+  const { cities: cs } = await cities();
+  const groups = [[P('party')], [P('family')], [P('sights')], [P('chill')], [P('party', 'L'), P('chill', 'M'), P('family', 'T')], [{ name: 'V', type: 'chill', veto: ['party'] }]];
+  let n = 0;
+  for (const g of groups) {
+    const ppl = g.map(p => ({ ...p, w: SM.weightsOf(p) }));
+    for (const r of V.rankCities(cs, g, { fairness: 0.6 })) {
+      if (r.empty) continue;
+      const areas = cs.find(c => c.id === r.id).areas;
+      for (const a of areas) { a.group = SM.groupScore(a.norm, ppl, 0.6); a.vetoes = SM.vetoes(a.norm, ppl, a.counts); } // so rechnet app.js: a.norm je Stadt
+      const ok = SM.eligibleAreas(areas, ppl, 6000).withData.filter(a => !a.vetoes.length);
+      const app = SM.pickDiverse(SM.sortAreas(ok, 'fair'), 1, 1200)[0];
+      assert.equal(r.best.name, app.name, `${r.id}: ${JSON.stringify(g.map(p => p.type))}`);
+      assert.equal(r.best.total, app.group.total); // gleiche Punkte wie in der App
+      n++;
+    }
+  }
+  assert.ok(n >= 90);
 });
 
 test('loadCities: kaputte Antworten und feindliche Einträge im Index', async () => {
@@ -156,6 +176,24 @@ for (const [file, lang] of [['vergleich.html', 'de'], ['en/compare.html', 'en']]
     // Es wird nichts gesendet: nur /data/* angefragt (kein Aufruf mit Nutzerdaten)
   });
 }
+
+test('Seite: Dark Mode teilt sich mit der App (sm_theme als reiner Text), Link in die App nimmt die Gruppe mit', dom, async () => {
+  const w = await bootPage('vergleich.html', { sm_people: [{ name: 'Lena', type: 'party' }, { name: 'Mia', type: 'chill' }] }), $ = id => w.document.getElementById(id);
+  w.localStorage.setItem('sm_theme', 'dark');
+  w.eval(fs.readFileSync(path.join(web, 'vergleich.js'), 'utf8')); // Init liest die gespeicherte Wahl der App noch einmal
+  assert.equal(w.document.documentElement.dataset.theme, 'dark');
+  $('theme').click();
+  assert.equal(w.localStorage.getItem('sm_theme'), 'light'); // nicht "\"light\"": app.html vergleicht den reinen Text
+  assert.equal(w.document.documentElement.dataset.theme, 'light');
+  $('cmp').dispatchEvent(new w.Event('submit', { cancelable: true }));
+  await until(() => !$('out').hidden && $('go').disabled === false);
+  $('rows').querySelector('[data-del="1"]').click(); // Mia weg, Lena in „Foodie“ umbenannt
+  const n = $('pn0'); n.value = 'Lena K.'; n.dispatchEvent(new w.Event('input', { bubbles: true }));
+  const a = $('out').querySelector('a'); a.addEventListener('click', e => e.preventDefault()); a.click();
+  const saved = JSON.parse(w.localStorage.getItem('sm_people'));
+  assert.deepEqual(saved.map(p => p.name), ['Lena K.']);
+  assert.equal(JSON.parse(w.localStorage.getItem('sm_fair')), 0.6);
+});
 
 test('Seite: nur Dateien aus /data/ werden angefragt, Namen landen nie in einer Adresse', dom, async () => {
   const w = await bootPage('vergleich.html', { sm_people: [{ name: 'Geheim', type: 'party' }] }), $ = id => w.document.getElementById(id);

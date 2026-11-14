@@ -40,12 +40,12 @@
   <div class="row"><label for="fair">Fairness bei Gruppen</label><input type="range" id="fair" min="0" max="100" value="60"><output id="fairOut" for="fair"></output></div>
   <div class="row"><label for="tier">Preislage (Schätzung)</label><select id="tier"></select></div>
   <button type="submit" class="btn primary" id="go">Städte vergleichen</button>
-  <p class="hint">Beim ersten Vergleich laden wir einmalig etwa 13 MB vorberechnete Städtedaten (OpenStreetMap). Danach wirken alle Änderungen sofort. Deine Eingaben verlassen den Browser nicht.</p>
+  <p class="hint">Beim ersten Vergleich laden wir einmalig etwa 2,5 MB vorberechnete Städtedaten (OpenStreetMap, komprimiert). Danach wirken alle Änderungen sofort. Deine Eingaben verlassen den Browser nicht.</p>
 </form>
 <p id="status" role="status" aria-live="polite"></p>
 <ol class="rank" id="out" aria-label="Rangliste der Städte" hidden></ol>
 <h2 class="sec">So rechnen wir</h2>
-<ul class="vhow"><li>Jede Stadt wird wie im Viertel-Finder bewertet: Bars, Parks, Sehenswürdigkeiten, Restaurants, Bahnhöfe und mehr im Umkreis von 800 m um jedes Viertel.</li><li>Für den Städtevergleich gilt ein gemeinsamer Maßstab für alle Städte. Städte mit vielen erfassten Orten wirken dichter, in kleinen Städten fehlt OpenStreetMap manchmal etwas.</li><li>Die Stadtwertung zählt zu 70 % das beste Viertel und zu 30 % den Schnitt der drei besten Viertel.</li><li>Die Preislage ist eine Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise.</li><li>Mit „Viertel ansehen“ öffnest du die App mit Stadt und Typ. Weitere Personen reisen als Wunsch-Link im Fragment (nach dem #) mit, nicht in der Adresse.</li></ul>
+<ul class="vhow"><li>Jede Stadt wird wie im Viertel-Finder bewertet: Bars, Parks, Sehenswürdigkeiten, Restaurants, Bahnhöfe und mehr im Umkreis von 800 m um jedes Viertel.</li><li>Für den Städtevergleich gilt ein gemeinsamer Maßstab für alle Städte. Städte mit vielen erfassten Orten wirken dichter, in kleinen Städten fehlt OpenStreetMap manchmal etwas.</li><li>Die Stadtwertung (gemeinsamer Maßstab) zählt zu 70 % das beste Viertel und zu 30 % den Schnitt der drei besten Viertel.</li><li>Die Preislage ist eine Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise.</li><li>Die Punkte der Viertel sind wie in der App relativ zur eigenen Stadt. Mit „Viertel ansehen“ öffnest du die App mit Stadt und Typ. Weitere Personen reisen als Wunsch-Link im Fragment (nach dem #) mit, nicht in der Adresse.</li></ul>
 </main>
 <script src="/core.js" defer></script>
 <script src="/scoring.js" defer></script>

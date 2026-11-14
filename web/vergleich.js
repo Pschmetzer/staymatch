@@ -9,6 +9,8 @@
   // ---- Städte laden und gemeinsam normieren ----
   // scoreAreas normiert je Stadt auf die eigene Spitze: „100“ hieße in Salzburg und Berlin etwas anderes. Für den Städtevergleich
   // rechnen wir mit EINEM Bezugswert für alle Städte (95. Perzentil über alle Viertel mit genug Orten, gleiche Formel wie scoreAreas).
+  // Das Ergebnis steht in a.pnorm. a.norm bleibt der Wert je Stadt wie in der App: Welches Viertel das beste ist, entscheidet die App-Rechnung
+  // (sonst nennt die Karte ein anderes Viertel als die App), die Reihenfolge der Städte entscheidet der gemeinsame Maßstab.
   function poolNorms(cities) {
     const all = cities.flatMap(c => c.areas.filter(a => total(a) >= 10)), ref = {}, top = {};
     for (const k of KEYS) {
@@ -17,11 +19,11 @@
       ref[k] = Math.max(1, v.length ? v[Math.min(v.length - 1, Math.ceil(v.length * 0.95) - 1)] : 0);
     }
     for (const c of cities) for (const a of c.areas) {
-      a.norm = Object.fromEntries(KEYS.map(k => {
+      a.pnorm = Object.fromEntries(KEYS.map(k => {
         const x = a.sums[k];
         return [k, x <= ref[k] ? 0.9 * Math.sqrt(x / ref[k]) : top[k] > ref[k] ? 0.9 + 0.1 * (x - ref[k]) / (top[k] - ref[k]) : 0.9];
       }));
-      Object.defineProperty(a.norm, 'quiet', { value: SM.quietScore(a) / 100, enumerable: false, configurable: true, writable: true });
+      Object.defineProperty(a.pnorm, 'quiet', { value: SM.quietScore({ norm: a.pnorm, centerDist: a.centerDist }) / 100, enumerable: false, configurable: true, writable: true });
     }
     return { ref, top };
   }
@@ -61,14 +63,16 @@
     if (!pool.length && ok.length) { pool = ok; relaxed = true; } // nichts in der Preislage: lieber ehrlich ohne Filter zeigen
     const base = { id: city.id, name: city.name, relaxed, areaCount: ok.length };
     if (!pool.length) return { ...base, score: 0, empty: true, vetoed: city.areas.some(a => a.vetoes.length) };
-    const picks = SM.pickDiverse(SM.sortAreas(pool, 'fair'), 3, 1200), best = picks[0];
-    const score = Math.round(0.7 * best.group.total + 0.3 * (picks.reduce((x, a) => x + a.group.total, 0) / picks.length)); // Spitze zählt, Breite etwas
+    const picks = SM.pickDiverse(SM.sortAreas(pool, 'fair'), 3, 1200), best = picks[0]; // Viertel wie in der App (Normwerte je Stadt)
+    const pt = a => SM.groupScore(a.pnorm || a.norm, ppl, f).total; // Stadtwertung: gleicher Maßstab für alle Städte
+    const score = Math.round(0.7 * pt(best) + 0.3 * (picks.reduce((x, a) => x + pt(a), 0) / picks.length)); // Spitze zählt, Breite etwas
     const gw = Object.fromEntries(KEYS.map(k => [k, ppl.reduce((x, p) => x + (p.w[k] || 0), 0) / ppl.length]));
-    const want = KEYS.filter(k => gw[k] > 0.25).sort((a, b) => gw[b] * best.norm[b] - gw[a] * best.norm[a]).slice(0, 2);
-    const calm = KEYS.filter(k => gw[k] <= -0.3 && best.norm[k] < 0.35).sort((a, b) => gw[a] - gw[b]).slice(0, 1);
+    const bn = best.pnorm || best.norm; // „stark/ruhig“ gilt im Vergleich aller Städte
+    const want = KEYS.filter(k => gw[k] > 0.25).sort((a, b) => gw[b] * bn[b] - gw[a] * bn[a]).slice(0, 2);
+    const calm = KEYS.filter(k => gw[k] <= -0.3 && bn[k] < 0.35).sort((a, b) => gw[a] - gw[b]).slice(0, 1);
     const li = best.group.scores.indexOf(best.group.min);
     return { ...base, score, best: { name: best.name, total: best.group.total, tier: best.tier, centerDist: best.centerDist },
-      others: picks.slice(1).map(a => ({ name: a.name, total: a.group.total })), want, strong: want.length ? best.norm[want[0]] >= 0.6 : false, calm,
+      others: picks.slice(1).map(a => ({ name: a.name, total: a.group.total })), want, strong: want.length ? bn[want[0]] >= 0.6 : false, calm,
       weakest: ppl.length > 1 ? { name: ppl[li].name, score: best.group.min } : null, thin: ok.length < 8 || city.nPois < 1500 };
   }
   // cities: Ergebnis von loadCities; ppl: [{name, type, custom?, veto?}]; o: { fairness 0..1, maxTier 1..3 }
@@ -137,12 +141,14 @@
   if (typeof document === 'undefined' || !document.getElementById('cmp')) return;
   const $ = id => document.getElementById(id), esc = SM.escapeHtml;
   const lang = document.documentElement.lang === 'en' ? 'en' : 'de', T = TX[lang];
-  const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
-  { const t = store.get('sm_theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; }
+  // sm_people und sm_fair sind JSON wie in app.js; sm_theme steht dort als reiner Text („dark“/„light“)
+  const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    raw(k) { try { return localStorage.getItem(k); } catch { return null; } }, setRaw(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+  { const t = store.raw('sm_theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; }
   const themeBtn = $('theme');
   const isDark = () => (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')) === 'dark';
   themeBtn.setAttribute('aria-pressed', String(isDark()));
-  themeBtn.onclick = () => { const next = isDark() ? 'light' : 'dark'; document.documentElement.dataset.theme = next; store.set('sm_theme', JSON.stringify(next)); themeBtn.setAttribute('aria-pressed', String(next === 'dark')); };
+  themeBtn.onclick = () => { const next = isDark() ? 'light' : 'dark'; document.documentElement.dataset.theme = next; store.setRaw('sm_theme', next); themeBtn.setAttribute('aria-pressed', String(next === 'dark')); };
 
   // Gruppe aus der App übernehmen (gleicher Browser, gleiche Herkunft), sonst eine Person
   let people = (Array.isArray(store.get('sm_people')) ? store.get('sm_people') : []).slice(0, 10).map(SM.cleanPerson).filter(Boolean);
@@ -193,6 +199,11 @@
     const fail = loaded.failed.length ? ' ' + T.failed(loaded.failed.length) : '';
     status(announce ? T.done(ranked.length) + fail : T.updated + fail);
   }
+  // Wer zur App wechselt, nimmt die hier zusammengestellte Gruppe mit (gleiche Schlüssel wie app.js), sonst bliebe dort eine alte Gruppe stehen
+  $('out').addEventListener('click', e => {
+    if (!e.target.closest('a[href^="/app"]')) return;
+    store.set('sm_people', people.map(SM.cleanPerson).filter(Boolean)); store.set('sm_fair', fairness);
+  });
   let timer = null;
   function refresh() { if (!loaded) return; clearTimeout(timer); timer = setTimeout(() => show(false), 120); }
   $('cmp').addEventListener('submit', async e => {
