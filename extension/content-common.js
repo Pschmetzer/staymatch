@@ -257,9 +257,16 @@
     const act = keys[e.code];
     if (act) { e.preventDefault(); act(); }
   }
+  // Screenreader-Ansage für Tastenkürzel: dieselbe Live-Region wie die Panel-Ansage (kurz leeren, damit gleiche Texte wieder gelesen werden)
+  function say(text) {
+    const live = (rootOf('sm-search') || rootOf('sm-room'))?.querySelector('.sr-live');
+    if (!live) return;
+    live.textContent = '';
+    setTimeout(() => { live.textContent = text; }, 50);
+  }
   const dockToggle = () => saveSetting({ panelSide: settings.panelSide === 'left' && !settings.panelPos ? undefined : 'left', panelPos: undefined }).catch(() => {});
-  keys.KeyD = dockToggle;
-  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } } };
+  keys.KeyD = () => { say(settings.panelSide === 'left' && !settings.panelPos ? 'Panel rechts angedockt' : 'Panel links angedockt'); dockToggle(); };
+  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); say(box.classList.contains('min') ? 'Panel eingeklappt' : 'Panel ausgeklappt'); } } };
   document.addEventListener('keydown', onKey, true);
 
     // Kartenverschieben und Zoomen ändert nur diese Parameter; das ist keine neue Suche (Panel und Budgeteingabe bleiben)
@@ -267,7 +274,7 @@
   // Trefferlisten: Suche (/s/…) und Wunschliste (/wishlists/<id>), beide werden gelesen und bewertet
   const isList = path => /^\/s\//.test(path) || /^\/wishlists\/[^/]+/.test(path);
   const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
-  const SMC = window.StayMatchContent = { isList, ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
+  const SMC = window.StayMatchContent = { say, isList, ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
   function start() {
     // R7: fehlt ein Seiten-Modul (Syntaxfehler, halbes Update), nicht in jedem route() stumm werfen
     if (!SMC.search || !SMC.room) {

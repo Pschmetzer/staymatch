@@ -62,7 +62,7 @@
     const so = settings.share || {};
     const text = R.shareText(top.map(l => ({ ...l, score: l.rank.score, url: url(l) })), {
       title: ctx.people > 1 ? 'Unsere Top 3 (StayMatch)' : 'Meine Top 3 (StayMatch)',
-      sub: [ctx.people && `${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}`, ctx.nights && `${ctx.nights} Nächte`, !so.noPrices && ctx.budget && `Budget ${Math.round(R.effectiveBudget(ctx))} €`].filter(Boolean).join(' · '),
+      sub: [ctx.people && `${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}`, ctx.nights && `${ctx.nights} Nächte`, !so.noPrices && ctx.budget && `Budget ${Math.round(R.effectiveBudget(ctx))}${ctx.budgetCurrency ? ' ' + ctx.budgetCurrency : ''}`].filter(Boolean).join(' · '),
       noPrices: !!so.noPrices, noEmoji: !!so.noEmoji, markdown: !!so.markdown, stamp: Date.now(), questions: so.noQuestions ? [] : R.decisionQuestions(top),
     });
     flash = (await copyText(text)) ? 'Kopiert ✓ – jetzt einfügen, wo du willst' : 'Kopieren ging nicht (Seite blockiert die Zwischenablage)';
@@ -315,8 +315,8 @@
       // R7: Filter gelten für jede Suche: sichtbar machen und mit einem Klick zurücksetzen
       af.length ? h('div', { class: 'muted' }, `Filter aktiv (gelten auch für neue Suchen): ${af.map(([, x]) => x.replace(/^\S+\s/, '')).join(', ')} `, h('button', { onclick: resetFilters }, 'Filter zurücksetzen')) : null,
       top.length ? h('div', { class: 'row' },
-        h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, '⚖️ Vergleich'),
-        h('button', { title: 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren'),
+        h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', 'aria-keyshortcuts': 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, '⚖️ Vergleich'),
+        h('button', { title: 'Alt+Shift+K', 'aria-keyshortcuts': 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren'),
         h('button', { onclick: printTop }, '🖨️ Top 3 drucken')) : null,
       flash ? h('div', { class: 'muted', role: 'status' }, flash) : null,
       whyBox,
@@ -406,8 +406,8 @@
   SMC.settingsListeners.push(() => { applyBadges(); if (lastView && SMC.rootOf("sm-search")) renderSearch(); });
   // R7: nach ✕ (Panel weg) bauen die Tasten es nicht wieder auf
   const open = () => !P.ROOM_RE.test(location.pathname) && lastView && !!SMC.rootOf('sm-search');
-  keys.KeyV = () => { if (open()) { compareMode = !compareMode; renderSearch(); } };
-  keys.KeyK = () => { if (open()) copyTop(); };
+  keys.KeyV = () => { if (open()) { compareMode = !compareMode; renderSearch(); SMC.say(compareMode ? 'Vergleich eingeschaltet' : 'Vergleich ausgeschaltet'); } };
+  keys.KeyK = () => { if (open()) copyTop().then(() => SMC.say(flash || 'Top 3 kopiert')).catch(() => {}); };
   // R7: abgelaufene Sammlung (älter als 2 h) beim Start löschen, statt sie dauerhaft liegen zu lassen
   chrome.storage.local.get('pool').then(r => { if (r.pool && !(Date.now() - r.pool.at < POOL.TTL)) chrome.storage.local.remove('pool'); }).catch(() => {});
 

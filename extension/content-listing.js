@@ -274,8 +274,8 @@
     const sel = String(document.getSelection?.() || '');
     if (X.contactLike(sel)) currentRoom.warnContact();
   }, true);
-  keys.KeyL = () => { if (P.ROOM_RE.test(location.pathname)) currentRoom?.setVote(1); };
-  keys.KeyN = () => { if (P.ROOM_RE.test(location.pathname)) currentRoom?.setVote(-1); };
+  keys.KeyL = () => { if (P.ROOM_RE.test(location.pathname) && currentRoom) { SMC.say(currentRoom.item.vote === 1 ? 'Gefällt mir entfernt' : 'Gefällt mir gesetzt'); currentRoom.setVote(1); } };
+  keys.KeyN = () => { if (P.ROOM_RE.test(location.pathname) && currentRoom) { SMC.say(currentRoom.item.vote === -1 ? 'Nein entfernt' : 'Nein gesetzt'); currentRoom.setVote(-1); } };
   window.StayMatchContent.room = { handle: handleRoom };
   window.StayMatchContent.start(); // letzte content-*.js-Datei: jetzt sind alle Module da
 })();
