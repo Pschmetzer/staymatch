@@ -206,11 +206,11 @@ test('Viertel-Finder: Wünsche als Satz und Interessen als Text übernehmen', do
 });
 
 test('Viertel-Finder: Abstimmung per Link, Etappen, Duell, Textgröße (Wien)', dom, async () => {
-  const link = SM.shareEncode({ c: 'Wien', fairness: 0.6, people: [{ name: 'Lena', type: 'party' }, { name: 'Tom', type: 'chill' }], wishes: [], votes: { Lena: ['Neubau@48.1990'] } });
+  const link = SM.shareEncode({ c: 'Wien', fairness: 0.6, people: [{ name: 'Lena', type: 'party' }, { name: 'Tom', type: 'chill' }], wishes: [], votes: { Lena: ['Neubau@48.2019'] } });
   const w = boot({ url: 'http://localhost/app#t=' + link });
   const $ = id => w.document.getElementById(id);
   await until(() => !$('go').disabled && $('extra').querySelector('.card'), 15000);
-  assert.deepEqual(JSON.parse(w.localStorage.getItem('sm_votes')).wien, { Lena: ['Neubau@48.1990'] });
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('sm_votes')).wien, { Lena: ['Neubau@48.2019'] });
   assert.match($('voteBox').textContent, /Neubau: 1 \(Lena\)/);
   assert.equal($('meSel').value, '', 'fremde Stimmen: erst fragen, wer ich bin');
   // Ich bin Tom, Herz für Platz 1 → Link enthält beide Stimmen
@@ -233,7 +233,7 @@ test('Viertel-Finder: Abstimmung per Link, Etappen, Duell, Textgröße (Wien)', 
   // Textgröße
   $('fsUp').click();
   assert.equal(w.localStorage.getItem('sm_fs'), '1.15');
-  assert.equal($('results').style.zoom, '1.15');
+  assert.equal(w.document.documentElement.style.fontSize, '115%'); // rem-basiert statt zoom
   assert.equal(w.errors.length, 0, String(w.errors));
 });
 
