@@ -4,7 +4,7 @@
 
 Dein Helfer, um schneller ein passendes Airbnb zu finden. Die Chrome-Erweiterung bewertet jede Unterkunft auf der Airbnb-Suchseite nach Budget, ehrlichen Sternen und deinen Wünschen (ganze Unterkunft, Superhost, ruhig …) und zeigt die **Top 3 mit Begründung**. Optional sucht der Viertel-Finder vorher das Viertel, das zu dir passt. Dazu kommen Verlauf, 👍/👎, Notizen und Bewertungs-Stichworte. Gruppen gehen auch: Dann zählt die am wenigsten zufriedene Person mit.
 
-**Live:** https://staymatch-tau.vercel.app · Konzept und Roadmap: [KONZEPT.md](KONZEPT.md)
+**Live:** https://staymatch.pro · Konzept und Roadmap: [KONZEPT.md](KONZEPT.md)
 
 ## So funktioniert's
 1. **Direkt:** Airbnb-Suche öffnen, im StayMatch-Panel Budget pro Nacht und Wünsche wählen (ganze Unterkunft, kein Gewerbe, Superhost, ab 20 Bewertungen, ruhig/sauber/WLAN).
@@ -19,7 +19,7 @@ python3 -m http.server 8765 -d web
 Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app.html (Viertel-Finder). Seiten für Recht: `impressum.html` (Platzhalter, `TODO Nutzer`) und `datenschutz.html`. Hero-Bild oder -Video: siehe [LUMINA-PROMPTS.md](LUMINA-PROMPTS.md).
 
 ## Chrome-Erweiterung (`extension/`)
-Download als ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (wird beim Deploy gebaut, lokal mit `./scripts/build-plugin-zip.sh`).
+Download als ZIP: https://staymatch.pro/staymatch-plugin.zip (wird beim Deploy gebaut, lokal mit `./scripts/build-plugin-zip.sh`).
 
 1. `chrome://extensions` öffnen
 2. Oben rechts den **Entwicklermodus** einschalten
