@@ -144,7 +144,7 @@
     lastView.insights = X ? X.pageInsights(ranked.filter(l => !l.rank.disliked), top0, ctx, { pool, history, lastYear, listings: listings.length <= 300 ? listings : null }) : [];
 
     // Empfehlungen für das Popup merken (nur die eigene Auswahl, lokal). R7: dieselbe Auswahl wie im Panel (ohne 👎, mit Filtern), Einheit dabei
-    if (!paused) chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, top: ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, isTotal: !!l.isTotal, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, stay: l.rank.stay, ppnPerson: l.rank.ppn?.person ?? null, url: `${location.origin}/rooms/${l.id}` })) } });
+    if (!paused) chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, order: ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 300).map(l => l.id), top: ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, isTotal: !!l.isTotal, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, stay: l.rank.stay, ppnPerson: l.rank.ppn?.person ?? null, url: `${location.origin}/rooms/${l.id}` })) } });
 
     applyBadges();
     renderSearch();
@@ -248,6 +248,12 @@
         cb.onchange = () => { const cur = quick.compare || []; setCompare(cur.includes(c.id) ? cur.filter(x => x !== c.id) : cur.length >= MAX_CMP ? cur : [...cur, c.id]); }; return h('label', { style: 'display:block' }, cb, ` ${c.history ? '👁 ' : ''}${cut(c.title, 40)}`); }),
       picked.size ? h('button', { onclick: () => setCompare([]) }, 'Zurück zu den Top 3') : null);
     const first = top[0];
+    // „Warum nicht Platz 1?“: nach Klick auf die Plakette einer Karte
+    const whyL = lastView.whyId && lastView.ranked.find(x => x.id === lastView.whyId);
+    const whyOrder = lastView.ranked.filter(x => !x.rank.disliked && passes(x)).map(x => x.id);
+    const whyBox = whyL && X ? h('div', { class: 'item', role: 'status' }, h('b', {}, `Warum nicht Platz 1? ${cut(whyL.title || whyL.kind, 34)}`),
+      h('ul', {}, X.whyNotFirst(whyL, whyOrder[0] && lastView.ranked.find(x => x.id === whyOrder[0]), { rank: whyOrder.indexOf(whyL.id) + 1 || null, of: whyOrder.length }).map(t => h('li', {}, t))),
+      h('button', { onclick: () => { lastView.whyId = null; renderSearch(); } }, 'Schließen')) : null;
     const insights = lastView.insights || [];
     const shifts = X ? X.shiftLinks(location.href) : [];
     const fsug = X ? X.filterSuggestion(location.href, lastView.ranked, ctx.people) : null;
@@ -289,6 +295,7 @@
         h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, '⚖️ Vergleich'),
         h('button', { title: 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren')) : null,
       flash ? h('div', { class: 'muted', role: 'status' }, flash) : null,
+      whyBox,
       top.length && compareMode ? cmpPick : null,
       top.length && compareMode
         // scrollbar und per Tastatur fokussierbar: bei 150 % Textgröße läuft die Tabelle sonst aus dem Panel
@@ -353,12 +360,13 @@
       }
       const s = l.rank.score;
       const bg = s >= 75 ? '#1f9d6b' : s >= 55 ? '#d68a00' : '#9a9aa0';
-      b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;pointer-events:none`;
+      b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;${settings.scoreOnly ? 'pointer-events:none' : 'pointer-events:auto;cursor:pointer'}`;
+      if (!settings.scoreOnly) { b.setAttribute('role', 'button'); b.onclick = e => { e.preventDefault(); e.stopPropagation(); lastView.whyId = l.id; renderSearch(); }; }
       const pp = l.rank.ppn?.person;
       // R7 E: Screenshot-Modus: nur die Punkte, ohne Preis und ohne Tooltip
       b.textContent = settings.scoreOnly ? String(s) : `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;
       // R7: Airbnbs Skripte können das title-Attribut lesen: keine Namen der Mitreisenden hinein
-      b.title = settings.scoreOnly ? '' : [...(l.rank.coverage && l.rank.coverage.have < l.rank.coverage.of ? [`Auf ${l.rank.coverage.have} von ${l.rank.coverage.of} Teilen`] : []), ...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
+      b.title = settings.scoreOnly ? '' : ['Klicken: warum dieser Platz?', ...(l.rank.coverage && l.rank.coverage.have < l.rank.coverage.of ? [`Auf ${l.rank.coverage.have} von ${l.rank.coverage.of} Teilen`] : []), ...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
       // Top-3 hervorgehoben, „schon angesehen“ (du hast die Unterkunftsseite geöffnet) als Zusatz an der Plakette
       const rank = [...topIds].indexOf(l.id);
       card.style.outline = rank >= 0 && !settings.scoreOnly ? '3px solid #e0475b' : '';

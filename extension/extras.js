@@ -529,6 +529,23 @@
     if (gap <= 0) return null;
     return `${gap} ${gap === 1 ? 'Punkt' : 'Punkte'} hinter Platz 1${diff.length ? ` (vor allem ${diff.map(([k, d]) => `${PART[k] || k} ${Math.round(d)}`).join(', ')})` : ''}`;
   }
+  // „Warum nicht Platz 1?“: Rang, Punkteabstand, die Teile mit dem größten Rückstand, Preisunterschied, eigene Warnungen
+  function whyNotFirst(l, first, pos = {}) {
+    if (!l?.rank) return [];
+    const at = pos.rank ? `Platz ${pos.rank}${pos.of ? ` von ${pos.of}` : ''}` : null;
+    if (!first || l === first || l.id === first.id) return [`${at || 'Platz 1'}: Das ist die beste Unterkunft für deine Wünsche (${l.rank.score} Punkte).`];
+    const out = [`${at ? at + ': ' : ''}${first.rank.score - l.rank.score} ${first.rank.score - l.rank.score === 1 ? 'Punkt' : 'Punkte'} hinter Platz 1 („${title(first)}“).`];
+    const pts = x => Object.fromEntries((x.rank.breakdown || []).map(b => [b.key, b.points]));
+    const a = pts(l), b = pts(first);
+    for (const [k, d] of Object.keys({ ...a, ...b }).map(k => [k, (a[k] || 0) - (b[k] || 0)]).filter(([, d]) => d <= -1).sort((x, y) => x[1] - y[1]).slice(0, 3))
+      out.push(`${PART[k] || k}: ${Math.round(a[k] || 0)} statt ${Math.round(b[k] || 0)} Punkte (${Math.round(d)})`);
+    for (const [k, d] of Object.keys({ ...a, ...b }).map(k => [k, (a[k] || 0) - (b[k] || 0)]).filter(([, d]) => d >= 1).slice(0, 1))
+      out.push(`Dafür besser bei ${PART[k] || k} (+${Math.round(d)})`);
+    if (l.rank.stay != null && first.rank.stay != null && curOf(l) === curOf(first) && Math.abs(l.rank.stay - first.rank.stay) >= 10)
+      out.push(`Preis: ${money(Math.abs(l.rank.stay - first.rank.stay), l.currency)} ${l.rank.stay > first.rank.stay ? 'teurer' : 'günstiger'} als Platz 1 (${money(l.rank.stay, l.currency)} gesamt)`);
+    for (const w of (l.rank.warn || []).slice(0, 2)) out.push('⚠️ ' + w);
+    return out;
+  }
   // Rabattschwellen bei 7 und 28 Nächten
   function discountThreshold(nights) {
     if (nights === 5 || nights === 6) return 'Ab 7 Nächten geben viele Gastgeber Wochenrabatt: prüfe, ob eine Nacht mehr kaum mehr kostet';
@@ -823,7 +840,7 @@
   root.StayMatchExtras = {
     claimConflicts, lastMinute, discountHonesty, subRatings, subRatingNotes, contactLike, hostReviewCount, cancelTradeoff, lastYear,
     linkCheck, friendIds, tripsText, storageSummary,
-    priceAnchor, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
+    priceAnchor, whyNotFirst, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
     budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, sinceLastVisit, visitStore, visitText, VISIT_GAP, mainCurrency, pageCurrency,
     advanceText,
     deposit, extraGuestFee, extraGuestCost, onSiteCosts, checkoutChores, fees, feeShare, parkingInfo, diningSeats, dishesFor, bedWidth, area, floorInfo,

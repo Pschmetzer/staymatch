@@ -104,7 +104,8 @@
     // R7: Personen wie auf der Suchseite: Gästezahl der Airbnb-Adresse hat Vorrang
     const pe = R.resolvePeople({ people: trip?.people?.length || null, adults: sp.adults || null });
     const fromSearch = (lastSearch?.top || []).find(l => l.id === id) || null;
-    const ctx = { solo: !pe.people || pe.people === 1, people: pe.people, wishes: quick.wishes || trip?.wishes || [], fromSearch, sp, smoker: !!quick.smoker, memory: await memoryFor(item, old) };
+    const pi = (lastSearch?.order || []).indexOf(id), place = pi >= 0 ? { rank: pi + 1, of: lastSearch.order.length } : null;
+    const ctx = { place, solo: !pe.people || pe.people === 1, people: pe.people, wishes: quick.wishes || trip?.wishes || [], fromSearch, sp, smoker: !!quick.smoker, memory: await memoryFor(item, old) };
     ctx.paused = SMC.isPaused();
     roomPanel(item, area, ctx);
     // Langsame Leitung: Preis und Hinweise fehlen noch → einmal später nochmal lesen
@@ -239,6 +240,7 @@
     panel('sm-room', item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier', [
       // R7: Betrugshinweise dort, wo gebucht wird, ganz oben
       item.scamSignals?.length ? h('div', { class: 'err', role: 'alert' }, h('b', {}, '⚠️ Vorsicht (Hinweis, kein Beweis): '), item.scamSignals.join(' · '), '. Nur über Airbnb zahlen und schreiben. ', scamHelp()) : null,
+      ctx.place ? h('div', {}, h('b', {}, `Platz ${ctx.place.rank} von ${ctx.place.of}`), ' in deiner letzten Suche') : null,
       // R7: Passt-Wert aus deiner letzten Suche, wenn du von dort kommst
       fs?.score != null ? h('div', {}, h('b', {}, `Passt-Wert ${fs.score}/100`), ' aus deiner Suche', (fs.why || []).length ? ` · ${fs.why.slice(0, 2).join(' · ')}` : '') : null,
       ctx.paused ? h('div', { class: 'muted', role: 'status' }, '⏸ Pause aktiv, nichts wird gespeichert (außer 👍/👎, Notiz und Gebucht, die du selbst klickst).') : null,
