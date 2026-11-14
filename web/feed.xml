@@ -4,14 +4,44 @@
   <title>StayMatch: Änderungen</title>
   <subtitle>Neue Funktionen und Korrekturen an Plugin, Viertel-Finder und Website</subtitle>
   <id>tag:staymatch.pro,2026:changelog</id>
-  <updated>2026-11-13T00:00:00Z</updated>
+  <updated>2026-11-14T00:00:00Z</updated>
   <link rel="self" type="application/atom+xml" href="https://staymatch.pro/feed.xml"/>
   <link rel="alternate" type="text/html" href="https://staymatch.pro/"/>
   <author><name>StayMatch</name></author>
   <icon>https://staymatch.pro/favicon.svg</icon>
   <entry>
-    <title>StayMatch: Unveröffentlicht (Stand 2026-11-13)</title>
+    <title>StayMatch: Unveröffentlicht (Stand 2026-11-14)</title>
     <id>tag:staymatch.pro,2026:changelog:unveroeffentlicht</id>
+    <updated>2026-11-14T00:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/Pschmetzer/staymatch/blob/main/CHANGELOG.md"/>
+    <content type="html">&lt;h3&gt;Hinzugefügt (Runden 8 bis 10)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Plugin: Optionsseite (&lt;code&gt;options_ui&lt;/code&gt;: Panel-Seite, Import, Export, Löschen), Toolbar-Badge mit der Trefferzahl der letzten Suche, „Seit deinem letzten Besuch“ (neue, günstigere und verschwundene Treffer), Erinnerung vor Ablauf der kostenlosen Stornierung (Opt-in, &lt;code&gt;alarms&lt;/code&gt;) mit &lt;code&gt;.ics&lt;/code&gt;-Export gebuchter Etappen, verschiebbares und andockbares Panel (Alt+Shift+D), hervorgehobene Top 3 auf der Seite, „schon angesehen“-Marker, Etiketten je Unterkunft („Plan A/B“, filterbar im Popup).&lt;/li&gt;
+&lt;li&gt;Plugin: Datenlage am Passt-Wert („auf wie vielen Teilen er beruht“), eigene Gewichte als Regler, Budget-Währung aus der Seite, Gesamtpreis aus dem Nachtpreis mit sichtbarer Annahme, Vergleich für 2 bis 4 Unterkünfte (Bäder, Storno-Art, Viertelabstand), „Warum nicht Platz 1?“, „Platz X von Y“, Preis von Hand korrigieren, Top 3 als druckbare Seite, Wunschliste lesen, Seitenstatus im Popup, Hinweise in FR, ES, IT, NL und PL, Parser-Rückfälle gegen Änderungen am Airbnb-DOM, mehr Währungen.&lt;/li&gt;
+&lt;li&gt;Viertel-Finder: Deeplink &lt;code&gt;?t=&lt;/code&gt; für den Reisetyp, Sensitivität für Platz 1, Konfidenz je Viertel, Ruhe-Typ mit Lärmproxy, Gehzeit, Bildkarte, OSM-Editor-Link, Stadt-Steckbrief, Datenstand und Quelle je Stadt.&lt;/li&gt;
+&lt;li&gt;Viertel-Finder als installierbare Web-App: Manifest und Service Worker (App-Shell und Städtedaten offline), minifiziertes &lt;code&gt;dist/&lt;/code&gt; mit Hash-Verweisen (&lt;code&gt;scripts/build-web.mjs&lt;/code&gt;), Cache-Header je Dateityp.&lt;/li&gt;
+&lt;li&gt;Gruppen-Abstimmung ohne Server: Wunsch-Links im Fragment (&lt;code&gt;#p=&lt;/code&gt;), Gruppe importieren, Panel „Wer steckt zurück?“.&lt;/li&gt;
+&lt;li&gt;Städtevergleich &lt;code&gt;/vergleich&lt;/code&gt; und &lt;code&gt;/en/compare&lt;/code&gt;: alle vorab geladenen Städte mit gemeinsamem Maßstab, Begründung und bestem Viertel je Stadt.&lt;/li&gt;
+&lt;li&gt;Städtedaten: 8 neue Städte (Zürich, Warschau, Salzburg, Antwerpen, Palma, Málaga, Bologna, Brüssel, jetzt 18); &lt;code&gt;scripts/areas-extra.json&lt;/code&gt; (fehlende Viertel, Filter für Vororte und Teilviertel); neue Städte ohne unbenannte Gärten (Feld &lt;code&gt;reduced&lt;/code&gt;); Prefetch zeigt Brotli-Größe und prüft das Budget vor dem Schreiben, mit Tab-Trenner und &lt;code&gt;--resume&lt;/code&gt;; &lt;code&gt;check-data&lt;/code&gt; prüft Plausibilität.&lt;/li&gt;
+&lt;li&gt;Stadtseiten: englische Seiten unter &lt;code&gt;/en/cities/&amp;lt;stadt&amp;gt;&lt;/code&gt; mit hreflang; Steckbrief, ein SVG je Reisetyp, Abschnitt „So wurde gerechnet“ mit den Gewichten, Nachbarstädte und Link zum Städtevergleich, &lt;code&gt;Dataset&lt;/code&gt;-JSON-LD mit ODbL-Lizenz; Übersichtsseiten &lt;code&gt;/staedte&lt;/code&gt; und &lt;code&gt;/en/cities&lt;/code&gt; mit Typ-Filter (&lt;code&gt;web/staedte-filter.js&lt;/code&gt;); Sitemap mit hreflang-Alternativen.&lt;/li&gt;
+&lt;li&gt;Tests und CI: Ruhe-Eigenschaftstest für alle Städte, &lt;code&gt;applyForm&lt;/code&gt;-Fuzz, Smoke-Test mit Rom-Suche und axe-core, XSS-Tests für die Erweiterung, &lt;code&gt;r10-areas-extra&lt;/code&gt; und &lt;code&gt;r10-stadtseiten-ausbau&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Geändert (Runden 8 bis 10)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Domain &lt;code&gt;staymatch.pro&lt;/code&gt; in Kern, Manifest und Doku; Chill-Preset stärker gegen Party gewichtet; &lt;code&gt;norm()&lt;/code&gt; für Unicode-Buchstaben und Artikel; Dubletten, Nachbargemeinden (8 km) und Fast Food (zu einem Drittel) im Kern.&lt;/li&gt;
+&lt;li&gt;Stadtseiten: Filter und Wertung wie der Viertel-Finder (800 m Umkreis, Mindestabstand der Empfehlungen); Barcelona ohne Bezirks-Doppelungen, Paris ohne Vororte jenseits von 6 km (&lt;code&gt;areas-extra.json&lt;/code&gt;).&lt;/li&gt;
+&lt;li&gt;Sicherheit: Skript-CSP nur mit &lt;code&gt;&apos;self&apos;&lt;/code&gt; (Inline-Skripte in Dateien ausgelagert), Kontrast im Dunkelmodus, Plugin-Import gegen Prototyp-Verschmutzung und riesige Dateien gehärtet, &lt;code&gt;javascript:&lt;/code&gt;-Adressen und Text-Handler werden verworfen, Berechtigungen und Netzfreiheit der Erweiterung per Test eingefroren.&lt;/li&gt;
+&lt;li&gt;Infrastruktur: CSP je Route, Cache-Header, Release nur von &lt;code&gt;main&lt;/code&gt;, strengere Prüfungen und neue Workflows.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Behoben (Runden 8 bis 10)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Plugin: Fehltreffer bei Ausstattungs-Wörtern (Backofen, Herd, Schreibtisch, Kamin), Fläche mit Grundstück, Saison auf der Südhalbkugel, Budget-Satz mit Personen oder Minuten, falsche Kontakt-Erkennung bei Datumsnummern, Herz-Wortstämme, Preis-Korrektur je Reisedaten, keine Fehlerseite auf Wunschlisten, ICS-Escaping, Markdown- und Klartext-Kopie bei Titeln mit Umbruch oder Markup.&lt;/li&gt;
+&lt;li&gt;Viertel-Finder: Städteschlüssel, Gruppentext, Wertung der Abneigungen, Teilen-Link, Barrierefreiheit, Kontrast von Logo und Etiketten.&lt;/li&gt;
+&lt;/ul&gt;</content>
+  </entry>
+  <entry>
+    <title>StayMatch: Runde 7 (Stand 2026-11-13)</title>
+    <id>tag:staymatch.pro,2026:changelog:runde-7</id>
     <updated>2026-11-13T00:00:00Z</updated>
     <link rel="alternate" type="text/html" href="https://github.com/Pschmetzer/staymatch/blob/main/CHANGELOG.md"/>
     <content type="html">&lt;h3&gt;Hinzugefügt (Runde 7)&lt;/h3&gt;

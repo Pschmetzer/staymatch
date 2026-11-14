@@ -3,6 +3,8 @@
   <url><loc>https://staymatch.pro/</loc></url>
   <url><loc>https://staymatch.pro/en</loc></url>
   <url><loc>https://staymatch.pro/app</loc></url>
+  <url><loc>https://staymatch.pro/staedte</loc></url>
+  <url><loc>https://staymatch.pro/en/cities</loc></url>
   <url><loc>https://staymatch.pro/vergleich</loc>
     <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/vergleich"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/compare"/>

@@ -2,7 +2,30 @@
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/). Versionsschema: `x.y.z` wie in `extension/manifest.json` (Plugin). Die Web-App wird laufend ausgeliefert und hat keine eigene Version. Das Datum hinter einer Version ist der Tag, an dem sie im Repo stand; bei „Unveröffentlicht“ der Stand des Abschnitts. Aus dieser Datei entsteht `web/feed.xml` (`node scripts/build-feed.mjs`).
 
-## [Unveröffentlicht] - 2026-11-13
+## [Unveröffentlicht] - 2026-11-14
+
+### Hinzugefügt (Runden 8 bis 10)
+- Plugin: Optionsseite (`options_ui`: Panel-Seite, Import, Export, Löschen), Toolbar-Badge mit der Trefferzahl der letzten Suche, „Seit deinem letzten Besuch“ (neue, günstigere und verschwundene Treffer), Erinnerung vor Ablauf der kostenlosen Stornierung (Opt-in, `alarms`) mit `.ics`-Export gebuchter Etappen, verschiebbares und andockbares Panel (Alt+Shift+D), hervorgehobene Top 3 auf der Seite, „schon angesehen“-Marker, Etiketten je Unterkunft („Plan A/B“, filterbar im Popup).
+- Plugin: Datenlage am Passt-Wert („auf wie vielen Teilen er beruht“), eigene Gewichte als Regler, Budget-Währung aus der Seite, Gesamtpreis aus dem Nachtpreis mit sichtbarer Annahme, Vergleich für 2 bis 4 Unterkünfte (Bäder, Storno-Art, Viertelabstand), „Warum nicht Platz 1?“, „Platz X von Y“, Preis von Hand korrigieren, Top 3 als druckbare Seite, Wunschliste lesen, Seitenstatus im Popup, Hinweise in FR, ES, IT, NL und PL, Parser-Rückfälle gegen Änderungen am Airbnb-DOM, mehr Währungen.
+- Viertel-Finder: Deeplink `?t=` für den Reisetyp, Sensitivität für Platz 1, Konfidenz je Viertel, Ruhe-Typ mit Lärmproxy, Gehzeit, Bildkarte, OSM-Editor-Link, Stadt-Steckbrief, Datenstand und Quelle je Stadt.
+- Viertel-Finder als installierbare Web-App: Manifest und Service Worker (App-Shell und Städtedaten offline), minifiziertes `dist/` mit Hash-Verweisen (`scripts/build-web.mjs`), Cache-Header je Dateityp.
+- Gruppen-Abstimmung ohne Server: Wunsch-Links im Fragment (`#p=`), Gruppe importieren, Panel „Wer steckt zurück?“.
+- Städtevergleich `/vergleich` und `/en/compare`: alle vorab geladenen Städte mit gemeinsamem Maßstab, Begründung und bestem Viertel je Stadt.
+- Städtedaten: 8 neue Städte (Zürich, Warschau, Salzburg, Antwerpen, Palma, Málaga, Bologna, Brüssel, jetzt 18); `scripts/areas-extra.json` (fehlende Viertel, Filter für Vororte und Teilviertel); neue Städte ohne unbenannte Gärten (Feld `reduced`); Prefetch zeigt Brotli-Größe und prüft das Budget vor dem Schreiben, mit Tab-Trenner und `--resume`; `check-data` prüft Plausibilität.
+- Stadtseiten: englische Seiten unter `/en/cities/<stadt>` mit hreflang; Steckbrief, ein SVG je Reisetyp, Abschnitt „So wurde gerechnet“ mit den Gewichten, Nachbarstädte und Link zum Städtevergleich, `Dataset`-JSON-LD mit ODbL-Lizenz; Übersichtsseiten `/staedte` und `/en/cities` mit Typ-Filter (`web/staedte-filter.js`); Sitemap mit hreflang-Alternativen.
+- Tests und CI: Ruhe-Eigenschaftstest für alle Städte, `applyForm`-Fuzz, Smoke-Test mit Rom-Suche und axe-core, XSS-Tests für die Erweiterung, `r10-areas-extra` und `r10-stadtseiten-ausbau`.
+
+### Geändert (Runden 8 bis 10)
+- Domain `staymatch.pro` in Kern, Manifest und Doku; Chill-Preset stärker gegen Party gewichtet; `norm()` für Unicode-Buchstaben und Artikel; Dubletten, Nachbargemeinden (8 km) und Fast Food (zu einem Drittel) im Kern.
+- Stadtseiten: Filter und Wertung wie der Viertel-Finder (800 m Umkreis, Mindestabstand der Empfehlungen); Barcelona ohne Bezirks-Doppelungen, Paris ohne Vororte jenseits von 6 km (`areas-extra.json`).
+- Sicherheit: Skript-CSP nur mit `'self'` (Inline-Skripte in Dateien ausgelagert), Kontrast im Dunkelmodus, Plugin-Import gegen Prototyp-Verschmutzung und riesige Dateien gehärtet, `javascript:`-Adressen und Text-Handler werden verworfen, Berechtigungen und Netzfreiheit der Erweiterung per Test eingefroren.
+- Infrastruktur: CSP je Route, Cache-Header, Release nur von `main`, strengere Prüfungen und neue Workflows.
+
+### Behoben (Runden 8 bis 10)
+- Plugin: Fehltreffer bei Ausstattungs-Wörtern (Backofen, Herd, Schreibtisch, Kamin), Fläche mit Grundstück, Saison auf der Südhalbkugel, Budget-Satz mit Personen oder Minuten, falsche Kontakt-Erkennung bei Datumsnummern, Herz-Wortstämme, Preis-Korrektur je Reisedaten, keine Fehlerseite auf Wunschlisten, ICS-Escaping, Markdown- und Klartext-Kopie bei Titeln mit Umbruch oder Markup.
+- Viertel-Finder: Städteschlüssel, Gruppentext, Wertung der Abneigungen, Teilen-Link, Barrierefreiheit, Kontrast von Logo und Etiketten.
+
+## [Runde 7] - 2026-11-13
 
 ### Hinzugefügt (Runde 7)
 - Plugin, Unterkunftsseite: Zusatz-Hinweise (Kaution, Zusatzgast- und Vor-Ort-Kosten, Gebühren-Anteil, Hausregeln, Sicherheitsausstattung, Kamera/Lärmsensor, Gastgeber-Angaben, Lizenznummer, Saison und Silvester), Bewertungs-Analyse (Kritik-Quote, Lärmzeit, Gästemix, Trend), wichtige Hinweise sichtbar und Rest unter „Mehr Hinweise“, Gebucht-Status mit Entscheidungsnotiz, Gastgeber-Gedächtnis, Beschreibung gegen Bewertungen. Neues Modul `extension/extras.js`.
