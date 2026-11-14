@@ -92,7 +92,11 @@ test('R5-96: Ruhezeit und Betrugs-Regex', () => {
   assert.deepEqual(P.houseRules('Ruhezeiten 22:00 bis 08:00').quietHours, { from: 22, to: 8 });
   assert.equal(P.houseRules('Quiet hours 22:00 to 08:00').quietHours.to, 8);
   assert.deepEqual(P.scamSignals('Das Signal vom Bahnhof ist gut, Telefon auf dem Tisch.'), []);
-  assert.equal(P.scamSignals('Schreib mir per Signal oder WhatsApp.').length, 1);
+  // R8: Messenger allein nur Info, stark erst mit Zahlungswörtern
+  assert.deepEqual(P.scamSignals('Schreib mir per Signal oder WhatsApp.'), []);
+  assert.equal(P.scamInfos('Schreib mir per Signal oder WhatsApp.').length, 1);
+  assert.equal(P.scamSignals('Bezahlung per WhatsApp, Anzahlung vorab.').length >= 1, true);
+  assert.deepEqual(P.scamInfos('Bezahlung per WhatsApp, Anzahlung vorab.'), []);
 });
 
 test('R5-97: nur https-Bilder', () => {

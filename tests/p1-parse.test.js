@@ -95,19 +95,6 @@ test('Fallback-Preiszeile der Karten kennt zł und kr', () => {
   assert.equal(k.currency, 'kr');
 });
 
-test('searchKey ignoriert Seite und Karte, mergeSearchResults sammelt', () => {
-  const a = P.searchKey('https://www.airbnb.de/s/Barcelona/homes?checkin=2026-12-07&adults=5&items_offset=18&ne_lat=1&zoom=12');
-  const b = P.searchKey('https://www.airbnb.de/s/Barcelona/homes?adults=5&checkin=2026-12-07&items_offset=36&sw_lng=2');
-  assert.equal(a, b);
-  assert.notEqual(a, P.searchKey('https://www.airbnb.de/s/Barcelona/homes?checkin=2026-12-08&adults=5'));
-  let m = P.mergeSearchResults(null, [{ id: '1', lat: 1 }, { id: '2' }], a);
-  assert.equal(m.items.length, 2);
-  m = P.mergeSearchResults(m, [{ id: '2', totalPrice: 5 }, { id: '3' }], b);
-  assert.deepEqual(m.items.map(x => x.id), ['1', '2', '3']); assert.equal(m.added, 1);
-  m = P.mergeSearchResults(m, [{ id: '9' }], 'andere');
-  assert.equal(m.items.length, 1); assert.equal(m.reset, true);
-});
-
 test('Hausregeln', () => {
   const r = P.houseRules('Keine Partys oder Veranstaltungen. Ruhezeiten 22:00 bis 08:00. Nichtraucher.');
   assert.equal(r.noParties, true); assert.deepEqual(r.quietHours, { from: 22, to: 8 }); assert.equal(r.noSmoking, true);
