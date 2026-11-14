@@ -13,9 +13,9 @@ await new Promise((res, rej) => { srv.stdout.once('data', res); srv.once('exit',
 
 const problems = [];
 const axeSrc = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); // per evaluate eingespielt (umgeht die CSP der Seite nur für die Prüfung)
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
 try {
-  for (const path of ['/', '/en', '/staedte/rom', '/app']) {
+  for (const path of ['/', '/en', '/staedte/rom', '/en/cities/rome', '/datenschutz', '/app']) {
     const page = await browser.newPage();
     // Overpass/Nominatim/Kacheln nicht wirklich ansprechen: CSP prüft schon vor dem Netz, wir wollen nur Verstöße sehen
     await page.route(/^https:\/\/(?!staymatch)/, (r) => r.fulfill({ status: 200, body: '{}', contentType: 'application/json' }));
@@ -30,11 +30,15 @@ try {
       await page.click('#go');
       try { await page.waitForSelector('#results article', { timeout: 20000 }); } catch { problems.push('/app: Suche nach Rom lieferte keine Viertel'); }
     }
-    if (path === '/' || path === '/app') { // Barrierefreiheit: Fehler ab „serious“
+    { // Barrierefreiheit: Fehler ab „serious“, in Hell und Dunkel
       await page.evaluate(axeSrc);
-      const { violations } = await page.evaluate(() => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa'] }));
-      for (const v of violations.filter((x) => x.impact === 'serious' || x.impact === 'critical'))
-        problems.push(`${path}: axe ${v.impact} ${v.id}: ${v.help} (${v.nodes.length}x, z. B. ${v.nodes[0].target.join(' ')})`);
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate((t) => { document.documentElement.dataset.theme = t; }, theme);
+        await page.waitForTimeout(500); // CSS-Übergänge abwarten, sonst misst axe Zwischenfarben
+        const { violations } = await page.evaluate(() => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa'] }));
+        for (const v of violations.filter((x) => x.impact === 'serious' || x.impact === 'critical'))
+          problems.push(`${path} (${theme}): axe ${v.impact} ${v.id}: ${v.help} (${v.nodes.length}x, z. B. ${v.nodes[0].target.join(' ')})`);
+      }
     }
     await page.close();
   }
