@@ -60,15 +60,55 @@ export function normalizeRows(fields, rows, bbox) {
   return { rows: out, stats };
 }
 
-// Ganze Datei bauen. meta: { t, city, center: [lat, lon], bbox, source, ms, queryHash }
+// Ergänzungen und Filter aus scripts/areas-extra.json (extras = Eintrag der Stadt). Rein und wiederholbar:
+// ein zweiter Durchlauf über das Ergebnis ändert nichts. Gibt { rows, stats } zurück.
+// - drop: place der passenden Viertel-Zeile leeren (Name, mit lat/lon nur der Eintrag im Umkreis von 600 m); bleibt eine Zeile ohne Kategorie, fällt sie danach in normalizeRows heraus
+// - maxKm: Viertel weiter als das vom Zentrum der Stadt entfallen (Vororte, die als eigene Gemeinde im Weg stehen)
+// - add: fehlende Viertel anhängen, außer ein Viertel gleichen Namens (norm) liegt schon im Umkreis von 800 m (echter OSM-Eintrag gewinnt)
+const EXTRA_NEAR = 800, DROP_NEAR = 600;
+export function applyAreasExtra(fields, rows, extras, center) {
+  const stats = { dropped: 0, far: 0, added: 0 };
+  if (!extras) return { rows, stats };
+  const I = Object.fromEntries(fields.map((f, i) => [f, i]));
+  const at = (r) => ({ lat: +r[0], lon: +r[1] });
+  const isArea = r => r[I.place] && r[I.name];
+  const drops = (extras.drop || []).map(d => ({ n: C.norm(d.name), p: d.lat != null ? { lat: d.lat, lon: d.lon } : null }));
+  const out = rows.map(r => {
+    if (!isArea(r)) return r;
+    const hit = drops.some(d => d.n === C.norm(r[I.name]) && (!d.p || C.distM(d.p, at(r)) < DROP_NEAR))
+    const far = !hit && extras.maxKm != null && center && C.distM({ lat: center[0], lon: center[1] }, at(r)) > extras.maxKm * 1000;
+    if (!hit && !far) return r;
+    if (hit) stats.dropped++; else stats.far++;
+    const c = r.slice(); c[I.place] = ''; return c;
+  });
+  for (const a of extras.add || []) {
+    const n = C.norm(a.name);
+    if (out.some(r => isArea(r) && C.norm(r[I.name]) === n && C.distM(at(r), a) < EXTRA_NEAR)) continue;
+    const r = fields.map(() => ''); r[0] = a.lat; r[1] = a.lon; r[I.place] = a.place || 'neighbourhood'; r[I.name] = a.name;
+    out.push(r); stats.added++;
+  }
+  return { rows: out, stats };
+}
+
+// Ganze Datei bauen. meta: { t, city, center: [lat, lon], bbox, source, ms, queryHash, extras?, reduced? }
+// reduced: ['unnamedGarden'] lässt unbenannte Gärten weg (meist private Gärten, bis zu 60 % der Zeilen; spart Platz im Brotli-Budget)
 export function buildCity(meta, fields, rows) {
   const bbox = meta.bbox.map(x => round(x, BBOX_DIGITS));
-  const { rows: clean, stats } = normalizeRows(fields, rows, bbox);
+  const reduced = meta.reduced && meta.reduced.length ? [...meta.reduced] : null;
+  const ex = applyAreasExtra(fields, rows, meta.extras, meta.center);
+  let src = ex.rows;
+  if (reduced && reduced.includes('unnamedGarden')) {
+    const iL = fields.indexOf('leisure'), iN = fields.indexOf('name');
+    src = src.filter(r => !(r[iL] === 'garden' && !String(r[iN] || '').trim()));
+  }
+  const { rows: clean, stats } = normalizeRows(fields, src, bbox);
+  Object.assign(stats, { extra: ex.stats });
   const d = {
     v: VERSION, t: meta.t, city: meta.city,
     center: meta.center ? meta.center.map(x => round(x, COORD_DIGITS)) : null,
     bbox, fields: [...fields], license: LICENSE, attribution: ATTRIBUTION,
     source: meta.source || null, ms: meta.ms ?? null, queryHash: meta.queryHash || null,
+    ...(reduced ? { reduced } : {}),
     rows: clean,
   };
   return { data: d, stats };

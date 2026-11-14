@@ -34,16 +34,24 @@ Die Stadtseiten filtern wie die App: Viertel mit weniger als 10 Orten im Umkreis
 <!-- staedte:start -->
 | Stadt | Datei | Abruf | Zeilen |
 | --- | --- | --- | --- |
-| Amsterdam | `amsterdam.json` | 2026-11-13 | 18060 |
-| Barcelona | `barcelona.json` | 2026-11-13 | 16571 |
-| Berlin | `berlin.json` | 2026-11-13 | 20570 |
-| Budapest | `budapest.json` | 2026-11-13 | 9323 |
-| Lissabon | `lissabon.json` | 2026-11-13 | 7881 |
-| Madrid | `madrid.json` | 2026-11-13 | 26978 |
-| Paris | `paris.json` | 2026-11-13 | 28222 |
+| Amsterdam | `amsterdam.json` | 2026-11-13 | 18064 |
+| Antwerpen | `antwerpen.json` | 2026-11-14 | 3851 |
+| Barcelona | `barcelona.json` | 2026-11-13 | 16484 |
+| Berlin | `berlin.json` | 2026-11-13 | 20573 |
+| Bologna | `bologna.json` | 2026-11-14 | 3165 |
+| Bruxelles - Brussel | `brussel.json` | 2026-11-14 | 7115 |
+| Budapest | `budapest.json` | 2026-11-13 | 9324 |
+| Lissabon | `lissabon.json` | 2026-11-13 | 7885 |
+| Madrid | `madrid.json` | 2026-11-13 | 26980 |
+| Málaga | `malaga.json` | 2026-11-14 | 3008 |
+| Palma | `palma.json` | 2026-11-14 | 2765 |
+| Paris | `paris.json` | 2026-11-13 | 28175 |
 | Prag | `prag.json` | 2026-11-13 | 13494 |
-| Rom | `rom.json` | 2026-11-13 | 10641 |
-| Wien | `wien.json` | 2026-11-13 | 13814 |
+| Rom | `rom.json` | 2026-11-13 | 10644 |
+| Salzburg | `salzburg.json` | 2026-11-14 | 1403 |
+| Warschau | `warschau.json` | 2026-11-14 | 8437 |
+| Wien | `wien.json` | 2026-11-13 | 13815 |
+| Zürich | `zurich.json` | 2026-11-14 | 5603 |
 <!-- staedte:end -->
 
 ## English

@@ -13,7 +13,21 @@
     {"source": "/staedte/lisbon", "destination": "/staedte/lissabon", "permanent": true},
     {"source": "/staedte/prague", "destination": "/staedte/prag", "permanent": true},
     {"source": "/staedte/rome", "destination": "/staedte/rom", "permanent": true},
-    {"source": "/staedte/vienna", "destination": "/staedte/wien", "permanent": true}
+    {"source": "/staedte/vienna", "destination": "/staedte/wien", "permanent": true},
+    {"source": "/staedte/brussels", "destination": "/staedte/brussel", "permanent": true},
+    {"source": "/staedte/bruessel", "destination": "/staedte/brussel", "permanent": true},
+    {"source": "/staedte/bruxelles", "destination": "/staedte/brussel", "permanent": true},
+    {"source": "/staedte/warsaw", "destination": "/staedte/warschau", "permanent": true},
+    {"source": "/staedte/warszawa", "destination": "/staedte/warschau", "permanent": true},
+    {"source": "/staedte/antwerp", "destination": "/staedte/antwerpen", "permanent": true},
+    {"source": "/staedte/zuerich", "destination": "/staedte/zurich", "permanent": true},
+    {"source": "/en/cities/lissabon", "destination": "/en/cities/lisbon", "permanent": true},
+    {"source": "/en/cities/prag", "destination": "/en/cities/prague", "permanent": true},
+    {"source": "/en/cities/rom", "destination": "/en/cities/rome", "permanent": true},
+    {"source": "/en/cities/wien", "destination": "/en/cities/vienna", "permanent": true},
+    {"source": "/en/cities/warschau", "destination": "/en/cities/warsaw", "permanent": true},
+    {"source": "/en/cities/brussel", "destination": "/en/cities/brussels", "permanent": true},
+    {"source": "/en/cities/antwerpen", "destination": "/en/cities/antwerp", "permanent": true}
   ],
   "headers": [
     {"source": "/(.*)", "headers": [{"key": "X-Content-Type-Options", "value": "nosniff"}, {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}, {"key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()"}, {"key": "X-Frame-Options", "value": "DENY"}, {"key": "Cross-Origin-Opener-Policy", "value": "same-origin"}, {"key": "Cross-Origin-Resource-Policy", "value": "same-site"}]},
