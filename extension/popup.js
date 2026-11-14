@@ -26,7 +26,7 @@ const isCdnImage = u => { const x = parseUrl(u); return !!x && x.protocol === 'h
 async function readStore() {
   const s = chrome.storage.local;
   if (typeof s.getKeys !== 'function') return s.get(null);
-  const keys = (await s.getKeys()).filter(k => k.startsWith('l:') || ['listings', 'lastSearch', 'trip', 'settings', 'stats', 'tasteIgnore', 'friendLikes'].includes(k));
+  const keys = (await s.getKeys()).filter(k => k.startsWith('l:') || ['listings', 'lastSearch', 'trip', 'settings', 'stats', 'tasteIgnore', 'friendLikes', 'pageStatus'].includes(k));
   return keys.length ? s.get(keys) : {};
 }
 // Tab, Sortierung und Scrollposition merken (Sitzungsspeicher, sonst lokal); das Popup schließt sich bei jedem Klick daneben
@@ -60,7 +60,7 @@ async function load() {
   }
   listings = Object.fromEntries(Object.entries(all).filter(([k, v]) => k.startsWith('l:') && v && v.id).map(([, v]) => [v.id, I.migrateListing(v)]));
   lastSearch = all.lastSearch || null; trip = all.trip || null;
-  extraKeys = { settings: all.settings || {}, stats: all.stats || null, tasteIgnore: all.tasteIgnore || [], friendLikes: all.friendLikes || {} };
+  extraKeys = { settings: all.settings || {}, stats: all.stats || null, tasteIgnore: all.tasteIgnore || [], friendLikes: all.friendLikes || {}, pageStatus: all.pageStatus || null };
   if (!uiRestored) await restoreUi();
   render();
   if (!uiRestored) { uiRestored = true; restoreScroll(); }
@@ -122,7 +122,14 @@ function topRow(l, n) {
 
 // R7: ein Einstiegstext, Direktweg zuerst
 const START_TEXT = 'Öffne einfach eine Airbnb-Suche: StayMatch bewertet die Unterkünfte direkt. Budget und Wünsche stellst du im Panel ein. Optional findet der Viertel-Finder vorher das passende Viertel, auch für Gruppen.';
+// Diagnose: hat die zuletzt geöffnete Airbnb-Seite etwas ergeben? Nur Zahlen; älter als 30 Minuten gilt als unbekannt.
+function pageStatusText(st, now = Date.now()) {
+  if (!st || !Number.isFinite(st.at) || now - st.at > 30 * 60e3) return '';
+  const kind = st.kind === 'room' ? 'Unterkunftsseite' : st.kind === 'wishlist' ? 'Wunschliste' : 'Suchseite';
+  return st.ok ? `✓ ${kind} erkannt${st.kind === 'room' ? '' : ` (${st.found} Unterkünfte gelesen)`}` : `⚠ ${kind} nicht erkannt. Vielleicht lädt sie noch oder Airbnb hat den Aufbau geändert.`;
+}
 function render() {
+  $('pageStatus').textContent = pageStatusText(extraKeys.pageStatus);
   const items = Object.values(listings).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
   $('profile').replaceChildren(h('span', {}, profile(items)));
   $('trip').replaceChildren(trip

@@ -58,6 +58,15 @@
     catch (e) { console.debug('StayMatch: Speichern fehlgeschlagen (Speicher voll?)', e); SMC.saveFailed = true; }
     return item;
   }
+  // Seitenstatus fürs Popup (Zahlen, keine Inhalte); nur schreiben, wenn sich etwas geändert hat. Fehler still ignorieren.
+  let lastStatusJson = '';
+  function reportStatus(st) {
+    try {
+      const j = JSON.stringify({ ...st, at: undefined });
+      if (j === lastStatusJson) return; lastStatusJson = j;
+      chrome.storage.local.set({ pageStatus: { ...st, at: Date.now() } }).catch?.(() => {});
+    } catch {}
+  }
   const isPaused = () => settings.pauseUntil > Date.now();
   async function allListings() {
     const all = await chrome.storage.local.get(null);
@@ -274,7 +283,7 @@
   // Trefferlisten: Suche (/s/…) und Wunschliste (/wishlists/<id>), beide werden gelesen und bewertet
   const isList = path => /^\/s\//.test(path) || /^\/wishlists\/[^/]+/.test(path);
   const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
-  const SMC = window.StayMatchContent = { say, isList, ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
+  const SMC = window.StayMatchContent = { reportStatus, say, isList, ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
   function start() {
     // R7: fehlt ein Seiten-Modul (Syntaxfehler, halbes Update), nicht in jedem route() stumm werfen
     if (!SMC.search || !SMC.room) {
@@ -295,7 +304,7 @@
         if (!roomId) document.getElementById('sm-room')?.remove();
         if (!isList(path)) { document.getElementById('sm-search')?.remove(); document.getElementById('sm-error')?.remove(); }
         if (roomId) setTimeout(() => SMC.room.handle(roomId).catch(e => console.debug('StayMatch:', e)), T.roomDelay ?? 2000);
-        else if (/^\/s\//.test(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
+        else if (isList(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
       }
       if (isList(path)) SMC.search.handle().catch(e => console.debug('StayMatch:', e));
     }
