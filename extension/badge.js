@@ -9,7 +9,7 @@
     const ls = st?.lastSearch;
     const n = Array.isArray(ls?.top) ? ls.top.length : 0;
     if (!n || !Number.isFinite(ls.at) || now - ls.at > FRESH_MS) return { text: '', title: 'StayMatch' };
-    return { text: String(Math.min(n, 99)), title: `StayMatch: ${n} Treffer in der letzten Suche` };
+    return { text: String(Math.min(n, 99)), title: `StayMatch: ${n} Empfehlungen aus der letzten Suche` };
   }
   root.StayMatchBadge = { badgeState, FRESH_MS };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -130,7 +130,7 @@
   // R7 E: Textgröße 100–150 % (Popup)
   const scale = () => Math.min(1.5, Math.max(1, +settings.fontScale || 1));
   const settingsListeners = [];
-  function setSettings(v) { Object.assign(settings, { showBadges: true, theme: 'auto' }, v || {}); applyTheme(); settingsListeners.forEach(f => f(settings)); }
+  function setSettings(v) { for (const k of Object.keys(settings)) delete settings[k]; Object.assign(settings, { showBadges: true, theme: 'auto' }, v || {}); applyTheme(); settingsListeners.forEach(f => f(settings)); }
   chrome.storage.onChanged?.addListener(ch => {
     if (ch.settings) setSettings(ch.settings.newValue);
     // Neue Reise aus dem Viertel-Finder wirkt sofort, ohne die Airbnb-Seite neu zu laden

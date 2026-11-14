@@ -15,7 +15,7 @@ async function syncAlarms() {
   try {
     const R = self.StayMatchReminders, all = await chrome.storage.local.get(null);
     const on = all.settings?.remind === true;
-    const want = on ? R.plan(Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('l:')))) : [];
+    const want = on ? R.plan(Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('l:'))), Date.now(), all.remindDone) : [];
     const have = await chrome.alarms.getAll();
     const keep = new Set(want.map(w => R.alarmName(w.id)));
     for (const a of have) if (R.idOfAlarm(a.name) && !keep.has(a.name)) await chrome.alarms.clear(a.name);
@@ -27,9 +27,13 @@ chrome.alarms?.onAlarm.addListener(async al => {
     const R = self.StayMatchReminders, id = R.idOfAlarm(al.name);
     if (!id) return;
     if (!(await chrome.permissions.contains({ permissions: ['notifications'] }))) return;
-    const { ['l:' + id]: l } = await chrome.storage.local.get('l:' + id);
-    const p = l && R.plan({ [id]: l })[0];
+    const st = await chrome.storage.local.get(['l:' + id, 'remindDone']);
+    const p = st['l:' + id] && R.plan({ [id]: st['l:' + id] }, Date.now(), st.remindDone)[0];
     if (!p) return;
+    // Merken, damit der Wecker für diese Frist nicht neu angelegt wird (Chrome löscht ihn nach dem Klingeln, die Frist läuft aber noch)
+    const today = new Date().toISOString().slice(0, 10);
+    const done = Object.fromEntries(Object.entries(st.remindDone || {}).filter(([, d]) => d >= today));
+    await chrome.storage.local.set({ remindDone: { ...done, [id]: p.day } });
     chrome.notifications.create('sm-cancel-' + id, { type: 'basic', iconUrl: 'icons/128.png', title: 'Kostenlose Stornierung endet bald', message: `${p.title}: bis ${p.day.split('-').reverse().join('.')} kostenlos stornierbar.` });
   } catch {}
 });

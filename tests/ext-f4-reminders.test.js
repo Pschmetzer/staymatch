@@ -53,7 +53,7 @@ test('Service Worker: Wecker nur mit Opt-in, Benachrichtigung nur mit Berechtigu
   const store = { settings: { remind: true }, 'l:1': { id: '1', title: 'Loft', booked: { checkin: ymd, cancel: `${future.getDate()}.${future.getMonth() + 1}.${future.getFullYear()}` } } };
   const alarms = new Map(), notes = []; let onAlarm, perm = true;
   const chrome = {
-    storage: { local: { get: async k => typeof k === 'string' ? { [k]: store[k] } : { ...store } }, onChanged: { addListener() {} } },
+    storage: { local: { get: async k => k == null ? { ...store } : Object.fromEntries([].concat(k).filter(x => x in store).map(x => [x, store[x]])), set: async o => Object.assign(store, JSON.parse(JSON.stringify(o))) }, onChanged: { addListener() {} } },
     runtime: { onStartup: { addListener() {} }, onInstalled: { addListener() {} } },
     action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}, setTitle: async () => {} },
     alarms: { onAlarm: { addListener: f => { onAlarm = f; } }, getAll: async () => [...alarms.entries()].map(([name, when]) => ({ name, scheduledTime: when })), create: async (n, o) => alarms.set(n, o.when), clear: async n => alarms.delete(n) },
@@ -67,8 +67,13 @@ test('Service Worker: Wecker nur mit Opt-in, Benachrichtigung nur mit Berechtigu
   assert.equal([...alarms.keys()].join(), 'sm-cancel:1');
   await onAlarm({ name: 'sm-cancel:1' });
   assert.equal(notes.length, 1); assert.match(notes[0].message, /Loft/);
-  perm = false; await onAlarm({ name: 'sm-cancel:1' });
-  assert.equal(notes.length, 1, 'ohne Berechtigung keine Benachrichtigung');
+  // Chrome löscht den Wecker nach dem Klingeln: er darf nicht neu angelegt werden, die Erinnerung kommt nur einmal
+  alarms.delete('sm-cancel:1');
+  vm.runInContext('syncAlarms()', ctx); await new Promise(r => setTimeout(r, 30));
+  assert.equal(alarms.size, 0, 'kein Wecker im Minutentakt');
+  await onAlarm({ name: 'sm-cancel:1' });
+  assert.equal(notes.length, 1, 'keine zweite Benachrichtigung für dieselbe Frist');
+  perm = false;
   store.settings = {}; // Opt-in zurückgenommen → Wecker weg
   vm.runInContext('syncAlarms()', ctx); await new Promise(r => setTimeout(r, 30));
   assert.equal(alarms.size, 0);

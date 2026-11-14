@@ -29,6 +29,11 @@ test('Panel: Ziehen an der Kopfzeile speichert die Position, ⇆ dockt links an 
   D.shadow(doc, 'sm-search').querySelector('[aria-label="Panel links oder rechts andocken"]').click();
   await D.until(() => chrome.data.settings.panelSide === 'left');
   assert.equal(chrome.data.settings.panelPos, undefined);
+  // lebendes Panel folgt: angedockt links, keine freie Position mehr; zweiter Klick zurück nach rechts
+  await D.until(() => box(doc).classList.contains('left') && box(doc).style.left === '');
+  D.shadow(doc, 'sm-search').querySelector('[aria-label="Panel links oder rechts andocken"]').click();
+  await D.until(() => !box(doc).classList.contains('left'));
+  assert.equal(chrome.data.settings.panelSide, undefined);
 });
 
 test('Suchseite: Top-3-Karten umrandet, „schon angesehen“ nach Besuch, 📍 scrollt zur Karte', { skip }, async () => {

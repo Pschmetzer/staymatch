@@ -36,7 +36,7 @@
   }
 
   // Gebuchte Unterkünfte mit kostenloser Stornierung und gültiger Frist → Erinnerungen. Zeitpunkt: am Vortag 9 Uhr, sonst sofort (Frist noch nicht vorbei).
-  function plan(listings, now = Date.now()) {
+  function plan(listings, now = Date.now(), done = {}) {
     const out = [];
     for (const i of Object.values(listings || {})) {
       const b = i?.booked;
@@ -46,6 +46,7 @@
       const [y, m, d] = day.split('-').map(Number);
       const deadlineEnd = new Date(y, m - 1, d, 23, 59).getTime();
       if (deadlineEnd < now) continue; // schon vorbei
+      if (done && done[String(i.id)] === day) continue; // für diese Frist schon erinnert
       const eve9 = new Date(y, m - 1, d - 1, 9, 0).getTime();
       out.push({ id: String(i.id), title: i.title || 'Unterkunft', day, when: eve9 > now ? eve9 : now + 60e3 });
     }
@@ -74,7 +75,7 @@
       const b = i?.booked;
       if (!b || !DAY.test(b.checkin || '')) continue;
       const out = DAY.test(b.checkout || '') && b.checkout > b.checkin ? compact(b.checkout) : plusDay(b.checkin);
-      const desc = [i.url, b.people && `${b.people} Personen`, b.total && `${Math.round(b.total)} ${b.currency || ''}`.trim(), i.note].filter(Boolean).join('\n');
+      const desc = [i.url, b.people && `${b.people} Personen`, b.total && `${Math.round(b.total)} ${b.currency || ''}`.trim()].filter(Boolean).join('\n');
       ev.push(['BEGIN:VEVENT', `UID:staymatch-${i.id}@staymatch.pro`, `DTSTAMP:${stamp(now)}`, `DTSTART;VALUE=DATE:${compact(b.checkin)}`, `DTEND;VALUE=DATE:${out}`,
         `SUMMARY:${esc(i.title || 'Unterkunft')}`, ...(i.locality ? [`LOCATION:${esc(i.locality)}`] : []), ...(desc ? [`DESCRIPTION:${esc(desc)}`] : []), 'END:VEVENT']);
       const cd = b.cancel ? parseCancelDate(b.cancel, { checkin: b.checkin, at: b.at }) : null;
