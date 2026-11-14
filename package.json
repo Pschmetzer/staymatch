@@ -19,6 +19,7 @@
     "check:pages": "node scripts/build-city-pages.mjs --check",
     "check:feed": "node scripts/build-feed.mjs --check",
     "feed": "node scripts/build-feed.mjs",
+    "check:vendor": "node .github/scripts/check-vendor.mjs",
     "check:zip": "node .github/scripts/check-zip.mjs",
     "check:static": "npm run check:js && npm run check:html && npm run check:domains && npm run check:size && npm run check:links && npm run check:data && npm run check:pages && npm run check:feed",
     "check": "npm run check:static && npm run build --silent && npm run check:zip",

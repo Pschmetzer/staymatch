@@ -1,7 +1,7 @@
 #!/bin/sh
 # Prüft, baut das Plugin-ZIP und lädt web/ nach Vercel hoch (Auto-Deploy ist bewusst aus).
 # Benötigt: Node, vercel-CLI (angemeldet). Optional: VERCEL_SCOPE=<team> für Team-Projekte,
-# SITE_URL=<Adresse> für den Smoke-Test (Standard: https://staymatch-tau.vercel.app).
+# SITE_URL=<Adresse> für den Smoke-Test (Standard: https://staymatch.pro).
 set -e
 cd "$(dirname "$0")/.."
 
@@ -30,19 +30,40 @@ fi
 echo "→ Tests und Prüfungen"
 npm test
 npm run check
-SITE="${SITE_URL:-https://staymatch-tau.vercel.app}"
+SITE="${SITE_URL:-https://staymatch.pro}"
 cd web
 if [ -n "$VERCEL_SCOPE" ]; then vercel deploy --prod --yes --scope "$VERCEL_SCOPE"; else vercel deploy --prod --yes; fi
 cd ..
 
+# Bei jedem Fehler unten: Der Deploy ist schon live. Rollback: `vercel rollback` (Vorgänger-Deployment) im Projektordner web/
+fail() {
+  echo "Fehler im Smoke-Test: $1" >&2
+  echo "Der Deploy ist bereits live. Rollback: cd web && vercel rollback  (oder im Vercel-Dashboard das vorherige Deployment promoten)." >&2
+  exit 1
+}
+
 echo "→ Smoke-Test $SITE"
-for p in / /app /datenschutz /staymatch-plugin.zip.sha256; do
+for p in / /en /app /datenschutz /impressum /staedte/rom /sitemap.xml /robots.txt /staymatch-plugin.zip.sha256; do
   code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE$p") || code=000
-  [ "$code" = 200 ] || { echo "Fehler: $p liefert $code" >&2; exit 1; }
+  [ "$code" = 200 ] || fail "$p liefert $code (erwartet 200)"
 done
+code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/diese-seite-gibt-es-nicht") || code=000
+[ "$code" = 404 ] || fail "unbekannte Seite liefert $code (erwartet 404)"
+
+# Header: nosniff überall, CSP je Route (nur /app darf Fremddienste, Startseite nicht)
+hdr() { curl -sI "$SITE$1" | tr -d '\r' | grep -i "^$2:" || true; }
+for p in / /en /app /staedte/rom; do
+  hdr "$p" x-content-type-options | grep -qi nosniff || fail "$p: X-Content-Type-Options: nosniff fehlt"
+  hdr "$p" content-security-policy | grep -q "default-src 'self'" || fail "$p: Content-Security-Policy fehlt"
+done
+hdr /app content-security-policy | grep -q nominatim || fail "/app: CSP erlaubt Nominatim nicht (Viertel-Finder wäre kaputt)"
+for p in / /en /staedte/rom; do
+  hdr "$p" content-security-policy | grep -Eq 'nominatim|overpass' && fail "$p: CSP ist zu weit (Fremddienste nur für /app)"
+done
+
 want=$(node -p "require('./extension/manifest.json').version")
 zip=$(mktemp); trap 'rm -f "$zip"' EXIT # unzip braucht eine Datei, keine Pipe
 curl -s -o "$zip" "$SITE/staymatch-plugin.zip"
 got=$(unzip -p "$zip" manifest.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "?")
-[ "$got" = "$want" ] || { echo "Fehler: ZIP hat Version $got, erwartet $want" >&2; exit 1; }
+[ "$got" = "$want" ] || fail "ZIP hat Version $got, erwartet $want"
 echo "Deploy ok (Plugin $want)"
