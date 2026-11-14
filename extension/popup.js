@@ -314,7 +314,7 @@ $('wipe').onclick = async () => {
     zwischenspeicher: I.WIPE.zwischenspeicher,
     reise: I.WIPE.reise,
     // R7 E: „Reise vergessen“: Reise, Sammlung und die Unterkünfte mit diesem Anreisedatum; der Rest bleibt
-    'diese reise': x => x === 'trip' || x === 'pool' || x === 'lastSearch' || x === 'priceLog' || (x.startsWith('l:') && !!trip?.checkin && listings[x.slice(2)]?.checkin === trip.checkin),
+    'diese reise': x => x === 'trip' || x === 'pool' || x === 'lastSearch' || x === 'priceLog' || x === 'visits' || (x.startsWith('l:') && !!trip?.checkin && listings[x.slice(2)]?.checkin === trip.checkin),
     alles: x => x !== 'settings',
   }[k];
   if (!pick) { alert('Nichts gelöscht: bitte verlauf, zwischenspeicher, reise, diese reise oder alles eingeben.'); return; }

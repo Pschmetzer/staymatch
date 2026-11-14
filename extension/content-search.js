@@ -50,7 +50,7 @@
     const sp = P.searchParams(location.href);
     // Seiten, die du nacheinander öffnest (Blättern), gemeinsam ranken. Nichts wird von selbst geladen.
     // R7: Speicher parallel lesen statt vier-, fünfmal nacheinander
-    const [stored, savedTrip, items] = await Promise.all([chrome.storage.local.get(['filters', 'min:sm-search', 'pool', 'quick', 'priceLog', 'tasteIgnore', 'friendLikes', 'stats']), getTrip(), allListings()]);
+    const [stored, savedTrip, items] = await Promise.all([chrome.storage.local.get(['filters', 'min:sm-search', 'pool', 'quick', 'priceLog', 'tasteIgnore', 'friendLikes', 'stats', 'visits']), getTrip(), allListings()]);
     const pool = POOL.mergePool(stored.pool, location.href, current);
     // R7 E: Spuren-Pause: Sammlung, letzte Suche und Preis-Log nur im Speicher, nichts schreiben
     const paused = settings.pauseUntil > Date.now();
@@ -98,6 +98,14 @@
       if (fresh.length) chrome.storage.local.set({ stats: { ...st, rated: st.rated + fresh.length, opened: items.filter(i => i.lastSeen && new Date(i.lastSeen).toISOString().slice(0, 10) === day).length, ids: [...st.ids, ...fresh].slice(-1000) } }).catch?.(() => {});
     }
 
+    // „Seit deinem letzten Besuch“: Vergleich mit dem Stand dieser Suche beim vorigen Besuch (lokal, bei Pause nichts gespeichert)
+    let since = null;
+    if (X?.sinceLastVisit) {
+      const r = X.sinceLastVisit(stored.visits?.[pool.key], listings, pool.pages.length);
+      since = r.diff;
+      if (!paused) chrome.storage.local.set({ visits: X.visitStore(stored.visits, pool.key, r.entry) }).catch?.(() => {});
+    }
+
     filters = stored.filters || {};
     // R7 E: eigener Preisverlauf je Stadt (nur Median, Datum, Nächte; lokal) für „ungewöhnlich teuer“ und Wochenend-Aufschlag
     const anchor = X?.priceAnchor(ranked, ctx);
@@ -107,7 +115,7 @@
     if (now && !paused && !log.some(e => e.path === now.path && e.ci === now.ci && e.nights === now.nights)) chrome.storage.local.set({ priceLog: [...log, now].slice(-60) }).catch?.(() => {});
     const booked = items.filter(i => i.booked && sp.checkin && i.booked.checkin === sp.checkin);
     const lastYear = X && anchor ? X.lastYear(items.filter(i => i.booked && i.booked.checkin !== sp.checkin), location.pathname, anchor.median, anchor.currency) : null;
-    lastView = { ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear };
+    lastView = { since, ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear };
     // R7 E: Seiten-Auswertung einmal je Suche rechnen (nicht bei jedem Chip-Klick)
     const top0 = currentTop();
     lastView.insights = X ? X.pageInsights(ranked.filter(l => !l.rank.disliked), top0, ctx, { pool, history, lastYear, listings: listings.length <= 300 ? listings : null }) : [];
@@ -208,6 +216,7 @@
     panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : 'Top 3 auf dieser Seite', [
       h('div', { class: 'muted' }, `${count} Unterkünfte${pages > 1 ? ` von ${pages} Seiten, die du geöffnet hast,` : ' auf dieser Seite'} bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}${lastView.delta ? ' (angepasst)' : ''}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget && eb ? ` · Budget ${Math.round(eb)} €${ctx.nights ? ` für ${ctx.nights} Nächte` : ''}` : ''}`),
       quick.wishes.includes('luxury') ? h('div', { class: 'muted' }, `✨ ${lastView.ranked.filter(l => l.rank.luxury?.state === true).length} von ${count} als Luxus erkannt (Stichwörter im Titel, Preislage, Bäder).${lastView.ranked.some(l => l.rank.luxury?.state === true) ? '' : ' Keine Treffer: Suche nach „Villa“ oder „Penthouse“ verfeinern.'}`) : null,
+      X?.visitText(lastView.since) ? h('div', { class: 'muted', role: 'status' }, X.visitText(lastView.since), (lastView.since.cheaper || []).slice(0, 3).map(c => { const l = lastView.ranked.find(x => x.id === c.id); return l ? h('div', {}, '↓ ', cut(l.title || l.kind, 34), ` ${M(c.from, l)} → ${M(c.to, l)}`) : null; })) : null,
       lastView.booked?.length ? h('div', { class: 'err', role: 'status' }, h('b', {}, '✅ Für diese Daten hast du schon gebucht: '), lastView.booked.map(b => b.title || 'Unterkunft').join(', '), '. Suchst du aus Versehen weiter?') : null,
       lacking.length ? h('div', { class: 'err muted' }, `⚠️ ${lacking.join(', ')} bei den meisten Karten nicht gelesen. Airbnb hat vermutlich etwas geändert, die Wertung ist ungenauer.`) : null,
       !trip?.budget ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, 'Budget pro Nacht (€):'), budgetInput) : null,

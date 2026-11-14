@@ -104,8 +104,8 @@
 
   // Welche Schlüssel gehören zu welcher Löschart? (persönliche Spuren vollständig)
   const WIPE = {
-    verlauf: x => x.startsWith('l:') || ['listings', 'friendLikes', 'stats', 'tasteIgnore', 'priceLog'].includes(x),
-    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters', 'priceLog'].includes(x) || x.startsWith('min:'),
+    verlauf: x => x.startsWith('l:') || ['listings', 'friendLikes', 'stats', 'tasteIgnore', 'priceLog', 'visits'].includes(x),
+    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters', 'priceLog', 'visits'].includes(x) || x.startsWith('min:'),
     reise: x => x === 'trip',
   };
 
