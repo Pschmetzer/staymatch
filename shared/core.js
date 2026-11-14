@@ -18,7 +18,7 @@
   // Gewichte je Typ: positiv = wichtig, negativ = stört. Jeder Typ will etwas Essen und ÖPNV.
   const PRESETS = {
     party: { label: '🎉 Party', w: { party: 1, chill: 0.1, sights: 0.1, food: 0.4, transit: 0.4, shop: 0, sport: 0, kids: 0 } },
-    chill: { label: '🌿 Chill', w: { party: -0.5, chill: 1, sights: 0.2, food: 0.5, transit: 0.2, shop: 0.1, sport: 0, kids: 0 } },
+    chill: { label: '🌿 Chill', w: { party: -1, chill: 1, sights: 0.2, food: 0.5, transit: 0.2, shop: 0.1, sport: 0, kids: 0 } },
     sights: { label: '🏛️ Sightseeing', w: { party: 0.1, chill: 0.2, sights: 1, food: 0.4, transit: 0.7, shop: 0.1, sport: 0, kids: 0 } },
     foodie: { label: '🍝 Foodie', w: { party: 0.2, chill: 0.2, sights: 0.2, food: 1, transit: 0.3, shop: 0, sport: 0, kids: 0 } },
     family: { label: '👨‍👩‍👧 Familie', w: { party: -0.8, chill: 1, sights: 0.6, food: 0.6, transit: 0.5, shop: 0.2, sport: 0.1, kids: 1 } },
@@ -36,14 +36,18 @@
   };
   const MIN_HALF = 0.04; // Mindestgröße der Suchfläche (Grad, ca. 4,4 km vom Zentrum)
   const BBOX_HALF = 0.075; // Große Städte auf ca. 16 × 16 km um das Zentrum begrenzen (Overpass-Last)
+  // Viertel weiter als das vom Zentrum der Stadt sind meist eigene Nachbargemeinden (Diemen, Meudon, Budaörs), kein Ziel für die Reise
+  const MAX_AREA_DIST = 8000;
+  // Fast Food zählt nur zu einem Drittel wie ein Restaurant (deterministisch: jedes dritte Lokal), die Abfrage bleibt gleich
+  const FAST_FOOD_WEIGHT = 1 / 3;
   const VISIT_WINDOW_MS = 30 * 60 * 1000; // Reload innerhalb von 30 Min. ≠ neuer Besuch
 
-  const APP_URL = 'https://staymatch-tau.vercel.app/app';
+  const APP_URL = 'https://staymatch.pro/app';
   // Muss zu extension/manifest.json passen (Test prüft das)
   const AIRBNB_DOMAINS = ['airbnb.de', 'airbnb.com', 'airbnb.at', 'airbnb.ch', 'airbnb.co.uk', 'airbnb.fr', 'airbnb.es', 'airbnb.it', 'airbnb.nl', 'airbnb.pt',
     'airbnb.pl', 'airbnb.be', 'airbnb.dk', 'airbnb.se', 'airbnb.no', 'airbnb.fi', 'airbnb.ie', 'airbnb.gr', 'airbnb.cz', 'airbnb.com.au', 'airbnb.ca',
     'airbnb.co.nz', 'airbnb.mx', 'airbnb.com.br'];
-  const STAYMATCH_ORIGINS = ['https://staymatch-tau.vercel.app', 'http://localhost:8765'];
+  const STAYMATCH_ORIGINS = ['https://staymatch.pro', 'https://staymatch-tau.vercel.app', 'http://localhost:8765'];
 
   const OVERPASS_SERVERS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
   // OSM-Schlüssel der Abfrage in fester Reihenfolge, mit Elementtyp. Die Werte kommen aus CATEGORIES.
@@ -59,9 +63,16 @@
     return 2 * R * Math.asin(Math.sqrt(x));
   }
 
-  // Viertel-/Ortsnamen vergleichen (Plugin): Akzente, Satzzeichen und Artikel weg: "l'Eixample" = "Eixample", "Vila de Gràcia" = "Gracia"
-  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
-    .replace(/^(vila de|barri de|el barri de|el|la|les|els|l|los|las|le|il|lo|der|die|das)\s+/, '');
+  // Buchstaben, die NFD nicht in Grundbuchstabe + Akzent zerlegt
+  const FOLD = { 'ß': 'ss', 'ø': 'o', 'æ': 'ae', 'œ': 'oe', 'ł': 'l', 'đ': 'd', 'ð': 'd', 'þ': 'th', 'ı': 'i', 'ħ': 'h' };
+  const ARTICLE = /^(vila de|barri de|el barri de|el|la|les|els|l|los|las|le|il|lo|der|die|das)\s+/;
+  // Viertel-/Ortsnamen vergleichen (Plugin): Akzente, Satzzeichen und Artikel weg: "l'Eixample" = "Eixample", "la Vila de Gràcia" = "Gracia".
+  // Buchstaben aller Schriften bleiben (Østerbro → osterbro, Греция, Ελλάδα).
+  function norm(s) {
+    let t = String(s || '').toLowerCase().replace(/[ßøæœłđðþıħ]/g, c => FOLD[c]).normalize('NFD').replace(/\p{M}+/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    for (let prev; prev !== t;) { prev = t; t = t.replace(ARTICLE, ''); } // "la vila de gracia" → "vila de gracia" → "gracia"
+    return t;
+  }
   // Stadtname für den Index der vorab geladenen Städte: klein, ohne Akzente, Satzzeichen bleiben
   const normCity = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
@@ -116,38 +127,56 @@
   // kommen über ihre anderen Tags als Orte in die Wertung (z. B. Platz mit tourism=attraction = Sehenswürdigkeit).
   const isArea = t => !!(t && t.name && PLACE_TYPES.includes(t.place));
 
-  // Tag-Objekte → Viertel (gleicher Name im Umkreis von RADIUS.match nur einmal) und Orte je Kategorie.
-  // categoriesOf kommt aus web/scoring.js (StayMatch.categoriesOf).
-  function splitRows(tags, categoriesOf) {
+  // Viertel außerhalb von MAX_AREA_DIST ums Zentrum weglassen (center: {lat, lon}; ohne Zentrum bleibt alles)
+  function filterAreas(areas, center, maxDist = MAX_AREA_DIST) {
+    if (!center || !Number.isFinite(+center.lat) || !Number.isFinite(+center.lon)) return areas;
+    return areas.filter(a => distM(a, center) <= maxDist);
+  }
+
+  // Tag-Objekte → Viertel (gleicher Name nach norm() im Umkreis von RADIUS.match nur einmal: „Raval“ = „el Raval“) und Orte je Kategorie.
+  // categoriesOf kommt aus web/scoring.js (StayMatch.categoriesOf). center (optional) kappt Viertel in Nachbargemeinden.
+  function splitRows(tags, categoriesOf, center) {
     const areas = [], raw = [];
+    let fast = 0;
     for (const t of tags) {
       const lat = +t.lat, lon = +t.lon;
       if (!lat) continue;
-      if (isArea(t)) { if (!areas.some(a => a.name === t.name && distM(a, { lat, lon }) < RADIUS.match)) areas.push({ name: t.name, lat, lon }); continue; }
+      if (isArea(t)) {
+        const key = norm(t.name) || t.name;
+        if (!areas.some(a => a.key === key && distM(a, { lat, lon }) < RADIUS.match)) areas.push({ name: t.name, lat, lon, key });
+        continue;
+      }
+      if (t.amenity === 'fast_food') { fast += FAST_FOOD_WEIGHT; if (fast < 1) continue; fast -= 1; }
       for (const cat of categoriesOf(t)) raw.push({ lat, lon, cat, name: t.name, tags: t });
     }
-    return { areas, raw };
+    return { areas: filterAreas(areas, center).map(({ name, lat, lon }) => ({ name, lat, lon })), raw };
   }
 
-  // Umkreis automatisch: dichtes ÖPNV-Netz (≥ 60 Halte nach dem Entdoppeln) = Großstadt → 1200 m, sonst RADIUS.area
-  const autoRadius = pois => pois.filter(p => p.cat === 'transit').length >= 60 ? 1200 : RADIUS.area;
+  // Umkreis automatisch (Stadtseiten): derselbe Standard wie in der App (800 m). Früher 1200 m ab 60 ÖPNV-Orten, das traf wegen der
+  // großen Suchfläche auf alle Städte zu und wich von der App ab.
+  const autoRadius = () => RADIUS.area;
 
   // Erster Nominatim-Treffer → Zentrum, begrenzte Bbox [s, w, n, e], Kurzname
   function geoFromNominatim(hit) {
-    let [s, n, w, e] = hit.boundingbox.map(Number);
-    const lat = +hit.lat, lon = +hit.lon, h = BBOX_HALF, hl = h / Math.cos(lat * Math.PI / 180);
+    const lat = +(hit && hit.lat), lon = +(hit && hit.lon);
+    if (!hit || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    const bb = Array.isArray(hit.boundingbox) ? hit.boundingbox.map(Number) : [];
+    // Ohne (brauchbare) Bounding-Box: Fläche um das Zentrum
+    let [s, n, w, e] = bb.length === 4 && bb.every(Number.isFinite) ? bb : [lat, lat, lon, lon];
+    const h = BBOX_HALF, hl = h / Math.cos(lat * Math.PI / 180);
     s = Math.max(s, lat - h); n = Math.min(n, lat + h);
     w = Math.max(w, lon - hl); e = Math.min(e, lon + hl);
     // Winzige Treffer (ein Viertel statt einer Stadt) auf mindestens ca. 9 × 9 km aufweiten, sonst finden wir keine Nachbarviertel
     const m = MIN_HALF, ml = m / Math.cos(lat * Math.PI / 180);
     s = Math.min(s, lat - m); n = Math.max(n, lat + m); w = Math.min(w, lon - ml); e = Math.max(e, lon + ml);
-    return { lat, lon, bbox: [s, w, n, e], name: hit.display_name.split(',')[0] };
+    const name = String(hit.display_name || hit.name || '').split(',')[0].trim();
+    return { lat, lon, bbox: [s, w, n, e], name };
   }
 
   const api = {
     CATEGORIES, PRESETS, RADIUS, BBOX_HALF, VISIT_WINDOW_MS, APP_URL, AIRBNB_DOMAINS, STAYMATCH_ORIGINS,
     OVERPASS_SERVERS, OSM_KEYS, PLACE_TYPES, FIELDS,
-    distM, norm, normCity, overpassQuery, nominatimUrl, geoFromNominatim,
+    distM, norm, normCity, filterAreas, MAX_AREA_DIST, FAST_FOOD_WEIGHT, overpassQuery, nominatimUrl, geoFromNominatim,
     parseOverpassCsv, unquoteCsv, rowsToTags, isArea, splitRows, autoRadius,
   };
   root.StayMatchCore = api;

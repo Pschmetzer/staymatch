@@ -107,7 +107,7 @@ test('CSP erlaubt jede Fremdadresse, die Viertel-Finder und Kern abfragen', () =
   const dir = (name) => (new RegExp(`${name} ([^;]+)`).exec(csp) || [, ''])[1].split(' ');
   const allowed = new Set([...dir('connect-src'), ...dir('img-src')]);
   // Nur Linkziele, keine Abfragen: Kartenquelle, Airbnb-Suche, alte App-Adresse der Extension
-  const linkOnly = new Set(['https://www.openstreetmap.org', 'https://www.airbnb.de', 'https://staymatch-tau.vercel.app']);
+  const linkOnly = new Set(['https://www.openstreetmap.org', 'https://www.airbnb.de', 'https://staymatch-tau.vercel.app', 'https://staymatch.pro']);
   const src = ['core.js', 'app.js', 'scoring.js'].map(read).join('\n');
   for (const h of new Set(src.match(/https:\/\/[a-z0-9.-]+/g))) if (!linkOnly.has(h)) assert.ok(allowed.has(h), `${h} fehlt in connect-src/img-src`);
 });
