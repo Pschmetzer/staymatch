@@ -1,0 +1,48 @@
+name: Städtedaten auffrischen
+# Alle zwei Monate (vor der 90-Tage-Warnung von check-data.mjs) und von Hand: holt die OSM-Daten neu und öffnet einen PR.
+# Die Overpass-Server sind freiwillig betrieben: ein Lauf, eine Stadt nach der anderen (macht das Skript selbst).
+# Voraussetzung im Repo: Einstellungen → Actions → „Allow GitHub Actions to create and approve pull requests“.
+# Bricht eine Stadt wegen unvollständiger Antwort ab („unter 70 %“), schlägt der Lauf fehl; dann von Hand prüfen (CONTRIBUTING.md).
+on:
+  schedule: [{ cron: "23 4 1 */2 *" }]
+  workflow_dispatch:
+    inputs:
+      cities: { description: "Nur diese Städte (Leerzeichen getrennt), leer = alle", required: false, default: "" }
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: prefetch-cities
+  cancel-in-progress: false
+jobs:
+  prefetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: true }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 22 }
+      - name: Daten holen
+        env: { CITIES: "${{ inputs.cities }}" }
+        run: node scripts/prefetch-cities.mjs $CITIES | tee prefetch-report.txt
+      - name: Stadtseiten neu erzeugen
+        run: node scripts/build-city-pages.mjs
+      - name: Prüfungen
+        run: |
+          node scripts/check-data.mjs
+          node scripts/build-city-pages.mjs --check
+      - name: PR öffnen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git status --porcelain web scripts)" ]; then echo "Keine Änderungen."; exit 0; fi
+          br="daten/auffrischung-$(date +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$br"
+          git add web scripts/cities.json
+          git commit -m "Städtedaten aufgefrischt ($(date +%Y-%m-%d))"
+          git push origin "$br"
+          { echo "Automatische Auffrischung der OSM-Städtedaten (ODbL, siehe web/data/NOTICE.md)."; echo; echo '```'; cat prefetch-report.txt; echo '```'; echo; echo "Vor dem Merge: CI abwarten, Änderungsbericht prüfen (Zeilenzahlen), Stichprobe in der App."; } > pr-body.md
+          gh pr create --base main --head "$br" --title "Städtedaten aufgefrischt ($(date +%Y-%m-%d))" --body-file pr-body.md

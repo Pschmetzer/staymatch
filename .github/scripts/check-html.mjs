@@ -1,7 +1,7 @@
 // Einfache HTML-Prüfung ohne Abhängigkeiten (kein html-validate nötig).
 // Prüft: Doctype, lang, title, charset, viewport, richtig geschachtelte Tags, doppelte IDs, <img alt>.
-// Aufruf: node .github/scripts/check-html.mjs [Datei ...]   (Standard: web/*.html und extension/popup.html)
-import { readFileSync, readdirSync } from 'node:fs';
+// Aufruf: node .github/scripts/check-html.mjs [Datei ...]   (Standard: web/**/*.html ohne vendor/data/media und extension/popup.html)
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 
 const VOID = new Set('area base br col embed hr img input link meta source track wbr'.split(' '));
 const OPTIONAL_END = new Set('p li dt dd tr td th thead tbody tfoot option optgroup colgroup caption'.split(' '));
@@ -62,12 +62,55 @@ function check(file) {
   if (!hasTitle && !file.endsWith('popup.html')) err(0, '<title> fehlt oder ist leer');
   if (!hasCharset) err(0, '<meta charset> fehlt');
   if (!hasViewport && !file.endsWith('popup.html')) err(0, '<meta name="viewport"> fehlt');
+  errors.push(...links(file, src, ids, err));
   return errors;
 }
 
+// Interne Anker (#id, /seite#id) und lokale Bildpfade (src, srcset, og:image) müssen existieren
+const idCache = new Map();
+function idsOf(f) {
+  if (!idCache.has(f)) idCache.set(f, new Set([...readFileSync(f, 'utf8').matchAll(/\bid\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1])));
+  return idCache.get(f);
+}
+function pageFile(p) { // cleanUrls: /x → web/x.html, / → web/index.html
+  const q = p.replace(/^\//, '').replace(/\/$/, '') || 'index';
+  return [`web/${q}`, `web/${q}.html`].find((x) => existsSync(x) && !x.endsWith('/'));
+}
+function links(file, src, ids, err) {
+  const bare = src.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, (m) => m.replace(/[^\n]/g, ' '));
+  const at = (re, fn) => { for (const m of bare.matchAll(re)) fn(m[1], m.index); };
+    const localErrors = [];
+  const e = (i, msg) => localErrors.push(`${file}:${src.slice(0, i).split('\n').length}: ${msg}`);
+  at(/\bhref\s*=\s*["']([^"']+)["']/gi, (u, i) => {
+    if (/^(https?:|mailto:|tel:|data:|javascript:)/i.test(u)) return;
+    const [path, hash] = [u.split('#')[0].split('?')[0], u.includes('#') ? u.split('#')[1] : ''];
+    if (!path && hash) { if (!ids.has(hash)) e(i, `Anker #${hash} hat kein Ziel auf der Seite`); return; }
+    if (!path.startsWith('/')) return;
+    if (/\.(css|svg|zip|xml|png|ico|txt|sha256)$/.test(path)) return;
+    const pf = pageFile(path);
+    if (!pf) { if (!/^\/(staymatch-plugin|\.well-known)/.test(path)) e(i, `Link ${u}: Seite fehlt in web/`); return; }
+    if (hash && !idsOf(pf).has(hash)) e(i, `Link ${u}: #${hash} fehlt in ${pf}`);
+  });
+  const img = (u, i) => {
+    if (!u || /^(https?:|data:)/i.test(u)) return;
+    const f = u.startsWith('/') ? `web${u.split('?')[0]}` : `${file.replace(/[^/]*$/, '')}${u.split('?')[0]}`;
+    if (!existsSync(f)) e(i, `Bild ${u} fehlt`);
+  };
+  at(/<(?:img|source)\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/gi, img);
+  for (const m of bare.matchAll(/\bsrcset\s*=\s*["']([^"']+)["']/gi)) for (const part of m[1].split(',')) img(part.trim().split(/\s+/)[0], m.index);
+  at(/<meta[^>]*property\s*=\s*["']og:image["'][^>]*content\s*=\s*["']https:\/\/staymatch\.pro(\/[^"']+)["']/gi, (u, i) => img(u, i));
+  return localErrors;
+}
+
+function walk(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+    if (d.isDirectory()) return ['vendor', 'data', 'media'].includes(d.name) ? [] : walk(`${dir}/${d.name}`);
+    return [`${dir}/${d.name}`];
+  });
+}
 const files = process.argv.length > 2
   ? process.argv.slice(2)
-  : [...readdirSync('web').filter((f) => f.endsWith('.html')).map((f) => `web/${f}`), 'extension/popup.html'];
+  : [...walk('web').filter((f) => f.endsWith('.html')), 'extension/popup.html'];
 const errors = files.flatMap(check);
 if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
 console.log(`HTML ok (${files.length} Dateien)`);

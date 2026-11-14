@@ -110,7 +110,7 @@ test('sitemap.xml: jede Adresse hat eine Seite, canonical stimmt', () => {
 
 test('CSP in vercel.json erlaubt alle Overpass-Server aus core.js', () => {
   const v = JSON.parse(fs.readFileSync(path.join(web, 'vercel.json'), 'utf8'));
-  const csp = v.headers.flatMap(h => h.headers).find(h => h.key === 'Content-Security-Policy').value;
+  const csp = v.headers.find(h => h.source === '/app').headers.find(h => h.key === 'Content-Security-Policy').value;
   for (const s of C.OVERPASS_SERVERS) assert.ok(csp.includes(new URL(s).origin), `${s} fehlt in connect-src`);
   assert.ok(csp.includes('https://nominatim.openstreetmap.org'));
 });
