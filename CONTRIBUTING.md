@@ -13,6 +13,10 @@ npm run build     # Plugin-ZIP nach web/staymatch-plugin.zip
 npm run dev       # Web-App auf http://localhost:8765 (Node-Server, setzt die Header aus web/vercel.json)
 ```
 
+Weitere Skripte aus `package.json`: `npm run check:pages` (Stadtseiten, Übersichten und Sitemap sind aktuell), `npm run check:feed` und `npm run feed` (Atom-Feed aus dem CHANGELOG), `npm run build:web` und `npm run check:build` (minifiziertes `dist/`), `npm run data:reprocess` (Städtedaten ohne Abruf neu aufbereiten), `npm run check:size` (Größenbudgets, `.github/scripts/check-size.mjs`).
+
+Tests liegen in `tests/*.test.js`, benannt nach Thema oder Runde (`r8-…`, `r9-…`, `r10-…`, `ext-…` für die Erweiterung). Wichtig für die Daten und Seiten: `city-data.test.js` (Format und Aufbereitung), `r10-areas-extra.test.js` (Ergänzungen, Filter, Datenreduktion), `r10-stadtseiten-ausbau.test.js` (Stadtseiten, Übersichten, Dataset-JSON-LD, Typ-Filter), `r5-stadtseiten.test.js`, `dev-server.test.js` und `infra.test.js` (Header und Weiterleitungen aus `web/vercel.json`).
+
 `npm run check:links` prüft lokale Links. Mit `node .github/scripts/check-links.mjs --online` werden auch externe Links geprüft (CI macht das).
 
 ## Plugin ausprobieren
@@ -32,12 +36,14 @@ npm run dev       # Web-App auf http://localhost:8765 (Node-Server, setzt die He
 
 Die Dateien in `web/data/` (ODbL, siehe [NOTICE](web/data/NOTICE.md)) kommen aus OpenStreetMap. Auffrischen höchstens alle paar Wochen; die Overpass-Server sind freiwillig betrieben, und jeder Lauf vergrößert die Git-Historie um ca. 2 MB.
 
-1. Probelauf ohne Schreiben: `node scripts/prefetch-cities.mjs --dry-run Rom` (eine Stadt, zeigt den Änderungsbericht).
-2. Echter Lauf: `node scripts/prefetch-cities.mjs` (alle Städte aus `scripts/cities.json`, eine nach der anderen mit Pausen) oder einzelne Städte als Argument. Neue Städte landen automatisch in `scripts/cities.json`. Vorhandene Städte behalten Suchfläche und Zentrum ihrer Datei; neu bei Nominatim suchen nur mit `--geocode`. Bricht eine Stadt mit „unter 70 %“ ab, war die Antwort vermutlich unvollständig; erst nach Prüfung mit `--force` wiederholen.
-3. Nur das Format geändert (Filter, Rundung in `scripts/city-data.mjs`)? Dann ohne Abruf: `npm run data:reprocess`.
-4. Stadtseiten neu erzeugen: `node scripts/build-city-pages.mjs`, `web/sitemap.xml` prüfen (neue Stadt → Eintrag ergänzen).
-5. `npm test && npm run check` (enthält `check:data`: Schema, Viertel-Typen, Alter, Brotli-Größe).
-6. PR mit dem Änderungsbericht aus Schritt 2 in der Beschreibung.
+1. Probelauf ohne Schreiben: `node scripts/prefetch-cities.mjs --dry-run Rom` (eine Stadt, zeigt den Änderungsbericht mit Brotli-Größe und der Summe gegen das Budget von 2500 KB).
+2. Echter Lauf: `node scripts/prefetch-cities.mjs` (alle Städte aus `scripts/cities.json`, eine nach der anderen mit Pausen) oder einzelne Städte als Argument. Neue Städte landen automatisch in `scripts/cities.json`. Bei einem Timeout später denselben Befehl für die eine Stadt wiederholen; `--resume` macht nach einem Abbruch weiter.
+3. Neue Städte werden ohne unbenannte Gärten gespeichert (Feld `reduced`, spart Brotli-Budget); `--no-reduce` schaltet das aus. Vorhandene Städte behalten ihr Format.
+4. Viertel ergänzen oder entfernen: `scripts/areas-extra.json` (`add` mit Koordinate, `drop`, `maxKm` für Vororte). Das wirkt beim Abruf und ohne Abruf mit `node scripts/prefetch-cities.mjs --reprocess <stadt>`. Nur Städte nennen, die eine Datei haben, sonst endet der Lauf mit Fehler. Nach dem Eintragen den neuen Namen in der Datei prüfen (der Test `r10-areas-extra` tut das).
+5. Nur das Format geändert (Filter, Rundung in `scripts/city-data.mjs`)? Dann ohne Abruf: `npm run data:reprocess`.
+6. Stadtseiten (`web/staedte/`, `web/en/cities/`), Übersichten (`web/staedte.html`, `web/en/cities.html`) und `web/sitemap.xml` neu erzeugen: `node scripts/build-city-pages.mjs`. Neue Stadt: englischen Namen in `EN` (`scripts/build-city-pages.mjs`), Kachel in `web/index.html` und `web/en.html`, Alias in `web/404.html` und bei Bedarf Weiterleitungen in `web/vercel.json`.
+7. `npm test && npm run check` (enthält `check:data`: Schema, Viertel-Typen, Alter, Brotli-Größe, und `check:pages`: Seiten sind aktuell).
+8. PR mit dem Änderungsbericht aus Schritt 2 in der Beschreibung.
 
 ## Releases (für Betreuende)
 
@@ -63,7 +69,7 @@ Kein Framework, keine Laufzeit-Abhängigkeiten, kein Server, kein Build-Schritt 
 | `shared/` | **Einzige Quelle** für gemeinsamen Code: `core.js` (Kategorien, Typen, Entfernung, Text-Normalisierung, Overpass-/Nominatim-Abfragen, Zeilen dekodieren, Viertel erkennen, Konstanten, Domains) und `i18n.js` (`t(key, vars)`, deutsches Wörterbuch, noch ungenutzt, nur ins Plugin kopiert). |
 | `web/` | Statische Web-App (Vercel lädt nur diesen Ordner hoch). `scoring.js` = Viertel-Bewertung; Viertel-Finder in `app.js`. |
 | `extension/` | Chrome-Erweiterung (MV3, entpackt ladbar). Content-Scripts: `core.js` → `parse.js` → `rank.js` → `content-common.js` → `content-search.js` → `content-listing.js`. |
-| `scripts/` | `sync-core.mjs`, `prefetch-cities.mjs` + `city-data.mjs` + `check-data.mjs` (Städtedaten), `build-city-pages.mjs` (Stadtseiten), ZIP-Bau, Deploy. |
+| `scripts/` | `sync-core.mjs`, `prefetch-cities.mjs` + `city-data.mjs` + `areas-extra.json` + `check-data.mjs` (Städtedaten), `build-city-pages.mjs` (Stadtseiten DE/EN, Übersichten, Sitemap), `build-web.mjs` (minifiziertes `dist/`), `build-feed.mjs` (Atom-Feed), `dev-server.mjs`, ZIP-Bau, Deploy. |
 | `tests/` | `node --test tests/*.test.js` |
 
 Regeln:
