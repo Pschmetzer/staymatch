@@ -97,3 +97,23 @@ export function centreFor(bbox, hit) {
   const lon = Math.abs(e - w - 2 * hl) < 1e-4 ? (w + e) / 2 : hit[1];
   return [lat, lon];
 }
+
+// Overpass-Abfrage mit Tabulator statt „|“ als Trenner: Namen mit „|“ gehen so nicht mehr verloren.
+// Gleiche Abfrage wie shared/core.js (overpassQuery), nur der Trenner ist ausgetauscht.
+export function overpassQueryTab(bbox) {
+  const q = C.overpassQuery(bbox);
+  if (!q.includes(';true;"|")')) throw new Error('overpassQuery: Trenner „|“ nicht gefunden, Abfrage geändert?');
+  return q.replace(';true;"|")', ';true;"\t")');
+}
+
+// Gegenstück zu parseOverpassCsv (core.js) für tabulatorgetrennte Antworten. Zeilen mit falscher Spaltenzahl werden gezählt.
+export function parseOverpassTsv(text) {
+  const rows = []; let dropped = 0;
+  for (const line of String(text).split('\n').slice(1)) {
+    if (!line) continue;
+    const v = line.split('\t');
+    if (v.length !== C.FIELDS.length) { dropped++; continue; }
+    rows.push(v.map(C.unquoteCsv));
+  }
+  return { rows, dropped };
+}

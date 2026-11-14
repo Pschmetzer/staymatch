@@ -6,10 +6,17 @@ import { brotliCompressSync, constants } from 'node:zlib';
 import { createRequire } from 'node:module';
 import { VERSION, MIN_ROWS, BBOX_MARGIN, NAME_WARN, LICENSE, queryHash } from './city-data.mjs';
 
-const C = createRequire(import.meta.url)('../shared/core.js');
+const require = createRequire(import.meta.url);
+const C = require('../shared/core.js');
+require('../web/scoring.js');
+const SM = globalThis.StayMatch;
 const DIR = new URL('../web/data/', import.meta.url);
 const DAY = 864e5, WARN_DAYS = 90, MAX_DAYS = 180;
 // Brotli-Budget (Qualität 5 wie bei dynamischer Kompression; ausgeliefert wird eher kleiner)
+// Plausibilität der Inhalte (Warnung/Fehler): unbenannte Gärten/Spielplätze, Viertel mit zu wenigen Orten, Namensdubletten
+const UNNAMED_WARN = 0.98, UNNAMED_ERR = 0.999; // Anteil unbenannter garden/playground (Stand 11/2026: Amsterdam 99,3 % der Gärten)
+const THIN_WARN = 0.1, THIN_ERR = 0.4, THIN_MIN = 10; // Anteil Viertel mit weniger als 10 Orten (Rom 20 %, Budapest 12 %)
+const DUP_WARN = 6, DUP_ERR_SHARE = 0.1; // Namen, die nach norm() mehrfach als Viertel vorkommen
 const BR_EACH = 400_000, BR_TOTAL = 2_500_000; // seit Spalte shop (Nov. 2026): Paris ca. 343 KB
 
 const errors = [], warnings = [];
@@ -24,7 +31,8 @@ for (const [a, f] of Object.entries(index)) {
   if (C.normCity(a) !== a) errors.push(`index.json: Alias „${a}“ nicht in normCity-Form`);
   if (!files.includes(f)) errors.push(`index.json: ${a} → ${f} fehlt`);
 }
-for (const [k, aliases] of Object.entries(list)) for (const a of aliases) if (index[a] !== `${k}.json`) errors.push(`cities.json: Alias „${a}“ fehlt im Index (node scripts/prefetch-cities.mjs --reprocess)`);
+// Städte in cities.json ohne Datei sind vorgemerkt (noch nicht geholt): kein Indexeintrag nötig, aber der Schlüssel muss zur Datei-Benennung passen
+for (const [k, aliases] of Object.entries(list)) if (files.includes(`${k}.json`)) for (const a of aliases) if (index[a] !== `${k}.json`) errors.push(`cities.json: Alias „${a}“ fehlt im Index (node scripts/prefetch-cities.mjs --reprocess)`);
 
 for (const f of files) {
   const buf = readFileSync(new URL(f, DIR));
@@ -63,6 +71,27 @@ for (const f of files) {
   if (badName) err(`${badName} Namen mit Rand- oder Mehrfach-Leerzeichen`);
   if (long) warn(`${long} Namen über ${NAME_WARN} Zeichen`);
   if (areas < 2) err('weniger als 2 Viertel');
+  // Inhaltliche Plausibilität (dieselbe Aufbereitung wie die Stadtseiten und die App)
+  const tags = C.rowsToTags(d.fields, d.rows);
+  for (const [key, label] of [['garden', 'Gärten'], ['playground', 'Spielplätze']]) {
+    const all = tags.filter(t => t.leisure === key), unnamed = all.filter(t => !t.name).length;
+    if (all.length >= 50) {
+      const share = unnamed / all.length, m = `${unnamed} von ${all.length} ${label} ohne Namen (${(share * 100).toFixed(1)} %)`;
+      if (share > UNNAMED_ERR) err(m + ', über ' + UNNAMED_ERR * 100 + ' %'); else if (share > UNNAMED_WARN) warn(m);
+    }
+  }
+  const split = C.splitRows(tags, SM.categoriesOf), pois = SM.dedupePois(split.raw);
+  SM.scoreAreas(split.areas, pois, C.RADIUS.area);
+  const thin = split.areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) < THIN_MIN).length, thinShare = thin / (split.areas.length || 1);
+  const tm = `${thin} von ${split.areas.length} Vierteln mit weniger als ${THIN_MIN} Orten (${(thinShare * 100).toFixed(0)} %)`;
+  if (thinShare > THIN_ERR) err(tm); else if (thinShare > THIN_WARN) warn(tm);
+  const byNorm = {};
+  for (const a of split.areas) (byNorm[C.norm(a.name)] ||= []).push(a.name);
+  const dups = Object.values(byNorm).filter(v => v.length > 1);
+  if (dups.length) {
+    const dm = `${dups.length} Viertelnamen doppelt nach norm() (z. B. ${dups.slice(0, 3).map(v => v.join(' / ')).join('; ')})`;
+    if (dups.length > split.areas.length * DUP_ERR_SHARE) err(dm); else if (dups.length >= DUP_WARN) warn(dm);
+  }
 }
 if (brTotal > BR_TOTAL) errors.push(`web/data zusammen ${brTotal} Bytes Brotli > ${BR_TOTAL}`);
 
