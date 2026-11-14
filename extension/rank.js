@@ -329,7 +329,14 @@
     const wish = wishScore(l, ctx.wishes, ctx);
     const area = areaFor(l, ctx.areas);
     const budget = effectiveBudget(ctx);
-    const total = tripTotal(l, ctx.nights);
+    // Gesamtpreis aus dem Nachtpreis: Nächte der Suche × Nachtpreis, dazu der Gebührenanteil, den andere Karten dieser Seite zeigen (Median).
+    // Die Annahme steht sichtbar in info/assumption; ohne Gebührenwerte der Seite bleibt es bei Nächte × Preis.
+    const total0 = tripTotal(l, ctx.nights);
+    const estimate = total0 != null && !l.isTotal && l.allTotal == null && ctx.feeMedian ? total0 / (1 - ctx.feeMedian) : null;
+    const total = estimate ?? total0;
+    const assumption = total0 != null && !l.isTotal && l.totalPrice != null
+      ? `Gesamtpreis berechnet: ${ctx.nights} ${ctx.nights === 1 ? 'Nacht' : 'Nächte'} laut Suche × ${money(l.totalPrice, l.currency)}${estimate != null ? ` plus etwa ${Math.round(ctx.feeMedian * 100)} % Gebühren (Median der Karten dieser Seite mit Gebührenangabe)` : ', ohne Gebühren (auf dieser Seite sind keine Gebühren ablesbar)'}`
+      : null;
     // R5-100: Budget und Preis nur vergleichen, wenn die Währung stimmt. R5-92: nicht bei flexiblen Daten / Monatsmiete.
     const curMismatch = !!(ctx.budgetCurrency && l.currency && normCur(l.currency) !== normCur(ctx.budgetCurrency));
     const priceBlocked = curMismatch || !!ctx.priceUnsure || !!l.priceImplausible;
@@ -384,7 +391,7 @@
       // R7: ohne gelesene Währung keine erfundene „€“-Angabe
       const M = v => money(v, l.currency), pp = people > 1 && total != null ? Math.round(total / people) : null;
       const unsure = l.multiUnit ? ' (ab-Preis, je nach Wohnung)' : '';
-      const nightLabel = `${M(l.totalPrice)} pro Nacht${total != null ? ` (${M(Math.round(total))} gesamt)` : ''}`;
+      const nightLabel = `${M(l.totalPrice)} pro Nacht${total != null ? ` (${estimate != null ? '≈ ' : ''}${M(Math.round(total))} gesamt)` : ''}`;
       if (parts.price != null) {
         const ok = parts.price >= 0.75;
         const label = l.isTotal ? `${M(l.totalPrice)} gesamt` : nightLabel;
@@ -436,6 +443,7 @@
     else if (fees != null && fees >= 0.25) warn.push(`Gebühren machen ${Math.round(fees * 100)} % des Gesamtpreises aus`);
     if (ctx.ratingMedian && l.rating != null && (l.reviewCount || 0) >= 5 && l.rating < ctx.ratingMedian - 0.1) info.push(`⭐ ${sepNum(l.rating, 2)} liegt unter dem Seitenmedian ${sepNum(ctx.ratingMedian, 2)}`);
     if (people === 2 && l.bedKinds && !l.bedKinds.double && (l.bedKinds.single || 0) >= 2) { warn.push('Nur Einzelbetten angegeben, kein Doppelbett'); short.warn.push('Einzelbetten'); }
+    if (assumption) info.push(assumption);
     if (ctx.seen?.has(l.id)) info.push('schon angesehen');
     if (disliked) warn.push('von dir mit 👎 markiert');
     if (pe.mismatch) warn.push(`Airbnb zeigt ${pe.mismatch.airbnb} Gäste, in deiner Reise stehen ${pe.mismatch.trip}: bewertet mit ${pe.mismatch.airbnb}`);
@@ -456,7 +464,7 @@
     const night = perNight(l, ctx.nights);
     const ppn = { night: night == null ? null : Math.round(night), person: night != null && people > 1 ? Math.round(night / people) : null };
     return {
-      score, parts, area, why, warn, info, ppn, stay: total == null ? null : Math.round(total),
+      score, parts, area, why, warn, info, ppn, stay: total == null ? null : Math.round(total), stayEstimated: estimate != null, assumption,
       disliked, unsuitable, unsuitableReasons, badgeReason,
       breakdown, adjust, people, peopleMismatch: pe.mismatch,
       // Datenlage: auf wie vielen Teilen der Passt-Wert beruht (eine Person: Betten zählen nicht mit)
@@ -488,7 +496,10 @@
     // R7: Bayes-Prior aus dem Notenmedian der Seite (ab 5 Noten, begrenzt auf 4,4–4,9)
     const ratings = norm.map(l => l.rating).filter(v => v != null && isFinite(v));
     const ratingPrior = ctx.ratingPrior ?? (ratings.length >= 5 ? Math.max(4.4, Math.min(4.9, median(ratings))) : 4.6);
-    const ctx2 = { ...ctx, medianNight, ratingPrior, ratingMedian: ratings.length >= 5 ? median(ratings) : null };
+    // Gebührenanteil der Seite: Median über Karten, die Nacht- und Gesamtpreis zeigen (ab 3 Karten)
+    const fs = ctx.nights ? norm.map(l => feeShareOf(l, ctx.nights)).filter(v => v != null) : [];
+    const feeMedian = ctx.feeMedian ?? (fs.length >= 3 ? median(fs) : null);
+    const ctx2 = { ...ctx, feeMedian, medianNight, ratingPrior, ratingMedian: ratings.length >= 5 ? median(ratings) : null };
     // R7: Gleichstand: mit Wunsch „Luxus“ die luxuriösere, sonst die günstigere zuerst (unbekannter Preis zuletzt)
     const wantsLux = (ctx.wishes || []).includes('luxury');
     const pn = l => { const v = perNight(l, ctx.nights); return v == null ? Infinity : v; };
