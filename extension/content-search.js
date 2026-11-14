@@ -115,7 +115,7 @@
     if (now && !paused && !log.some(e => e.path === now.path && e.ci === now.ci && e.nights === now.nights)) chrome.storage.local.set({ priceLog: [...log, now].slice(-60) }).catch?.(() => {});
     const booked = items.filter(i => i.booked && sp.checkin && i.booked.checkin === sp.checkin);
     const lastYear = X && anchor ? X.lastYear(items.filter(i => i.booked && i.booked.checkin !== sp.checkin), location.pathname, anchor.median, anchor.currency) : null;
-    lastView = { since, ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear };
+    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear };
     // R7 E: Seiten-Auswertung einmal je Suche rechnen (nicht bei jedem Chip-Klick)
     const top0 = currentTop();
     lastView.insights = X ? X.pageInsights(ranked.filter(l => !l.rank.disliked), top0, ctx, { pool, history, lastYear, listings: listings.length <= 300 ? listings : null }) : [];
@@ -255,6 +255,7 @@
           l.rank.luxury?.state === true ? h('span', { class: 'lux', title: l.rank.luxury.words.join(', ') }, `✨ Luxus${l.rank.luxury.words[0] ? ' · ' + l.rank.luxury.words[0] : ''}`) : null),
         h('div', { class: 'meta' },
           h('a', { class: 'name', href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener' }, l.title || l.kind),
+          h('button', { 'aria-label': `${l.title || l.kind} auf der Seite zeigen`, title: 'Karte auf der Airbnb-Seite zeigen', onclick: () => showOnPage(l.id) }, '📍'),
           l.rating != null ? h('span', { class: 'stars' }, `★ ${String(l.rating).replace('.', ',')}${l.reviewCount ? ` (${l.reviewCount})` : ''}`) : null),
         h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · ')),
         l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, M(l.totalPrice, l)), l.isTotal ? ' gesamt' : ' pro Nacht', l.rank.ppn?.person ? ` · ${M(l.rank.ppn.person, l)} p. P./Nacht` : '', l.discounted ? ' · Rabatt' : '') : null,
@@ -274,16 +275,28 @@
   }
 
   // Punkte direkt an den Karten (abschaltbar im Popup). Markiert, damit der MutationObserver sie ignoriert.
+  // Klick im Panel: zur Karte auf der Airbnb-Seite scrollen (kurz blinken, ohne Bewegung bei „weniger Bewegung“)
+  function showOnPage(id) {
+    for (const card of document.querySelectorAll('[data-testid="card-container"]')) {
+      if (card.querySelector('a[href*="/rooms/"]')?.getAttribute('href')?.match(P.ROOM_RE)?.[1] !== id) continue;
+      const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      card.scrollIntoView?.({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
+      card.style.boxShadow = '0 0 0 6px rgba(224,71,91,.45)'; setTimeout(() => { card.style.boxShadow = ''; }, 1600);
+      return true;
+    }
+    return false;
+  }
   function applyBadges() {
     if (!lastView) return;
     const byId = new Map(lastView.ranked.map(l => [l.id, l]));
     const t = lastView.trip || {};
+    const topIds = new Set(currentTop().map(l => l.id)), seenIds = lastView.seenIds || new Set();
     const privateNames = [...(t.people || []).map(p => p?.name), ...(t.areas || []).map(a => a?.minName)].filter(n => typeof n === 'string' && n.trim().length >= 2).map(n => n.trim());
     for (const card of document.querySelectorAll('[data-testid="card-container"]')) {
       const id = card.querySelector('a[href*="/rooms/"]')?.getAttribute('href')?.match(P.ROOM_RE)?.[1];
       const l = id && byId.get(id);
       let b = card.querySelector('[data-staymatch-badge]');
-      if (!l || !settings.showBadges) { b?.remove(); card.style.opacity = ''; continue; } // R7: Abdunkeln auch ohne Wertung zurücksetzen
+      if (!l || !settings.showBadges) { b?.remove(); card.style.opacity = ''; card.style.outline = ''; continue; } // R7: Abdunkeln auch ohne Wertung zurücksetzen
       if (!b) {
         b = h('div', { 'data-staymatch-badge': '1', 'data-staymatch': '1' });
         if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
@@ -297,6 +310,12 @@
       b.textContent = settings.scoreOnly ? String(s) : `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;
       // R7: Airbnbs Skripte können das title-Attribut lesen: keine Namen der Mitreisenden hinein
       b.title = settings.scoreOnly ? '' : [...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
+      // Top-3 hervorgehoben, „schon angesehen“ (du hast die Unterkunftsseite geöffnet) als Zusatz an der Plakette
+      const rank = [...topIds].indexOf(l.id);
+      card.style.outline = rank >= 0 && !settings.scoreOnly ? '3px solid #e0475b' : '';
+      card.style.outlineOffset = rank >= 0 ? '-3px' : '';
+      if (rank >= 0) b.textContent = `Top ${rank + 1} · ` + b.textContent;
+      if (seenIds.has(l.id) && !settings.scoreOnly) b.textContent += ' · 👁 schon angesehen';
       card.style.opacity = l.rank.disliked ? '0.45' : !passes(l) ? '0.35' : '';
     }
     // R7 E: Blindverkostung: Fotos aller Karten ausblenden (rückgängig, wenn abgeschaltet)
