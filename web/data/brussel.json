@@ -1,4 +1,4 @@
-{"v":1,"t":1794665774505,"city":"Bruxelles - Brussel","center":[50.8551,4.35109],"bbox":[50.796345,4.287729,50.913905,4.437066],"fields":["lat","lon","place","name","amenity","leisure","tourism","historic","natural","railway","public_transport","shop","wikidata"],"license":"ODbL-1.0","attribution":"© OpenStreetMap-Mitwirkende","source":"overpass-api.de","ms":38898,"queryHash":"b3cba37727d9","reduced":["unnamedGarden"],"rows":[
+{"v":1,"t":1794665774505,"city":"Brüssel","center":[50.8551,4.35109],"bbox":[50.796345,4.287729,50.913905,4.437066],"fields":["lat","lon","place","name","amenity","leisure","tourism","historic","natural","railway","public_transport","shop","wikidata"],"license":"ODbL-1.0","attribution":"© OpenStreetMap-Mitwirkende","source":"overpass-api.de","ms":38898,"queryHash":"b3cba37727d9","reduced":["unnamedGarden"],"rows":[
 [50.8049,4.28917,"","McDonald's","fast_food","","","","","","","",""],
 [50.80517,4.29211,"","HEMA","","","","","","","","department_store",""],
 [50.8018,4.28815,"","Domino's","fast_food","","","","","","","",""],

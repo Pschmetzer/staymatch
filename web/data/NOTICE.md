@@ -39,7 +39,7 @@ Die Stadtseiten filtern wie die App: Viertel mit weniger als 10 Orten im Umkreis
 | Barcelona | `barcelona.json` | 2026-11-13 | 16484 |
 | Berlin | `berlin.json` | 2026-11-13 | 20573 |
 | Bologna | `bologna.json` | 2026-11-14 | 3165 |
-| Bruxelles - Brussel | `brussel.json` | 2026-11-14 | 7115 |
+| Brüssel | `brussel.json` | 2026-11-14 | 7115 |
 | Budapest | `budapest.json` | 2026-11-13 | 9324 |
 | Lissabon | `lissabon.json` | 2026-11-13 | 7885 |
 | Madrid | `madrid.json` | 2026-11-13 | 26980 |
