@@ -64,7 +64,13 @@
         "https://*/account-settings/*",
         "https://*/hosting/*",
         "https://*/messaging/*",
-        "https://*/payments/*"
+        "https://*/payments/*",
+        "https://*/login*",
+        "https://*/signup*",
+        "https://*/account/*",
+        "https://*/account",
+        "https://*/reservation*",
+        "https://*/trips*"
       ],
       "js": [
         "core.js",
