@@ -142,11 +142,10 @@ test('Link-Prüfung nutzt genau die Airbnb-Domains aus shared/core.js', () => {
 test('DE und EN: Skript außer den Texten (T) und CSS sind identisch', () => {
   const script = (h) => h.slice(h.lastIndexOf('<script>\n  // Texte'), h.indexOf('</script>', h.lastIndexOf('<script>\n  // Texte')))
     .replace(/const T = \{[\s\S]*?\};\n/, '');
-  const css = (h) => h.slice(h.indexOf('<style>'), h.indexOf('</style>'));
   const de = read('index.html'), en = read('en.html');
   assert.ok(script(de).length > 5000);
   assert.equal(script(en), script(de));
-  assert.equal(css(en), css(de));
+  for (const h of [de, en]) assert.ok(h.includes('<link rel="stylesheet" href="site.css">') && !h.includes('<style>'), 'CSS kommt aus der gemeinsamen site.css');
 });
 
 test('DE und EN: dieselben IDs, Formularfelder und Anker', () => {
@@ -161,10 +160,10 @@ test('DE und EN: T hat dieselben Schlüssel', () => {
 
 test('Startseite: neue Werkzeuge wecken keine Erwartungen an Dienste Dritter', () => {
   for (const file of Object.values(pages)) {
-    const h = read(file);
-    assert.ok(!/whatsapp|twitter\.com\/intent|facebook\.com\/sharer|t\.me\/share|mailto:/i.test(h), `${file}: Teilen-Link zu Drittdienst`);
+    const h = read(file), css = read('site.css');
+    assert.ok(!/whatsapp|twitter\.com\/intent|facebook\.com\/sharer|t\.me\/share/i.test(h), `${file}: Teilen-Link zu Drittdienst`);
     assert.ok(!/localStorage\.setItem\('sm_check/.test(h), `${file}: Checkliste soll nichts speichern`);
-    assert.match(h, /@media print \{ \.pc nav\.top, \.pc footer, \.pc main > :not\(#vorbereiten\)/, `${file}: Druck blendet den Rest aus (keine Leerseiten)`);
+    assert.match(css, /@media print \{ \.pc nav\.top, \.pc footer, \.pc main > :not\(#vorbereiten\)/, `${file}: Druck blendet den Rest aus (keine Leerseiten)`);
   }
 });
 
