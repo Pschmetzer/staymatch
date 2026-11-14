@@ -287,6 +287,20 @@
 
   const median = a => { const x = a.filter(v => v != null && isFinite(v)).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
 
+  // Preis von Hand korrigieren oder ausschließen (fixes: { 'id|anreise|abreise': { price } | { exclude: true } }). Nur Nachtpreise, höchstens 200 Einträge.
+  function applyPriceFixes(listings, fixes, scope = '') {
+    if (!fixes || typeof fixes !== 'object') return listings;
+    return listings.map(l => {
+      const k = `${l.id}|${scope}`, f = Object.prototype.hasOwnProperty.call(fixes, k) ? fixes[k] : null;
+      if (!f || typeof f !== 'object') return l;
+      if (f.exclude) return { ...l, priceImplausible: true, priceExcluded: true };
+      const p = Number(f.price);
+      if (!Number.isFinite(p) || p <= 0) return l;
+      const { nightPrice, allTotal, unitGuessed, priceStale, multiUnit, ...rest } = l;
+      return { ...rest, totalPrice: p, isTotal: false, priceWord: true, priceFixed: true, priceImplausible: false, discounted: false };
+    });
+  }
+
   // R5-83 / R5-110: Einheit und Plausibilität gegen den Median der Seite prüfen.
   // Fehlt in der Preiszeile jedes Wort für „gesamt“ / „pro Nacht“ (priceWord === false), wird sie als Nachtpreis
   // geraten. Liegt der Betrag aber etwa bei Nächte × Median, ist es wohl ein Gesamtpreis.
@@ -296,7 +310,7 @@
     const per = l => (l.totalPrice == null ? null : l.isTotal ? (nights ? l.totalPrice / nights : null) : l.totalPrice);
     const byCur = {};
     for (const l of listings) {
-      if (l.priceWord === false) continue; // unsichere Einheit zählt nicht für den Median
+      if (l.priceWord === false || l.priceExcluded) continue; // unsichere Einheit zählt nicht für den Median
       const v = per(l); if (v == null) continue;
       (byCur[normCur(l.currency) || '€'] ||= []).push(v);
     }
@@ -304,13 +318,20 @@
     for (const [c, v] of Object.entries(byCur)) if (v.length >= 3) med[c] = median(v);
     return listings.map(l => {
       const m = med[normCur(l.currency) || '€'];
-      if (!m || l.totalPrice == null) return l;
+      if (!m || l.totalPrice == null || l.priceFixed || l.priceExcluded) return l; // von Hand gesetzt: nichts raten
       let out = l;
       if (l.priceWord === false && !l.isTotal && nights >= 2 && l.totalPrice >= m * nights * 0.6 && l.totalPrice >= m * 1.8) out = { ...out, isTotal: true, unitGuessed: true };
       const v = per(out);
       if (v != null && v < m * 0.2) out = { ...out, priceImplausible: true };
       return out;
     });
+  }
+
+  // Eigene Gewichte: nur bekannte Teile, endliche Zahlen, begrenzt auf 0,25 bis 3 (1 = unverändert)
+  function cleanTweak(t) {
+    const out = {};
+    if (t && typeof t === 'object') for (const k of Object.keys(WEIGHTS)) { const f = Number(t[k]); if (Number.isFinite(f) && f !== 1) out[k] = Math.max(0.25, Math.min(3, f)); }
+    return out;
   }
 
   // ctx: { people, adults?, budget, budgetPerNight?, tripNights?, nights, areas, taste, seen, disliked, wishes? }
@@ -322,7 +343,14 @@
     const wish = wishScore(l, ctx.wishes, ctx);
     const area = areaFor(l, ctx.areas);
     const budget = effectiveBudget(ctx);
-    const total = tripTotal(l, ctx.nights);
+    // Gesamtpreis aus dem Nachtpreis: Nächte der Suche × Nachtpreis, dazu der Gebührenanteil, den andere Karten dieser Seite zeigen (Median).
+    // Die Annahme steht sichtbar in info/assumption; ohne Gebührenwerte der Seite bleibt es bei Nächte × Preis.
+    const total0 = tripTotal(l, ctx.nights);
+    const estimate = total0 != null && !l.isTotal && l.allTotal == null && ctx.feeMedian ? total0 / (1 - ctx.feeMedian) : null;
+    const total = estimate ?? total0;
+    const assumption = total0 != null && !l.isTotal && l.totalPrice != null
+      ? `Gesamtpreis berechnet: ${ctx.nights} ${ctx.nights === 1 ? 'Nacht' : 'Nächte'} laut Suche × ${money(l.totalPrice, l.currency)}${estimate != null ? ` plus etwa ${Math.round(ctx.feeMedian * 100)} % Gebühren (Median der Karten dieser Seite mit Gebührenangabe)` : ', ohne Gebühren (auf dieser Seite sind keine Gebühren ablesbar)'}`
+      : null;
     // R5-100: Budget und Preis nur vergleichen, wenn die Währung stimmt. R5-92: nicht bei flexiblen Daten / Monatsmiete.
     const curMismatch = !!(ctx.budgetCurrency && l.currency && normCur(l.currency) !== normCur(ctx.budgetCurrency));
     const priceBlocked = curMismatch || !!ctx.priceUnsure || !!l.priceImplausible;
@@ -337,7 +365,8 @@
     };
     const weights = weightsFor(people, ctx.wishes);
     // R7 E: Stabilitätsprüfung rechnet mit leicht geänderten Gewichten
-    if (ctx.weightTweak) for (const [k, f] of Object.entries(ctx.weightTweak)) if (weights[k] != null) weights[k] *= f;
+    // und mit den Reglern aus dem Panel (ctx.weightTweak, je Teil 0,25 bis 3)
+    for (const [k, f] of Object.entries(cleanTweak(ctx.weightTweak))) if (weights[k] != null) weights[k] *= f;
     // fehlende Teile weglassen und Gewichte neu verteilen
     let s = 0, w = 0;
     for (const [k, v] of Object.entries(parts)) if (v != null) { s += v * weights[k]; w += weights[k]; }
@@ -376,7 +405,7 @@
       // R7: ohne gelesene Währung keine erfundene „€“-Angabe
       const M = v => money(v, l.currency), pp = people > 1 && total != null ? Math.round(total / people) : null;
       const unsure = l.multiUnit ? ' (ab-Preis, je nach Wohnung)' : '';
-      const nightLabel = `${M(l.totalPrice)} pro Nacht${total != null ? ` (${M(Math.round(total))} gesamt)` : ''}`;
+      const nightLabel = `${M(l.totalPrice)} pro Nacht${total != null ? ` (${estimate != null ? '≈ ' : ''}${M(Math.round(total))} gesamt)` : ''}`;
       if (parts.price != null) {
         const ok = parts.price >= 0.75;
         const label = l.isTotal ? `${M(l.totalPrice)} gesamt` : nightLabel;
@@ -393,7 +422,9 @@
       }
       if (curMismatch) warn.push(`Preis in ${l.currency}, Budget in ${ctx.budgetCurrency}: Preis nicht bewertet`);
       if (ctx.priceUnsure) warn.push('Flexible Daten oder Monatsmiete: Preis nicht bewertet');
-      if (l.priceImplausible) warn.push('Preis auffällig niedrig, vermutlich falsch gelesen: nicht bewertet');
+      if (l.priceExcluded) warn.push('Preis von dir ausgeschlossen: nicht bewertet');
+      else if (l.priceImplausible) warn.push('Preis auffällig niedrig, vermutlich falsch gelesen: nicht bewertet');
+      if (l.priceFixed) info.push(`Preis von dir korrigiert: ${money(l.totalPrice, l.currency)} pro Nacht`);
       if (l.unitGuessed) warn.push('Einheit des Preises geraten: als Gesamtpreis gedeutet');
       if (l.priceStale) warn.push('Preis aus den Seitendaten, kann nach Datumswechsel veraltet sein');
       if (l.multiUnit) warn.push('Mehrere Unterkünfte im Angebot: Preis ist ein „ab“-Preis und kann höher sein');
@@ -428,6 +459,7 @@
     else if (fees != null && fees >= 0.25) warn.push(`Gebühren machen ${Math.round(fees * 100)} % des Gesamtpreises aus`);
     if (ctx.ratingMedian && l.rating != null && (l.reviewCount || 0) >= 5 && l.rating < ctx.ratingMedian - 0.1) info.push(`⭐ ${sepNum(l.rating, 2)} liegt unter dem Seitenmedian ${sepNum(ctx.ratingMedian, 2)}`);
     if (people === 2 && l.bedKinds && !l.bedKinds.double && (l.bedKinds.single || 0) >= 2) { warn.push('Nur Einzelbetten angegeben, kein Doppelbett'); short.warn.push('Einzelbetten'); }
+    if (assumption) info.push(assumption);
     if (ctx.seen?.has(l.id)) info.push('schon angesehen');
     if (disliked) warn.push('von dir mit 👎 markiert');
     if (pe.mismatch) warn.push(`Airbnb zeigt ${pe.mismatch.airbnb} Gäste, in deiner Reise stehen ${pe.mismatch.trip}: bewertet mit ${pe.mismatch.airbnb}`);
@@ -448,9 +480,11 @@
     const night = perNight(l, ctx.nights);
     const ppn = { night: night == null ? null : Math.round(night), person: night != null && people > 1 ? Math.round(night / people) : null };
     return {
-      score, parts, area, why, warn, info, ppn, stay: total == null ? null : Math.round(total),
+      score, parts, area, why, warn, info, ppn, stay: total == null ? null : Math.round(total), stayEstimated: estimate != null, assumption,
       disliked, unsuitable, unsuitableReasons, badgeReason,
       breakdown, adjust, people, peopleMismatch: pe.mismatch,
+      // Datenlage: auf wie vielen Teilen der Passt-Wert beruht (eine Person: Betten zählen nicht mit)
+      coverage: { have: breakdown.length, of: solo ? 5 : 6 },
       budgetKnown: !!(budget || ctx.budgetPerNight), tripTotal: total, priceUncertain: !!l.multiUnit, feeShare: fees,
     };
   }
@@ -478,7 +512,10 @@
     // R7: Bayes-Prior aus dem Notenmedian der Seite (ab 5 Noten, begrenzt auf 4,4–4,9)
     const ratings = norm.map(l => l.rating).filter(v => v != null && isFinite(v));
     const ratingPrior = ctx.ratingPrior ?? (ratings.length >= 5 ? Math.max(4.4, Math.min(4.9, median(ratings))) : 4.6);
-    const ctx2 = { ...ctx, medianNight, ratingPrior, ratingMedian: ratings.length >= 5 ? median(ratings) : null };
+    // Gebührenanteil der Seite: Median über Karten, die Nacht- und Gesamtpreis zeigen (ab 3 Karten)
+    const fs = ctx.nights ? norm.map(l => feeShareOf(l, ctx.nights)).filter(v => v != null) : [];
+    const feeMedian = ctx.feeMedian ?? (fs.length >= 3 ? median(fs) : null);
+    const ctx2 = { ...ctx, feeMedian, medianNight, ratingPrior, ratingMedian: ratings.length >= 5 ? median(ratings) : null };
     // R7: Gleichstand: mit Wunsch „Luxus“ die luxuriösere, sonst die günstigere zuerst (unbekannter Preis zuletzt)
     const wantsLux = (ctx.wishes || []).includes('luxury');
     const pn = l => { const v = perNight(l, ctx.nights); return v == null ? Infinity : v; };
@@ -509,13 +546,18 @@
     const rows = [
       ['Passt-Wert', l => `${l.rank.score}/100`],
       ['Viertel', l => l.rank.area ? `${l.rank.area.name} (${l.rank.area.total})` : (l.locality || '–')],
-      ['Gesamtpreis', l => l.rank.stay == null ? '–' : money(l.rank.stay, l.currency)],
+      ['Gesamtpreis', l => l.rank.stay == null ? '–' : `${l.rank.stayEstimated ? '≈ ' : ''}${money(l.rank.stay, l.currency)}`],
       ['pro Nacht', l => l.rank.ppn?.night == null ? '–' : money(l.rank.ppn.night, l.currency)],
       ...(ctx.people > 1 ? [['pro Person/Nacht', l => l.rank.ppn?.person == null ? '–' : money(l.rank.ppn.person, l.currency)]] : []),
       ['Sterne', l => l.rating == null ? 'neu' : `${String(l.rating).replace('.', ',')} (${l.reviewCount || 0})`],
       ['Betten', l => fmt(l.beds)],
+      ['Bäder', l => l.baths == null ? '–' : String(l.baths).replace('.', ',')],
       ['Schlafzimmer', l => fmt(l.bedrooms)],
       ...(ctx.people > 2 ? [['pro Schlafplatz', l => { const n = realSleeps(l); return n && l.rank.stay != null ? money(l.rank.stay / n, l.currency) : '–'; }]] : []),
+      // Storno kennt StayMatch nur nach einem Besuch der Unterkunftsseite
+      ['Storno-Art', l => { const c = ctx.known?.get?.(l.id)?.cancellation; return !c || !c.kind ? '–' : c.kind === 'free' ? `kostenlos${c.until ? ' bis ' + c.until : ''}` : c.kind === 'nonrefundable' ? 'nicht erstattbar' : 'streng'; }],
+      ['Abstand zum Viertelzentrum', l => l.rank.area?.dist == null ? '–' : l.rank.area.dist >= 1000 ? `${(l.rank.area.dist / 1000).toFixed(1).replace('.', ',')} km` : `${l.rank.area.dist} m`],
+      ['Wunschliste', l => l.wishlisted === true ? '♥ ja' : l.wishlisted === false ? 'nein' : '–'], // Herz auf der Karte, nur gelesen
       ['Auszeichnung', l => (l.badges || []).join(', ') || '–'], // R7: „Gäste-Favorit“ ist keine Gastgeber-Eigenschaft
       ['Warnungen', l => l.rank.warn.length ? String(l.rank.warn.length) + ': ' + l.rank.warn.slice(0, 2).join('; ') : 'keine'],
     ];
@@ -569,7 +611,7 @@
   }
 
   root.StayMatchRank = {
-    rankListings, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
+    rankListings, cleanTweak, applyPriceFixes, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
     weightsFor, buildTaste, effectiveBudget, feeShareOf, realSleeps, decisionQuestions, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur, money, isTrusted,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

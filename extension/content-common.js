@@ -81,6 +81,7 @@
   function h(tag, attrs = {}, ...kids) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue; // null heißt „Attribut weglassen“ (sonst würde disabled="null" gelten)
       if (k === 'style') e.style.cssText = v; else if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v);
     }
     for (const k of kids.flat(Infinity)) if (k != null) e.append(k instanceof Node ? k : String(k));
@@ -181,6 +182,7 @@
     .box.dark { --bg: #1e1e22; --fg: #f2f2f4; --muted: #a0a0a8; --line: #34343a; }
     .box.left { right: auto; left: 16px; }
     .box.wide { width: min(560px, calc(100vw - 32px)); }
+    .cmp-scroll { overflow-x: auto; max-width: 100%; } .cmp-scroll:focus-visible { outline: 2px solid var(--accent, #e0475b); } .cmp-scroll table { min-width: max-content; }
     table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 6px 0; }
     th, td { text-align: left; vertical-align: top; padding: 4px 6px; border-top: 1px solid var(--line); }
     th { color: var(--muted); font-weight: 500; white-space: nowrap; }
@@ -255,38 +257,47 @@
     const act = keys[e.code];
     if (act) { e.preventDefault(); act(); }
   }
+  // Screenreader-Ansage für Tastenkürzel: dieselbe Live-Region wie die Panel-Ansage (kurz leeren, damit gleiche Texte wieder gelesen werden)
+  function say(text) {
+    const live = (rootOf('sm-search') || rootOf('sm-room'))?.querySelector('.sr-live');
+    if (!live) return;
+    live.textContent = '';
+    setTimeout(() => { live.textContent = text; }, 50);
+  }
   const dockToggle = () => saveSetting({ panelSide: settings.panelSide === 'left' && !settings.panelPos ? undefined : 'left', panelPos: undefined }).catch(() => {});
-  keys.KeyD = dockToggle;
-  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } } };
+  keys.KeyD = () => { say(settings.panelSide === 'left' && !settings.panelPos ? 'Panel rechts angedockt' : 'Panel links angedockt'); dockToggle(); };
+  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); say(box.classList.contains('min') ? 'Panel eingeklappt' : 'Panel ausgeklappt'); } } };
   document.addEventListener('keydown', onKey, true);
 
     // Kartenverschieben und Zoomen ändert nur diese Parameter; das ist keine neue Suche (Panel und Budgeteingabe bleiben)
   const MAP_PARAMS = ['ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'center_lat', 'center_lng', 'search_by_map', 'map_toggle', 'viewport_width', 'viewport_height', 'update_selected_filters'];
+  // Trefferlisten: Suche (/s/…) und Wunschliste (/wishlists/<id>), beide werden gelesen und bewertet
+  const isList = path => /^\/s\//.test(path) || /^\/wishlists\/[^/]+/.test(path);
   const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
-  const SMC = window.StayMatchContent = { ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
+  const SMC = window.StayMatchContent = { say, isList, ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
   function start() {
     // R7: fehlt ein Seiten-Modul (Syntaxfehler, halbes Update), nicht in jedem route() stumm werfen
     if (!SMC.search || !SMC.room) {
       console.debug('StayMatch: Modul fehlt', { search: !!SMC.search, room: !!SMC.room });
-      if (/^\/s\//.test(location.pathname) || P.ROOM_RE.test(location.pathname)) panel('sm-error', 'Plugin unvollständig', [h('div', { class: 'err' }, 'Ein Teil des Plugins wurde nicht geladen. Bitte das Plugin unter chrome://extensions neu laden.')]);
+      if (isList(location.pathname) || P.ROOM_RE.test(location.pathname)) panel('sm-error', 'Plugin unvollständig', [h('div', { class: 'err' }, 'Ein Teil des Plugins wurde nicht geladen. Bitte das Plugin unter chrome://extensions neu laden.')]);
       return;
     }
     let lastUrl = '', lastKey = '', debounce = null, emptyTimer = null;
-    const relevant = () => /^\/s\//.test(location.pathname) || P.ROOM_RE.test(location.pathname);
+    const relevant = () => isList(location.pathname) || P.ROOM_RE.test(location.pathname);
     function route() {
       const path = location.pathname;
       const roomId = path.match(P.ROOM_RE)?.[1];
       if (location.href !== lastUrl) {
         const key = searchKey();
         lastUrl = location.href;
-        if (key !== lastKey) { lastKey = key; SMC.search.reset(); } else if (/^\/s\//.test(path)) { SMC.search.handle().catch(e => console.debug('StayMatch:', e)); return; }
+        if (key !== lastKey) { lastKey = key; SMC.search.reset(); } else if (isList(path)) { SMC.search.handle().catch(e => console.debug('StayMatch:', e)); return; }
         clearTimeout(emptyTimer);
         if (!roomId) document.getElementById('sm-room')?.remove();
-        if (!/^\/s\//.test(path)) { document.getElementById('sm-search')?.remove(); document.getElementById('sm-error')?.remove(); }
+        if (!isList(path)) { document.getElementById('sm-search')?.remove(); document.getElementById('sm-error')?.remove(); }
         if (roomId) setTimeout(() => SMC.room.handle(roomId).catch(e => console.debug('StayMatch:', e)), T.roomDelay ?? 2000);
         else if (/^\/s\//.test(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
       }
-      if (/^\/s\//.test(path)) SMC.search.handle().catch(e => console.debug('StayMatch:', e));
+      if (isList(path)) SMC.search.handle().catch(e => console.debug('StayMatch:', e));
     }
     SMC.route = route;
     // Erst wenn die Einstellungen (Pause!) geladen sind: sonst schreibt die Suchseite schon mit den Standardwerten

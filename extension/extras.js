@@ -476,6 +476,8 @@
   const curOf = l => R().normCur(l.currency) || '€';
   // Hauptwährung der Seite (die meisten Karten), damit € und $ nicht gemischt werden
   function mainCurrency(list) { const c = {}; for (const l of list) { const k = curOf(l); c[k] = (c[k] || 0) + 1; } return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || '€'; }
+  // Währung der Seite: die der meisten Karten mit gelesener Währung (kein „€“ erfinden: ohne Karten mit Währung null)
+  function pageCurrency(list) { const c = {}; for (const l of list || []) { const k = R().normCur(l.currency); if (k) c[k] = (c[k] || 0) + 1; } return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || null; }
   const night = (l, nights) => (l.priceImplausible ? null : R().perNight(l, nights));
   const PRIVATE = /privatzimmer|private room|chambre privée|habitación privada|camera privata/i;
 
@@ -493,7 +495,7 @@
     if (!bn) return null;
     const extra = Math.max(5, Math.round(bn * 0.1));
     const gain = list.filter(l => { const n = night(l, ctx.nights); return n != null && n > bn && n <= bn + extra && isTrusted(l) && (l.rating || 0) >= 4.7; });
-    return gain.length ? `Mit ${money(extra, '€')} mehr pro Nacht kämen ${gain.length} gut bewertete ${gain.length === 1 ? 'Superhost-/Favoriten-Unterkunft' : 'Superhost-/Favoriten-Unterkünfte'} dazu` : null;
+    return gain.length ? `Mit ${money(extra, ctx.budgetCurrency || pageCurrency(list))} mehr pro Nacht kämen ${gain.length} gut bewertete ${gain.length === 1 ? 'Superhost-/Favoriten-Unterkunft' : 'Superhost-/Favoriten-Unterkünfte'} dazu` : null;
   }
   // Günstiger Zwilling: fast gleich gut (höchstens 3 Punkte weniger), deutlich günstiger
   function cheapTwins(top, list) {
@@ -511,7 +513,7 @@
     if (!topIds?.length || listings.length < 4) return null;
     const changed = [];
     for (const [k, name] of [['price', 'Preis'], ['rating', 'Sterne'], ['area', 'Viertel']]) {
-      const r = R().rankListings(listings, { ...ctx, weightTweak: { [k]: 1.3 } }).filter(l => !ctx.disliked?.has?.(l.id)).map(l => l.id);
+      const r = R().rankListings(listings, { ...ctx, weightTweak: { ...ctx.weightTweak, [k]: (Number(ctx.weightTweak?.[k]) || 1) * 1.3 } }).filter(l => !ctx.disliked?.has?.(l.id)).map(l => l.id);
       if (r[0] !== topIds[0]) changed.push(name);
     }
     return changed.length ? { stable: false, text: `Empfehlung knapp: zählt ${changed.join(' oder ')} etwas mehr, wäre ein anderes Inserat vorn` } : { stable: true, text: 'Empfehlung stabil: Platz 1 bleibt, auch wenn Preis, Sterne oder Viertel etwas mehr zählen' };
@@ -526,6 +528,23 @@
     const gap = first.rank.score - l.rank.score;
     if (gap <= 0) return null;
     return `${gap} ${gap === 1 ? 'Punkt' : 'Punkte'} hinter Platz 1${diff.length ? ` (vor allem ${diff.map(([k, d]) => `${PART[k] || k} ${Math.round(d)}`).join(', ')})` : ''}`;
+  }
+  // „Warum nicht Platz 1?“: Rang, Punkteabstand, die Teile mit dem größten Rückstand, Preisunterschied, eigene Warnungen
+  function whyNotFirst(l, first, pos = {}) {
+    if (!l?.rank) return [];
+    const at = pos.rank ? `Platz ${pos.rank}${pos.of ? ` von ${pos.of}` : ''}` : null;
+    if (!first || l === first || l.id === first.id) return [`${at || 'Platz 1'}: Das ist die beste Unterkunft für deine Wünsche (${l.rank.score} Punkte).`];
+    const out = [`${at ? at + ': ' : ''}${first.rank.score - l.rank.score} ${first.rank.score - l.rank.score === 1 ? 'Punkt' : 'Punkte'} hinter Platz 1 („${title(first)}“).`];
+    const pts = x => Object.fromEntries((x.rank.breakdown || []).map(b => [b.key, b.points]));
+    const a = pts(l), b = pts(first);
+    for (const [k, d] of Object.keys({ ...a, ...b }).map(k => [k, (a[k] || 0) - (b[k] || 0)]).filter(([, d]) => d <= -1).sort((x, y) => x[1] - y[1]).slice(0, 3))
+      out.push(`${PART[k] || k}: ${Math.round(a[k] || 0)} statt ${Math.round(b[k] || 0)} Punkte (${Math.round(d)})`);
+    for (const [k, d] of Object.keys({ ...a, ...b }).map(k => [k, (a[k] || 0) - (b[k] || 0)]).filter(([, d]) => d >= 1).slice(0, 1))
+      out.push(`Dafür besser bei ${PART[k] || k} (+${Math.round(d)})`);
+    if (l.rank.stay != null && first.rank.stay != null && curOf(l) === curOf(first) && Math.abs(l.rank.stay - first.rank.stay) >= 10)
+      out.push(`Preis: ${money(Math.abs(l.rank.stay - first.rank.stay), l.currency)} ${l.rank.stay > first.rank.stay ? 'teurer' : 'günstiger'} als Platz 1 (${money(l.rank.stay, l.currency)} gesamt)`);
+    for (const w of (l.rank.warn || []).slice(0, 2)) out.push('⚠️ ' + w);
+    return out;
   }
   // Rabattschwellen bei 7 und 28 Nächten
   function discountThreshold(nights) {
@@ -598,7 +617,7 @@
     const share = first.rank.stay / eb;
     if (share > 1) return null;
     const rest = eb - first.rank.stay;
-    return `Platz 1 nutzt ${Math.round(share * 100)} % des Budgets, es bleiben ${money(rest, '€')}${ctx.people > 1 ? ` (${money(rest / ctx.people, '€')} pro Person)` : ''}`;
+    return `Platz 1 nutzt ${Math.round(share * 100)} % des Budgets, es bleiben ${money(rest, ctx.budgetCurrency || R().normCur(first.currency))}${ctx.people > 1 ? ` (${money(rest / ctx.people, ctx.budgetCurrency || R().normCur(first.currency))} pro Person)` : ''}`;
   }
   // Was kostet ein Stern mehr? Lineare Regression Nachtpreis gegen Sterne (ab 10 Karten mit ≥ 5 Bewertungen)
   function starPrice(list, ctx = {}) {
@@ -821,8 +840,8 @@
   root.StayMatchExtras = {
     claimConflicts, lastMinute, discountHonesty, subRatings, subRatingNotes, contactLike, hostReviewCount, cancelTradeoff, lastYear,
     linkCheck, friendIds, tripsText, storageSummary,
-    priceAnchor, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
-    budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, sinceLastVisit, visitStore, visitText, VISIT_GAP, mainCurrency,
+    priceAnchor, whyNotFirst, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
+    budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, sinceLastVisit, visitStore, visitText, VISIT_GAP, mainCurrency, pageCurrency,
     advanceText,
     deposit, extraGuestFee, extraGuestCost, onSiteCosts, checkoutChores, fees, feeShare, parkingInfo, diningSeats, dishesFor, bedWidth, area, floorInfo,
     features, coffee, kitchenLevel, minAge, petLimits, petFee, allergy, ruleCount, hostExtra, license, greenClaims, superlatives, dayLength,

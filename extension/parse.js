@@ -285,6 +285,17 @@
     } catch {}
     return lines.find(l => l.length >= 4 && l.length < 120 && /\p{L}{3}/u.test(l) && !/^[★⭐☆*\s]*\d/.test(l) && !CUR_RE.test(l) && !FAV_RE.test(l) && !isNewLabel(l)) || '';
   }
+  // Wunschliste-Herz einer Karte nur LESEN (nichts wird geklickt): true = gespeichert, false = nicht, null = Herz nicht erkannt
+  const HEART_ON = /entfernen|gespeichert|remove|\bsaved\b|retirer|enregistré|eliminar|guardad[oa]|rimuovi|salvat[oa]|verwijder|opgeslagen|usuń|zapisan/i;
+  const HEART_OFF = /hinzufügen|speichern|add to|\bsave\b|ajouter|enregistrer|añadir|guardar|aggiungi|\bsalva\b|toevoegen|opslaan|dodaj|zapisz/i;
+  function heartOf(card) {
+    const el = [...(card.querySelectorAll?.('button, [role="button"]') || [])].find(e => /save|wishlist|heart|favorite/i.test(e.getAttribute('data-testid') || '') || /wunschliste|wishlist|liste de souhaits|lista de deseos|lista dei desideri|verlanglijst|lista życzeń/i.test(e.getAttribute('aria-label') || ''));
+    if (!el) return null;
+    const pr = el.getAttribute('aria-pressed');
+    if (pr === 'true') return true; if (pr === 'false') return false;
+    const lab = el.getAttribute('aria-label') || '';
+    return HEART_ON.test(lab) ? true : HEART_OFF.test(lab) ? false : null;
+  }
   function fromCards(doc) {
     return cardEls(doc).map(card => {
       const a = card.querySelector('a[href*="/rooms/"]');
@@ -312,7 +323,7 @@
         ...priceFields(priceLine, px, null),
         lat: null, lon: null, multiUnit: isMultiUnit(txt),
         ...details(lines), ...detailsExt(lines), badges: [FAV_RE.test(txt) && 'Gäste-Favorit', /Superhost|Superanfitri/i.test(txt) && 'Superhost'].filter(Boolean),
-        image: safeImage(card.querySelector('img')?.src), source: 'dom',
+        image: safeImage(card.querySelector('img')?.src), source: 'dom', wishlisted: heartOf(card),
       };
     }).filter(x => x.id);
   }
@@ -520,7 +531,7 @@
 
   root.StayMatchParse = {
     ratingFromAria, isNewLabel, isMultiUnit, normBadge, priceOf, decodeId, findKey,
-    diagnose, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, currency, rating, details, detailsExt, localityFromTitle, ROOM_RE,
+    diagnose, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, currency, rating, heartOf, details, detailsExt, localityFromTitle, ROOM_RE,
     bothPrices, priceFields, scamInfos, ratingFromLines, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, safeImage, hostInfo, scamSignals, touristTax, TOTAL_RE,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

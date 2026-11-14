@@ -76,7 +76,7 @@ test('R7E Seiten-Auswertung: Anker, Hebel, Zwilling, Lücke, Rabattschwelle, Lin
   assert.match(X.totalSwitchHint(ranked, 3), /Gesamtpreis anzeigen/);
   const solo = [L('w', { kind: 'Wohnung in X', totalPrice: 200 }), L('z', { kind: 'Privatzimmer in X', totalPrice: 70, badges: ['Superhost'] })];
   assert.match(X.soloAlternative(solo, [solo[0]], { people: 1 }).text, /65 % günstiger/);
-  assert.match(X.budgetRest({ rank: { stay: 300, parts: { price: 0.9 } } }, { budget: 400, people: 2 }), /75 % des Budgets, es bleiben 100 € \(50 € pro Person\)/);
+  assert.match(X.budgetRest({ currency: '€', rank: { stay: 300, parts: { price: 0.9 } } }, { budget: 400, people: 2 }), /75 % des Budgets, es bleiben 100 € \(50 € pro Person\)/);
 });
 
 test('R7E Seiten-Auswertung: Weiterblättern, Kartenecke, zwei Wohnungen, gemischte Einheiten, eigener Preisverlauf, Stabilität, Ausreißer', () => {

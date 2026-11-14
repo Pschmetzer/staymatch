@@ -15,6 +15,39 @@
   const WISH_SRC = { whole: 'Quelle: Art der Unterkunft auf der Karte', trusted: 'Quelle: Plakette auf der Karte', reviews: 'Quelle: Anzahl der Bewertungen auf der Karte', luxury: 'Quelle: Stichwörter im Titel, Preislage, Bäder', private: 'Quelle: „gewerblicher Gastgeber“ auf der Karte' };
   const activeFilters = () => FILTERS.filter(([k]) => filters[k]);
 
+  // Vergleich: eigene Auswahl (2 bis 4, auch aus dem Verlauf) oder die Top 3
+  const MAX_CMP = 4;
+  const fromItem = i => ({ id: i.id, title: i.title, kind: i.kind || null, locality: i.locality || null, rating: i.rating ?? null, reviewCount: i.reviewCount ?? null,
+    totalPrice: i.pricePerNight ?? null, isTotal: false, currency: i.currency || null, lat: i.lat ?? null, lon: i.lon ?? null, beds: i.beds ?? null, bedrooms: i.bedrooms ?? null, baths: i.baths ?? null, badges: i.badges || [], image: i.image || null });
+  function compareList() {
+    const top = currentTop();
+    const ids = (quick.compare || []).filter(Boolean);
+    if (!lastView || ids.length < 2) return top;
+    const out = [];
+    for (const id of ids.slice(0, MAX_CMP)) {
+      let l = lastView.ranked.find(x => x.id === id);
+      if (!l) { const it = lastView.items?.find(x => x.id === id); if (it) l = R.rankListings([fromItem(it)], lastView.ctx)[0]; }
+      if (l) out.push(l);
+    }
+    return out.length >= 2 ? out : top;
+  }
+  function compareCandidates() {
+    const seen = new Set(), out = [];
+    for (const l of lastView.ranked.filter(x => !x.rank.disliked).slice(0, 12)) { seen.add(l.id); out.push({ id: l.id, title: l.title || l.kind || 'Unterkunft' }); }
+    for (const i of (lastView.items || []).filter(x => (x.visits || 0) > 0 && x.vote !== -1 && !seen.has(x.id)).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0)).slice(0, 12)) out.push({ id: i.id, title: i.title || 'Unterkunft', history: true });
+    return out;
+  }
+
+  // Top 3 als druckbare Seite: Stand lokal speichern, den Tab öffnet der Service Worker (keine Anfrage ins Netz)
+  async function printTop() {
+    const top = currentTop(), v = lastView;
+    if (!top.length) return;
+    const items = top.map((l, i) => ({ rank: i + 1, title: l.title || l.kind, kind: l.kind || null, locality: l.locality || null, rating: l.rating ?? null, reviewCount: l.reviewCount ?? null, score: l.rank.score,
+      price: l.rank.stay != null ? `${l.rank.stayEstimated ? '≈ ' : ''}${R.money(l.rank.stay, l.currency)} gesamt` : l.totalPrice != null ? `${R.money(l.totalPrice, l.currency)} ${l.isTotal ? 'gesamt' : 'pro Nacht'}` : null,
+      why: l.rank.why.slice(0, 4), warn: l.rank.warn.slice(0, 3), url: `${location.origin}/rooms/${l.id}` }));
+    await chrome.storage.local.set({ printTop: { at: Date.now(), people: v.ctx.people || null, nights: v.ctx.nights || null, count: v.count, items } });
+    try { await chrome.runtime.sendMessage({ type: 'sm-print' }); flash = ''; } catch { flash = 'Druckseite konnte nicht geöffnet werden. Öffne StayMatch über das Symbol in der Leiste.'; renderSearch(); }
+  }
   function currentTop() {
     if (!lastView) return [];
     return lastView.ranked.filter(l => !lastView.disliked.has(l.id) && passes(l)).slice(0, 3);
@@ -29,7 +62,7 @@
     const so = settings.share || {};
     const text = R.shareText(top.map(l => ({ ...l, score: l.rank.score, url: url(l) })), {
       title: ctx.people > 1 ? 'Unsere Top 3 (StayMatch)' : 'Meine Top 3 (StayMatch)',
-      sub: [ctx.people && `${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}`, ctx.nights && `${ctx.nights} Nächte`, !so.noPrices && ctx.budget && `Budget ${Math.round(R.effectiveBudget(ctx))} €`].filter(Boolean).join(' · '),
+      sub: [ctx.people && `${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}`, ctx.nights && `${ctx.nights} Nächte`, !so.noPrices && ctx.budget && `Budget ${Math.round(R.effectiveBudget(ctx))}${ctx.budgetCurrency ? ' ' + ctx.budgetCurrency : ''}`].filter(Boolean).join(' · '),
       noPrices: !!so.noPrices, noEmoji: !!so.noEmoji, markdown: !!so.markdown, stamp: Date.now(), questions: so.noQuestions ? [] : R.decisionQuestions(top),
     });
     flash = (await copyText(text)) ? 'Kopiert ✓ – jetzt einfügen, wo du willst' : 'Kopieren ging nicht (Seite blockiert die Zwischenablage)';
@@ -57,7 +90,10 @@
     // Schreiblast senken: Sammlung nur schreiben, wenn sie sich wirklich geändert hat
     if (!paused) { try { const j = JSON.stringify(pool); if (j !== lastPoolJson) { lastPoolJson = j; chrome.storage.local.set({ pool }).catch?.(() => {}); } } catch {} }
     const byId = new Map(current.map(l => [l.id, l]));
-    const listings = Object.values(pool.items).map(p => byId.get(p.id) || p);
+    // Preis-Korrekturen gelten nur für diese Reisedaten (ein Mai-Preis darf im Dezember nicht weiterrechnen)
+    const fixScope = `${sp.checkin || ''}|${sp.checkout || ''}`;
+    // Preis-Korrekturen und -Ausschlüsse von Hand (quick.priceFix), gelten für diese Wertung und das Popup
+    const listings = R.applyPriceFixes(Object.values(pool.items).map(p => byId.get(p.id) || p), stored.quick?.priceFix, fixScope);
 
     // Reise nur nutzen, wenn sie zu dieser Suche passt (gleiches Datum oder Unterkünfte nahe den Vierteln)
     // Vergangene Reise (Anreise liegt vor heute) gilt nicht mehr, sonst greift ein altes Budget still
@@ -86,7 +122,7 @@
     // R7 E: Geschmack ohne Orte, die du im Popup gestrichen hast
     const ign = new Set((stored.tasteIgnore || []).map(x => String(x).toLowerCase()));
     const tasteItems = ign.size ? items.map(i => ign.has(String(i.locality || '').toLowerCase()) ? { ...i, locality: null } : i) : items;
-    const ctx = { ownBed: !!quick.ownBed, people, adults: delta ? people : sp.adults || null, nights, tripNights: trip?.nights || null, budget: trip?.budget || null, budgetCurrency: trip?.budget ? '€' : (quick.budgetCurrency || null), priceUnsure: !!sp.flexible, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], taste: R.buildTaste(tasteItems), seen, disliked, known, wishes: quick.wishes };
+    const ctx = { ownBed: !!quick.ownBed, people, adults: delta ? people : sp.adults || null, nights, tripNights: trip?.nights || null, budget: trip?.budget || null, budgetCurrency: (trip?.budget || quick.budgetNight) ? (trip?.currency || quick.budgetCurrency || (X ? X.pageCurrency(listings) : null) || null) : null, priceUnsure: !!sp.flexible, budgetPerNight: trip?.budget ? null : quick.budgetNight, areas: trip?.areas || [], weightTweak: R.cleanTweak(quick.weights), taste: R.buildTaste(tasteItems), seen, disliked, known, wishes: quick.wishes };
     const ranked = R.rankListings(listings, ctx);
     // R7 E: Merklisten von Freunden („Lena mag das“), nur aus dem, was du im Popup eingefügt hast
     const fl = stored.friendLikes || {};
@@ -115,13 +151,13 @@
     if (now && !paused && !log.some(e => e.path === now.path && e.ci === now.ci && e.nights === now.nights)) chrome.storage.local.set({ priceLog: [...log, now].slice(-60) }).catch?.(() => {});
     const booked = items.filter(i => i.booked && sp.checkin && i.booked.checkin === sp.checkin);
     const lastYear = X && anchor ? X.lastYear(items.filter(i => i.booked && i.booked.checkin !== sp.checkin), location.pathname, anchor.median, anchor.currency) : null;
-    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear };
+    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear, openWishes: lastView?.openWishes, items, fixScope };
     // R7 E: Seiten-Auswertung einmal je Suche rechnen (nicht bei jedem Chip-Klick)
     const top0 = currentTop();
     lastView.insights = X ? X.pageInsights(ranked.filter(l => !l.rank.disliked), top0, ctx, { pool, history, lastYear, listings: listings.length <= 300 ? listings : null }) : [];
 
     // Empfehlungen für das Popup merken (nur die eigene Auswahl, lokal). R7: dieselbe Auswahl wie im Panel (ohne 👎, mit Filtern), Einheit dabei
-    if (!paused) chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, top: ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, isTotal: !!l.isTotal, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, stay: l.rank.stay, ppnPerson: l.rank.ppn?.person ?? null, url: `${location.origin}/rooms/${l.id}` })) } });
+    if (!paused) chrome.storage.local.set({ lastSearch: { at: Date.now(), url: location.href, nights, people, order: ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 300).map(l => l.id), top: ranked.filter(l => !disliked.has(l.id) && passes(l)).slice(0, 10).map(l => ({ id: l.id, title: l.title, kind: l.kind, locality: l.locality, rating: l.rating, reviewCount: l.reviewCount, totalPrice: l.totalPrice, currency: l.currency, isTotal: !!l.isTotal, score: l.rank.score, why: l.rank.why, warn: l.rank.warn, stay: l.rank.stay, ppnPerson: l.rank.ppn?.person ?? null, url: `${location.origin}/rooms/${l.id}` })) } });
 
     applyBadges();
     renderSearch();
@@ -137,7 +173,7 @@
 
   // Nach einer Wartezeit noch keine Unterkünfte gelesen → klare Meldung statt leerem Panel
   function checkEmpty() {
-    if (!/^\/s\//.test(location.pathname) || lastView) return;
+    if (!/^\/s\//.test(location.pathname) || lastView) return; // Wunschliste: keine Fehlerseite (Aufbau ungeprüft)
     if (P.parseSearch(document).length) return handleSearch().catch(() => {}); // R7: erst prüfen, dann (teure) Diagnose
     const d = P.diagnose(document);
     const ver = chrome.runtime?.getManifest?.().version || '?';
@@ -163,6 +199,7 @@
     // Teilweise erkannt? Dann ehrlich sagen, was fehlt.
     const lacking = q && q.n >= 3 ? [q.noPrice > q.n / 2 && 'Preise', q.noRating > q.n / 2 && 'Sterne', q.noBeds > q.n / 2 && 'Betten', q.noTitle > q.n / 2 && 'Titel'].filter(Boolean) : [];
     const af = activeFilters();
+    const weightWord = (name, f) => f === 1 ? 'Standard' : f > 1 ? `wichtiger (×${String(f).replace('.', ',')})` : `weniger wichtig (×${String(f).replace('.', ',')})`;
     const resetFilters = async () => { filters = {}; await chrome.storage.local.set({ filters }); applyBadges(); renderSearch(); };
     const cut = (s, n) => { const a = Array.from(String(s || '')); return a.length > n ? a.slice(0, n).join('') + '…' : a.join(''); }; // R7: Emoji nicht zerschneiden
     const chip = label => { const m = String(label).match(/^(\S+)\s(.+)$/); return m && /\p{Extended_Pictographic}/u.test(m[1]) ? [h('span', { 'aria-hidden': 'true' }, m[1]), ' ', m[2]] : label; }; // R7: Emoji nicht vorlesen
@@ -170,10 +207,13 @@
     const PART_NAMES = { area: 'Viertel', rating: 'Sterne', price: 'Preis', wishes: 'Wünsche', beds: 'Betten', taste: 'Geschmack' };
     const bd = l => [...(l.rank.breakdown || []).map(b => `${PART_NAMES[b.key] || b.key} ${Math.round(b.points)}`),
       l.rank.adjust ? `Abzüge ${l.rank.adjust}` : null].filter(Boolean).join(' · ');
+    // Datenlage: nur sagen, wenn Teile fehlen (dann ist der Passt-Wert weniger belastbar)
+    const coverageText = l => { const c = l.rank.coverage; return c && c.have < c.of ? `Passt-Wert beruht auf ${c.have} von ${c.of} Teilen` : ''; };
     const eb = R.effectiveBudget(ctx);
     const budgetKnown = !!(R.effectiveBudget(ctx) || ctx.budgetPerNight);
     const setQuick = async patch => { quick = { ...quick, ...patch }; await chrome.storage.local.set({ quick }); lastSig = ''; handleSearch().catch(e => console.debug('StayMatch:', e)); };
-    const budgetInput = h('input', { type: 'number', min: '0', step: '1', inputmode: 'numeric', placeholder: 'z. B. 120', 'aria-label': 'Budget pro Nacht in Euro',
+    const pageCur = ctx.budgetCurrency || (X ? X.pageCurrency(lastView.listings) : null); // Währung aus der Seite statt festem „€“
+    const budgetInput = h('input', { type: 'number', min: '0', step: '1', inputmode: 'numeric', placeholder: 'z. B. 120', 'aria-label': `Budget pro Nacht${pageCur ? ' in ' + pageCur : ''}`,
       style: 'width:90px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--bg);color:var(--fg);font:12px system-ui' });
     budgetInput.value = quick.budgetNight || '';
     budgetInput.onchange = () => { const v = Math.round(Number(budgetInput.value)); setQuick({ budgetNight: v > 0 ? v : null }); };
@@ -189,11 +229,22 @@
     const latOf = (lastView?.ranked || []).find(l => l.lat != null)?.lat;
     const hostLat = /\.(?:com\.au|co\.nz|com\.br|co\.za|com\.ar|cl|com\.pe|com\.py|co\.id)$/.test(location.hostname) ? -35 : null;
     const winter = X ? X.isColdSeason(latOf ?? hostLat, mon) : [10, 11, 12, 1, 2, 3].includes(mon);
-    const moreWishes = X ? h('details', { open: lastView.openWishes ? '' : null, ontoggle: e => { lastView.openWishes = e.target.open; } }, h('summary', {}, `Mehr Wünsche und Gruppe${xwOn ? ` (${xwOn} aktiv)` : ''}`),
+    // Eigene Gewichte: Regler 0,5 bis 2 (1 = Standard), gespeichert in quick.weights, wirken auf alle Wertungen
+    const WLABEL = { price: 'Preis', rating: 'Sterne', area: 'Viertel', wishes: 'Wünsche', beds: 'Betten' };
+    const weightsUi = h('div', { role: 'group', 'aria-label': 'Eigene Gewichte' }, h('div', { class: 'muted' }, 'Was zählt für dich mehr? Mitte = Standard.'),
+      Object.entries(WLABEL).map(([k, name]) => {
+        const cur = Number(quick.weights?.[k]) || 1;
+        const inp = h('input', { type: 'range', min: '0.5', max: '2', step: '0.25', value: String(cur), 'aria-label': `${name} wichtiger oder weniger wichtig`, 'aria-valuetext': weightWord(name, cur), style: 'width:100%' });
+        inp.onchange = () => { const v = Number(inp.value); const w = { ...(quick.weights || {}) }; if (v === 1) delete w[k]; else w[k] = v; setQuick({ weights: w }); };
+        return h('label', { style: 'display:block' }, h('span', { class: 'muted' }, `${name}: ${weightWord(name, cur)}`), inp);
+      }),
+      quick.weights && Object.keys(quick.weights).length ? h('button', { onclick: () => setQuick({ weights: {} }) }, 'Gewichte zurücksetzen') : null);
+    const moreWishes = X ? h('details', { open: lastView.openWishes ? '' : null, ontoggle: e => { lastView.openWishes = e.target.open; } }, h('summary', {}, `Mehr Wünsche und Gruppe${xwOn || Object.keys(quick.weights || {}).length ? ` (${xwOn + Object.keys(quick.weights || {}).length} aktiv)` : ''}`),
       h('div', { class: 'muted' }, 'Ausstattung prüft StayMatch nur bei Unterkünften, deren Seite du geöffnet hast.'),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Wunsch-Profile' }, Object.entries(X.PROFILES).map(([k, p]) => h('button', { title: p.wishes.join(', '), onclick: () => setQuick({ wishes: p.wishes.filter(w => R.WISHES[w] || R.REVIEW_WISHES[w] || XW[w]), profile: k }) }, chip(p.label)))),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Ausstattungs-Wünsche' }, Object.entries(XW).filter(([k, w]) => w.season !== 'winter' || winter || quick.wishes.includes(k)).map(([k, w]) => h('button', { class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)), title: `Quelle: ${w.src}`, onclick: () => toggleWish(k) }, chip(w.label)))),
       sentence,
+      weightsUi,
       ctx.people ? h('div', { class: 'row', style: 'align-items:center;gap:6px' },
         h('span', { class: 'muted' }, `Personen: ${ctx.people}${lastView.delta ? ` (Airbnb: ${lastView.basePeople})` : ''}`),
         h('button', { 'aria-label': 'Eine Person weniger', onclick: () => setQuick({ deltaKey: lastView.deltaKey, peopleDelta: Math.max(1 - (lastView.basePeople || 1), lastView.delta - 1) }) }, '−1'),
@@ -201,7 +252,33 @@
       h('div', { class: 'chips' },
         h('button', { class: quick.ownBed ? 'on' : '', 'aria-pressed': String(!!quick.ownBed), title: 'Doppelbett zählt dann als ein Bett', onclick: () => setQuick({ ownBed: !quick.ownBed }) }, chip('🛏️ jede Person eigenes Bett')),
         h('button', { class: quick.smoker ? 'on' : '', 'aria-pressed': String(!!quick.smoker), title: 'Prüft auf der Unterkunftsseite Rauchverbot und Außenfläche', onclick: () => setQuick({ smoker: !quick.smoker }) }, chip('🚬 Raucher dabei')))) : null;
+    // Preis von Hand korrigieren (Nachtpreis) oder ausschließen; gespeichert in quick.priceFix, höchstens 200 Einträge
+    const setFix = (id, fix) => { const k = `${id}|${lastView.fixScope}`; const f = { ...(quick.priceFix || {}) }; delete f[k]; if (fix) f[k] = fix; setQuick({ priceFix: Object.fromEntries(Object.entries(f).slice(-200)) }); };
+    const priceFixUi = l => {
+      const fx = (quick.priceFix || {})[`${l.id}|${lastView.fixScope}`];
+      const inp = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': `Nachtpreis in ${l.currency || 'deiner Währung'} für ${cut(l.title || l.kind, 30)}`, style: 'width:80px;font:inherit' });
+      inp.value = fx?.price || (l.priceFixed ? l.totalPrice : '');
+      const ok = () => { const v = Math.round(Number(inp.value)); if (v > 0) setFix(l.id, { price: v }); };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
+      return h('details', { open: l.priceImplausible && !l.priceExcluded ? '' : null }, h('summary', {}, fx ? (fx.exclude ? 'Preis ausgeschlossen' : 'Preis korrigiert') : 'Preis stimmt nicht?'),
+        h('div', { class: 'row', style: 'align-items:center' }, h('span', { class: 'muted' }, 'Nachtpreis:'), inp, h('button', { onclick: ok }, 'Übernehmen')),
+        h('div', { class: 'row' }, h('button', { onclick: () => setFix(l.id, { exclude: true }) }, 'Preis nicht werten'), fx ? h('button', { onclick: () => setFix(l.id, null) }, 'Zurücksetzen') : null));
+    };
+    const cmp = compareMode ? compareList() : top;
+    const picked = new Set(quick.compare || []);
+    const setCompare = ids => setQuick({ compare: ids });
+    const cmpPick = h('details', { open: '' }, h('summary', {}, `Auswahl: ${cmp.length} Unterkünfte${picked.size >= 2 ? ' (eigene Wahl)' : ' (Top 3)'}`),
+      h('div', { class: 'muted' }, `Wähle 2 bis ${MAX_CMP} Unterkünfte, auch aus dem Verlauf (👁 = schon angesehen).`),
+      compareCandidates().map(c => { const on = picked.has(c.id); const cb = h('input', { type: 'checkbox', checked: on ? '' : null, disabled: !on && picked.size >= MAX_CMP ? '' : null, 'aria-label': `${c.title} vergleichen` });
+        cb.onchange = () => { const cur = quick.compare || []; setCompare(cur.includes(c.id) ? cur.filter(x => x !== c.id) : cur.length >= MAX_CMP ? cur : [...cur, c.id]); }; return h('label', { style: 'display:block' }, cb, ` ${c.history ? '👁 ' : ''}${cut(c.title, 40)}`); }),
+      picked.size ? h('button', { onclick: () => setCompare([]) }, 'Zurück zu den Top 3') : null);
     const first = top[0];
+    // „Warum nicht Platz 1?“: nach Klick auf die Plakette einer Karte
+    const whyL = lastView.whyId && lastView.ranked.find(x => x.id === lastView.whyId);
+    const whyOrder = lastView.ranked.filter(x => !x.rank.disliked && passes(x)).map(x => x.id);
+    const whyBox = whyL && X ? h('div', { class: 'item', role: 'status' }, h('b', {}, `Warum nicht Platz 1? ${cut(whyL.title || whyL.kind, 34)}`),
+      h('ul', {}, X.whyNotFirst(whyL, whyOrder[0] && lastView.ranked.find(x => x.id === whyOrder[0]), { rank: whyOrder.indexOf(whyL.id) + 1 || null, of: whyOrder.length }).map(t => h('li', {}, t))),
+      h('button', { onclick: () => { lastView.whyId = null; renderSearch(); } }, 'Schließen')) : null;
     const insights = lastView.insights || [];
     const shifts = X ? X.shiftLinks(location.href) : [];
     const fsug = X ? X.filterSuggestion(location.href, lastView.ranked, ctx.people) : null;
@@ -213,13 +290,13 @@
       shifts.length || fsug ? h('div', { class: 'muted' }, 'Selbst öffnen (StayMatch lädt nichts): ', ...shifts.flatMap(x => [h('a', { href: x.url, target: '_blank', rel: 'noopener' }, x.label), ' · ']), fsug ? h('a', { href: fsug.url, target: '_blank', rel: 'noopener' }, fsug.text) : null) : null,
       typeof speechSynthesis !== 'undefined' && top.length ? h('span', {}, h('button', { onclick: speak }, '🔊 Top 3 vorlesen'), ' ', h('button', { onclick: stopSpeak, 'aria-label': 'Vorlesen stoppen' }, '⏹ Stopp')) : null) : null;
     const inBudget = lastView.ranked.filter(l => l.rank.parts.price != null && l.rank.parts.price >= 0.75).length;
-    panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : 'Top 3 auf dieser Seite', [
-      h('div', { class: 'muted' }, `${count} Unterkünfte${pages > 1 ? ` von ${pages} Seiten, die du geöffnet hast,` : ' auf dieser Seite'} bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}${lastView.delta ? ' (angepasst)' : ''}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget && eb ? ` · Budget ${Math.round(eb)} €${ctx.nights ? ` für ${ctx.nights} Nächte` : ''}` : ''}`),
+    panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : (/^\/wishlists\//.test(location.pathname) ? 'Top 3 deiner Wunschliste' : 'Top 3 auf dieser Seite'), [
+      h('div', { class: 'muted' }, `${count} Unterkünfte${pages > 1 ? ` von ${pages} Seiten, die du geöffnet hast,` : ' auf dieser Seite'} bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}${lastView.delta ? ' (angepasst)' : ''}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget && eb ? ` · Budget ${Math.round(eb)}${ctx.budgetCurrency ? ' ' + ctx.budgetCurrency : ''}${ctx.nights ? ` für ${ctx.nights} Nächte` : ''}` : ''}`),
       quick.wishes.includes('luxury') ? h('div', { class: 'muted' }, `✨ ${lastView.ranked.filter(l => l.rank.luxury?.state === true).length} von ${count} als Luxus erkannt (Stichwörter im Titel, Preislage, Bäder).${lastView.ranked.some(l => l.rank.luxury?.state === true) ? '' : ' Keine Treffer: Suche nach „Villa“ oder „Penthouse“ verfeinern.'}`) : null,
       X?.visitText(lastView.since) ? h('div', { class: 'muted', role: 'status' }, X.visitText(lastView.since), (lastView.since.cheaper || []).slice(0, 3).map(c => { const l = lastView.ranked.find(x => x.id === c.id); return l ? h('div', {}, '↓ ', cut(l.title || l.kind, 34), ` ${M(c.from, l)} → ${M(c.to, l)}`) : null; })) : null,
       lastView.booked?.length ? h('div', { class: 'err', role: 'status' }, h('b', {}, '✅ Für diese Daten hast du schon gebucht: '), lastView.booked.map(b => b.title || 'Unterkunft').join(', '), '. Suchst du aus Versehen weiter?') : null,
       lacking.length ? h('div', { class: 'err muted' }, `⚠️ ${lacking.join(', ')} bei den meisten Karten nicht gelesen. Airbnb hat vermutlich etwas geändert, die Wertung ist ungenauer.`) : null,
-      !trip?.budget ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, 'Budget pro Nacht (€):'), budgetInput) : null,
+      !trip?.budget ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, `Budget pro Nacht${pageCur ? ` (${pageCur})` : ''}:`), budgetInput) : null,
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Deine Wünsche' }, Object.entries(R.WISHES).map(([k, w]) => h('button', {
         class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
         onclick: () => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] }),
@@ -240,28 +317,34 @@
       // R7: Filter gelten für jede Suche: sichtbar machen und mit einem Klick zurücksetzen
       af.length ? h('div', { class: 'muted' }, `Filter aktiv (gelten auch für neue Suchen): ${af.map(([, x]) => x.replace(/^\S+\s/, '')).join(', ')} `, h('button', { onclick: resetFilters }, 'Filter zurücksetzen')) : null,
       top.length ? h('div', { class: 'row' },
-        h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, '⚖️ Vergleich'),
-        h('button', { title: 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren')) : null,
+        h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', 'aria-keyshortcuts': 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, '⚖️ Vergleich'),
+        h('button', { title: 'Alt+Shift+K', 'aria-keyshortcuts': 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren'),
+        h('button', { onclick: printTop }, '🖨️ Top 3 drucken')) : null,
       flash ? h('div', { class: 'muted', role: 'status' }, flash) : null,
+      whyBox,
+      top.length && compareMode ? cmpPick : null,
       top.length && compareMode
-        ? h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, ''), top.map((l, i) => h('th', {}, h('a', { href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener', style: 'color:inherit' }, `${i + 1}. ${cut(l.title || l.kind, 28)}`))))),
-          h('tbody', {}, R.compareRows(top, ctx).map(r => h('tr', {}, h('th', {}, r.label), r.cells.map(c => h('td', {}, c))))))
+        // scrollbar und per Tastatur fokussierbar: bei 150 % Textgröße läuft die Tabelle sonst aus dem Panel
+        ? h('div', { class: 'cmp-scroll', role: 'region', tabindex: '0', 'aria-label': 'Vergleichstabelle (waagerecht scrollbar)' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, ''), cmp.map((l, i) => h('th', {}, h('a', { href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener', style: 'color:inherit' }, `${i + 1}. ${cut(l.title || l.kind, 28)}`))))),
+          h('tbody', {}, R.compareRows(cmp, ctx).map(r => h('tr', {}, h('th', { scope: 'row' }, r.label), r.cells.map(c => h('td', {}, c)))))))
         : null,
       top.length && !compareMode ? top.map((l, i) => h('div', { class: 'item hotel' },
         h('div', { class: 'ph' },
           l.image && !settings.blind ? h('img', { src: l.image, alt: l.title || l.kind || '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : null,
           h('span', { class: 'rank' }, `${i + 1}`),
-          h('span', { class: 'score', title: 'Passt-Wert 0–100' }, l.rank.score),
+          h('span', { class: 'score', title: coverageText(l) ? `Passt-Wert 0–100, ${coverageText(l)}` : 'Passt-Wert 0–100' }, l.rank.score),
           l.rank.luxury?.state === true ? h('span', { class: 'lux', title: l.rank.luxury.words.join(', ') }, `✨ Luxus${l.rank.luxury.words[0] ? ' · ' + l.rank.luxury.words[0] : ''}`) : null),
         h('div', { class: 'meta' },
           h('a', { class: 'name', href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener' }, l.title || l.kind),
           h('button', { 'aria-label': `${l.title || l.kind} auf der Seite zeigen`, title: 'Karte auf der Airbnb-Seite zeigen', onclick: () => showOnPage(l.id) }, '📍'),
           l.rating != null ? h('span', { class: 'stars' }, `★ ${String(l.rating).replace('.', ',')}${l.reviewCount ? ` (${l.reviewCount})` : ''}`) : null),
-        h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · ')),
+        h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · '), l.wishlisted === true ? ' · ♥ in deiner Wunschliste' : ''),
         l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, M(l.totalPrice, l)), l.isTotal ? ' gesamt' : ' pro Nacht', l.rank.ppn?.person ? ` · ${M(l.rank.ppn.person, l)} p. P./Nacht` : '', l.discounted ? ' · Rabatt' : '') : null,
         h('ul', {}, l.rank.why.map(w => h('li', {}, w)), l.rank.warn.map(w => h('li', { class: 'warn' }, '⚠️ ' + w)), (l.rank.info || []).map(w => h('li', { class: 'muted' }, w)),
           i > 0 && X ? [X.gapToFirst(l, first)].filter(Boolean).map(w => h('li', { class: 'muted' }, w)) : null),
-        h('div', { class: 'muted' }, 'Zusammensetzung (Punkte): ' + bd(l))))
+        priceFixUi(l),
+        h('div', { class: 'muted' }, 'Zusammensetzung (Punkte): ' + bd(l)),
+        coverageText(l) ? h('div', { class: 'muted' }, `Datenlage: ${coverageText(l)}`) : null))
         : !top.length ? h('div', { class: 'muted' }, 'Keine Unterkunft erfüllt alle Filter. Filter lockern oder weiterblättern. ', af.length ? h('button', { onclick: resetFilters }, 'Filter zurücksetzen') : null) : null,
       morePage,
       h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → die Seiten, die du öffnest, werden zusammen bewertet. Es wird nichts von selbst nachgeladen.'),
@@ -304,12 +387,13 @@
       }
       const s = l.rank.score;
       const bg = s >= 75 ? '#1f9d6b' : s >= 55 ? '#d68a00' : '#9a9aa0';
-      b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;pointer-events:none`;
+      b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;${settings.scoreOnly ? 'pointer-events:none' : 'pointer-events:auto;cursor:pointer'}`;
+      if (!settings.scoreOnly) b.onclick = e => { e.preventDefault(); e.stopPropagation(); lastView.whyId = l.id; SMC.rootOf('sm-search')?.querySelector('.box')?.classList.remove('min'); chrome.storage.local.set({ 'min:sm-search': false }); renderSearch(); }; // nur Maus-Abkürzung: das Panel zeigt dieselben Infos
       const pp = l.rank.ppn?.person;
       // R7 E: Screenshot-Modus: nur die Punkte, ohne Preis und ohne Tooltip
       b.textContent = settings.scoreOnly ? String(s) : `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;
       // R7: Airbnbs Skripte können das title-Attribut lesen: keine Namen der Mitreisenden hinein
-      b.title = settings.scoreOnly ? '' : [...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
+      b.title = settings.scoreOnly ? '' : ['Klicken: warum dieser Platz?', ...(l.rank.coverage && l.rank.coverage.have < l.rank.coverage.of ? [`Auf ${l.rank.coverage.have} von ${l.rank.coverage.of} Teilen`] : []), ...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
       // Top-3 hervorgehoben, „schon angesehen“ (du hast die Unterkunftsseite geöffnet) als Zusatz an der Plakette
       const rank = [...topIds].indexOf(l.id);
       card.style.outline = rank >= 0 && !settings.scoreOnly ? '3px solid #e0475b' : '';
@@ -324,8 +408,8 @@
   SMC.settingsListeners.push(() => { applyBadges(); if (lastView && SMC.rootOf("sm-search")) renderSearch(); });
   // R7: nach ✕ (Panel weg) bauen die Tasten es nicht wieder auf
   const open = () => !P.ROOM_RE.test(location.pathname) && lastView && !!SMC.rootOf('sm-search');
-  keys.KeyV = () => { if (open()) { compareMode = !compareMode; renderSearch(); } };
-  keys.KeyK = () => { if (open()) copyTop(); };
+  keys.KeyV = () => { if (open()) { compareMode = !compareMode; renderSearch(); SMC.say(compareMode ? 'Vergleich eingeschaltet' : 'Vergleich ausgeschaltet'); } };
+  keys.KeyK = () => { if (open()) copyTop().then(() => SMC.say(flash || 'Top 3 kopiert')).catch(() => {}); };
   // R7: abgelaufene Sammlung (älter als 2 h) beim Start löschen, statt sie dauerhaft liegen zu lassen
   chrome.storage.local.get('pool').then(r => { if (r.pool && !(Date.now() - r.pool.at < POOL.TTL)) chrome.storage.local.remove('pool'); }).catch(() => {});
 
