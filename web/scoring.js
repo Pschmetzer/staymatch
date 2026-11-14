@@ -26,8 +26,8 @@
   // Eine Person aus gespeicherten oder per Link gelieferten Rohdaten (nie dem Wert trauen)
   function cleanPerson(raw) {
     if (!raw || typeof raw.name !== 'string') return null;
-    const p = { name: raw.name.trim().slice(0, 40) || 'Person', type: PRESETS[raw.type] ? raw.type : 'chill' };
-    if (PRESETS[raw.type2] && raw.type2 !== p.type) p.type2 = raw.type2;
+    const p = { name: raw.name.trim().slice(0, 40) || 'Person', type: Object.hasOwn(PRESETS, raw.type) ? raw.type : 'chill' }; // hasOwn: „__proto__“ aus einem Link ist kein Typ
+    if (Object.hasOwn(PRESETS, raw.type2) && raw.type2 !== p.type) p.type2 = raw.type2;
     const c = cleanWeights(raw.custom); if (c) p.custom = c;
     const v = Array.isArray(raw.veto) ? [...new Set(raw.veto.filter(k => CATEGORIES[k]))] : [];
     if (v.length) p.veto = v;
