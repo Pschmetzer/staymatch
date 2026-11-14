@@ -530,13 +530,17 @@
     const rows = [
       ['Passt-Wert', l => `${l.rank.score}/100`],
       ['Viertel', l => l.rank.area ? `${l.rank.area.name} (${l.rank.area.total})` : (l.locality || '–')],
-      ['Gesamtpreis', l => l.rank.stay == null ? '–' : money(l.rank.stay, l.currency)],
+      ['Gesamtpreis', l => l.rank.stay == null ? '–' : `${l.rank.stayEstimated ? '≈ ' : ''}${money(l.rank.stay, l.currency)}`],
       ['pro Nacht', l => l.rank.ppn?.night == null ? '–' : money(l.rank.ppn.night, l.currency)],
       ...(ctx.people > 1 ? [['pro Person/Nacht', l => l.rank.ppn?.person == null ? '–' : money(l.rank.ppn.person, l.currency)]] : []),
       ['Sterne', l => l.rating == null ? 'neu' : `${String(l.rating).replace('.', ',')} (${l.reviewCount || 0})`],
       ['Betten', l => fmt(l.beds)],
+      ['Bäder', l => l.baths == null ? '–' : String(l.baths).replace('.', ',')],
       ['Schlafzimmer', l => fmt(l.bedrooms)],
       ...(ctx.people > 2 ? [['pro Schlafplatz', l => { const n = realSleeps(l); return n && l.rank.stay != null ? money(l.rank.stay / n, l.currency) : '–'; }]] : []),
+      // Storno kennt StayMatch nur nach einem Besuch der Unterkunftsseite
+      ['Storno-Art', l => { const c = ctx.known?.get?.(l.id)?.cancellation; return !c || !c.kind ? '–' : c.kind === 'free' ? `kostenlos${c.until ? ' bis ' + c.until : ''}` : c.kind === 'nonrefundable' ? 'nicht erstattbar' : 'streng'; }],
+      ['Abstand zum Viertelzentrum', l => l.rank.area?.dist == null ? '–' : l.rank.area.dist >= 1000 ? `${(l.rank.area.dist / 1000).toFixed(1).replace('.', ',')} km` : `${l.rank.area.dist} m`],
       ['Auszeichnung', l => (l.badges || []).join(', ') || '–'], // R7: „Gäste-Favorit“ ist keine Gastgeber-Eigenschaft
       ['Warnungen', l => l.rank.warn.length ? String(l.rank.warn.length) + ': ' + l.rank.warn.slice(0, 2).join('; ') : 'keine'],
     ];

@@ -15,6 +15,29 @@
   const WISH_SRC = { whole: 'Quelle: Art der Unterkunft auf der Karte', trusted: 'Quelle: Plakette auf der Karte', reviews: 'Quelle: Anzahl der Bewertungen auf der Karte', luxury: 'Quelle: Stichwörter im Titel, Preislage, Bäder', private: 'Quelle: „gewerblicher Gastgeber“ auf der Karte' };
   const activeFilters = () => FILTERS.filter(([k]) => filters[k]);
 
+  // Vergleich: eigene Auswahl (2 bis 4, auch aus dem Verlauf) oder die Top 3
+  const MAX_CMP = 4;
+  const fromItem = i => ({ id: i.id, title: i.title, kind: i.kind || null, locality: i.locality || null, rating: i.rating ?? null, reviewCount: i.reviewCount ?? null,
+    totalPrice: i.pricePerNight ?? null, isTotal: false, currency: i.currency || null, lat: i.lat ?? null, lon: i.lon ?? null, beds: i.beds ?? null, bedrooms: i.bedrooms ?? null, baths: i.baths ?? null, badges: i.badges || [], image: i.image || null });
+  function compareList() {
+    const top = currentTop();
+    const ids = (quick.compare || []).filter(Boolean);
+    if (!lastView || ids.length < 2) return top;
+    const out = [];
+    for (const id of ids.slice(0, MAX_CMP)) {
+      let l = lastView.ranked.find(x => x.id === id);
+      if (!l) { const it = lastView.items?.find(x => x.id === id); if (it) l = R.rankListings([fromItem(it)], lastView.ctx)[0]; }
+      if (l) out.push(l);
+    }
+    return out.length >= 2 ? out : top;
+  }
+  function compareCandidates() {
+    const seen = new Set(), out = [];
+    for (const l of lastView.ranked.filter(x => !x.rank.disliked).slice(0, 12)) { seen.add(l.id); out.push({ id: l.id, title: l.title || l.kind || 'Unterkunft' }); }
+    for (const i of (lastView.items || []).filter(x => (x.visits || 0) > 0 && x.vote !== -1 && !seen.has(x.id)).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0)).slice(0, 12)) out.push({ id: i.id, title: i.title || 'Unterkunft', history: true });
+    return out;
+  }
+
   function currentTop() {
     if (!lastView) return [];
     return lastView.ranked.filter(l => !lastView.disliked.has(l.id) && passes(l)).slice(0, 3);
@@ -115,7 +138,7 @@
     if (now && !paused && !log.some(e => e.path === now.path && e.ci === now.ci && e.nights === now.nights)) chrome.storage.local.set({ priceLog: [...log, now].slice(-60) }).catch?.(() => {});
     const booked = items.filter(i => i.booked && sp.checkin && i.booked.checkin === sp.checkin);
     const lastYear = X && anchor ? X.lastYear(items.filter(i => i.booked && i.booked.checkin !== sp.checkin), location.pathname, anchor.median, anchor.currency) : null;
-    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear, openWishes: lastView?.openWishes };
+    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear, openWishes: lastView?.openWishes, items };
     // R7 E: Seiten-Auswertung einmal je Suche rechnen (nicht bei jedem Chip-Klick)
     const top0 = currentTop();
     lastView.insights = X ? X.pageInsights(ranked.filter(l => !l.rank.disliked), top0, ctx, { pool, history, lastYear, listings: listings.length <= 300 ? listings : null }) : [];
@@ -216,6 +239,14 @@
       h('div', { class: 'chips' },
         h('button', { class: quick.ownBed ? 'on' : '', 'aria-pressed': String(!!quick.ownBed), title: 'Doppelbett zählt dann als ein Bett', onclick: () => setQuick({ ownBed: !quick.ownBed }) }, chip('🛏️ jede Person eigenes Bett')),
         h('button', { class: quick.smoker ? 'on' : '', 'aria-pressed': String(!!quick.smoker), title: 'Prüft auf der Unterkunftsseite Rauchverbot und Außenfläche', onclick: () => setQuick({ smoker: !quick.smoker }) }, chip('🚬 Raucher dabei')))) : null;
+    const cmp = compareMode ? compareList() : top;
+    const picked = new Set(quick.compare || []);
+    const setCompare = ids => setQuick({ compare: ids });
+    const cmpPick = h('details', { open: '' }, h('summary', {}, `Auswahl: ${cmp.length} Unterkünfte${picked.size >= 2 ? ' (eigene Wahl)' : ' (Top 3)'}`),
+      h('div', { class: 'muted' }, `Wähle 2 bis ${MAX_CMP} Unterkünfte, auch aus dem Verlauf (👁 = schon angesehen).`),
+      compareCandidates().map(c => { const on = picked.has(c.id); const cb = h('input', { type: 'checkbox', checked: on ? '' : null, disabled: !on && picked.size >= MAX_CMP ? '' : null, 'aria-label': `${c.title} vergleichen` });
+        cb.onchange = () => { const cur = quick.compare || []; setCompare(cur.includes(c.id) ? cur.filter(x => x !== c.id) : cur.length >= MAX_CMP ? cur : [...cur, c.id]); }; return h('label', { style: 'display:block' }, cb, ` ${c.history ? '👁 ' : ''}${cut(c.title, 40)}`); }),
+      picked.size ? h('button', { onclick: () => setCompare([]) }, 'Zurück zu den Top 3') : null);
     const first = top[0];
     const insights = lastView.insights || [];
     const shifts = X ? X.shiftLinks(location.href) : [];
@@ -258,9 +289,11 @@
         h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, '⚖️ Vergleich'),
         h('button', { title: 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren')) : null,
       flash ? h('div', { class: 'muted', role: 'status' }, flash) : null,
+      top.length && compareMode ? cmpPick : null,
       top.length && compareMode
-        ? h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, ''), top.map((l, i) => h('th', {}, h('a', { href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener', style: 'color:inherit' }, `${i + 1}. ${cut(l.title || l.kind, 28)}`))))),
-          h('tbody', {}, R.compareRows(top, ctx).map(r => h('tr', {}, h('th', {}, r.label), r.cells.map(c => h('td', {}, c))))))
+        // scrollbar und per Tastatur fokussierbar: bei 150 % Textgröße läuft die Tabelle sonst aus dem Panel
+        ? h('div', { class: 'cmp-scroll', role: 'region', tabindex: '0', 'aria-label': 'Vergleichstabelle (waagerecht scrollbar)' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, ''), cmp.map((l, i) => h('th', {}, h('a', { href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener', style: 'color:inherit' }, `${i + 1}. ${cut(l.title || l.kind, 28)}`))))),
+          h('tbody', {}, R.compareRows(cmp, ctx).map(r => h('tr', {}, h('th', { scope: 'row' }, r.label), r.cells.map(c => h('td', {}, c)))))))
         : null,
       top.length && !compareMode ? top.map((l, i) => h('div', { class: 'item hotel' },
         h('div', { class: 'ph' },

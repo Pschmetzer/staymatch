@@ -81,6 +81,7 @@
   function h(tag, attrs = {}, ...kids) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue; // null heißt „Attribut weglassen“ (sonst würde disabled="null" gelten)
       if (k === 'style') e.style.cssText = v; else if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v);
     }
     for (const k of kids.flat(Infinity)) if (k != null) e.append(k instanceof Node ? k : String(k));
@@ -181,6 +182,7 @@
     .box.dark { --bg: #1e1e22; --fg: #f2f2f4; --muted: #a0a0a8; --line: #34343a; }
     .box.left { right: auto; left: 16px; }
     .box.wide { width: min(560px, calc(100vw - 32px)); }
+    .cmp-scroll { overflow-x: auto; max-width: 100%; } .cmp-scroll:focus-visible { outline: 2px solid var(--accent, #e0475b); } .cmp-scroll table { min-width: max-content; }
     table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 6px 0; }
     th, td { text-align: left; vertical-align: top; padding: 4px 6px; border-top: 1px solid var(--line); }
     th { color: var(--muted); font-weight: 500; white-space: nowrap; }
