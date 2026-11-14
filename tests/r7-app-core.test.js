@@ -92,8 +92,8 @@ function prefetchHandler(center) {
   const csv = cityRows().trim().split('\n').slice(1).map(l => l.split('|').map(x => x.replace(/^"(.*)"$/, '$1').replace(/""/g, '"')));
   const file = { v: 1, t: Date.now(), city: 'Zentrumstadt', center, bbox: [49.95, 9.95, 50.05, 10.05], fields: C.FIELDS, rows: csv };
   return async u => {
-    if (u === 'data/index.json') return { ok: true, status: 200, json: async () => ({ zentrumstadt: 'zentrumstadt.json' }) };
-    if (u === 'data/zentrumstadt.json') return { ok: true, status: 200, json: async () => file };
+    if (u === '/data/index.json') return { ok: true, status: 200, json: async () => ({ zentrumstadt: 'zentrumstadt.json' }) };
+    if (u === '/data/zentrumstadt.json') return { ok: true, status: 200, json: async () => file };
   };
 }
 test('Stadtdatei: Feld center wird gelesen, ohne center Mitte der Box', dom, async () => {

@@ -144,7 +144,7 @@ const bootPage = async (file, extra = {}) => {
   w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   w.fetch = async u => localFetch(String(u));
   for (const [k, v] of Object.entries(extra)) w.localStorage.setItem(k, JSON.stringify(v));
-  for (const f of ['core.js', 'scoring.js', 'gruppe.js', 'vergleich.js']) w.eval(fs.readFileSync(path.join(web, f), 'utf8') + `\n//# sourceURL=${f}`);
+  for (const f of ['core.js', 'i18n.js', 'scoring.js', 'gruppe.js', 'vergleich.js']) w.eval(fs.readFileSync(path.join(web, f), 'utf8') + `\n//# sourceURL=${f}`);
   return w;
 };
 const until = async (fn, ms = 60000) => { const t = Date.now(); while (!fn()) { if (Date.now() - t > ms) throw new Error('Zeitüberschreitung'); await new Promise(r => setTimeout(r, 20)); } };

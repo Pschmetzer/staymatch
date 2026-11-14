@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StayMatch – find the Airbnb that fits you</title>
+<meta name="description" content="Tell us what matters to you. StayMatch finds the right neighbourhood and rates the Airbnb listings there for you.">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="canonical" href="https://staymatch.pro/en/app">
+<link rel="alternate" hreflang="de" href="https://staymatch.pro/app">
+<link rel="alternate" hreflang="en" href="https://staymatch.pro/en/app">
+<link rel="alternate" hreflang="x-default" href="https://staymatch.pro/app">
+<meta property="og:title" content="StayMatch – find the Airbnb that fits you">
+<meta property="og:description" content="Tell us what matters to you. StayMatch finds the right neighbourhood.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://staymatch.pro/en/app">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://staymatch.pro/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://staymatch.pro/og.png">
+<link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%23e0475b%22/><path d=%22M50 25 78 52H68v23H32V52H22z%22 fill=%22white%22/></svg>">
+<style>
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(/fonts/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(/fonts/inter-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+:root { --bg:#0b0b0d; --bg2:#121216; --card:#17171c; --line:#26262d; --text:#f4f4f6; --muted:#9a9aa4; --dim:#8f8f9a; --accent:#ee6074; --accent2:#ff8a5c; --good:#2fbf85; --warn:#e6a23c; --btn:#f4f4f6; --btnText:#0b0b0d; }
+:root { color-scheme:dark; }
+:root[data-theme="light"] { color-scheme:light; --bg:#fff; --bg2:#f7f7f7; --card:#fff; --line:#ebebeb; --text:#222; --muted:#6a6a6a; --dim:#717171; --accent:#d70466; --good:#008a05; --warn:#b4560b; --btn:#222; --btnText:#fff; }
+:root { --brand:#ff385c; }
+.skip { position:absolute; left:-999px; top:8px; z-index:50; background:var(--btn); color:var(--btnText); padding:8px 14px; border-radius:8px; } .skip:focus { left:8px; }
+.fav { min-width:28px; min-height:28px; }
+.trow.mix { grid-template-columns:86px 1fr; }
+.mapfit { width:30px; height:30px; background:#fff; color:#222; border:2px solid rgba(0,0,0,.2); border-radius:4px; font-size:1rem; cursor:pointer; }
+.result, #status, #results { scroll-margin-top:80px; }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+.mgrid > * { min-width:0; }
+@media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
+body { margin:0; font:15px/1.55 Inter,system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:6px; }
+nav.top { position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+nav.top .wrap { display:flex; align-items:center; gap:16px; height:64px; }
+.wrap { max-width:1180px; margin:0 auto; padding:0 20px; }
+.logo { display:flex; align-items:center; gap:10px; font-weight:600; font-size:1.125rem; text-decoration:none; color:inherit; }
+.logo i { width:32px; height:32px; border-radius:10px; background:var(--brand); display:grid; place-items:center; }
+.logo i svg { width:17px; height:17px; }
+.right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.right a { color:var(--muted); text-decoration:none; font-size:0.875rem; } .right a:hover { color:var(--text); }
+@media (max-width:520px) { nav.top .wrap { height:auto; min-height:64px; flex-wrap:wrap; padding-block:6px; gap:6px 12px; } .right { flex-wrap:wrap; justify-content:flex-end; gap:6px 10px; } }
+.theme { background:none; border:1px solid var(--line); color:var(--muted); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:1rem; padding:0; }
+h1 { font-size:clamp(28px,4vw,40px); letter-spacing:-.03em; font-weight:500; margin:30px 0 6px; }
+.sub { color:var(--muted); margin:0 0 22px; max-width:640px; }
+.mgrid { max-width:1180px; margin:0 auto; padding:0 20px 56px; display:grid; gap:18px; grid-template-columns:380px 1fr; align-items:start; }
+@media (max-width:900px) { .mgrid { grid-template-columns:1fr; } }
+.card { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:20px; }
+label { display:block; font-size:0.8125rem; color:var(--muted); margin:12px 0 5px; }
+input, select, button { font:inherit; color:inherit; }
+input, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); min-width:0; }
+.row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+button { cursor:pointer; border:0; border-radius:12px; padding:9px 12px; background:var(--bg2); border:1px solid var(--line); }
+button.primary { background:var(--btn); color:var(--btnText); width:100%; margin-top:16px; font-weight:600; padding:13px; border-color:var(--btn); }
+button.primary:disabled { opacity:.6; cursor:progress; }
+button.link { background:none; border:0; color:var(--accent); padding:4px 0; }
+.person { display:grid; grid-template-columns:1fr 1.3fr 36px; gap:6px; margin-bottom:6px; }
+.person button { padding:0; }
+.person.solo { grid-template-columns:1fr 36px; }
+.wishes { border:0; padding:0; margin:14px 0 0; display:grid; gap:6px; }
+.wishes legend { font-size:0.8125rem; color:var(--muted); padding:0; margin-bottom:4px; }
+.wishes label { display:flex; gap:8px; align-items:flex-start; margin:0; font-size:0.875rem; color:var(--text); cursor:pointer; }
+.wishes input { width:auto; margin-top:4px; }
+.wishes small, .wishes .sep { color:var(--muted); font-size:0.75rem; }
+.hint { font-size:0.8125rem; color:var(--dim); margin-top:10px; } .hint a { color:var(--muted); }
+#status { color:var(--muted); margin:6px 0 12px; }
+#map { height:340px; border-radius:20px; border:1px solid var(--line); margin-bottom:16px; }
+.result { display:grid; gap:9px; margin-bottom:14px; }
+.rh h3 { display:inline; font:inherit; margin:0; }
+.result .rh { margin:0; display:flex; justify-content:space-between; gap:8px; align-items:baseline; font-weight:500; font-size:1.1875rem; }
+.score { font-size:1.625rem; font-weight:700; background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.bar { height:6px; background:var(--bg2); border-radius:3px; overflow:hidden; } .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip { font-size:0.75rem; padding:3px 10px; border-radius:999px; border:1px solid var(--line); background:var(--bg2); }
+.chip.low { border-color:var(--warn); color:var(--warn); } .chip.high { border-color:var(--good); color:var(--good); }
+.muted { color:var(--muted); font-size:0.8125rem; }
+a.btn { display:inline-block; background:var(--btn); color:var(--btnText); text-decoration:none; padding:9px 14px; border-radius:12px; font-weight:600; font-size:0.875rem; }
+
+.sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.pbox { margin-bottom:6px; } .pbox .person { margin-bottom:0; }
+.person { grid-template-columns:1fr 1.2fr 36px 36px; }
+.tune { margin:6px 0 10px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); }
+.tune p { margin:0 0 8px; } .trow { display:grid; grid-template-columns:86px 1fr 22px auto; gap:8px; align-items:center; }
+.trow label { margin:0; } .trow input[type=range] { padding:0; border:0; background:none; accent-color:var(--accent); }
+.trow output { font-size:0.75rem; color:var(--muted); text-align:right; } .trow .veto { display:flex; gap:4px; align-items:center; font-size:0.75rem; }
+.trow .veto input { width:auto; }
+input[type=range] { padding:0; border:0; background:none; accent-color:var(--accent); }
+.choices { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.mapbar { display:flex; gap:10px; align-items:center; margin-bottom:8px; } .mapbar label { margin:0; } .mapbar select { width:auto; } .mapbar .link { margin-left:auto; }
+.poitog { display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:8px; } .poitog label { display:flex; align-items:center; gap:5px; margin:0; font-size:0.75rem; } .poitog input { width:auto; }
+.dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; } .cmp { display:flex; gap:6px; align-items:center; margin:0; } .cmp input { width:auto; }
+.result:focus-visible { outline-offset:2px; border-radius:20px; }
+.cmp-table { width:100%; border-collapse:collapse; font-size:0.875rem; margin-bottom:6px; } .cmp-table caption { text-align:left; font-weight:600; margin-bottom:8px; }
+.cmp-table th, .cmp-table td { padding:6px 8px; border-bottom:1px solid var(--line); text-align:left; } .cmp-table td.win { color:var(--good); font-weight:600; }
+@media (max-width:900px) { input, select { font-size:1rem; } button, a.btn { min-height:44px; } .trow { grid-template-columns:70px 1fr 20px auto; } #map { height:260px; } .mapbar { flex-wrap:wrap; } }
+@media (max-width:420px) { .person { grid-template-columns:1fr 1fr 40px 40px; } .wrap, .mgrid { padding-left:14px; padding-right:14px; } }
+footer { border-top:1px solid var(--line); padding:26px 0 36px; color:var(--dim); font-size:0.8125rem; }
+footer a { color:var(--muted); }
+.warn { color:var(--warn); } .ok { color:var(--good); }
+.stickybar { position:sticky; bottom:0; z-index:5; background:var(--card); padding:10px 0 8px; margin-top:12px; border-top:1px solid var(--line); }
+.stickybar button.primary { margin-top:0; }
+details { margin-top:10px; } summary { cursor:pointer; color:var(--muted); font-size:0.8125rem; padding:4px 0; }
+details .body { font-size:0.8125rem; color:var(--muted); padding:4px 0 2px; }
+details ul { margin:6px 0 0; padding-left:18px; } details li { margin-bottom:3px; }
+textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); font:inherit; color:inherit; resize:vertical; }
+.cities { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; } .cities button { font-size:0.75rem; padding:3px 10px; border-radius:999px; }
+.tools { display:flex; flex-wrap:wrap; gap:4px 14px; align-items:center; }
+.undo { display:flex; gap:10px; align-items:center; font-size:0.8125rem; margin:8px 0; padding:8px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); }
+.undo[hidden] { display:none; }
+.stale { border:1px solid var(--warn); color:var(--warn); border-radius:12px; padding:8px 12px; margin-bottom:12px; font-size:0.8125rem; } .stale[hidden] { display:none; }
+.dim { opacity:.55; transition:opacity .2s; }
+.reshead { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin:0 0 12px; font-size:0.8125rem; color:var(--muted); }
+.reshead select { width:auto; padding:6px 10px; } .reshead label { margin:0; display:flex; gap:6px; align-items:center; } .reshead input[type=checkbox] { width:auto; }
+.reshead[hidden], #more[hidden], #intro[hidden], #extHint[hidden] { display:none; }
+.whatif { margin:0 0 14px; font-size:0.875rem; } .whatif b { font-weight:600; }
+.badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:-4px; }
+.badge { font-size:0.75rem; padding:2px 9px; border-radius:8px; background:color-mix(in srgb, var(--accent) 16%, transparent); color:color-mix(in srgb, var(--accent) 65%, var(--text)); font-weight:600; }
+.badge.tip { background:color-mix(in srgb, var(--good) 16%, transparent); color:var(--good); }
+.verdict { font-size:0.8125rem; color:var(--muted); font-weight:400; margin-left:6px; }
+.delta { font-size:0.75rem; margin-left:6px; } .delta.up { color:var(--good); } .delta.down { color:var(--warn); }
+.chip.btn2 { cursor:pointer; color:inherit; } .chip.btn2[aria-expanded=true] { outline:2px solid var(--accent); }
+.breakdown { font-size:0.8125rem; color:var(--muted); padding:8px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); }
+.breakdown[hidden] { display:none; } .breakdown b.neg { color:var(--warn); } .breakdown b.pos { color:var(--good); }
+.mini { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px 14px; }
+.mini div { display:grid; grid-template-columns:76px 1fr; gap:6px; align-items:center; font-size:0.75rem; color:var(--muted); }
+.mini .bar { height:5px; }
+.fav { background:none; border:0; font-size:1.125rem; padding:0 4px; line-height:1; } .fav[aria-pressed=true] { color:var(--accent); }
+.rank-num { min-width:0; overflow-wrap:anywhere; } /* lange Viertelnamen umbrechen statt die Seite zu verbreitern */
+.result.hl { outline:2px solid var(--accent); }
+.result a.sub2 { color:var(--muted); font-size:0.8125rem; }
+.numpin { background:var(--accent); color:#fff; border:2px solid #fff; border-radius:50%; width:24px !important; height:24px !important; display:grid; place-items:center; font-size:0.75rem; font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,.4); }
+.numpin.n { background:#666; }
+:root:not([data-theme="light"]) .leaflet-tile-pane { filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
+#intro ol { margin:8px 0 0; padding-left:20px; color:var(--muted); } #intro li { margin-bottom:6px; }
+#formToggle { display:none; width:100%; margin-bottom:10px; }
+@media (max-width:900px) { #formToggle.on { display:block; } #formBody.collapsed { display:none; } .stickybar { position:static; } }
+
+/* Suchformular im Stil einer Buchungskarte */
+:root { --shadow:0 6px 16px rgba(0,0,0,.35); --cta1:#d1344a; --cta2:#c2185b; }
+:root[data-theme="light"] { --shadow:0 6px 16px rgba(0,0,0,.12); --cta1:#e61e4d; --cta2:#d70466; }
+:root[data-theme="light"] nav.top { background:#fff; backdrop-filter:none; }
+:root[data-theme="light"] .logo { color:var(--accent); font-weight:700; letter-spacing:-.02em; }
+:root[data-theme="light"] h1 { font-weight:600; color:#222; }
+:root[data-theme="light"] .card { border-color:#dddddd; }
+:root[data-theme="light"] .seg, :root[data-theme="light"] .seg .cell { border-color:#b0b0b0; }
+:root[data-theme="light"] .result .score { background:none; color:#222; }
+:root[data-theme="light"] .bar i { background:var(--brand); }
+form#f { border-radius:16px; padding:24px; box-shadow:var(--shadow); }
+:root[data-theme="light"] form#f { border-color:#ddd; }
+.seg { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); border:1px solid var(--muted); border-radius:12px; margin-top:4px; }
+.seg .cell { position:relative; padding:9px 12px 8px; min-width:0; border-top:1px solid var(--muted); border-radius:0; }
+.seg .cell:nth-child(even) { border-left:1px solid var(--muted); }
+.seg .full { grid-column:1 / -1; border-top:0; border-radius:11px 11px 0 0; }
+.seg .cell:last-child { border-radius:0 0 11px 0; } .seg .cell:nth-last-child(2) { border-radius:0 0 0 11px; }
+.seg label { margin:0; font-size:0.75rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text); }
+.seg input, .seg select { border:0; background:transparent; padding:2px 0 0; border-radius:0; font-size:0.9375rem; outline:none; }
+.seg input[type=search]::-webkit-search-cancel-button { display:none; }
+@media (forced-colors: active) { .seg .cell:focus-within, :focus-visible { outline:2px solid CanvasText; outline-offset:2px; } }
+.seg .cell:focus-within { z-index:1; box-shadow:0 0 0 2px var(--text); border-color:transparent; border-radius:10px; background:var(--card); }
+.cities { gap:8px; margin-top:12px; }
+.cities button { font-size:0.8125rem; padding:6px 14px; border-radius:999px; background:var(--card); border:1px solid var(--line); transition:border-color .15s, box-shadow .15s; }
+.cities button:hover { border-color:var(--text); box-shadow:0 2px 6px rgba(0,0,0,.18); }
+p.sec, .wishes legend { display:block; font-size:1rem; font-weight:600; color:var(--text); margin:22px 0 10px; padding-top:20px; border-top:1px solid var(--line); width:100%; }
+.wishes { margin-top:0; gap:8px; }
+.wishes label { padding:2px 0; } .wishes input, .cmp input { accent-color:var(--text); width:18px; height:18px; margin-top:2px; }
+.wishes .sep { margin-top:6px; }
+#formBody > .row { margin-top:14px; padding-top:6px; border-top:1px solid var(--line); }
+#f button.link { font-weight:600; text-decoration:underline; text-underline-offset:3px; color:var(--text); }
+#f .person button, #formToggle { text-decoration:none; }
+button.primary { display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:10px; padding:14px; font-size:1rem; font-weight:700; color:#fff;
+  background:linear-gradient(90deg,var(--cta1),var(--cta2)); transition:filter .15s; }
+button.primary:hover { filter:brightness(.94); }
+button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:3; stroke-linecap:round; }
+.stickybar { background:var(--card); }
+.loader { display:grid; grid-template-columns:120px 1fr; gap:20px; align-items:center; margin-bottom:16px; box-shadow:var(--shadow); }
+.ring { position:relative; width:120px; height:120px; }
+.ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+.ring circle { fill:none; stroke-width:7; } .ring .trk { stroke:var(--line); }
+.ring .val { stroke:var(--cta1); stroke-linecap:round; stroke-dasharray:100; stroke-dashoffset:100; transition:stroke-dashoffset 1s linear; }
+.ring .ctr { position:absolute; inset:0; display:grid; place-content:center; text-align:center; line-height:1.15; }
+.ring .ctr b { font-size:1.625rem; font-weight:700; font-variant-numeric:tabular-nums; } .ring .ctr small { font-size:0.6875rem; color:var(--muted); }
+.ldbody > b { display:block; font-size:1.0625rem; font-weight:600; margin-bottom:8px; }
+.steps { list-style:none; margin:0 0 8px; padding:0; display:grid; gap:4px; font-size:0.875rem; color:var(--dim); }
+.steps li { display:flex; align-items:center; gap:8px; } .steps li::before { content:""; width:16px; height:16px; border-radius:50%; border:2px solid var(--line); flex:none; box-sizing:border-box; }
+.steps li.on { color:var(--text); font-weight:600; } .steps li.on::before { border-color:var(--cta1); border-top-color:transparent; animation:spin .8s linear infinite; }
+.steps li.ok { color:var(--muted); } .steps li.ok::before { content:"✓"; border:0; background:var(--good); color:#fff; font-size:0.6875rem; font-weight:700; display:grid; place-items:center; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.ldnote { margin:0 0 6px; font-size:0.8125rem; color:var(--warn); } .ldnote:empty { display:none; }
+.ldtip { margin:0; font-size:0.8125rem; color:var(--muted); min-height:2.6em; transition:opacity .4s; }
+@media (max-width:520px) { .loader { grid-template-columns:96px 1fr; gap:14px; } .ring { width:96px; height:96px; } .ring .ctr b { font-size:1.3125rem; } }
+#dest { margin-top:22px; } #dest h2 { font-size:1.25rem; font-weight:600; letter-spacing:-.01em; margin:0 0 14px; }
+.dgrid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:20px 16px; }
+@media (max-width:1100px) { .dgrid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+.dcard { all:unset; box-sizing:border-box; display:block; cursor:pointer; min-width:0; }
+.dcard .ph { display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--bg2); }
+.dcard img { display:block; width:100%; height:100%; object-fit:cover; transition:transform .3s; }
+.dcard:hover img { transform:scale(1.04); }
+.dcard:focus-visible { outline:2px solid var(--text); outline-offset:3px; border-radius:12px; }
+.dcard b { display:block; font-weight:600; font-size:0.9375rem; margin-top:8px; color:var(--text); }
+.dcard span.s { display:block; font-size:0.8125rem; color:var(--muted); }
+/* Zusatzfunktionen (app-extra.js) */
+.xbox { margin:10px 0; } .xbox ul { margin:6px 0; padding-left:20px; } .xbox li { margin:3px 0; }
+.xtools { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin-top:8px; }
+.xtools select, .xform input[type=text], .xform select { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card, transparent); color:inherit; max-width:100%; }
+.xform { display:flex; flex-wrap:wrap; gap:6px; align-items:center; } .xform input[type=text] { flex:1 1 200px; min-width:0; }
+.xcard { margin-top:6px; font-size:.93em; } .xcard > div { margin:2px 0; } .xplain { font-weight:500; }
+.xduel { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0; } .xduel button { text-align:left; padding:10px; border:1px solid var(--line); border-radius:10px; background:none; color:inherit; font:inherit; cursor:pointer; }
+.xduel button:hover, .xduel button:focus-visible { border-color:var(--accent); } .xduel small { display:block; opacity:.75; }
+.xfs { background:none; border:1px solid var(--line); color:var(--muted); border-radius:10px; height:38px; padding:0 9px; cursor:pointer; font:inherit; font-size:0.875rem; }
+#reshead label, #reshead select { max-width:100%; }
+@media (max-width:520px) { .xduel { grid-template-columns:1fr; } }
+</style>
+<script src="/theme-app.js"></script>
+</head>
+<body>
+<a class="skip" href="#f">Skip to the form</a> <a class="skip" href="#status">Skip to the results</a>
+<noscript><p style="padding:16px">StayMatch needs JavaScript to rate neighbourhoods.</p></noscript>
+<nav class="top" aria-label="Main navigation">
+  <div class="wrap">
+    <a class="logo" href="/en"><i><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg></i>StayMatch</a>
+    <div class="right">
+      <a href="/en/compare">Compare cities</a>
+      <a href="/en#plugin">Plugin</a>
+      <a class="lang" href="/app" hreflang="de" lang="de" aria-label="German version">DE</a>
+      <button class="theme" id="theme" aria-label="Dark theme" aria-pressed="false">◐</button>
+    </div>
+  </div>
+</nav>
+<main id="main">
+<div class="wrap">
+  <h1>Your perfect Airbnb</h1>
+  <p class="sub">Tell us briefly what matters to you. StayMatch finds the neighbourhood that suits you and opens the Airbnb search there. With the plugin you see the three best listings straight away.</p>
+</div>
+<div class="mgrid">
+  <form class="card" id="f" autocomplete="off" novalidate>
+    <button type="button" class="link" id="formToggle" aria-expanded="false" aria-controls="formBody">Change wishes and settings</button>
+    <div id="formBody">
+    <div class="seg">
+      <div class="cell full"><label for="city">Where to?</label>
+        <input id="city" type="search" spellcheck="false" autocapitalize="words" enterkeyhint="search" placeholder="Search for a destination" value="Barcelona" autocomplete="off"></div>
+      <div class="cell"><label for="checkin">Check-in</label><input id="checkin" type="date"></div>
+      <div class="cell"><label for="checkout">Check-out</label><input id="checkout" type="date"></div>
+      <div class="cell"><label for="budget">Budget (€)</label><input id="budget" type="number" inputmode="numeric" min="0" step="50" value="800"></div>
+      <div class="cell"><label for="budgetMode">Budget applies</label><select id="budgetMode"><option value="total">in total</option><option value="pp">per person</option><option value="night">per night</option></select></div>
+    </div>
+    <div class="hint" id="dateInfo" role="status" aria-live="polite"></div>
+    <div class="cities" id="cityChips" role="group" aria-label="Popular destinations"></div>
+    <div class="hint" id="budgetInfo"></div>
+
+    <p id="peopleLabel" class="sec">What matters to you about the area?</p>
+    <div id="people" role="group" aria-labelledby="peopleLabel"></div>
+    <p class="hint warn" id="peopleWarn" role="status"></p>
+    <div class="tools">
+      <button type="button" class="link" id="addPerson">+ Add person</button>
+      <button type="button" class="link" id="example">Load an example with travel companions</button>
+    </div>
+    <fieldset id="wishes" class="wishes">
+      <legend>What matters to you about the place itself?</legend>
+      <label><input type="checkbox" value="whole"> Entire place, not a room</label>
+      <label><input type="checkbox" value="luxury"> Luxury <small>(hotel style, suite, villa, penthouse)</small></label>
+      <label><input type="checkbox" value="private"> No commercial host</label>
+      <label><input type="checkbox" value="trusted"> Superhost or Guest favourite</label>
+      <label><input type="checkbox" value="reviews"> At least 20 reviews</label>
+      <div class="sep">The plugin checks these on the listing page, based on the reviews:</div>
+      <label><input type="checkbox" value="quiet"> Quiet <small>(warns about “noisy”)</small></label>
+      <label><input type="checkbox" value="clean"> Clean <small>(warns about “dirty”)</small></label>
+      <label><input type="checkbox" value="wifi"> Good Wi-Fi <small>(warns about poor Wi-Fi)</small></label>
+    </fieldset>
+    <div class="undo" id="undo" role="status" hidden><span id="undoMsg"></span><button type="button" class="link" id="undoBtn">Undo</button></div>
+    <details>
+      <summary>Paste travellers from text</summary>
+      <div class="body"><textarea id="paste" aria-label="Travellers as text" placeholder="Lena Party, Mia Chill, Tom Sightseeing"></textarea><button type="button" class="link" id="pasteGo">Apply</button><p class="hint warn" id="pasteMsg" role="status"></p></div>
+    </details>
+    <details>
+      <summary>Saved travellers</summary>
+      <div class="body"><select id="tpl" aria-label="Load saved travellers"></select>
+        <div class="tools"><input id="tplName" maxlength="40" autocomplete="off" aria-label="Name for this selection" placeholder="Name for this selection"><button type="button" class="link" id="tplSave">Save current travellers</button><button type="button" class="link" id="tplDel">Delete selection</button></div><p class="hint" id="tplMsg" role="status"></p></div>
+    </details>
+    <details>
+      <summary>What do the types mean?</summary>
+      <div class="body" id="typeInfo"></div>
+    </details>
+
+    <div class="row">
+      <div><label for="kids">Children (2–12)</label><input id="kids" type="number" inputmode="numeric" min="0" max="10" value="0"></div>
+      <div><label for="babys">Babies (under 2)</label><input id="babys" type="number" inputmode="numeric" min="0" max="5" value="0"></div>
+    </div>
+    <label class="cmp" style="margin-top:8px"><input type="checkbox" id="beds"> <span id="bedsLabel">Carry a suitable minimum number of bedrooms over to the Airbnb search</span></label>
+
+    <details>
+      <summary>More settings</summary>
+      <div class="body">
+        <label for="radius">Radius around the neighbourhood</label>
+        <select id="radius">
+          <option value="500">500 m (short walks)</option>
+          <option value="800" selected>800 m (default)</option>
+          <option value="1200">1.2 km</option>
+          <option value="2000">2 km (with public transport)</option>
+        </select>
+        <label for="maxcenter">Distance to the centre</label>
+        <select id="maxcenter">
+          <option value="0">any</option><option value="2">at most 2 km</option><option value="4">at most 4 km</option><option value="6">at most 6 km</option><option value="10">at most 10 km</option>
+        </select>
+        <label for="fair">Fairness</label>
+        <input type="range" id="fair" min="0" max="100" step="10" value="60" aria-describedby="fairOut">
+        <div class="hint" id="fairOut"></div>
+      </div>
+    </details>
+    </div>
+
+    <div class="stickybar">
+      <button type="submit" class="primary" id="go"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><span>Find matching neighbourhoods</span></button>
+      <button type="button" class="link" id="cancel" hidden style="margin-top:6px">✕ Cancel search</button>
+    </div>
+    <button type="button" class="link" id="share" style="display:block;margin-top:6px">🔗 Copy link to share</button>
+    <label class="hint" style="display:block"><input type="checkbox" id="shareAnon"> Share without names (travel companions appear as “Person 1, 2 …”)</label>
+    <div class="hint" id="shareMsg" role="status" aria-live="polite">Use the link to open your search on another device or share it with your travel companions. The data is stored only in the link.</div>
+    <div class="hint">Data: OpenStreetMap (places within the radius, closer ones count more). OpenStreetMap services are queried for place search, places and map tiles. <a hreflang="de" href="/datenschutz">Privacy policy (German)</a>.</div>
+    <details>
+      <summary>How is the score worked out?</summary>
+      <div class="body">By default (if there are several of you) the least satisfied person counts for 60 % and the average for 40 %, so the majority does not simply win. Use the fairness slider to change the balance. The budget does not change the score, it only filters the Airbnb search. The price level of each neighbourhood is a rough estimate based on location and sights. If travellers or the radius change, the scores are recalculated straight away.</div>
+    </details>
+  </form>
+  <section>
+    <p class="warn" id="crash" role="alert" hidden>Something went wrong. Please reload the page. If that does not help: <button type="button" class="link">reset saved inputs and reload</button></p>
+    <p id="status" role="status" aria-live="polite" tabindex="-1">Enter a city, dates, budget and your wishes.</p>
+    <div id="choices" class="choices" role="group" aria-label="Several places found" hidden></div>
+    <button class="link" id="retry" hidden>↻ Try again</button>
+    <div class="card loader" id="loader" hidden>
+      <div class="ring" aria-hidden="true">
+        <svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="44"/><circle class="val" id="ldRing" cx="50" cy="50" r="44" pathLength="100"/></svg>
+        <div class="ctr"><b id="ldTime">…</b><small id="ldUnit">one moment</small></div>
+      </div>
+      <div class="ldbody">
+        <b id="ldTitle">Starting search</b>
+        <ol class="steps" id="ldSteps" aria-hidden="true"><li>Find the city</li><li>Load places</li><li>Rate neighbourhoods</li></ol>
+        <p class="ldnote" id="ldNote" aria-hidden="true"></p>
+        <p class="ldtip" id="ldTip" aria-hidden="true"></p>
+        <ul id="ldTips" hidden><li>We count bars, cafés, parks, sights and stops within the radius of each neighbourhood.</li><li>With travel companions, the least satisfied person counts most, so the majority does not simply win.</li><li>The data comes live from OpenStreetMap, maintained by volunteers. Big cities take a little longer.</li><li>The cities under “Popular destinations” are preloaded and appear instantly.</li><li>Once a city has loaded, every further search there today runs without waiting.</li><li>With the Chrome plugin you see the three best listings directly on Airbnb.</li></ul>
+      </div>
+    </div>
+    <div class="card" id="intro">
+      <b>How it works</b>
+      <ol><li>Enter a city, dates and budget.</li><li>Say what matters to you about the area and the place. With travel companions: one type per person.</li><li>StayMatch rates the neighbourhoods for you and opens the Airbnb search there. The plugin shows you the three best listings.</li></ol>
+    </div>
+    <div id="dest" aria-labelledby="destH">
+      <h2 id="destH">Popular destinations</h2>
+      <div class="dgrid" id="destGrid">
+        <button type="button" class="dcard" data-city="Barcelona" aria-label="Find neighbourhoods in Barcelona"><span class="ph"><img src="/media/staedte/barcelona.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Barcelona</b><span class="s">Beach, tapas, old town</span></button>
+        <button type="button" class="dcard" data-city="Lissabon" aria-label="Find neighbourhoods in Lisbon"><span class="ph"><img src="/media/staedte/lissabon.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Lisbon</b><span class="s">Hills, viewpoints, fado</span></button>
+        <button type="button" class="dcard" data-city="Rom" aria-label="Find neighbourhoods in Rome"><span class="ph"><img src="/media/staedte/rom.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Rome</b><span class="s">Piazzas, trattorias, ancient sites</span></button>
+        <button type="button" class="dcard" data-city="Wien" aria-label="Find neighbourhoods in Vienna"><span class="ph"><img src="/media/staedte/wien.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Vienna</b><span class="s">Coffee houses, parks, culture</span></button>
+        <button type="button" class="dcard" data-city="Berlin" aria-label="Find neighbourhoods in Berlin"><span class="ph"><img src="/media/staedte/berlin.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Berlin</b><span class="s">Neighbourhoods, bars, riverside</span></button>
+        <button type="button" class="dcard" data-city="Paris" aria-label="Find neighbourhoods in Paris"><span class="ph"><img src="/media/staedte/paris.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Paris</b><span class="s">Cafés, museums, the Seine</span></button>
+        <button type="button" class="dcard" data-city="Madrid" aria-label="Find neighbourhoods in Madrid"><span class="ph"><img src="/media/staedte/madrid.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Madrid</b><span class="s">Rooftop terraces, tapas, parks</span></button>
+        <button type="button" class="dcard" data-city="Prag" aria-label="Find neighbourhoods in Prague"><span class="ph"><img src="/media/staedte/prag.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Prague</b><span class="s">Old town, bridges, beer</span></button>
+        <button type="button" class="dcard" data-city="Amsterdam" aria-label="Find neighbourhoods in Amsterdam"><span class="ph"><img src="/media/staedte/amsterdam.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Amsterdam</b><span class="s">Canals, bikes, cafés</span></button>
+        <button type="button" class="dcard" data-city="Budapest" aria-label="Find neighbourhoods in Budapest"><span class="ph"><img src="/media/staedte/budapest.webp" alt="" width="680" height="512" loading="lazy" decoding="async"></span><b>Budapest</b><span class="s">Danube, thermal baths, ruin bars</span></button>
+      </div>
+    </div>
+    <p class="muted" id="extHint" hidden>Tip: with the StayMatch plugin for Chrome, listings on Airbnb are rated for you automatically.</p>
+    <div id="mapSection" hidden>
+      <div class="mapbar">
+        <span id="mapWhoWrap"><label for="mapWho">Map shows</label><select id="mapWho"></select></span>
+        <button type="button" class="link" id="mapToggle" aria-expanded="true" aria-controls="mapWrap">Hide map</button>
+      </div>
+      <div id="mapWrap">
+        <div class="poitog" id="poiToggles" role="group" aria-label="Show places on the map"></div>
+        <a class="skip" href="#results">Skip the map, go to the list</a>
+        <div id="map" role="region" aria-label="Map of the best neighbourhoods. The same information is in the list below."></div>
+        <p class="hint warn" id="tileMsg" role="status" hidden>Map image unavailable. The list below still applies.</p>
+        <div class="hint" id="mapLegend">Numbers = best neighbourhoods, small dots = other rated neighbourhoods (green good, red weak). Dashed: area analysed.</div>
+      </div>
+    </div>
+    <div class="stale" id="stale" role="status" hidden></div>
+    <div class="reshead" id="reshead" hidden>
+      <span id="resSummary"></span>
+      <label for="sort">Sort <select id="sort"></select></label>
+      <label><input type="checkbox" id="onlyFav"> Favourites only (<span id="favCount">0</span>)</label>
+    </div>
+    <div class="whatif" id="whatif" aria-live="polite"></div>
+    <div id="compare"></div><p class="sr" id="cmpMsg" role="status"></p>
+    <h2 class="sr">Results</h2>
+    <div id="results" aria-busy="false"></div>
+    <button type="button" class="link" id="more" hidden>Show more neighbourhoods</button>
+  </section>
+</div>
+</main>
+<footer>
+  <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · Not affiliated with Airbnb. · <a hreflang="de" href="/impressum">Legal notice (German)</a> · <a hreflang="de" href="/datenschutz">Privacy policy (German)</a></div>
+</footer>
+<script src="/app-boot.js"></script>
+<!-- Reihenfolge wichtig: core.js zuerst (klassische Skripte, gemeinsamer globaler Bereich) -->
+<script src="/core.js" defer></script>
+<script src="/i18n.js" defer></script>
+<script src="/i18n-en-scoring.js" defer></script>
+<script src="/i18n-en-app.js" defer></script>
+<script src="/i18n-en-extra.js" defer></script>
+<script src="/scoring.js" defer></script>
+<script src="/app.js" defer></script>
+<script src="/app-extra.js" defer></script>
+<script src="/gruppe.js" defer></script>
+<script src="/app-ui.js"></script>
+</body>
+</html>

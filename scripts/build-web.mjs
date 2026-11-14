@@ -62,12 +62,13 @@ for (const f of walk(OUT).filter((p) => p.endsWith('.html'))) {
 const sw = join(OUT, 'sw.js');
 if (existsSync(sw)) {
   const appHtml = readFileSync(join(OUT, 'app.html'), 'utf8');
-  const shell = new Set(['/app', '/manifest.webmanifest', '/data/index.json']);
-  for (const m of appHtml.matchAll(/\b(?:src|href)="(?!https?:|data:|#|\/\/)([^"?]+\.(?:js|css|woff2|svg|png|webmanifest)(?:\?v=[0-9a-f]+)?)"/g)) shell.add('/' + m[1].replace(/^\//, ''));
+  const shell = new Set(['/app', '/en/app', '/manifest.webmanifest', '/data/index.json']);
+  const enHtml = existsSync(join(OUT, 'en', 'app.html')) ? readFileSync(join(OUT, 'en', 'app.html'), 'utf8') : ''; // englische App: eigene Skripte (Wörterbücher), eigene Shell
+  for (const m of (appHtml + enHtml).matchAll(/\b(?:src|href)="(?!https?:|data:|#|\/\/)([^"?]+\.(?:js|css|woff2|svg|png|webmanifest)(?:\?v=[0-9a-f]+)?)"/g)) shell.add('/' + m[1].replace(/^\//, ''));
   // Leaflet lädt app.html erst per Skript nach; gehört trotzdem in die Offline-Liste
   for (const l of ['/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css']) shell.add(l);
   const list = [...shell].sort();
-  const build = hash(list.join('\n') + list.filter((u) => u.includes('?v=')).join() + hash(readFileSync(join(OUT, 'app.html'))));
+  const build = hash(list.join('\n') + list.filter((u) => u.includes('?v=')).join() + hash(readFileSync(join(OUT, 'app.html'))) + hash(enHtml));
   const src = readFileSync(sw, 'utf8')
     .replace("/*BUILD*/'dev'", JSON.stringify(build))
     .replace('/*SHELL*/[]', JSON.stringify(list));
@@ -82,8 +83,8 @@ if (existsSync(join(SRC, '.vercel'))) cpSync(join(SRC, '.vercel'), join(OUT, '.v
 if (process.argv.includes('--check')) {
   for (const p of walk(SRC)) if (!existsSync(join(OUT, relative(SRC, p)))) { console.error(`Fehlt in dist/: ${relative(SRC, p)}`); process.exit(1); }
 }
-const MAX_JS = 125_000; // R11: gruppe.js (Gruppen-Abstimmung in der App, ca. 5 KB minifiziert) kam dazu, vorher 115 000; vergleich.js ist Seitenskript (siehe PAGE_JS). Budget für web/*.js nach Minify (Bytes; ausgeliefert zusätzlich mit Brotli)
-const PAGE_JS = /^(theme-[a-z]+|home-[a-z]+|page404|app-boot|app-ui|vergleich)\.js$/; // Seitenskripte (früher inline), zählen nicht zum App-Budget
+const MAX_JS = 135_000; // R12: i18n.js und die t()-Aufrufe (zweisprachige App-Skripte, +4 KB minifiziert), vorher 125 000. R11: gruppe.js (Gruppen-Abstimmung in der App, ca. 5 KB minifiziert) kam dazu, vorher 115 000; vergleich.js ist Seitenskript (siehe PAGE_JS). Budget für web/*.js nach Minify (Bytes; ausgeliefert zusätzlich mit Brotli)
+const PAGE_JS = /^(theme-[a-z]+|home-[a-z]+|page404|app-boot|app-ui|vergleich|i18n-en-[a-z]+)\.js$/; // Seitenskripte (früher inline), zählen nicht zum App-Budget
 const jsTotal = sizes.filter(([f]) => f.endsWith('.js') && !PAGE_JS.test(f)).reduce((n, [, , b]) => n + b, 0);
 if (process.argv.includes('--check') && jsTotal > MAX_JS) { console.error(`Minifizierte JS zusammen ${jsTotal} > ${MAX_JS} Bytes`); process.exit(1); }
 const kb = (n) => (n / 1024).toFixed(1);

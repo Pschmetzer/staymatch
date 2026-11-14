@@ -7,6 +7,9 @@
 <meta name="description" content="Sag, was dir wichtig ist. StayMatch findet das passende Viertel und bewertet die Airbnb-Unterkünfte dort für dich.">
 <meta name="theme-color" content="#0b0b0d">
 <link rel="canonical" href="https://staymatch.pro/app">
+<link rel="alternate" hreflang="de" href="https://staymatch.pro/app">
+<link rel="alternate" hreflang="en" href="https://staymatch.pro/en/app">
+<link rel="alternate" hreflang="x-default" href="https://staymatch.pro/app">
 <meta property="og:title" content="StayMatch – dein passendes Airbnb finden">
 <meta property="og:description" content="Sag, was dir wichtig ist. StayMatch findet das passende Viertel.">
 <meta property="og:type" content="website">
@@ -45,6 +48,7 @@ nav.top .wrap { display:flex; align-items:center; gap:16px; height:64px; }
 .logo i svg { width:17px; height:17px; }
 .right { margin-left:auto; display:flex; align-items:center; gap:12px; }
 .right a { color:var(--muted); text-decoration:none; font-size:0.875rem; } .right a:hover { color:var(--text); }
+@media (max-width:520px) { nav.top .wrap { height:auto; min-height:64px; flex-wrap:wrap; padding-block:6px; gap:6px 12px; } .right { flex-wrap:wrap; justify-content:flex-end; gap:6px 10px; } }
 .theme { background:none; border:1px solid var(--line); color:var(--muted); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:1rem; padding:0; }
 h1 { font-size:clamp(28px,4vw,40px); letter-spacing:-.03em; font-weight:500; margin:30px 0 6px; }
 .sub { color:var(--muted); margin:0 0 22px; max-width:640px; }
@@ -227,6 +231,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
     <div class="right">
       <a href="/vergleich">Städte vergleichen</a>
       <a href="/#plugin">Plugin</a>
+      <a class="lang" href="/en/app" hreflang="en" lang="en" aria-label="English version">EN</a>
       <button class="theme" id="theme" aria-label="Dunkles Design" aria-pressed="false">◐</button>
     </div>
   </div>

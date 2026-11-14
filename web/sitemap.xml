@@ -2,7 +2,16 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url><loc>https://staymatch.pro/</loc></url>
   <url><loc>https://staymatch.pro/en</loc></url>
-  <url><loc>https://staymatch.pro/app</loc></url>
+  <url><loc>https://staymatch.pro/app</loc>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/app"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/app"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/app"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/app</loc>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/app"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/app"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/app"/>
+  </url>
   <url><loc>https://staymatch.pro/vergleich</loc>
     <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/vergleich"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/compare"/>

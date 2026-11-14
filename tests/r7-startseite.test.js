@@ -106,15 +106,16 @@ test('vercel.json: Sicherheitsheader für alle Pfade und von keiner späteren Re
   assert.ok(!keys.includes('Content-Security-Policy'));
   for (const r of rest) for (const h of r.headers) assert.ok(!need.includes(h.key), `${r.source} überschreibt ${h.key}`);
   const csps = rest.filter((r) => r.headers.some((h) => h.key === 'Content-Security-Policy')).map((r) => r.source);
-  assert.deepEqual(csps, ['/((?!app$).*)', '/app']);
+  assert.deepEqual(csps, ['/((?!(?:en/)?app$).*)', '/app', '/en/app']); // englische App (/en/app) hat dieselbe CSP wie /app
 });
 
 test('CSP: Startseite und Stadtseiten ohne Fremddienste, nur /app mit Nominatim, Overpass und Kacheln', () => {
-  const strict = cspOf('/((?!app$).*)');
+  const strict = cspOf('/((?!(?:en/)?app$).*)');
   assert.ok(!/nominatim|overpass|tile\.openstreetmap/.test(strict), strict);
   assert.ok(!strict.includes('manifest-src'));
   const app = cspOf('/app');
   for (const h of ['nominatim.openstreetmap.org', 'overpass-api.de', 'tile.openstreetmap.org']) assert.ok(app.includes(h), h);
+  assert.equal(cspOf('/en/app'), app); // englische App: gleiche Rechte
 });
 
 test('CSP erlaubt jede Fremdadresse, die Viertel-Finder und Kern abfragen', () => {

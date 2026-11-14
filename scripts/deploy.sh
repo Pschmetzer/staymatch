@@ -48,7 +48,7 @@ fail() {
 }
 
 echo "→ Smoke-Test $SITE"
-for p in / /en /app /datenschutz /impressum /staedte/rom /sitemap.xml /robots.txt /staymatch-plugin.zip.sha256; do
+for p in / /en /app /en/app /datenschutz /impressum /staedte/rom /sitemap.xml /robots.txt /staymatch-plugin.zip.sha256; do
   code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE$p") || code=000
   [ "$code" = 200 ] || fail "$p liefert $code (erwartet 200)"
 done
