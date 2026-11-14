@@ -20,7 +20,7 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <div id="wishProfile" style="padding:6px 14px;font-size:12px;border-bottom:1px solid #eee" hidden><button id="profileBtn" class="lnk" aria-pressed="false"></button> <span id="profileInfo" class="muted" role="status"></span></div>
 <nav role="tablist" aria-label="Ansicht"><button role="tab" id="tab-top" aria-selected="true" aria-controls="list" data-tab="top" class="on">Empfehlungen</button><button role="tab" id="tab-all" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="all">Verlauf</button><button role="tab" id="tab-liked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="liked">Gefällt mir</button><button role="tab" id="tab-disliked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="disliked">Nein</button></nav>
 <input type="search" id="search" placeholder="Suchen (Titel, Ort, Notiz)" aria-label="Verlauf durchsuchen" hidden>
-<div id="sortbar" style="padding:0 14px 6px;font-size:12px" hidden><label>Sortieren: <select id="sort"><option value="seen">zuletzt gesehen</option><option value="price">Preis (günstig zuerst)</option><option value="rating">Note (beste zuerst)</option><option value="booked">gebucht zuerst</option></select></label> <label><input type="checkbox" id="onlyBooked"> nur gebucht</label></div>
+<div id="sortbar" style="padding:0 14px 6px;font-size:12px" hidden><label>Sortieren: <select id="sort"><option value="seen">zuletzt gesehen</option><option value="price">Preis (günstig zuerst)</option><option value="rating">Note (beste zuerst)</option><option value="booked">gebucht zuerst</option></select></label> <label><input type="checkbox" id="onlyBooked"> nur gebucht</label> <label>Etikett: <select id="tagFilter"><option value="">alle</option></select></label></div>
 <div id="list" role="tabpanel" aria-labelledby="tab-top" tabindex="0"></div>
 <div id="opts" style="padding:6px 14px;font-size:12px;border-top:1px solid #eee">
 <label style="display:block"><input type="checkbox" id="optBadges" checked> Punkte an den Airbnb-Karten anzeigen</label>
@@ -34,7 +34,7 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <label style="display:block"><input type="checkbox" id="optBlind"> Blindverkostung: Fotos auf der Suchseite ausblenden</label>
 <div style="margin-top:4px">Kopiertexte: <label><input type="checkbox" id="optNoPrices"> ohne Preise</label> <label><input type="checkbox" id="optNoEmoji"> ohne Emojis</label> <label><input type="checkbox" id="optMarkdown"> als Markdown-Tabelle</label></div>
 <div style="margin-top:4px"><button id="pause" class="lnk">Spuren-Pause: 1 Stunde ohne Verlauf</button> <span id="pauseInfo" class="muted"></span></div>
-<div style="margin-top:4px"><button id="trips" class="lnk">Gebuchte Etappen kopieren</button></div>
+<div style="margin-top:4px"><button id="trips" class="lnk">Gebuchte Etappen kopieren</button> · <button id="ics" class="lnk">als Kalender (.ics)</button></div>
 <label style="display:block;margin-top:6px">Link prüfen: <input type="url" id="linkCheck" placeholder="https://…" style="width:60%"></label>
 <div id="linkResult" class="muted" role="status"></div>
 <label style="display:block;margin-top:6px">Merkliste eines Freundes (kopierter Text): <textarea id="friendText" rows="2" style="width:100%;box-sizing:border-box"></textarea></label>
@@ -46,11 +46,12 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <details style="margin-top:4px"><summary class="muted">Selbst prüfen: keine Anfragen</summary><div class="muted">Rechtsklick auf das Popup → „Untersuchen“ → Reiter „Netzwerk“. Auf Airbnb: Entwicklerwerkzeuge (F12) → „Netzwerk“, Filter „chrome-extension“. StayMatch stellt keine eigenen Anfragen; Bilder kommen nur von Airbnb selbst.</div></details>
 </details>
 </div>
-<footer><a id="app" target="_blank">Viertel-Finder öffnen</a><span><button id="csv">CSV</button> · <button id="export">JSON</button> · <button id="import">Import</button> · <button id="wipe">Löschen…</button></span></footer>
+<footer><a id="app" target="_blank">Viertel-Finder öffnen</a><span><button id="csv">CSV</button> · <button id="export">JSON</button> · <button id="import">Import</button> · <button id="options">Optionen</button> · <button id="wipe">Löschen…</button></span></footer>
 <input type="file" id="file" accept="application/json" hidden>
 <script src="core.js"></script>
 <script src="rank.js"></script>
 <script src="extras.js"></script>
 <script src="import.js"></script>
+<script src="reminders.js"></script>
 <script src="popup.js"></script>
 </body></html>

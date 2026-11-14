@@ -1,18 +1,34 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><title>StayMatch: Import</title>
+<html lang="de"><head><meta charset="utf-8"><title>StayMatch: Optionen</title>
 <style>
 body{max-width:560px;margin:24px auto;padding:0 16px;font:14px/1.5 system-ui;color:#1d1d1f;background:#fff}
-h1{font-size:18px} h1 span{color:#e0475b} .muted{color:#6b6b70;font-size:12px}
+h1{font-size:18px} h2{font-size:15px;margin:22px 0 4px} section{border-top:1px solid #e4e2dc;margin-top:18px} select{font:inherit} h1 span{color:#e0475b} .muted{color:#6b6b70;font-size:12px}
 button,input{font:inherit} button{padding:6px 12px;border:1px solid #ccc;border-radius:8px;background:none;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible{outline:2px solid #e0475b;outline-offset:2px}
 @media (prefers-color-scheme: dark){body{background:#1e1e22;color:#f2f2f4}.muted{color:#a0a0a8}button{border-color:#34343a}}
 </style></head>
 <body>
-<h1>Stay<span>Match</span> · Merkliste importieren</h1>
+<h1>Stay<span>Match</span> · Optionen</h1>
+<section id="panel"><h2>Panel auf Airbnb</h2>
+<label>Seite: <select id="side"><option value="right">rechts unten</option><option value="left">links unten</option></select></label>
+<p class="muted">Das Panel lässt sich auf der Airbnb-Seite auch an der Kopfzeile verschieben; „Zurücksetzen“ stellt die Standard-Position wieder her.</p>
+<button id="resetPos">Position zurücksetzen</button> <span id="panelInfo" class="muted" role="status"></span></section>
+<section id="bd"><h2>Toolbar-Symbol</h2>
+<label><input type="checkbox" id="badge" checked> Zahl der Treffer am Symbol anzeigen</label></section>
+<section id="rem"><h2>Gebuchte Etappen</h2>
+<label><input type="checkbox" id="remind"> Erinnerung am Tag vor Ablauf der kostenlosen Stornierung</label>
+<p class="muted">Dafür fragt Chrome einmalig nach „Benachrichtigungen“. Die Erinnerung entsteht lokal auf diesem Gerät, es wird nichts gesendet.</p>
+<button id="icsBtn">Etappen als Kalender-Datei (.ics) laden</button> <span id="remInfo" class="muted" role="status"></span></section>
+<section id="imp"><h2>Merkliste importieren</h2>
 <p class="muted">Wähle eine Datei, die du mit „JSON“ im StayMatch-Popup gesichert hast. Vorhandene Unterkünfte werden zusammengeführt: Notiz, Stimme und Besuche gehen nicht verloren, der neuere Stand gewinnt. Alles bleibt in diesem Browser.</p>
 <p><input type="file" id="file" accept="application/json,.json" aria-label="Datei wählen"></p>
-<div id="out" role="status" aria-live="polite"></div>
+<div id="out" role="status" aria-live="polite"></div></section>
+<section id="exp"><h2>Sichern und löschen</h2>
+<p><button id="exportFull">Alles sichern (JSON)</button> <button id="exportClean">Bereinigt exportieren (zum Teilen)</button></p>
+<p><label>Löschen: <select id="wipeKind"><option value="verlauf">Verlauf (Unterkünfte, Likes, Notizen, Statistik)</option><option value="zwischenspeicher">Zwischenspeicher (letzte Suche, Sammlung)</option><option value="reise">Reise</option><option value="alles">Alles (Einstellungen bleiben)</option></select></label> <button id="wipe">Löschen…</button></p>
+<div id="wipeOut" role="status" aria-live="polite" class="muted"></div></section>
 <script src="core.js"></script>
+<script src="reminders.js"></script>
 <script src="import.js"></script>
 <script src="options.js"></script>
 </body></html>

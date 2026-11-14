@@ -6,8 +6,11 @@
   const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
   // Alte Einträge (ohne schema) auf den aktuellen Stand heben. Idempotent, verändert das Original nicht.
+  // Etiketten („Plan A“): höchstens 5, je 1–20 Zeichen, nur Text, ohne Doppelte
+  const cleanTags = t => Array.isArray(t) ? [...new Set(t.filter(x => typeof x === 'string').map(x => x.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 20)).filter(Boolean))].slice(0, 5) : [];
   function migrateListing(v) {
     if (!isObj(v)) return v;
+    if (v.tags != null) { const t = cleanTags(v.tags); v = t.length ? { ...v, tags: t } : (({ tags, ...r }) => r)(v); }
     if (v.schema >= SCHEMA) return v;
     const o = { ...v, schema: SCHEMA };
     o.visits = Number.isFinite(+o.visits) && +o.visits > 0 ? +o.visits : 1;
@@ -89,7 +92,7 @@
 
   // Teilen-Export: alles Persönliche raus (Notiz, Gastgeber-Kennung, Preisverlauf mit Reisedaten, Buchung,
   // Reisedaten, Besuchsspuren, fremde Bewertungstexte).
-  const PRIVATE_FIELDS = ['note', 'hostId', 'priceHistory', 'booked', 'checkin', 'checkout', 'firstSeen', 'lastSeen', 'visits', 'reviewTexts', 'friendLikes', 'stayTotal', 'wasPrice'];
+  const PRIVATE_FIELDS = ['note', 'hostId', 'priceHistory', 'booked', 'checkin', 'checkout', 'firstSeen', 'lastSeen', 'visits', 'reviewTexts', 'friendLikes', 'stayTotal', 'wasPrice', 'tags'];
   function sanitizeListings(ls) {
     return Object.fromEntries(Object.entries(ls || {}).map(([k, v]) => [k, Object.fromEntries(Object.entries(v || {}).filter(([f]) => !PRIVATE_FIELDS.includes(f)))]));
   }
@@ -104,10 +107,10 @@
 
   // Welche Schlüssel gehören zu welcher Löschart? (persönliche Spuren vollständig)
   const WIPE = {
-    verlauf: x => x.startsWith('l:') || ['listings', 'friendLikes', 'stats', 'tasteIgnore', 'priceLog'].includes(x),
-    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters', 'priceLog'].includes(x) || x.startsWith('min:'),
+    verlauf: x => x.startsWith('l:') || ['listings', 'friendLikes', 'stats', 'tasteIgnore', 'priceLog', 'visits', 'remindDone'].includes(x),
+    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters', 'priceLog', 'visits'].includes(x) || x.startsWith('min:'),
     reise: x => x === 'trip',
   };
 
-  root.StayMatchImport = { SCHEMA, FORMAT, EXPORT_VERSION, migrateListing, migrateSettings, parseImport, mergeListing, applyImport, applyExtras, sanitizeListings, sanitizeTrip, localDay, WIPE, PRIVATE_FIELDS };
+  root.StayMatchImport = { cleanTags, SCHEMA, FORMAT, EXPORT_VERSION, migrateListing, migrateSettings, parseImport, mergeListing, applyImport, applyExtras, sanitizeListings, sanitizeTrip, localDay, WIPE, PRIVATE_FIELDS };
 })(typeof window !== 'undefined' ? window : globalThis);

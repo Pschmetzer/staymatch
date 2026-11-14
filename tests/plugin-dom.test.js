@@ -190,7 +190,7 @@ test('Frühere Warnstichworte erscheinen als Warnung auf der Suchseite', { skip 
 test('Manifest: Version 0.5.0, keine neuen Berechtigungen, alle Skripte vorhanden', () => {
   const m = require('../extension/manifest.json');
   assert.equal(m.version, '0.5.0');
-  assert.deepEqual(m.permissions, ['storage']);
+  assert.deepEqual(m.permissions, ['storage', 'alarms']); assert.deepEqual(m.optional_permissions, ['notifications']);
   assert.equal(m.host_permissions, undefined);
   const js = m.content_scripts[0].js;
   assert.deepEqual(js, ['core.js', 'parse.js', 'rank.js', 'hints.js', 'extras.js', 'pool.js', 'content-common.js', 'content-search.js', 'content-listing.js']);

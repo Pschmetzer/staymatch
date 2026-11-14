@@ -194,6 +194,11 @@
     const note = h('textarea', { placeholder: 'Notiz: was gefällt / stört?', 'aria-label': 'Notiz' });
     note.value = item.note || ''; // value statt innerHTML → kein Code-Einschleusen
     note.oninput = () => { clearTimeout(roomTimers.get(item.id)); roomTimers.set(item.id, setTimeout(() => { roomTimers.delete(item.id); saveListing(item.id, { note: note.value }); }, T.noteDelay ?? 400)); };
+    // Etiketten („Plan A/B“): Schnellwahl plus eigene, bis zu 5; sichtbar und filterbar im Popup
+    const tags = item.tags || [];
+    const setTags = async next => roomPanel(await saveListing(item.id, { tags: next.slice(0, 5), note: note.value }), area, ctx);
+    const tagInput = h('input', { type: 'text', maxlength: '20', placeholder: 'eigenes Etikett', 'aria-label': 'Eigenes Etikett hinzufügen', style: 'width:110px;font:inherit' });
+    tagInput.onkeydown = e => { if (e.key === 'Enter') { const t = tagInput.value.replace(/[<>]/g, '').trim().slice(0, 20); if (t && !tags.includes(t)) setTags([...tags, t]); } };
     const ph = item.priceHistory || [];
     const lastP = ph.at(-1), firstSame = lastP && ph.find(e => priceKey(e) === priceKey(lastP));
     const change = firstSame && firstSame !== lastP ? Math.round((lastP.p / firstSame.p - 1) * 100) : 0;
@@ -255,6 +260,7 @@
       h('div', { class: 'row' },
         h('button', { class: booked ? 'on' : '', 'aria-pressed': String(!!booked), onclick: setBooked }, booked ? '✅ Gebucht' : 'Als gebucht markieren'),
         booked && ctx.people > 1 && total ? h('button', { onclick: async e => { e.target.textContent = (await copyText(advanceText())) ? 'Kopiert ✓' : 'Nicht möglich'; } }, '💸 Vorkasse-Text') : null),
+      h('div', { class: 'chips', role: 'group', 'aria-label': 'Etiketten' }, ...['Plan A', 'Plan B', 'Plan C', ...tags.filter(t => !['Plan A', 'Plan B', 'Plan C'].includes(t))].map(t => h('button', { class: tags.includes(t) ? 'on' : '', 'aria-pressed': String(tags.includes(t)), onclick: () => setTags(tags.includes(t) ? tags.filter(x => x !== t) : [...tags, t]) }, '🏷 ' + t)), tagInput),
       note,
       h('div', { class: 'muted' }, 'Tasten: Alt+Shift+L 👍 · N 👎 · M ein-/ausklappen'),
     ], { label: `StayMatch: ${short}, ${item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier'}` }); // R7: Screenreader erfahren, worum es geht

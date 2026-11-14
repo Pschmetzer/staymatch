@@ -658,6 +658,41 @@
     return out;
   }
   // Alles für den Abschnitt „Mehr zu dieser Seite“
+
+  // „Seit deinem letzten Besuch“: Vergleich der Trefferliste dieser Suche mit dem Stand des vorigen Besuchs (alles lokal).
+  // entry: { base: {id:[preis,isTotal]}|null, basePages, baseAt, cur: {...}, curPages, curAt }. Ein neuer Besuch beginnt nach 30 Minuten Pause.
+  // „Verschwunden“ nur, wenn heute mindestens so viele Seiten offen waren wie damals (sonst fehlen die Treffer nur, weil du nicht geblättert hast).
+  const VISIT_GAP = 30 * 60e3, VISIT_MAX = 12;
+  function sinceLastVisit(entry, listings, pages = 1, now = Date.now()) {
+    const cur = {};
+    for (const l of listings || []) if (l?.id) cur[l.id] = [l.totalPrice ?? null, !!l.isTotal];
+    let e = entry && entry.cur ? { ...entry } : null;
+    if (e && now - (e.curAt || 0) > VISIT_GAP) e = { base: e.cur, basePages: e.curPages || 1, baseAt: e.curAt, cur: {}, curPages: 0, curAt: now };
+    if (!e) e = { base: null, basePages: 0, baseAt: 0, cur: {}, curPages: 0, curAt: now };
+    const merged = { ...e.cur, ...cur }; // Seiten desselben Besuchs sammeln sich an
+    const next = { ...e, cur: merged, curPages: Math.max(e.curPages || 0, pages), curAt: now };
+    if (!e.base) return { entry: next, diff: null };
+    const base = e.base, ids = Object.keys(merged);
+    const fresh = ids.filter(id => !(id in base));
+    const cheaper = ids.filter(id => id in base && base[id][0] != null && merged[id][0] != null && base[id][1] === merged[id][1] && merged[id][0] <= base[id][0] * 0.97)
+      .map(id => ({ id, from: base[id][0], to: merged[id][0] }));
+    const dearer = ids.filter(id => id in base && base[id][0] != null && merged[id][0] != null && base[id][1] === merged[id][1] && merged[id][0] >= base[id][0] * 1.03).length;
+    const gone = pages >= (e.basePages || 1) ? Object.keys(base).filter(id => !(id in merged)) : [];
+    return { entry: next, diff: { since: e.baseAt, fresh, cheaper, dearer, gone } };
+  }
+  function visitStore(visits, key, entry) {
+    const all = { ...(visits || {}), [key]: entry };
+    const keys = Object.keys(all).sort((a, b) => (all[b].curAt || 0) - (all[a].curAt || 0)).slice(0, VISIT_MAX);
+    return Object.fromEntries(keys.map(k => [k, all[k]]));
+  }
+  function visitText(d, now = Date.now()) {
+    if (!d || !(d.fresh.length || d.cheaper.length || d.gone.length)) return null;
+    const days = Math.max(0, Math.floor((now - d.since) / 864e5));
+    const when = days === 0 ? 'heute früher' : days === 1 ? 'gestern' : `vor ${days} Tagen`;
+    const parts = [d.fresh.length && `${d.fresh.length} neu`, d.cheaper.length && `${d.cheaper.length} günstiger`, d.gone.length && `${d.gone.length} verschwunden`].filter(Boolean);
+    return `Seit deinem letzten Besuch (${when}): ${parts.join(', ')}.`;
+  }
+
   function pageInsights(list, top, ctx = {}, opt = {}) {
     const lines = [];
     const add = x => { if (x) lines.push(typeof x === 'string' ? x : x.text); };
@@ -787,7 +822,7 @@
     claimConflicts, lastMinute, discountHonesty, subRatings, subRatingNotes, contactLike, hostReviewCount, cancelTradeoff, lastYear,
     linkCheck, friendIds, tripsText, storageSummary,
     priceAnchor, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
-    budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, mainCurrency,
+    budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, sinceLastVisit, visitStore, visitText, VISIT_GAP, mainCurrency,
     advanceText,
     deposit, extraGuestFee, extraGuestCost, onSiteCosts, checkoutChores, fees, feeShare, parkingInfo, diningSeats, dishesFor, bedWidth, area, floorInfo,
     features, coffee, kitchenLevel, minAge, petLimits, petFee, allergy, ruleCount, hostExtra, license, greenClaims, superlatives, dayLength,
