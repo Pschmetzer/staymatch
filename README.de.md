@@ -11,12 +11,19 @@ Dein Helfer, um schneller ein passendes Airbnb zu finden. Die Chrome-Erweiterung
 2. **Optional vorher:** Im Viertel-Finder Stadt, Zeitraum, Budget, Interessen und Wünsche eingeben → passende Viertel. „Unterkünfte hier ansehen“ öffnet die Suche mit Datum, Gästen, Preisgrenze und Kartenausschnitt; Wünsche und Budget gehen ans Plugin.
 3. Das Plugin bewertet alle Unterkünfte auf der Seite (Sterne mit Bayes-Mittel, Preis vs. Budget, deine Wünsche, falls bekannt Viertel, bei Gruppen Betten) und zeigt die **Top 3 mit Begründung**. Auf der Unterkunftsseite warnt es, wenn Bewertungen deinen Wünschen widersprechen. Beim Blättern sammelt das Plugin die Unterkünfte aller Seiten, die Top 3 gelten für alles, was du gesehen hast; Vergleichstabelle und „Top 3 kopieren“ helfen bei der Entscheidung. Das Plugin gibt es nur für Chrome-Browser am Computer, der Viertel-Finder läuft auch auf dem Handy.
 
+## Funktionen
+- **Erweiterung:** Optionsseite (Panel-Seite, Import, Export, Löschen), Toolbar-Badge mit der Trefferzahl, „Seit deinem letzten Besuch“ (neue, günstigere und verschwundene Treffer), Erinnerung vor Ablauf der kostenlosen Stornierung mit `.ics`-Export, Panel verschiebbar und andockbar, Etiketten je Unterkunft („Plan A/B“), Vergleichstabelle für 2 bis 4 Unterkünfte, Wunschliste lesen, Top 3 als druckbare Seite.
+- **Viertel-Finder:** 18 Städte vorab geladen (die Daten kommen aus OpenStreetMap), danach auch **offline** nutzbar (installierbare Web-App mit Service Worker). Deeplink `?t=` für den Reisetyp, Konfidenz je Viertel, Hinweis, wie stabil Platz 1 ist, Ruhe-Typ, Gehzeit, Bildkarte zum Teilen.
+- **Gruppen-Abstimmung:** Mitreisende schicken ihre Wünsche als Link (im `#p=`-Teil der Adresse); es gibt keinen Server, nichts wird hochgeladen.
+- **Städtevergleich:** [staymatch.pro/vergleich](https://staymatch.pro/vergleich) (englisch: `/en/compare`) rechnet alle vorab geladenen Städte mit deinen Wünschen und zeigt das beste Viertel je Stadt.
+- **Stadtseiten:** [staymatch.pro/staedte](https://staymatch.pro/staedte) (englisch: `/en/cities`) mit Steckbrief, den besten Vierteln je Reisetyp und dem Rechenweg, ohne Tracking.
+
 ## Web-App (`web/`)
 Statisch, ohne Backend und ohne API-Keys.
 ```bash
-python3 -m http.server 8765 -d web
+npm run dev
 ```
-Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app.html (Viertel-Finder). Seiten für Recht: `impressum.html` (Platzhalter, `TODO Nutzer`) und `datenschutz.html`. Hero-Bild oder -Video: siehe [LUMINA-PROMPTS.md](LUMINA-PROMPTS.md).
+Dann http://localhost:8765 öffnen (Landingpage) bzw. http://localhost:8765/app (Viertel-Finder). Der Server setzt dieselben Header wie `web/vercel.json`; ein einfacher `python3 -m http.server 8765 -d web` geht auch, kennt aber keine Kurz-Adressen wie `/app`. Seiten für Recht: `impressum.html` (Platzhalter, `TODO Nutzer`) und `datenschutz.html`. Hero-Bild oder -Video: siehe [LUMINA-PROMPTS.md](LUMINA-PROMPTS.md).
 
 ## Chrome-Erweiterung (`extension/`)
 Download als ZIP: https://staymatch.pro/staymatch-plugin.zip (wird beim Deploy gebaut, lokal mit `./scripts/build-plugin-zip.sh`).
@@ -41,5 +48,6 @@ npm run check                        # alle Prüfungen (Syntax, HTML, Größen, 
 node scripts/sync-core.mjs           # shared/ nach web/ und extension/ kopieren (nach Änderungen am Kern)
 ./scripts/deploy.sh                  # ZIP bauen + nach Vercel hochladen (VERCEL_SCOPE=<team> optional)
 node scripts/prefetch-cities.mjs [Stadt ...]   # Stadtdaten vorab laden (web/data/), Ablauf in CONTRIBUTING.md
+node scripts/build-city-pages.mjs    # Stadtseiten (DE/EN), Übersichten und Sitemap neu erzeugen
 ```
 Mitmachen: [CONTRIBUTING.md](CONTRIBUTING.md) · Datenschutz: [PRIVACY.md](PRIVACY.md) · Chrome Web Store: [STORE.md](STORE.md) · Sicherheit: [SECURITY.md](SECURITY.md)
