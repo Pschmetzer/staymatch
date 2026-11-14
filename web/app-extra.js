@@ -111,9 +111,12 @@
   $('whatif').after(box);
   let duel = null, plainOn = !!st.get('sm_plain', false);
 
+  const cfCache = new WeakMap(); // hängt nicht von den Gewichten ab: einmal je Viertel rechnen
+  const cfOf = (a, v) => { let c = cfCache.get(a); if (!c || c.r !== v.r) cfCache.set(a, c = { r: v.r, val: SM.confidence(a, v.pois, v.r) }); return c.val; };
   function cardDecor(v) {
     const best = v.byTotal[0], kidsWanted = v.ppl.some(p => (p.w.kids || 0) > 0) || +$('kids').value > 0 || +$('babys').value > 0;
     const tally = new Map(SM.tallyVotes(votesFor(qNow())).map(t => [t.key, t.names]));
+    const sens = SM.sensitivityText(SM.sensitivity(v.okAreas, v.ppl, A.fair()));
     v.ranked.forEach((a, i) => {
       const art = $('area-' + i); if (!art) return;
       art.querySelector('.xcard')?.remove();
@@ -125,9 +128,41 @@
       const f = SM.familySpots(a, v.pois, v.r);
       if (kidsWanted && f.pairs) rows.push(`<div>🛝 ${f.pairs} ${f.pairs === 1 ? 'Spielplatz' : 'Spielplätze'} mit Café daneben</div>`);
       if (f.market) rows.push(`<div class="muted">🧺 Markt ${f.market.d} m${f.market.name ? ` (${esc(f.market.name)})` : ''}, Öffnungstage bitte vor Ort prüfen</div>`);
+      if (i === 0 && sens && sens.startsWith(a.name)) rows.push(`<div>🎚️ ${esc(sens)}</div>`); // nur wenn Platz 1 der Karte auch Platz 1 der Wertung ist (andere Sortierung)
+      const cf = cfOf(a, v); rows.push(`<div class="muted">${cf.level === 'low' ? '⚠️' : '📊'} ${esc(cf.text)}</div>`);
+      if (v.sortMode === 'quiet' || v.ppl.some(SM.isQuiet)) rows.push(`<div class="muted">🤫 Ruhe-Schätzung ${SM.quietScore(a)}/100 aus Bars und Clubs im Umkreis und Nähe zum Zentrum. Straßen- und Bahnlärm kennen wir nicht.${v.ppl.some(SM.isQuiet) ? ' Beim Ruhig-Typ zählt sie zu 35 % in den Wert.' : ''}</div>`);
+      rows.push(`<div class="muted">🚶 ${a.nearest.transit != null ? `Bahn ≈ ${SM.walkMin(a.nearest.transit)} Min., ` : ''}Zentrum ≈ ${SM.walkMin(a.centerDist)} Min. zu Fuß (Luftlinie × 1,3; Flüsse und Bahntrassen nicht berücksichtigt)</div>`);
+      rows.push(`<div class="xrow"><button type="button" class="link" data-xcard="${i}">🖼️ Bild für den Gruppenchat</button> <a class="sub2" href="${SM.osmEditUrl(a.lat, a.lon)}" target="_blank" rel="noopener">Fehlt ein Viertel? Im OSM-Editor ergänzen<span class="sr"> (neuer Tab)</span></a></div>`);
       if (rows.length) art.querySelector('.actions')?.before(el('div', { class: 'xcard' }, rows.join('')));
     });
   }
+
+  // Datenstand und Quelle der Stadt (Vorabdatei oder live)
+  function dataLine(d) {
+    const m = d.meta, day = d.at ? new Date(d.at).toLocaleDateString('de') : 'heute';
+    return `Datenstand ${day} · ${d.areas.length} Viertel, ${d.pois.length.toLocaleString('de')} Orte (alle Viertel) · ${m ? `Quelle: ${m.attr || '© OpenStreetMap-Mitwirkende'} (${m.lic || 'ODbL'}), abgerufen über ${m.src || 'Overpass'}, ${m.n.toLocaleString('de')} Zeilen` : 'Quelle: © OpenStreetMap-Mitwirkende (ODbL), live abgerufen'}.`;
+  }
+  // Bildkarte (Canvas) für den Gruppenchat: Teilen-Dialog, sonst Download
+  function cardImage(i) {
+    const v = A.view(), d = A.data(), a = v && v.ranked[i]; if (!a) return;
+    const cv = document.createElement('canvas'), g = cv.getContext && cv.getContext('2d');
+    if (!g) { msg('Bild nicht möglich in diesem Browser.'); return; }
+    const D = SM.shareCardData(a, i, d.geo.name, v.ppl), css = getComputedStyle(document.documentElement), col = (k, f) => css.getPropertyValue('--' + k).trim() || f;
+    cv.width = 1080; cv.height = 648;
+    g.fillStyle = col('bg', '#fff'); g.fillRect(0, 0, 1080, 648);
+    g.fillStyle = col('accent', '#0a7'); g.fillRect(0, 0, 1080, 14);
+    g.fillStyle = col('text', '#111'); g.font = '700 56px system-ui,sans-serif'; g.fillText(D.title, 48, 100, 984);
+    g.font = '500 32px system-ui,sans-serif'; g.fillText(D.sub, 48, 150, 984);
+    D.bars.forEach(([l, p], j) => { const y = 200 + j * 56; g.font = '28px system-ui,sans-serif'; g.fillStyle = col('text', '#111'); g.fillText(l, 48, y + 26, 300); g.fillStyle = col('line', '#ddd'); g.fillRect(360, y + 4, 600, 26); g.fillStyle = col('accent', '#0a7'); g.fillRect(360, y + 4, 6 * p, 26); });
+    g.fillStyle = col('muted', '#666'); g.font = '26px system-ui,sans-serif'; g.fillText(D.line, 48, 560, 984); g.fillText(D.foot, 48, 610);
+    cv.toBlob(async b => {
+      if (!b) { msg('Bild nicht möglich in diesem Browser.'); return; }
+      const f = new File([b], `staymatch-${a.name.replace(/[^\w-]+/g, '_')}.png`, { type: 'image/png' });
+      try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: a.name }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+      const u = URL.createObjectURL(b), l = el('a', { href: u, download: f.name }); l.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); msg('Bild gespeichert. Schick es in den Gruppenchat.');
+    }, 'image/png');
+  }
+  $('results').addEventListener('click', e => { const b = e.target.closest('button[data-xcard]'); if (b) cardImage(+b.dataset.xcard); });
 
   function render() {
     const v = A.view(), d = A.data();
@@ -151,6 +186,7 @@
     const legs = SM.cleanLegs(st.get('sm_legs', []));
     const issues = SM.legIssues(legs);
     box.innerHTML = `<div class="card">
+      <p id="story">${esc(SM.cityStory(d.geo.name, d.areas, d.pois))}</p><p class="hint" id="dataInfo">${esc(dataLine(d))}</p>
       <ul class="xinfo">${info.map(x => `<li>${x}</li>`).join('')}${fairHint}</ul>
       ${worst.length ? `<details><summary>Diese Viertel passen nicht</summary><ul>${worst.map(w => `<li><b>${esc(w.name)}</b> (${w.total}/100): ${esc(w.reason)}</li>`).join('')}</ul></details>` : ''}
       <details id="voteBox"${tally.length ? ' open' : ''}><summary>Abstimmung in der Gruppe${nv ? ` (${nv} ${nv === 1 ? 'Stimme' : 'Stimmen'})` : ''}</summary>
@@ -164,6 +200,7 @@
         <button type="button" class="link" id="cpGo">📋 Beste Viertel kopieren</button>
         <button type="button" class="link" id="speak">🔊 Top 3 vorlesen</button>
         <label><input type="checkbox" id="plain"${plainOn ? ' checked' : ''}> Einfache Sprache</label>
+        <button type="button" class="link" id="typeLink">🔗 Link mit Stadt und Typ</button>
         <button type="button" class="link" id="legAdd">🧳 Als Etappe merken</button>
         <button type="button" class="link" id="duelGo">🥊 Geschmack per Duell finden</button>
       </div>
@@ -204,6 +241,7 @@
       const at = d.at ? new Date(d.at).toLocaleDateString('de') : '';
       copy(SM.areasText(v.ranked, { city: d.geo.name, ppl: v.ppl, md: $('cpFmt').value === 'md', emoji: !$('cpNoEmoji').checked, stamp: at }), '✅ Text kopiert. Füge ihn in den Gruppenchat oder deine Notizen ein.');
     } else if (t.id === 'speak') speak(v);
+    else if (t.id === 'typeLink') { const p = A.people()[0], ty = SM.isQuiet(p) ? 'quiet' : p.custom ? '' : p.type; copy(SM.deepLink({ c: d.geo.name, t: ty, i: $('checkin').value, o: $('checkout').value }), ty ? '✅ Link kopiert: öffnet die App mit Stadt, Reisedaten und Typ.' : '✅ Link kopiert (ohne Typ: eigene Regler stehen nur im Teilen-Link).'); }
     else if (t.id === 'fairUp') { A.setFair(Math.min(1, A.fair() + 0.2)); }
     else if (t.id === 'fairOff') { st.set('sm_fairmem_off', true); try { localStorage.removeItem('sm_fairmem'); } catch {} render(); }
     else if (t.id === 'voteClear') { const all = allVotes(); delete all[d.q]; st.set('sm_votes', all); render(); }

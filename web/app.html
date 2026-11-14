@@ -120,7 +120,7 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
 .reshead[hidden], #more[hidden], #intro[hidden], #extHint[hidden] { display:none; }
 .whatif { margin:0 0 14px; font-size:0.875rem; } .whatif b { font-weight:600; }
 .badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:-4px; }
-.badge { font-size:0.75rem; padding:2px 9px; border-radius:8px; background:color-mix(in srgb, var(--accent) 16%, transparent); color:var(--accent); font-weight:600; }
+.badge { font-size:0.75rem; padding:2px 9px; border-radius:8px; background:color-mix(in srgb, var(--accent) 16%, transparent); color:color-mix(in srgb, var(--accent) 65%, var(--text)); font-weight:600; }
 .badge.tip { background:color-mix(in srgb, var(--good) 16%, transparent); color:var(--good); }
 .verdict { font-size:0.8125rem; color:var(--muted); font-weight:400; margin-left:6px; }
 .delta { font-size:0.75rem; margin-left:6px; } .delta.up { color:var(--good); } .delta.down { color:var(--warn); }
@@ -145,7 +145,7 @@ textarea { width:100%; min-height:70px; padding:10px 12px; border:1px solid var(
 :root { --shadow:0 6px 16px rgba(0,0,0,.35); --cta1:#d1344a; --cta2:#c2185b; }
 :root[data-theme="light"] { --shadow:0 6px 16px rgba(0,0,0,.12); --cta1:#e61e4d; --cta2:#d70466; }
 :root[data-theme="light"] nav.top { background:#fff; backdrop-filter:none; }
-:root[data-theme="light"] .logo { color:var(--brand); font-weight:700; letter-spacing:-.02em; }
+:root[data-theme="light"] .logo { color:var(--accent); font-weight:700; letter-spacing:-.02em; }
 :root[data-theme="light"] h1 { font-weight:600; color:#222; }
 :root[data-theme="light"] .card { border-color:#dddddd; }
 :root[data-theme="light"] .seg, :root[data-theme="light"] .seg .cell { border-color:#b0b0b0; }
