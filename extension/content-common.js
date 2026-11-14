@@ -264,31 +264,33 @@
 
     // Kartenverschieben und Zoomen ändert nur diese Parameter; das ist keine neue Suche (Panel und Budgeteingabe bleiben)
   const MAP_PARAMS = ['ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'center_lat', 'center_lng', 'search_by_map', 'map_toggle', 'viewport_width', 'viewport_height', 'update_selected_filters'];
+  // Trefferlisten: Suche (/s/…) und Wunschliste (/wishlists/<id>), beide werden gelesen und bewertet
+  const isList = path => /^\/s\//.test(path) || /^\/wishlists\/[^/]+/.test(path);
   const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
-  const SMC = window.StayMatchContent = { ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
+  const SMC = window.StayMatchContent = { isList, ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
   function start() {
     // R7: fehlt ein Seiten-Modul (Syntaxfehler, halbes Update), nicht in jedem route() stumm werfen
     if (!SMC.search || !SMC.room) {
       console.debug('StayMatch: Modul fehlt', { search: !!SMC.search, room: !!SMC.room });
-      if (/^\/s\//.test(location.pathname) || P.ROOM_RE.test(location.pathname)) panel('sm-error', 'Plugin unvollständig', [h('div', { class: 'err' }, 'Ein Teil des Plugins wurde nicht geladen. Bitte das Plugin unter chrome://extensions neu laden.')]);
+      if (isList(location.pathname) || P.ROOM_RE.test(location.pathname)) panel('sm-error', 'Plugin unvollständig', [h('div', { class: 'err' }, 'Ein Teil des Plugins wurde nicht geladen. Bitte das Plugin unter chrome://extensions neu laden.')]);
       return;
     }
     let lastUrl = '', lastKey = '', debounce = null, emptyTimer = null;
-    const relevant = () => /^\/s\//.test(location.pathname) || P.ROOM_RE.test(location.pathname);
+    const relevant = () => isList(location.pathname) || P.ROOM_RE.test(location.pathname);
     function route() {
       const path = location.pathname;
       const roomId = path.match(P.ROOM_RE)?.[1];
       if (location.href !== lastUrl) {
         const key = searchKey();
         lastUrl = location.href;
-        if (key !== lastKey) { lastKey = key; SMC.search.reset(); } else if (/^\/s\//.test(path)) { SMC.search.handle().catch(e => console.debug('StayMatch:', e)); return; }
+        if (key !== lastKey) { lastKey = key; SMC.search.reset(); } else if (isList(path)) { SMC.search.handle().catch(e => console.debug('StayMatch:', e)); return; }
         clearTimeout(emptyTimer);
         if (!roomId) document.getElementById('sm-room')?.remove();
-        if (!/^\/s\//.test(path)) { document.getElementById('sm-search')?.remove(); document.getElementById('sm-error')?.remove(); }
+        if (!isList(path)) { document.getElementById('sm-search')?.remove(); document.getElementById('sm-error')?.remove(); }
         if (roomId) setTimeout(() => SMC.room.handle(roomId).catch(e => console.debug('StayMatch:', e)), T.roomDelay ?? 2000);
-        else if (/^\/s\//.test(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
+        else if (isList(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
       }
-      if (/^\/s\//.test(path)) SMC.search.handle().catch(e => console.debug('StayMatch:', e));
+      if (isList(path)) SMC.search.handle().catch(e => console.debug('StayMatch:', e));
     }
     SMC.route = route;
     // Erst wenn die Einstellungen (Pause!) geladen sind: sonst schreibt die Suchseite schon mit den Standardwerten

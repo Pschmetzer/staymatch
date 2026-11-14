@@ -37,6 +37,10 @@ chrome.alarms?.onAlarm.addListener(async al => {
     chrome.notifications.create('sm-cancel-' + id, { type: 'basic', iconUrl: 'icons/128.png', title: 'Kostenlose Stornierung endet bald', message: `${p.title}: bis ${p.day.split('-').reverse().join('.')} kostenlos stornierbar.` });
   } catch {}
 });
+// Druckseite der Top 3 öffnen (das Panel auf Airbnb darf keine Erweiterungsseite öffnen)
+chrome.runtime.onMessage?.addListener((msg, sender) => {
+  if (msg && msg.type === 'sm-print' && sender.id === chrome.runtime.id) chrome.tabs.create({ url: chrome.runtime.getURL('print.html') });
+});
 chrome.storage.onChanged.addListener(ch => {
   if (ch.lastSearch || ch.settings) refresh();
   if (ch.settings || Object.keys(ch).some(k => k.startsWith('l:'))) syncAlarms();

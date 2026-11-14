@@ -38,6 +38,16 @@
     return out;
   }
 
+  // Top 3 als druckbare Seite: Stand lokal speichern, den Tab öffnet der Service Worker (keine Anfrage ins Netz)
+  async function printTop() {
+    const top = currentTop(), v = lastView;
+    if (!top.length) return;
+    const items = top.map((l, i) => ({ rank: i + 1, title: l.title || l.kind, kind: l.kind || null, locality: l.locality || null, rating: l.rating ?? null, reviewCount: l.reviewCount ?? null, score: l.rank.score,
+      price: l.rank.stay != null ? `${l.rank.stayEstimated ? '≈ ' : ''}${R.money(l.rank.stay, l.currency)} gesamt` : l.totalPrice != null ? `${R.money(l.totalPrice, l.currency)} ${l.isTotal ? 'gesamt' : 'pro Nacht'}` : null,
+      why: l.rank.why.slice(0, 4), warn: l.rank.warn.slice(0, 3), url: `${location.origin}/rooms/${l.id}` }));
+    await chrome.storage.local.set({ printTop: { at: Date.now(), people: v.ctx.people || null, nights: v.ctx.nights || null, count: v.count, items } });
+    try { await chrome.runtime.sendMessage({ type: 'sm-print' }); flash = ''; } catch { flash = 'Druckseite konnte nicht geöffnet werden. Öffne StayMatch über das Symbol in der Leiste.'; renderSearch(); }
+  }
   function currentTop() {
     if (!lastView) return [];
     return lastView.ranked.filter(l => !lastView.disliked.has(l.id) && passes(l)).slice(0, 3);
@@ -161,7 +171,7 @@
 
   // Nach einer Wartezeit noch keine Unterkünfte gelesen → klare Meldung statt leerem Panel
   function checkEmpty() {
-    if (!/^\/s\//.test(location.pathname) || lastView) return;
+    if (!SMC.isList(location.pathname) || lastView) return;
     if (P.parseSearch(document).length) return handleSearch().catch(() => {}); // R7: erst prüfen, dann (teure) Diagnose
     const d = P.diagnose(document);
     const ver = chrome.runtime?.getManifest?.().version || '?';
@@ -278,7 +288,7 @@
       shifts.length || fsug ? h('div', { class: 'muted' }, 'Selbst öffnen (StayMatch lädt nichts): ', ...shifts.flatMap(x => [h('a', { href: x.url, target: '_blank', rel: 'noopener' }, x.label), ' · ']), fsug ? h('a', { href: fsug.url, target: '_blank', rel: 'noopener' }, fsug.text) : null) : null,
       typeof speechSynthesis !== 'undefined' && top.length ? h('span', {}, h('button', { onclick: speak }, '🔊 Top 3 vorlesen'), ' ', h('button', { onclick: stopSpeak, 'aria-label': 'Vorlesen stoppen' }, '⏹ Stopp')) : null) : null;
     const inBudget = lastView.ranked.filter(l => l.rank.parts.price != null && l.rank.parts.price >= 0.75).length;
-    panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : 'Top 3 auf dieser Seite', [
+    panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : (/^\/wishlists\//.test(location.pathname) ? 'Top 3 deiner Wunschliste' : 'Top 3 auf dieser Seite'), [
       h('div', { class: 'muted' }, `${count} Unterkünfte${pages > 1 ? ` von ${pages} Seiten, die du geöffnet hast,` : ' auf dieser Seite'} bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}${lastView.delta ? ' (angepasst)' : ''}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget && eb ? ` · Budget ${Math.round(eb)}${ctx.budgetCurrency ? ' ' + ctx.budgetCurrency : ''}${ctx.nights ? ` für ${ctx.nights} Nächte` : ''}` : ''}`),
       quick.wishes.includes('luxury') ? h('div', { class: 'muted' }, `✨ ${lastView.ranked.filter(l => l.rank.luxury?.state === true).length} von ${count} als Luxus erkannt (Stichwörter im Titel, Preislage, Bäder).${lastView.ranked.some(l => l.rank.luxury?.state === true) ? '' : ' Keine Treffer: Suche nach „Villa“ oder „Penthouse“ verfeinern.'}`) : null,
       X?.visitText(lastView.since) ? h('div', { class: 'muted', role: 'status' }, X.visitText(lastView.since), (lastView.since.cheaper || []).slice(0, 3).map(c => { const l = lastView.ranked.find(x => x.id === c.id); return l ? h('div', {}, '↓ ', cut(l.title || l.kind, 34), ` ${M(c.from, l)} → ${M(c.to, l)}`) : null; })) : null,
@@ -306,7 +316,8 @@
       af.length ? h('div', { class: 'muted' }, `Filter aktiv (gelten auch für neue Suchen): ${af.map(([, x]) => x.replace(/^\S+\s/, '')).join(', ')} `, h('button', { onclick: resetFilters }, 'Filter zurücksetzen')) : null,
       top.length ? h('div', { class: 'row' },
         h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, '⚖️ Vergleich'),
-        h('button', { title: 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren')) : null,
+        h('button', { title: 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren'),
+        h('button', { onclick: printTop }, '🖨️ Top 3 drucken')) : null,
       flash ? h('div', { class: 'muted', role: 'status' }, flash) : null,
       whyBox,
       top.length && compareMode ? cmpPick : null,
@@ -325,7 +336,7 @@
           h('a', { class: 'name', href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener' }, l.title || l.kind),
           h('button', { 'aria-label': `${l.title || l.kind} auf der Seite zeigen`, title: 'Karte auf der Airbnb-Seite zeigen', onclick: () => showOnPage(l.id) }, '📍'),
           l.rating != null ? h('span', { class: 'stars' }, `★ ${String(l.rating).replace('.', ',')}${l.reviewCount ? ` (${l.reviewCount})` : ''}`) : null),
-        h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · ')),
+        h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · '), l.wishlisted === true ? ' · ♥ in deiner Wunschliste' : ''),
         l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, M(l.totalPrice, l)), l.isTotal ? ' gesamt' : ' pro Nacht', l.rank.ppn?.person ? ` · ${M(l.rank.ppn.person, l)} p. P./Nacht` : '', l.discounted ? ' · Rabatt' : '') : null,
         h('ul', {}, l.rank.why.map(w => h('li', {}, w)), l.rank.warn.map(w => h('li', { class: 'warn' }, '⚠️ ' + w)), (l.rank.info || []).map(w => h('li', { class: 'muted' }, w)),
           i > 0 && X ? [X.gapToFirst(l, first)].filter(Boolean).map(w => h('li', { class: 'muted' }, w)) : null),

@@ -557,6 +557,7 @@
       // Storno kennt StayMatch nur nach einem Besuch der Unterkunftsseite
       ['Storno-Art', l => { const c = ctx.known?.get?.(l.id)?.cancellation; return !c || !c.kind ? '–' : c.kind === 'free' ? `kostenlos${c.until ? ' bis ' + c.until : ''}` : c.kind === 'nonrefundable' ? 'nicht erstattbar' : 'streng'; }],
       ['Abstand zum Viertelzentrum', l => l.rank.area?.dist == null ? '–' : l.rank.area.dist >= 1000 ? `${(l.rank.area.dist / 1000).toFixed(1).replace('.', ',')} km` : `${l.rank.area.dist} m`],
+      ['Wunschliste', l => l.wishlisted === true ? '♥ ja' : l.wishlisted === false ? 'nein' : '–'], // Herz auf der Karte, nur gelesen
       ['Auszeichnung', l => (l.badges || []).join(', ') || '–'], // R7: „Gäste-Favorit“ ist keine Gastgeber-Eigenschaft
       ['Warnungen', l => l.rank.warn.length ? String(l.rank.warn.length) + ': ' + l.rank.warn.slice(0, 2).join('; ') : 'keine'],
     ];
