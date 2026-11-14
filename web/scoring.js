@@ -40,7 +40,7 @@
   }
   // Harte Grenze („auf keinen Fall Partymeile“): welche Personen legen gegen dieses Viertel ein Veto ein?
   const VETO_LIMIT = 0.5; // normierter Wert ab dem eine Kategorie als „zu viel“ gilt
-  const VETO_MIN = 5; // mindestens so viele Orte, sonst ist „viel“ nur relativ zu einer ruhigen Stadt
+  const VETO_MIN = 30; // absolute Untergrenze: erst ab 30 Orten der Kategorie im Umkreis gilt „zu viel“ (sonst entscheidet nur der Vergleich mit dem Stadtmaximum, und das trifft in Berlin jedes zweite Viertel)
   function vetoes(norm, people, counts) {
     const out = [];
     for (const p of people) for (const k of (p.veto || [])) if ((norm[k] || 0) >= VETO_LIMIT && (!counts || (counts[k] || 0) >= VETO_MIN)) out.push({ name: p.name, cat: k, label: CATEGORIES[k].label });
@@ -135,11 +135,19 @@
         }
       }
     }
-    const max = {};
-    for (const k of keys) max[k] = Math.max(1, ...areas.map(a => a.sums[k]));
+    // Bezugswert = 95. Perzentil (nicht das Maximum): ein einzelnes Ausreißerviertel (Rom: Pigna) drückt sonst alle anderen.
+    // Bis zum Bezugswert zählt Wurzel(Anteil) · 0,9; darüber steigt der Wert linear von 0,9 bis 1 am Maximum, so bleibt die Reihenfolge der Spitze erhalten.
+    const ref = {}, top = {};
+    for (const k of keys) {
+      const v = areas.map(a => a.sums[k]).sort((x, y) => x - y);
+      top[k] = v.length ? v[v.length - 1] : 0;
+      ref[k] = Math.max(1, v.length ? v[Math.min(v.length - 1, Math.ceil(v.length * 0.95) - 1)] : 0);
+    }
     for (const a of areas) {
-      // Wurzel, damit ein Viertel mit 200 Bars nicht alles andere erschlägt
-      a.norm = Object.fromEntries(keys.map(k => [k, Math.sqrt(a.sums[k] / max[k])]));
+      a.norm = Object.fromEntries(keys.map(k => {
+        const x = a.sums[k];
+        return [k, x <= ref[k] ? 0.9 * Math.sqrt(x / ref[k]) : top[k] > ref[k] ? 0.9 + 0.1 * (x - ref[k]) / (top[k] - ref[k]) : 0.9];
+      }));
     }
     return areas;
   }
@@ -154,6 +162,17 @@
       a.tier = s > 0.6 ? 3 : s > 0.35 ? 2 : 1;
     }
     return areas;
+  }
+  function quantile(xs, q) { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(s.length * q))] : 0; }
+  // Alte Schlüssel („Name@Breite“) auf die der aktuellen Viertel abbilden: gleicher Name und höchstens 600 m Abstand. Unbekannte bleiben unverändert.
+  function remapKeys(keys, areas, keyOf) {
+    const by = new Map();
+    for (const a of areas) (by.get(a.name) || by.set(a.name, []).get(a.name)).push(a);
+    return (keys || []).map(k => {
+      const i = String(k).lastIndexOf('@'), name = String(k).slice(0, i), lat = parseFloat(String(k).slice(i + 1));
+      const c = (by.get(name) || []).filter(a => Math.abs(a.lat - lat) < 0.0054).sort((x, y) => Math.abs(x.lat - lat) - Math.abs(y.lat - lat))[0];
+      return c ? keyOf(c) : k;
+    });
   }
   function median(xs) { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; }
   // Geheimtipp: fast so gut wie die Spitze, aber wenig Sehenswürdigkeiten und abseits vom Zentrum
@@ -182,12 +201,14 @@
 
   // Zufriedenheit einer Person (0..100)
   function personScore(norm, weights) {
-    // Negative Gewichte = stört (z. B. Chill-Typ und Partymeile)
-    let s = 0, t = 0, neg = 0;
-    for (const [k, w] of Object.entries(weights)) { s += w * (norm[k] || 0); if (w > 0) t += w; else neg -= w; }
+    // Wünsche (positive Gewichte): erfüllter Anteil 0..1. Abneigungen (negative): Störanteil 0..1.
+    // Der Störanteil mindert den Wert höchstens um den Anteil der Abneigungen am Gesamtgewicht (|neg| / (pos + |neg|)), skaliert also wie die Wünsche.
+    let sp = 0, t = 0, sn = 0, neg = 0;
+    for (const [k, w] of Object.entries(weights)) { const x = norm[k] || 0; if (w > 0) { sp += w * x; t += w; } else if (w < 0) { sn -= w * x; neg -= w; } }
     // Nur Abneigungen (Regler alle ≤ 0): 100 = nichts davon in der Nähe, 0 = alles voll davon
-    if (!t) return neg ? Math.max(0, Math.min(100, Math.round(100 + (s / neg) * 100))) : 0; // nichts gewählt = kein Treffer
-    return Math.max(0, Math.min(100, Math.round((s / t) * 100)));
+    if (!t) return neg ? Math.max(0, Math.min(100, Math.round(100 - (sn / neg) * 100))) : 0; // nichts gewählt = kein Treffer
+    const pen = neg ? (neg / (t + neg)) * (sn / neg) : 0;
+    return Math.max(0, Math.min(100, Math.round((sp / t) * (1 - pen) * 100)));
   }
 
   // Fairness: 60 % schwächste Person (Maximin) + 40 % Durchschnitt
@@ -222,14 +243,16 @@
     return `${lead}: ${low.name} (${min}) ${weak.kind === 'missing' ? `vermisst ${weak.label}` : `stört sich an viel ${weak.label}`}.`;
   }
 
-  // Wie setzt sich der Wert einer Person zusammen? Punkte je Kategorie (positiv hilft, negativ stört)
+  // Wie setzt sich der Wert einer Person zusammen? Punkte je Kategorie (positiv hilft, negativ stört). Summe ≈ personScore (ohne Begrenzung auf 0..100).
   function breakdown(norm, weights) {
-    let t = 0;
-    for (const w of Object.values(weights)) if (w > 0) t += w;
-    const neg = Object.values(weights).reduce((x, w) => x - (w < 0 ? w : 0), 0);
-    const den = t || neg || 1;
-    return Object.entries(weights).filter(([, w]) => w).map(([k, w]) => ({ key: k, label: CATEGORIES[k].label, pts: Math.round((w * (norm[k] || 0)) / den * 100) }))
-      .filter(x => x.pts).sort((x, y) => Math.abs(y.pts) - Math.abs(x.pts));
+    let t = 0, neg = 0, sp = 0;
+    for (const [k, w] of Object.entries(weights)) { if (w > 0) { t += w; sp += w * (norm[k] || 0); } else if (w < 0) neg -= w; }
+    const f = t ? sp / t : 0; // erfüllter Anteil der Wünsche; Abneigungen mindern ihn nur im Verhältnis ihres Gewichts
+    return Object.entries(weights).filter(([, w]) => w).map(([k, w]) => {
+      const x = norm[k] || 0;
+      const pts = w > 0 ? (w * x) / t : t ? -f * (-w * x) / (t + neg) : -(-w * x) / neg; // nur Abneigungen: 0 bis −100
+      return { key: k, label: CATEGORIES[k].label, pts: Math.round(pts * 100) };
+    }).filter(x => x.pts).sort((x, y) => Math.abs(y.pts) - Math.abs(x.pts));
   }
 
   // „Ohne Tom wäre …“: für jede Person das beste Viertel, wenn sie nicht dabei wäre (nur wenn es sich ändert)
@@ -282,24 +305,28 @@
   }
 
   // Gruppe aus Text: „Lena Party, Mia Chill“ oder eine Person pro Zeile („Tom: Sightseeing“)
+  // Ganze Wörter (Deutsch und Englisch), keine Präfixe: „Kindergarten“ ist kein Familientyp, „Lauf“ kein Sportler, „Kindra“ kein Kind
   const TYPE_WORDS = [
-    ['party', /^(party|feier|club|nacht)/], ['chill', /^(chill|ruhe|entspann)/], ['sights', /^(sight|besicht|stadt)/], ['foodie', /^(food|essen|kulinar)/],
-    ['family', /^(famil|kind)/], ['nature', /^(natur|wander)/], ['shopping', /^(shop|einkauf)/], ['sport', /^(sport|fitness|lauf)/], ['culture', /^(kultur|museum|theater)/],
-  ]; // am Wortanfang verankert: „Jessen“ ist kein Foodie
+    ['party', /^(party|partys|parties|feier|feiern|club|clubs|clubbing|nacht|nachtleben|nightlife|nightclub|bars)$/], ['chill', /^(chill|chillen|chilling|ruhe|ruhig|entspannt|entspannen|entspannung|relax|relaxed|relaxing|quiet|calm)$/],
+    ['sights', /^(sightseeing|sights|sight|besichtigung|besichtigen|sehenswuerdigkeiten|sehenswürdigkeiten|tourist|touristisch)$/], ['foodie', /^(food|foodie|foodies|essen|kulinarik|kulinarisch|restaurants|gourmet|dining)$/],
+    ['family', /^(familie|family|kinder|kids|children)$/], ['nature', /^(natur|nature|wandern|hiking|outdoor|outdoors)$/], ['shopping', /^(shopping|shoppen|einkaufen|einkauf)$/],
+    ['sport', /^(sport|sports|fitness|laufen|running|jogging|gym)$/], ['culture', /^(kultur|culture|museum|museen|museums|theater|theatre|art|kunst)$/],
+  ];
+  const typeOfWord = w => { const x = w.toLowerCase().replace(/[.!?]+$/, ''); const h = TYPE_WORDS.find(([, re]) => re.test(x)); return h ? h[0] : null; };
   function parseGroup(text) {
     const parts = String(text || '').split(/[\n,;&+]+|\s+(?:und|and)\s+/i).map(x => x.trim()).filter(Boolean).slice(0, 30);
     const out = [];
     for (const part of parts) {
       const m = /^(\d{1,2})\s*[x×]?\s+(\S.*)$/i.exec(part); // „3 Party“ = drei Personen vom Typ Party
       if (m && +m[1] > 1) {
-        const hit = TYPE_WORDS.find(([, re]) => re.test(m[2].toLowerCase())), label = m[2].trim().slice(0, 30);
-        for (let n = 1; n <= +m[1] && out.length < 30; n++) out.push({ name: `${label} ${n}`, type: hit ? hit[0] : 'chill' });
+        const type = m[2].trim().split(/\s+/).map(typeOfWord).find(Boolean), label = m[2].trim().slice(0, 30);
+        for (let n = 1; n <= +m[1] && out.length < 30; n++) out.push({ name: `${label} ${n}`, type: type || 'chill' });
         continue;
       }
       const words = part.replace(/[:()–]|\s-\s/g, ' ').split(/\s+/).filter(Boolean); // Bindestrich im Namen bleibt („Hans-Peter“)
-      const hit = TYPE_WORDS.find(([, re]) => words.some(w => re.test(w.toLowerCase())));
-      const name = words.filter(w => !hit || !hit[1].test(w.toLowerCase())).join(' ').trim().slice(0, 40);
-      out.push({ name: name || `Person ${out.length + 1}`, type: hit ? hit[0] : 'chill' });
+      const at = words.findIndex(w => typeOfWord(w)); // nur das erste Typwort ist der Typ; ein zweites bleibt Teil des Namens
+      const name = words.filter((_, i) => i !== at).join(' ').trim().slice(0, 40);
+      out.push({ name: name || `Person ${out.length + 1}`, type: at >= 0 ? typeOfWord(words[at]) : 'chill' });
     }
     return out;
   }
@@ -310,8 +337,14 @@
     return Number.isFinite(n) ? Math.max(0, n) : 0;
   }
 
+  // Airbnb-Domain: Sprache der Seite entscheidet (de → .de, in AT/CH deren Seite, en → .com, in GB .co.uk)
+  function airbnbHost(lang, cc) {
+    const l = String(lang || 'de').slice(0, 2).toLowerCase(), c = String(cc || '').toLowerCase();
+    if (l === 'en') return c === 'gb' || c === 'uk' ? 'www.airbnb.co.uk' : 'www.airbnb.com';
+    return c === 'at' ? 'www.airbnb.at' : c === 'ch' ? 'www.airbnb.ch' : c === 'gb' || c === 'uk' ? 'www.airbnb.co.uk' : 'www.airbnb.de';
+  }
   // Deep-Link in die Airbnb-Suche (Kartenbereich rund ums Viertel)
-  function airbnbUrl({ lat, lon, name, city, checkin, checkout, adults, children, infants, minBedrooms, priceMaxNight, radius = RADIUS.area }) {
+  function airbnbUrl({ lang, cc, lat, lon, name, city, checkin, checkout, adults, children, infants, minBedrooms, priceMaxNight, radius = RADIUS.area }) {
     const dLat = radius / 111320, dLon = radius / (111320 * Math.cos(lat * Math.PI / 180));
     const q = new URLSearchParams();
     if (checkin) q.set('checkin', checkin);
@@ -327,7 +360,7 @@
     q.set('ne_lat', (lat + dLat).toFixed(5)); q.set('ne_lng', (lon + dLon).toFixed(5));
     q.set('sw_lat', (lat - dLat).toFixed(5)); q.set('sw_lng', (lon - dLon).toFixed(5));
     q.set('search_by_map', 'true');
-    return `https://www.airbnb.de/s/${encodeURIComponent(`${name}, ${city}`)}/homes?${q}`;
+    return `https://${airbnbHost(lang, cc)}/s/${encodeURIComponent(`${name}, ${city}`)}/homes?${q}`;
   }
 
   // Beste Viertel, aber keine zwei Nachbarn im Umkreis von minDist (sonst 5× dieselbe Gegend)
@@ -351,11 +384,23 @@
       && (!relevant.length || relevant.reduce((x, k) => x + a.counts[k], 0) >= 2) && (!maxC || a.centerDist <= maxC));
     return { withData, relevant, empty };
   }
-  // Schlüssel für den Index der Vorab-Städte: „Barcelona, Spanien“, „Wien (Österreich)“ und „ROM “ finden die Datei
+  // Länder-/Zusatzwörter, die einen Städtenamen nur ergänzen („Rom, Italien“). Alles andere nach dem Komma („Paris, Texas“) ist ein anderer Ort.
+  const COUNTRY_WORDS = new Set(['deutschland', 'germany', 'allemagne', 'osterreich', 'oesterreich', 'austria', 'autriche', 'schweiz', 'switzerland', 'suisse', 'frankreich', 'france',
+    'spanien', 'spain', 'espana', 'espagne', 'italien', 'italy', 'italia', 'italie', 'portugal', 'niederlande', 'netherlands', 'holland', 'nederland', 'pays-bas', 'tschechien', 'czechia', 'czech republic',
+    'ungarn', 'hungary', 'magyarorszag', 'eu', 'europa', 'europe']);
+  // Schlüssel für den Index der Vorab-Städte: „Barcelona, Spanien“, „Wien (Österreich)“ und „ROM “ finden die Datei,
+  // „Paris, Texas“ oder „Rome, Georgia“ dagegen nicht (sonst kämen die Daten der falschen Stadt).
   function cityKeys(s) {
     const n = C.normCity, full = String(s || '');
-    return [...new Set([n(full), n(full.split(',')[0]), n(full.replace(/\(.*?\)/g, '').split(',')[0])])].filter(Boolean);
+    const noParen = full.replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim();
+    const rest = [...(full.match(/\(.*?\)/g) || []).map(x => x.slice(1, -1)), ...noParen.split(',').slice(1)].map(x => n(x)).filter(Boolean);
+    const out = [n(full)];
+    if (rest.every(x => COUNTRY_WORDS.has(x))) out.push(n(full.split(',')[0]), n(noParen.split(',')[0]));
+    return [...new Set(out)].filter(Boolean);
   }
+  // Land (Kleinbuchstaben-ISO) der Vorab-Städte für die Airbnb-Domain
+  const CITY_COUNTRY = { wien: 'at', vienna: 'at', barcelona: 'es', madrid: 'es', lissabon: 'pt', lisboa: 'pt', lisbon: 'pt', berlin: 'de', prag: 'cz', praha: 'cz', prague: 'cz', amsterdam: 'nl', paris: 'fr', budapest: 'hu', rom: 'it', roma: 'it', rome: 'it' };
+  function cityCountry(s) { return cityKeys(s).map(k => CITY_COUNTRY[k]).find(Boolean) || null; }
   // Vorab-Datei (web/data/*.json) → Zeilen und Stadtzentrum. Zentrum aus der Datei, sonst Mitte der Box (ungenau).
   function fromFile(d) {
     const rows = C.rowsToTags(d.fields, d.rows);
@@ -394,8 +439,8 @@
   function shareEncode(st) {
     const { c, i, o, b, bm, r, mc, k, y, bd, m, mw } = st;
     return b64.enc({ c, i, o, b, bm, r, mc, k, y, bd, m, mw, f: Math.round(st.fairness * 100),
-      p: st.people.map(p => [p.name, p.type, p.custom ? Object.keys(CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: st.wishes,
-      v: st.votes && Object.keys(st.votes).length ? st.votes : undefined }); // v: Stimmen der Gruppen-Abstimmung
+      p: st.people.map((p, i) => [st.anon ? `Person ${i + 1}` : p.name, p.type, p.custom ? Object.keys(CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: st.wishes,
+      v: !st.anon && st.votes && Object.keys(st.votes).length ? st.votes : undefined }); // v: Stimmen der Gruppen-Abstimmung
   }
   // Nie dem Link trauen: alles prüfen und begrenzen. null = kaputt.
   function shareDecode(h) {
@@ -403,6 +448,7 @@
       const s = b64.dec(h);
       const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
       const day = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+      const shortVal = v => (typeof v === 'string' || typeof v === 'number') && String(v).length <= 8 ? String(v) : ''; // Auswahlwerte: kurz, nur Text/Zahl
       if (!s || !Array.isArray(s.p) || !s.p.length || s.p.length > 30) return null;
       const keys = Object.keys(CATEGORIES);
       const people = s.p.filter(Array.isArray).map(([n, t, c, v, t2]) => cleanPerson({
@@ -411,9 +457,9 @@
         veto: v || undefined,
       })).filter(Boolean);
       if (!people.length) return null;
-      const map = { m: Array.isArray(s.m) ? s.m.filter(k => CATEGORIES[k]) : [], mw: /^(g|\d{1,2})$/.test(s.mw) ? s.mw : 'g' };
-      return { people, map, votes: s.v ? root.StayMatch.cleanVotes(s.v) : {}, wishes: Array.isArray(s.w) ? s.w : null, fairness: s.f != null ? cleanFairness(+s.f / 100) : null,
-        form: { c: str(s.c, 80), i: day(s.i), o: day(s.o), b: Math.max(0, Math.min(1e6, +s.b || 0)), bm: s.bm, r: s.r, mc: s.mc, k: s.k, y: s.y, bd: s.bd } };
+      const map = { m: Array.isArray(s.m) ? s.m.filter(k => typeof k === 'string' && CATEGORIES[k]) : [], mw: /^(g|\d{1,2})$/.test(s.mw) ? s.mw : 'g' };
+      return { people, map, votes: s.v ? root.StayMatch.cleanVotes(s.v) : {}, wishes: Array.isArray(s.w) ? s.w.filter(x => typeof x === 'string' && x.length <= 30).slice(0, 30) : null, fairness: s.f != null ? cleanFairness(+s.f / 100) : null,
+        form: { c: str(s.c, 80), i: day(s.i), o: day(s.o), b: Math.max(0, Math.min(1e6, +s.b || 0)), bm: str(s.bm, 10), r: shortVal(s.r), mc: shortVal(s.mc), k: Math.max(0, Math.min(10, Math.floor(+s.k) || 0)), y: Math.max(0, Math.min(5, Math.floor(+s.y) || 0)), bd: s.bd === true || s.bd === 1 } };
     } catch { return null; }
   }
 
@@ -535,7 +581,7 @@
     </article>`;
   }
 
-  root.StayMatch = { escapeHtml, LABELS, cardHtml, budgetSplit, typeSummary, overpassFetch, tripOf, shareEncode, shareDecode, eligibleAreas, cityKeys, fromFile, buildData, convertBudget, dedupePois, annotateCentre, isSecretTip, median, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
+  root.StayMatch = { escapeHtml, LABELS, cardHtml, budgetSplit, typeSummary, overpassFetch, tripOf, shareEncode, shareDecode, eligibleAreas, cityKeys, cityCountry, airbnbHost, fromFile, buildData, convertBudget, dedupePois, annotateCentre, isSecretTip, median, quantile, remapKeys, cityStats, verdict, summary, breakdown, whatIfWithout, awards, sortAreas, parseGroup, cleanWeights, weightsOf, cleanPerson, cleanFairness, vetoes, thinData, compareAreas, placeChoices, VETO_LIMIT, weakness, pickDiverse, CATEGORIES, PRESETS, categoriesOf, distM, scoreAreas, personScore, groupScore, nights, airbnbUrl };
   // ---- Runde 7: Zusatzfunktionen des Viertel-Finders (reine Rechnung; Anzeige in app-extra.js) ----
   const KEYS = Object.keys(CATEGORIES);
   const wOf = p => p.w || weightsOf(p);
