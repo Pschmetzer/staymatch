@@ -105,7 +105,18 @@
   function diningSeats(t) { const m = S(t).match(/(?:esstisch|tisch|dining table|table)\s+(?:für|for|pour)\s+(\d{1,2})|(\d{1,2})\s*(?:sitzplätze|sitzplätzen|seats?|places assises)(?:\s+am (?:ess)?tisch)?/i); return m ? +(m[1] || m[2]) : null; }
   function dishesFor(t) { const m = S(t).match(/(?:geschirr|besteck|tableware|dishes)\s+(?:für|for)\s+(\d{1,2})/i); return m ? +m[1] : null; }
   function bedWidth(t) { const m = S(t).match(/(\d{2,3})\s*(?:x\s*\d{3}\s*)?cm(?:[^.\n]{0,20}(?:bett|bed|matratze|lit|cama))|(?:bett|bed|matratze)[^.\n]{0,20}?(\d{2,3})\s*(?:x\s*\d{3}\s*)?cm/i); const w = m ? +(m[1] || m[2]) : null; return w && w >= 70 && w <= 220 ? w : null; }
-  function area(t) { const m = S(t).match(/(\d{2,4})\s*(?:m²|m2|qm|quadratmeter|sq\.?\s*m|square met(?:er|re)s?)(?![\p{L}\d])/iu); const v = m ? +m[1] : null; return v && v >= 8 && v <= 2000 ? v : null; }
+  function area(t) {
+    const str = S(t), re = /(\d{2,4})\s*(?:m²|m2|qm|quadratmeter|sq\.?\s*m|square met(?:er|re)s?)(?![\p{L}\d])/giu;
+    // Grundstück, Garten, plot: Außenfläche ist keine Wohnfläche
+    const OUT_BEFORE = /(?:grundst\w*|garten|plot|land|lot|terrain|jardin|garden|yard)[^.\n]{0,15}$/i, OUT_AFTER = /^\s*(?:grund\w*|garten|plot|land|terrain|jardin|garden|yard)/i;
+    for (const m of str.matchAll(re)) {
+      const before = str.slice(Math.max(0, m.index - 22), m.index), after = str.slice(m.index + m[0].length, m.index + m[0].length + 14);
+      if (OUT_BEFORE.test(before) || OUT_AFTER.test(after)) continue;
+      const v = +m[1];
+      return v >= 8 && v <= 2000 ? v : null;
+    }
+    return null;
+  }
   function sqft(t) { const m = S(t).match(/(\d{3,5})\s*(?:sq\.?\s*ft|square feet)/i); return m ? Math.round(+m[1] * 0.0929) : null; }
   function floorInfo(t) {
     const s = S(t);
@@ -131,7 +142,7 @@
   const FEATURES = {
     bathtub: /badewanne|bathtub|baignoire|bañera|vasca da bagno/i,
     view: /meerblick|seeblick|bergblick|stadtblick|aussicht|blick (?:über|auf)|panoramablick|sea view|ocean view|city view|mountain view|lake view|skyline view|vue sur|vista al mar|vista sul/i,
-    workspace: /arbeitsplatz|schreibtisch|arbeitsbereich|dedicated workspace|workspace|desk\b|espace de travail|escritorio|scrivania/i,
+    workspace: /arbeitsplatz|schreibtisch|arbeitsbereich|dedicated workspace|workspace|(?<!front )(?<!reception )(?<!help )(?<!service )(?<!information )desk\b|espace de travail|escritorio|scrivania/i,
     monitor: /\bmonitor\b|zweiter bildschirm|external (?:monitor|screen)|écran externe/i,
     selfCheckin: /self[- ]check[- ]?in|selbst einchecken|schlüsselbox|schlüsselsafe|smart ?lock|keypad|lockbox|key ?safe|boîte à clés|caja de seguridad/i,
     lock: /schloss an der (?:schlaf)?zimmertür|abschließbar\w*|abschließbares zimmer|lock on (?:the )?bedroom door|serrure sur la porte/i,
@@ -162,13 +173,13 @@
     heating: /heizung|heating|chauffage|calefacción|riscaldamento/i,
     elevator: /aufzug|fahrstuhl|elevator|(?<![\p{L}])lift(?![\p{L}])|ascenseur|ascensor|ascensore/iu,
     pool: /\bpool\b(?!\s*(?:table|tisch|billard))|schwimmbad|piscine|piscina/i,
-    fireplace: /kamin|fireplace|cheminée|chimenea|camino/i,
+    fireplace: /kamin|fireplace|cheminée|chimenea|caminetto/i,
     sauna: /sauna/i,
     fridge: /(?<!mini[- ]?)kühlschrank|refrigerator|(?<!mini[- ]?)fridge|réfrigérateur|frigorífico|nevera|frigorifero/i,
     miniFridge: /minikühlschrank|mini[- ]?(?:fridge|kühlschrank)|minibar|kühlfach/i,
     freezer: /gefrierfach|gefrierschrank|tiefkühl\w*|freezer|congélateur|congelador/i,
-    oven: /backofen|ofen\b|\boven\b|four\b|horno|forno/i,
-    stove: /herd|kochfeld|stove|cooktop|cuisinière|plaques? de cuisson|vitrocerámica|fornelli/i,
+    oven: /backofen|ofen\b|\boven\b|\b(?:le|un|du|au|de|d')\s?four\b|\bfour (?:à|électrique|encastrable)|horno|forno/i,
+    stove: /\bherd\b|kochfeld|stove|cooktop|cuisinière|plaques? de cuisson|vitrocerámica|fornelli/i,
     dishwasher: /geschirrspüler|spülmaschine|dishwasher|lave-vaisselle|lavavajillas|lavastoviglie/i,
     microwave: /mikrowelle|microwave|micro-ondes|microondas/i,
     kitchenette: /kochnische|kitchenette|pantry|kochplatte|hot ?plate|plaque chauffante/i,
@@ -292,6 +303,12 @@
     };
   }
 
+  const TROPIC_LAT = 30;
+  // Kalte Jahreszeit (Kamin, Sauna, Außenpool)? lat: Breitengrad (Vorzeichen = Halbkugel), month 1–12. Tropen: nie.
+  function isColdSeason(lat, month) {
+    if (!month || lat == null || Math.abs(lat) <= TROPIC_LAT) return lat == null ? [10, 11, 12, 1, 2, 3].includes(month) : false;
+    return (lat < 0 ? [4, 5, 6, 7, 8, 9] : [10, 11, 12, 1, 2, 3]).includes(month);
+  }
   // Aus den gelesenen Merkmalen werden Hinweise für deine Reise.
   // ctx: { people, children, infants, pets, nights, checkin (YYYY-MM-DD), lat, wishes, total (Reisepreis), currency, pro, superhost, responseTime, ownBed }
   // → { warn: [] (wichtig, sichtbar), info: [] (in „Mehr Hinweise“), plus: [] }
@@ -302,8 +319,10 @@
     const people = ctx.people || 0, kids = (ctx.children || 0) + (ctx.infants || 0);
     const month = ctx.checkin ? +String(ctx.checkin).slice(5, 7) : null;
     const south = ctx.lat != null && ctx.lat < 0;
+    // In den Tropen (|Breite| ≤ 30°) gibt es keine „kalte Jahreszeit“ im Sinn des Hinweises
+    const seasonal = ctx.lat == null || Math.abs(ctx.lat) > TROPIC_LAT;
     const summer = month && (south ? [12, 1, 2] : [6, 7, 8]).includes(month);
-    const winter = month && (south ? [5, 6, 7, 8, 9] : [11, 12, 1, 2, 3]).includes(month);
+    const winter = seasonal && month && (south ? [5, 6, 7, 8, 9] : [11, 12, 1, 2, 3]).includes(month);
     const cur = ctx.currency || x.fees?.currency || null;
     // Preis
     if (x.deposit) info.push(`Kaution ${money(x.deposit.amount, x.deposit.currency)} (kommt zurück, aber erst später)`);
@@ -373,14 +392,14 @@
     const hx = x.host || {};
     if (hx.notVerified) warn.push('Identität des Gastgebers nicht bestätigt');
     if (hx.listings != null && hx.listings >= 5) info.push(`Gastgeber vermietet ${hx.listings} Unterkünfte`);
-    if (hx.listings >= 10 && ctx.hostSince && +ctx.hostSince >= new Date().getFullYear() - 1) warn.push(`Neues Gastgeber-Konto mit ${hx.listings} Unterkünften (Agentur oder Fake?)`);
+    if (hx.listings >= 10 && ctx.hostSince && +ctx.hostSince >= new Date().getFullYear() - 1) warn.push(`Neues Gastgeber-Konto mit ${hx.listings} Unterkünften (viele Inserate, neues Konto: Bewertungen und Identität genau prüfen)`);
     if (hx.livesIn) info.push(`Gastgeber lebt in ${hx.livesIn}`);
     if (hx.languages?.length) info.push(`Gastgeber spricht ${hx.languages.join(', ')}`);
     if (ctx.responseTime === 'day' && ctx.checkin) { const days = (Date.parse(ctx.checkin) - (ctx.now || Date.now())) / 864e5; if (days >= 0 && days < 2) warn.push('Gastgeber antwortet meist erst innerhalb eines Tages, die Anreise ist bald: Sofortbuchung bevorzugen'); }
     // Sonstiges
     if (x.license) info.push(`Registriernummer laut Inserat: ${x.license}`);
     if (x.green?.length) info.push(`Laut Gastgeber (nicht geprüft): ${x.green.join(', ')}`);
-    if (x.superlatives?.count >= 4) info.push(`${x.superlatives.count} Werbewörter in der Beschreibung („atemberaubend“ & Co.): auf Fakten achten 😉`);
+    if (x.superlatives?.count >= 4 && x.superlatives.share >= 0.03) info.push(`${x.superlatives.count} Werbewörter in der Beschreibung („atemberaubend“ & Co.): auf Fakten achten 😉`);
     if (x.kitchen === 'basic') info.push('Nur Kochnische oder Mikrowelle');
     else if (x.kitchen === 'full') plus.push('Voll ausgestattete Küche');
     if (x.coffee) info.push(`Kaffee: ${x.coffee}`);
@@ -437,7 +456,7 @@
   function wishesFromSentence(t) {
     const s = S(t);
     const wishes = [...new Set(SENTENCE.filter(([re]) => re.test(s)).map(([, k]) => k))];
-    const b = s.match(/(?:unter|bis|max(?:imal)?|höchstens|under|below|up to)\s*(\d{2,5})\s*(?:€|eur|euro)?/i);
+    const b = s.match(/(?:unter|bis|max(?:imal)?|höchstens|under|below|up to)\s*(\d{2,5})(?!\d)(?:\s*(?:€|eur|euro)|(?!\s*(?:personen|person|gäste|gästen|gast|min\w*|minutes?|people|guests?|persons?|km|meter|metern|nächte\w*|nights?|tage\w*|days?|betten|beds?|zimmer|rooms?|m²|m2)))/i);
     return { wishes, budgetNight: b ? +b[1] : null };
   }
 
@@ -664,10 +683,12 @@
 
   // ================= Teil 3: Popup und Verlauf =================
   // Link-Echtheit: exakt eine Airbnb-Domain aus der Liste? Nachbauten („airbnb-secure-pay.com“) erkennen
+  const OFFICIAL_EXTRA = ['abnb.me', 'airbnb.hu', 'airbnb.co.in'];
   function linkCheck(url, domains) {
     let u; try { u = new URL(String(url).trim()); } catch { return { ok: false, text: 'Kein gültiger Link' }; }
     const host = u.hostname.toLowerCase().replace(/^www\./, '');
-    if (domains.includes(host)) return u.protocol === 'https:' ? { ok: true, text: `Echte Airbnb-Adresse (${host})` } : { ok: false, text: 'Airbnb-Adresse, aber ohne https: nicht öffnen' };
+    // abnb.me ist die offizielle Kurzlink-Domain; weitere offizielle Landesdomains
+    if (domains.includes(host) || OFFICIAL_EXTRA.includes(host)) return u.protocol === 'https:' ? { ok: true, text: `Echte Airbnb-Adresse (${host})` } : { ok: false, text: 'Airbnb-Adresse, aber ohne https: nicht öffnen' };
     if (/a[i1l]r[bh]n[bh]|airbnb/i.test(host)) return { ok: false, text: `Vorsicht: ${host} ist KEINE Airbnb-Adresse (Nachbau). Nichts eingeben, nichts zahlen.` };
     return { ok: false, text: `${host} gehört nicht zu Airbnb` };
   }
@@ -739,7 +760,7 @@
     return { warn, info };
   }
   // Kontaktdaten markiert (Telefon, Mail): außerhalb der Plattform zahlen ist ein häufiger Betrug
-  const contactLike = t => /[\w.+-]+@[\w-]+\.[a-z]{2,}|(?:\+|00)\d[\d\s()/-]{7,}\d|\b0\d{2,4}[\s/-]?\d{4,}/i.test(S(t));
+  const contactLike = t => /[\w.+-]+@[\w-]+\.[a-z]{2,}|(?:\+|00)\d[\d\s()/-]{7,}\d|(?<![\w.\-/])0[1-9]\d{1,4}[\s/-]?\d{6,}(?!\d)/i.test(S(t));
   // Gastgeber hat viele Bewertungen (Bilanz für neue Inserate)
   function hostReviewCount(t) { const m = S(t).match(/(\d{1,3}(?:[.,]\d{3})*|\d+)\s*(?:bewertungen|reviews|commentaires|evaluaciones|reseñas|recensioni)/i); return m ? +m[1].replace(/[.,]/g, '') : null; }
   // Storno-Preis-Abwägung: zwei fast gleich gute Top-Inserate, eines kostenlos stornierbar (von der Unterkunftsseite bekannt)
@@ -755,9 +776,9 @@
   }
   // Vorjahresvergleich: früher gebuchte Unterkunft in derselben Stadt
   function lastYear(booked, cityPath, medNow, cur) {
-    const city = decodeURIComponent(String(cityPath || '').split('/')[2] || '').split(/[-–,]/)[0].trim().toLowerCase();
+    const city = decodeURIComponent(String(cityPath || '').split('/')[2] || '').split(/--|[–,]/)[0].replace(/-/g, ' ').trim().toLowerCase();
     if (!city || !medNow) return null;
-    const b = (booked || []).filter(i => i.booked && i.pricePerNight && String(i.city || i.locality || '').toLowerCase().includes(city) && (R().normCur(i.currency) || '€') === cur && i.booked.checkin)
+    const b = (booked || []).filter(i => i.booked && i.pricePerNight && String(i.city || i.locality || '').toLowerCase().replace(/-/g, ' ').includes(city) && (R().normCur(i.currency) || '€') === cur && i.booked.checkin)
       .sort((x, y) => S(y.booked.checkin).localeCompare(S(x.booked.checkin)))[0];
     return b ? `Bei deiner Buchung ab ${b.booked.checkin} hast du hier ${money(b.pricePerNight, b.currency)} pro Nacht gezahlt, heute liegt die Mitte bei ${money(medNow, cur)}` : null;
   }
@@ -770,6 +791,6 @@
     advanceText,
     deposit, extraGuestFee, extraGuestCost, onSiteCosts, checkoutChores, fees, feeShare, parkingInfo, diningSeats, dishesFor, bedWidth, area, floorInfo,
     features, coffee, kitchenLevel, minAge, petLimits, petFee, allergy, ruleCount, hostExtra, license, greenClaims, superlatives, dayLength,
-    roomExtras, roomNotes, EXTRA_WISHES, PROFILES, wishesFromSentence, FEATURES, money, _R: R,
+    roomExtras, roomNotes, isColdSeason, EXTRA_WISHES, PROFILES, wishesFromSentence, FEATURES, money, _R: R,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
