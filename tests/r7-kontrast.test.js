@@ -40,13 +40,14 @@ function checkTheme(name, t) {
 
 for (const f of ['index.html', 'en.html']) {
   test(`${f}: Farb-Token erfüllen die Kontraste in Hell, Dunkel und System-Hell`, () => {
-    const t = themes(read(f));
+    const t = themes(read('site.css')); // CSS liegt seit R8 in site.css (gemeinsam für DE und EN)
     for (const [n, v] of Object.entries(t)) checkTheme(`${f} ${n}`, v);
   });
 }
 
 test('index.html und en.html haben dieselben Farb-Token', () => {
-  assert.deepEqual(themes(read('en.html')), themes(read('index.html')));
+  for (const f of ['index.html', 'en.html']) assert.ok(read(f).includes('href="site.css"') && !read(f).includes('<style>'), `${f}: nutzt site.css statt eigenem CSS`);
+  assert.ok(themes(read('site.css')).light.bg);
 });
 
 test('legal.css: Text-Token erfüllen 4,5:1 in Hell und Dunkel', () => {
