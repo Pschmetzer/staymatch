@@ -3,6 +3,7 @@
 // Aufruf: node .github/scripts/e2e-smoke.mjs
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -11,6 +12,7 @@ const srv = spawn(process.execPath, ['scripts/dev-server.mjs'], { env: { ...proc
 await new Promise((res, rej) => { srv.stdout.once('data', res); srv.once('exit', rej); });
 
 const problems = [];
+const axeSrc = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); // per evaluate eingespielt (umgeht die CSP der Seite nur für die Prüfung)
 const browser = await chromium.launch();
 try {
   for (const path of ['/', '/en', '/staedte/rom', '/app']) {
@@ -23,6 +25,17 @@ try {
     const res = await page.goto(`http://localhost:${PORT}${path}`, { waitUntil: 'networkidle' });
     if (!res || res.status() !== 200) problems.push(`${path}: Status ${res && res.status()}`);
     if (path === '/app' && !(await page.locator('body').innerText()).trim()) problems.push('/app: leere Seite');
+    if (path === '/app') { // Viertel-Suche mit Vorabdaten (web/data/rom.json, kein Netz nötig)
+      await page.fill('#city', 'Rom');
+      await page.click('#go');
+      try { await page.waitForSelector('#results article', { timeout: 20000 }); } catch { problems.push('/app: Suche nach Rom lieferte keine Viertel'); }
+    }
+    if (path === '/' || path === '/app') { // Barrierefreiheit: Fehler ab „serious“
+      await page.evaluate(axeSrc);
+      const { violations } = await page.evaluate(() => axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa'] }));
+      for (const v of violations.filter((x) => x.impact === 'serious' || x.impact === 'critical'))
+        problems.push(`${path}: axe ${v.impact} ${v.id}: ${v.help} (${v.nodes.length}x, z. B. ${v.nodes[0].target.join(' ')})`);
+    }
     await page.close();
   }
 } finally { await browser.close(); srv.kill(); }
