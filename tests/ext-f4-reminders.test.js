@@ -41,7 +41,7 @@ test('ICS: gültiges Format, Zeilenumbruch CRLF, Sonderzeichen maskiert, Storno-
     2: { id: '2', booked: { checkin: null } } }, Date.UTC(2026, 10, 1));
   assert.ok(t.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0') && t.endsWith('END:VCALENDAR\r\n'));
   assert.match(t, /DTSTART;VALUE=DATE:20261220\r\nDTEND;VALUE=DATE:20261223/);
-  assert.match(t, /SUMMARY:Loft\; "Sol"\\, Gràcia/);
+  assert.ok(t.includes('SUMMARY:Loft\\; "Sol"\\, Gràcia'), 'Semikolon und Komma nach RFC 5545 mit Rückstrich');
   assert.match(t, /DTSTART;VALUE=DATE:20261205\r\nDTEND;VALUE=DATE:20261206/);
   assert.equal((t.match(/BEGIN:VEVENT/g) || []).length, 2, 'Eintrag ohne Anreise fehlt');
   for (const line of t.split('\r\n')) assert.ok(new TextEncoder().encode(line).length <= 75, line);
@@ -79,9 +79,9 @@ test('Service Worker: Wecker nur mit Opt-in, Benachrichtigung nur mit Berechtigu
   assert.equal(alarms.size, 0);
 });
 
-test('Manifest: alarms Pflicht, notifications nur optional; Optionen fragen beim Klick', { skip }, async () => {
+test('Manifest: alarms und notifications nur optional; Optionen fragen beim Klick', { skip }, async () => {
   const m = JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));
-  assert.deepEqual(m.permissions, ['storage', 'alarms']); assert.deepEqual(m.optional_permissions, ['notifications']);
+  assert.deepEqual(m.permissions, ['storage']); assert.deepEqual(m.optional_permissions, ['alarms', 'notifications']);
   const html = fs.readFileSync(path.join(EXT, 'options.html'), 'utf8').replace(/<script[^>]*><\/script>/g, '');
   const dom = new D.JSDOM(html, { runScripts: 'outside-only', url: 'chrome-extension://x/options.html' });
   const w = dom.window, chrome = D.chromeMock({}); D.track(w);
@@ -89,7 +89,7 @@ test('Manifest: alarms Pflicht, notifications nur optional; Optionen fragen beim
   for (const f of ['core.js', 'reminders.js', 'import.js', 'options.js']) w.eval(D.src(f));
   const cb = w.document.getElementById('remind'); cb.checked = true; cb.dispatchEvent(new w.Event('change'));
   await D.until(() => asked);
-  assert.equal(JSON.stringify(asked), '{"permissions":["notifications"]}');
+  assert.equal(JSON.stringify(asked), '{"permissions":["alarms","notifications"]}');
   await D.until(() => !cb.checked);
   assert.equal(chrome.data.settings?.remind, undefined, 'abgelehnt → nicht eingeschaltet');
 });

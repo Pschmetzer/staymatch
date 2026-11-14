@@ -6,10 +6,10 @@
   "minimum_chrome_version": "110",
   "incognito": "not_allowed",
   "permissions": [
-    "storage",
-    "alarms"
+    "storage"
   ],
   "optional_permissions": [
+    "alarms",
     "notifications"
   ],
   "content_security_policy": {

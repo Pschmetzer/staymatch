@@ -289,7 +289,7 @@
   const HEART_ON = /entfernen|gespeichert|remove|\bsaved\b|retirer|enregistré|eliminar|guardad[oa]|rimuovi|salvat[oa]|verwijder|opgeslagen|usuń|zapisan/i;
   const HEART_OFF = /hinzufügen|speichern|add to|\bsave\b|ajouter|enregistrer|añadir|guardar|aggiungi|\bsalva\b|toevoegen|opslaan|dodaj|zapisz/i;
   function heartOf(card) {
-    const el = [...(card.querySelectorAll?.('button, [role="button"]') || [])].find(e => /save|wishlist|heart|favorite/i.test(e.getAttribute('data-testid') || '') || /wunschliste|wishlist|liste de souhaits|lista de deseos|lista dei desideri|verlanglijst|lista życzeń/i.test(e.getAttribute('aria-label') || ''));
+    const el = [...(card?.querySelectorAll?.('button, [role="button"]') || [])].find(e => /save|wishlist|heart|favorite/i.test(e.getAttribute('data-testid') || '') || /wunschliste|wishlist|liste de souhaits|lista de deseos|lista dei desideri|verlanglijst|lista życzeń/i.test(e.getAttribute('aria-label') || ''));
     if (!el) return null;
     const pr = el.getAttribute('aria-pressed');
     if (pr === 'true') return true; if (pr === 'false') return false;
@@ -372,6 +372,13 @@
     if (!d.cards) { d.cards = cardEls(doc).length; if (d.cards) d.cardsFallback = true; } // R9
     d.roomLinks = new Set([...doc.querySelectorAll('a[href*="/rooms/"]')].map(a => a.getAttribute('href')?.match(ROOM_RE)?.[1]).filter(Boolean)).size;
     return d;
+  }
+  // Seitenstatus für das Popup („Seite erkannt / nicht erkannt“): nur Zahlen und Stichworte, keine Seiteninhalte, nichts Persönliches.
+  // kind: 'search' | 'wishlist' | 'room'; ok = es wurde mindestens eine Unterkunft (bzw. die Unterkunftsseite) gelesen.
+  function pageStatus(kind, found, d) {
+    const n = Number.isFinite(+found) && +found > 0 ? Math.floor(+found) : 0;
+    return { kind: ['search', 'wishlist', 'room'].includes(kind) ? kind : 'search', ok: n > 0, found: n,
+      cards: Number.isFinite(d?.cards) ? d.cards : 0, roomLinks: Number.isFinite(d?.roomLinks) ? d.roomLinks : 0, state: typeof d?.stateNote === 'string' ? d.stateNote.slice(0, 20) : '' };
   }
   // Wie vollständig war das Gelesene? (Airbnb ändert gern einzelne Felder)
   function quality(listings) {
@@ -531,7 +538,7 @@
 
   root.StayMatchParse = {
     ratingFromAria, isNewLabel, isMultiUnit, normBadge, priceOf, decodeId, findKey,
-    diagnose, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, currency, rating, heartOf, details, detailsExt, localityFromTitle, ROOM_RE,
+    diagnose, pageStatus, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, currency, rating, heartOf, details, detailsExt, localityFromTitle, ROOM_RE,
     bothPrices, priceFields, scamInfos, ratingFromLines, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, safeImage, hostInfo, scamSignals, touristTax, TOTAL_RE,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -23,7 +23,7 @@ $('resetPos').onclick = async () => { await setSetting({ panelPos: undefined, pa
 $('badge').onchange = e => setSetting({ badge: e.target.checked ? undefined : false });
 $('file').onchange = async e => {
   try {
-    const parsed = I.parseImport(await e.target.files[0].text(), { isRoomUrl: roomOk, isCdnImage: cdnOk });
+    const parsed = I.parseImport(await I.readFileText(e.target.files[0]), { isRoomUrl: roomOk, isCdnImage: cdnOk });
     const { entries, skipped } = parsed;
     const r = await I.applyImport(chrome.storage.local, entries);
     await I.applyExtras(chrome.storage.local, parsed);
@@ -63,8 +63,8 @@ $('remind').onchange = async e => {
   const on = e.target.checked;
   if (on) {
     let ok = false;
-    try { ok = await chrome.permissions.request({ permissions: ['notifications'] }); } catch {}
-    if (!ok) { e.target.checked = false; $('remInfo').textContent = 'Ohne Erlaubnis für Benachrichtigungen keine Erinnerung.'; return; }
+    try { ok = await chrome.permissions.request({ permissions: ['alarms', 'notifications'] }); } catch {}
+    if (!ok) { e.target.checked = false; $('remInfo').textContent = 'Ohne Erlaubnis für Wecker und Benachrichtigungen keine Erinnerung.'; return; }
   }
   await setSetting({ remind: on ? true : undefined });
   $('remInfo').textContent = on ? 'Erinnerung ist an.' : 'Erinnerung ist aus.';
@@ -77,3 +77,10 @@ $('icsBtn').onclick = async () => {
   a.href = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' })); a.download = 'staymatch-etappen.ics'; a.click();
   $('remInfo').textContent = 'Kalender-Datei gespeichert.';
 };
+
+// Erinnerung steht auf „an“, aber die Erlaubnis fehlt (z. B. nach dem Update, nach Entzug in Chrome): Schalter ehrlich zurücksetzen
+Promise.resolve(chrome.permissions?.contains?.({ permissions: ['alarms', 'notifications'] })).then(async ok => {
+  if (ok !== false || !$('remind').checked) return;
+  $('remind').checked = false; await setSetting({ remind: undefined });
+  $('remInfo').textContent = 'Die Erlaubnis für Erinnerungen fehlt. Bitte Erinnerung neu einschalten.';
+}).catch(() => {});

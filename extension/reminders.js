@@ -56,7 +56,8 @@
   const idOfAlarm = n => String(n || '').startsWith('sm-cancel:') ? String(n).slice(10) : null;
 
   // ---------- Kalender (RFC 5545) ----------
-  const esc = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  // RFC 5545: \ ; , escapen, jeden Zeilenumbruch (auch einzelnes CR) zu \n, übrige Steuerzeichen entfernen (sonst lassen sich über Hosttitel Zeilen einschleusen)
+  const esc = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u2028\u2029]/g, '');
   function fold(line) { // 75 Oktette je Zeile, Fortsetzung mit Leerzeichen; Mehrbyte-Zeichen nicht zerschneiden
     const enc = new TextEncoder(); let out = '', cur = '', len = 0, first = true;
     for (const ch of Array.from(line)) {
