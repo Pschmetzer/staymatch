@@ -7,8 +7,9 @@
   // Zahl: "1.234", "1 234", "12,50", "702", indisch "1,23,456" (R7)
   const AMT = '(?:\\d{1,2}(?:,\\d{2})+,\\d{3}|\\d{1,3}(?:[.,\\u00a0\\u202f\\u2009 ]\\d{3})+|\\d+)(?:[.,]\\d{1,2})?';
   // Währungen; Dollar-Arten zuerst, damit "US$" nicht als "$" zählt. Wortgrenze per Lookahead (\b geht bei "ł" nicht).
+  // R9: auch indische/ungarische/türkische/asiatische Zeichen und ISO-Codes („INR 4.500“, „120 Ft“).
   // R7: kein Buchstabe davor („Una casa per lei“ ist keine Währung)
-  const CUR = '(?<![A-Za-zÀ-ÿ])(?:US\\$|CA\\$|AU\\$|NZ\\$|MX\\$|R\\$|A\\$|C\\$|€|CHF|£|¥|₹|\\$|zł|PLN|Kč|CZK|Ft|HUF|SEK|NOK|DKK|RON|lei|kr)(?![A-Za-z])';
+  const CUR = '(?<![A-Za-zÀ-ÿ])(?:US\\$|CA\\$|AU\\$|NZ\\$|MX\\$|R\\$|A\\$|C\\$|€|CHF|£|¥|₹|\\$|zł|PLN|Kč|CZK|Ft|HUF|SEK|NOK|DKK|RON|lei|kr|₺|₩|₪|₴|₽|฿|₫|S\\$|HK\\$|NT\\$|Rs\\.?|Rp|лв\\.?|USD|EUR|GBP|AUD|CAD|NZD|MXN|BRL|INR|TRY|JPY|ZAR|SGD|HKD|CNY|THB|RUB|ISK|BGN)(?![A-Za-z])';
   const CUR_RE = new RegExp(CUR);
   const AMT_CUR = new RegExp(`(${AMT})\\s*(${CUR})|(${CUR})\\s*(${AMT})`);
   // Wörter, die einen Gesamtpreis (statt Preis pro Nacht) anzeigen. Ungeprüft live: welche Wörter Airbnb je Sprache nutzt.
@@ -38,7 +39,7 @@
     if (c) return c[2] || c[3];
     const m = str.match(CUR_RE);
     // R7: „lei“, „kr“, „Ft“ sind auch normale Wörter: ohne Betrag nicht als Währung werten
-    return m && !/^(?:lei|kr|Ft)$/i.test(m[0]) ? m[0] : null;
+    return m && !/^(?:lei|kr|Ft|Rp|Rs\.?)$/i.test(m[0]) ? m[0] : null;
   }
 
   const REVIEW_WORD = '(?:Bewertung|review|avis|opini|reseña|recensi|beoordel|ocen|recenz|anmeld|arvost|avalia|αξιολόγ|κριτικ|değerlendir|yorum|omdöm|vurder)';
@@ -178,9 +179,14 @@
   }
   function stateEls(doc) {
     const list = [...(doc.querySelectorAll?.('script[id^="data-deferred-state"]') || [])].filter(e => typeof e?.textContent === 'string');
-    if (list.length) return list;
-    const one = doc.getElementById?.('data-deferred-state-0');
-    return one ? [one] : [];
+    if (!list.length) { const one = doc.getElementById?.('data-deferred-state-0'); if (one) list.push(one); }
+    // R9: Rückfall, wenn Airbnb die Skript-Kennung ändert: andere JSON-Skripte, die „staysSearch“/„searchResults“ nennen
+    if (!list.length) {
+      const others = [...(doc.querySelectorAll?.('script[type="application/json"]') || [])]
+        .filter(e => typeof e?.textContent === 'string' && /staysSearch|searchResults/.test(e.textContent));
+      list.push(...others.slice(0, 8));
+    }
+    return list;
   }
   function stateResults(doc) {
     const els = stateEls(doc);
@@ -193,8 +199,11 @@
     let results = [], note = 'kein gültiges JSON', count = 0;
     for (const e of els) {
       try {
-        const ss = findKey(JSON.parse(e.textContent), 'staysSearch');
-        const r = ss?.results?.searchResults;
+        const parsed = JSON.parse(e.textContent);
+        const ss = findKey(parsed, 'staysSearch');
+        // R9: sonst irgendein „searchResults“-Array (Pfad geändert)
+        let r = ss?.results?.searchResults;
+        if (!Array.isArray(r)) { const alt = findKey(ss || parsed, 'searchResults'); if (Array.isArray(alt)) r = alt; }
         if (Array.isArray(r)) { note = 'ok'; count = r.length; if (r.length) { results = r; break; } } else if (note !== 'ok') note = 'Struktur anders als erwartet';
       } catch {}
     }
@@ -238,8 +247,46 @@
   }
 
   // 2) Karten im DOM (nach Blättern oder Karte verschieben ist der State veraltet)
+  // R9: Fehlt data-testid="card-container", Karten über die Links zu /rooms/ finden: vom Link nach oben bis zum
+  // ersten Vorfahren mit Preis- und Sternzeile (nie über einen Vorfahren hinaus, der Links anderer Unterkünfte enthält).
+  const STAR_LINE = /(?:^|\n)\s*[★⭐☆*]?\s*\d[.,]\d{1,2}(?:\s|\(|·|•|$)/;
+  function cardEls(doc) {
+    const main = [...(doc.querySelectorAll('[data-testid="card-container"]') || [])];
+    if (main.length) return main;
+    const byId = new Map(), claimed = new Set();
+    for (const a of [...(doc.querySelectorAll('a[href*="/rooms/"]') || [])]) {
+      const id = a.getAttribute?.('href')?.match(ROOM_RE)?.[1];
+      if (!id || byId.has(id)) continue;
+      let el = a, found = null, firstPrice = null;
+      for (let i = 0; i < 8 && el?.parentElement; i++) {
+        const up = el.parentElement;
+        const ids = new Set([...up.querySelectorAll('a[href*="/rooms/"]')].map(x => x.getAttribute('href')?.match(ROOM_RE)?.[1]).filter(Boolean));
+        if (ids.size > 1) break; // schon mehrere Unterkünfte: eine Stufe zu weit
+        el = up;
+        const t = el.innerText ?? el.textContent ?? '';
+        if (!AMT_CUR.test(t)) continue;
+        firstPrice = firstPrice || el;
+        if (STAR_LINE.test(t) || /(?:^|\n)\s*(?:neu|new|nouveau|nuevo|nuovo|nieuw)\s*(?:\n|$)/i.test(t)) { found = el; break; }
+      }
+      const card = found || firstPrice;
+      if (card && !claimed.has(card)) { claimed.add(card); byId.set(id, card); }
+    }
+    return [...byId.values()];
+  }
+  // R9: Art der Unterkunft, wenn listing-card-title fehlt: aria-labelledby, sonst erste Textzeile ohne Zahl/Preis
+  function kindFallback(card, lines) {
+    try {
+      for (const el of [...(card.querySelectorAll?.('[aria-labelledby]') || [])]) {
+        for (const id of String(el.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean)) {
+          const t = (card.querySelector?.(`[id="${id.replace(/"/g, '')}"]`)?.innerText || '').trim().split('\n')[0];
+          if (t && t.length < 120 && !CUR_RE.test(t)) return t;
+        }
+      }
+    } catch {}
+    return lines.find(l => l.length >= 4 && l.length < 120 && /\p{L}{3}/u.test(l) && !/^[★⭐☆*\s]*\d/.test(l) && !CUR_RE.test(l) && !FAV_RE.test(l) && !isNewLabel(l)) || '';
+  }
   function fromCards(doc) {
-    return [...doc.querySelectorAll('[data-testid="card-container"]')].map(card => {
+    return cardEls(doc).map(card => {
       const a = card.querySelector('a[href*="/rooms/"]');
       const id = a?.getAttribute('href')?.match(ROOM_RE)?.[1] || null;
       const txt = card.innerText || '';
@@ -255,7 +302,7 @@
       }
       const isNew = rt.value == null && lines.some(isNewLabel);
       const px = priceOf(priceLine);
-      const kind = card.querySelector('[data-testid="listing-card-title"]')?.innerText || '';
+      const kind = card.querySelector('[data-testid="listing-card-title"]')?.innerText || kindFallback(card, lines);
       const name = card.querySelector('[data-testid="listing-card-name"]')?.innerText || card.querySelector('[data-testid="listing-card-subtitle"]')?.innerText || '';
       return {
         id, title: name || kind, titleFallback: !name, // R7: Rückfall auf die Art zählt quality() als noTitle
@@ -311,6 +358,7 @@
     stateResults(doc); // nutzt den Cache
     const d = { stateFound: stateCache.note === 'ok', stateCount: stateCache.count, stateNote: stateCache.note, cards: 0, roomLinks: 0 };
     d.cards = doc.querySelectorAll('[data-testid="card-container"]').length;
+    if (!d.cards) { d.cards = cardEls(doc).length; if (d.cards) d.cardsFallback = true; } // R9
     d.roomLinks = new Set([...doc.querySelectorAll('a[href*="/rooms/"]')].map(a => a.getAttribute('href')?.match(ROOM_RE)?.[1]).filter(Boolean)).size;
     return d;
   }

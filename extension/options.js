@@ -1,11 +1,27 @@
-// StayMatch – Import-Seite (eigener Tab, weil Chrome das Popup beim Dateidialog oft schließt).
-// Einbindung im Manifest (optional, für „Optionen“ unter chrome://extensions): "options_ui": { "page": "options.html", "open_in_tab": true }
+// StayMatch – Optionen (eigener Tab): Panel-Position, Import, Export, Löschen. Alles lokal, keine Anfragen.
+// Manifest: "options_ui": { "page": "options.html", "open_in_tab": true }
 const { AIRBNB_DOMAINS } = window.StayMatchCore, I = window.StayMatchImport;
 const host = u => { try { return new URL(String(u || '')); } catch { return null; } };
 const roomOk = u => { const x = host(u); return !!x && x.protocol === 'https:' && AIRBNB_DOMAINS.some(d => x.hostname === d || x.hostname === 'www.' + d) && x.pathname.startsWith('/rooms/'); };
 const cdnOk = u => { const x = host(u); return !!x && x.protocol === 'https:' && (x.hostname === 'muscache.com' || x.hostname.endsWith('.muscache.com')); };
-const out = document.getElementById('out');
-document.getElementById('file').onchange = async e => {
+const $ = id => document.getElementById(id);
+const out = $('out');
+
+// Einstellungen nacheinander schreiben, direkt vor dem Schreiben frisch lesen
+let q = Promise.resolve();
+const setSetting = patch => (q = q.then(async () => {
+  const { settings = {} } = await chrome.storage.local.get('settings');
+  const next = { ...I.migrateSettings(settings), ...patch };
+  for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+  await chrome.storage.local.set({ settings: next });
+}));
+
+chrome.storage.local.get('settings').then(r => { $('badge').checked = r.settings?.badge !== false; $('remind').checked = r.settings?.remind === true; $('side').value = r.settings?.panelSide === 'left' ? 'left' : 'right'; });
+$('side').onchange = async e => { await setSetting({ panelSide: e.target.value === 'left' ? 'left' : undefined, panelPos: undefined }); $('panelInfo').textContent = 'Gespeichert.'; };
+$('resetPos').onclick = async () => { await setSetting({ panelPos: undefined, panelSide: undefined }); $('side').value = 'right'; $('panelInfo').textContent = 'Position zurückgesetzt.'; };
+
+$('badge').onchange = e => setSetting({ badge: e.target.checked ? undefined : false });
+$('file').onchange = async e => {
   try {
     const parsed = I.parseImport(await e.target.files[0].text(), { isRoomUrl: roomOk, isCdnImage: cdnOk });
     const { entries, skipped } = parsed;
@@ -14,4 +30,50 @@ document.getElementById('file').onchange = async e => {
     out.textContent = `${entries.length} übernommen, ${skipped} übersprungen (${r.added} neu, ${r.merged} mit vorhandenen zusammengeführt).`;
   } catch (err) { out.textContent = err?.message || 'Datei konnte nicht gelesen werden.'; }
   e.target.value = '';
+};
+
+async function readAll() {
+  const all = await chrome.storage.local.get(null);
+  const listings = Object.fromEntries(Object.entries(all).filter(([k, v]) => k.startsWith('l:') && v && v.id).map(([, v]) => [v.id, I.migrateListing(v)]));
+  return { all, listings };
+}
+async function exportJson(withPrivate) {
+  const { all, listings } = await readAll();
+  const body = { format: I.FORMAT, version: I.EXPORT_VERSION, exportedAt: new Date().toISOString(), listings: withPrivate ? listings : I.sanitizeListings(listings), trip: withPrivate ? all.trip || null : I.sanitizeTrip(all.trip || null), ...(withPrivate ? { friendLikes: all.friendLikes || {} } : {}) };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' })); a.download = 'staymatch.json'; a.click();
+  if (withPrivate) await setSetting({ lastBackup: Date.now() });
+  $('wipeOut').textContent = withPrivate ? 'Sicherung gespeichert.' : 'Bereinigte Datei gespeichert (ohne Notizen, Reisedaten, Buchungen).';
+}
+$('exportFull').onclick = () => exportJson(true);
+$('exportClean').onclick = () => exportJson(false);
+
+$('wipe').onclick = async () => {
+  const k = $('wipeKind').value;
+  const pick = { verlauf: I.WIPE.verlauf, zwischenspeicher: I.WIPE.zwischenspeicher, reise: I.WIPE.reise, alles: x => x !== 'settings' }[k];
+  const del = Object.keys(await chrome.storage.local.get(null)).filter(pick);
+  if (!del.length) { $('wipeOut').textContent = 'Nichts zu löschen.'; return; }
+  if (!confirm(`${del.length} Einträge löschen (${k})? Das lässt sich nicht rückgängig machen. Tipp: vorher „Alles sichern“.`)) return;
+  await chrome.storage.local.remove(del);
+  $('wipeOut').textContent = `${del.length} Einträge gelöscht.`;
+};
+
+// Erinnerung (Opt-in): Berechtigung „notifications“ erst jetzt anfragen, beim Klick
+$('remind').onchange = async e => {
+  const on = e.target.checked;
+  if (on) {
+    let ok = false;
+    try { ok = await chrome.permissions.request({ permissions: ['notifications'] }); } catch {}
+    if (!ok) { e.target.checked = false; $('remInfo').textContent = 'Ohne Erlaubnis für Benachrichtigungen keine Erinnerung.'; return; }
+  }
+  await setSetting({ remind: on ? true : undefined });
+  $('remInfo').textContent = on ? 'Erinnerung ist an.' : 'Erinnerung ist aus.';
+};
+$('icsBtn').onclick = async () => {
+  const { listings } = await readAll();
+  const text = window.StayMatchReminders.ics(listings);
+  if (!text) { $('remInfo').textContent = 'Noch nichts mit Anreisedatum als gebucht markiert.'; return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' })); a.download = 'staymatch-etappen.ics'; a.click();
+  $('remInfo').textContent = 'Kalender-Datei gespeichert.';
 };

@@ -52,7 +52,7 @@
     const old = (await getListing(id)) || { id, firstSeen: Date.now(), visits: 0 };
     const item = { ...old, ...patch, id, lastSeen: Date.now(), schema: SCHEMA };
     // R7 E: Spuren-Pause (Popup): nichts speichern, also auch kein „schon gesehen“. Ausnahme: was du ausdrücklich klickst (👍/👎, Notiz, gebucht)
-    const explicit = patch && ('vote' in patch || 'note' in patch || 'booked' in patch);
+    const explicit = patch && ('vote' in patch || 'note' in patch || 'booked' in patch || 'tags' in patch);
     if (isPaused() && !explicit) return { ...old, ...patch, id, paused: true }; // ohne neuen lastSeen
     try { await chrome.storage.local.set({ [KEY(id)]: item }); }
     catch (e) { console.debug('StayMatch: Speichern fehlgeschlagen (Speicher voll?)', e); SMC.saveFailed = true; }
@@ -90,16 +90,47 @@
   // Panel-Design: automatisch (System), hell oder dunkel – einstellbar im Popup
   const settings = { showBadges: true, theme: 'auto' };
   const themeClass = () => settings.theme === 'dark' ? ' dark' : settings.theme === 'light' ? ' light' : '';
+  // Panel-Position: links/rechts angedockt (panelSide) oder frei verschoben (panelPos = linke obere Ecke in px); Standard rechts unten
+  function placeBox(box) {
+    const p = settings.panelPos, ok = p && Number.isFinite(p.x) && Number.isFinite(p.y);
+    box.classList.toggle('left', !ok && settings.panelSide === 'left');
+    for (const k of ['left', 'top', 'right', 'bottom']) box.style[k] = '';
+    if (ok) { box.style.left = Math.max(0, Math.min(p.x, innerWidth - 80)) + 'px'; box.style.top = Math.max(0, Math.min(p.y, innerHeight - 40)) + 'px'; box.style.right = 'auto'; box.style.bottom = 'auto'; }
+  }
+  async function saveSetting(patch) {
+    const { settings: st = {} } = await chrome.storage.local.get('settings');
+    const next = { ...st, ...patch };
+    for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+    await chrome.storage.local.set({ settings: next });
+  }
+  function makeDraggable(box, handle) {
+    let drag = null;
+    handle.addEventListener('pointerdown', e => {
+      if (e.button > 0 || e.target.closest?.('button, a')) return;
+      const r = box.getBoundingClientRect();
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      try { handle.setPointerCapture?.(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+    handle.addEventListener('pointermove', e => {
+      if (!drag) return;
+      settings.panelPos = { x: Math.max(0, Math.min(e.clientX - drag.dx, innerWidth - 80)), y: Math.max(0, Math.min(e.clientY - drag.dy, innerHeight - 40)) };
+      placeBox(box);
+    });
+    const end = () => { if (drag) { drag = null; if (settings.panelPos) saveSetting({ panelPos: { x: Math.round(settings.panelPos.x), y: Math.round(settings.panelPos.y) } }).catch(() => {}); } };
+    handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', end);
+    handle.style.cursor = 'move'; handle.title = 'Ziehen zum Verschieben';
+  }
   function applyTheme() {
     for (const id of ['sm-search', 'sm-room', 'sm-error']) {
       const box = rootOf(id)?.querySelector('.box');
-      if (box) { box.classList.toggle('dark', settings.theme === 'dark'); box.classList.toggle('light', settings.theme === 'light'); box.style.setProperty('--sm-scale', String(scale())); }
+      if (box) { box.classList.toggle('dark', settings.theme === 'dark'); box.classList.toggle('light', settings.theme === 'light'); placeBox(box); box.style.setProperty('--sm-scale', String(scale())); }
     }
   }
   // R7 E: Textgröße 100–150 % (Popup)
   const scale = () => Math.min(1.5, Math.max(1, +settings.fontScale || 1));
   const settingsListeners = [];
-  function setSettings(v) { Object.assign(settings, { showBadges: true, theme: 'auto' }, v || {}); applyTheme(); settingsListeners.forEach(f => f(settings)); }
+  function setSettings(v) { for (const k of Object.keys(settings)) delete settings[k]; Object.assign(settings, { showBadges: true, theme: 'auto' }, v || {}); applyTheme(); settingsListeners.forEach(f => f(settings)); }
   chrome.storage.onChanged?.addListener(ch => {
     if (ch.settings) setSettings(ch.settings.newValue);
     // Neue Reise aus dem Viertel-Finder wirkt sofort, ohne die Airbnb-Seite neu zu laden
@@ -148,6 +179,7 @@
       --bg: #fff; --fg: #1d1d1f; --muted: #6b6b70; --line: #e4e2dc; --accent: #e0475b; --good: #1f9d6b; --warn: #b86e00; }
     @media (prefers-color-scheme: dark) { .box:not(.light) { --bg: #1e1e22; --fg: #f2f2f4; --muted: #a0a0a8; --line: #34343a; } }
     .box.dark { --bg: #1e1e22; --fg: #f2f2f4; --muted: #a0a0a8; --line: #34343a; }
+    .box.left { right: auto; left: 16px; }
     .box.wide { width: min(560px, calc(100vw - 32px)); }
     table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 6px 0; }
     th, td { text-align: left; vertical-align: top; padding: 4px 6px; border-top: 1px solid var(--line); }
@@ -197,15 +229,18 @@
     if (opts.announce != null && live.textContent !== opts.announce) setTimeout(() => { live.textContent = opts.announce; }, 50);
     const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
     box.style.setProperty('--sm-scale', String(scale()));
+    placeBox(box);
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
+    const dock = h('button', { 'aria-label': 'Panel links oder rechts andocken', title: 'Links/rechts andocken (Alt+Shift+D)', onclick: dockToggle }, '⇆');
     const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');
     // CSS einmal parsen und an jeden Shadow Root hängen (statt bei jedem Panel-Neubau ein <style> neu zu parsen); Rückfall: <style>
     const sheet = sharedSheet();
     let styled = false;
     if (sheet) { try { root.adoptedStyleSheets = [sheet]; styled = true; } catch {} }
     box.append(...(styled ? [] : [h('style', {}, CSS)]),
-      h('div', { class: 'head' }, h('b', { class: 'brand' }, 'Stay', h('span', {}, 'Match'), ' · ', title), h('div', {}, toggle, ' ', close)),
+      h('div', { class: 'head' }, h('b', { class: 'brand' }, 'Stay', h('span', {}, 'Match'), ' · ', title), h('div', {}, dock, ' ', toggle, ' ', close)),
       h('div', { class: 'body' }, bodyNodes));
+    makeDraggable(box, box.querySelector('.head'));
     root.append(box);
   }
 
@@ -220,6 +255,8 @@
     const act = keys[e.code];
     if (act) { e.preventDefault(); act(); }
   }
+  const dockToggle = () => saveSetting({ panelSide: settings.panelSide === 'left' && !settings.panelPos ? undefined : 'left', panelPos: undefined }).catch(() => {});
+  keys.KeyD = dockToggle;
   keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } } };
   document.addEventListener('keydown', onKey, true);
 

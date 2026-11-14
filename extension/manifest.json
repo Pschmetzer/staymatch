@@ -6,10 +6,21 @@
   "minimum_chrome_version": "110",
   "incognito": "not_allowed",
   "permissions": [
-    "storage"
+    "storage",
+    "alarms"
+  ],
+  "optional_permissions": [
+    "notifications"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self'; connect-src 'none'"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
   "action": {
     "default_popup": "popup.html",

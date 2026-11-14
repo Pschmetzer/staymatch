@@ -1,5 +1,5 @@
 #!/bin/sh
-# Prüft, baut das Plugin-ZIP und lädt web/ nach Vercel hoch (Auto-Deploy ist bewusst aus).
+# Prüft, baut das Plugin-ZIP und lädt den Build (dist/, aus web/) nach Vercel hoch (Auto-Deploy ist bewusst aus).
 # Benötigt: Node, vercel-CLI (angemeldet). Optional: VERCEL_SCOPE=<team> für Team-Projekte,
 # SITE_URL=<Adresse> für den Smoke-Test (Standard: https://staymatch.pro).
 set -e
@@ -30,15 +30,20 @@ fi
 echo "→ Tests und Prüfungen"
 npm test
 npm run check
+
+# Auslieferung ist der Build (minifiziert, mit Hash-Verweisen), nicht web/. Muss nach dem Plugin-ZIP laufen (npm run check baut es nach web/).
+[ -d tests/node_modules/esbuild ] || npm ci --prefix tests --no-audit --no-fund --ignore-scripts
+echo "→ Build (Minify, Hashes, Service Worker)"
+node scripts/build-web.mjs --check
 SITE="${SITE_URL:-https://staymatch.pro}"
-cd web
+cd dist
 if [ -n "$VERCEL_SCOPE" ]; then vercel deploy --prod --yes --scope "$VERCEL_SCOPE"; else vercel deploy --prod --yes; fi
 cd ..
 
-# Bei jedem Fehler unten: Der Deploy ist schon live. Rollback: `vercel rollback` (Vorgänger-Deployment) im Projektordner web/
+# Bei jedem Fehler unten: Der Deploy ist schon live. Rollback: `vercel rollback` (Vorgänger-Deployment) im Projektordner dist/
 fail() {
   echo "Fehler im Smoke-Test: $1" >&2
-  echo "Der Deploy ist bereits live. Rollback: cd web && vercel rollback  (oder im Vercel-Dashboard das vorherige Deployment promoten)." >&2
+  echo "Der Deploy ist bereits live. Rollback: cd dist && vercel rollback  (oder im Vercel-Dashboard das vorherige Deployment promoten)." >&2
   exit 1
 }
 
@@ -60,6 +65,10 @@ hdr /app content-security-policy | grep -q nominatim || fail "/app: CSP erlaubt 
 for p in / /en /staedte/rom; do
   hdr "$p" content-security-policy | grep -Eq 'nominatim|overpass' && fail "$p: CSP ist zu weit (Fremddienste nur für /app)"
 done
+
+# Build-Ausgang: JS/CSS-Verweise tragen ?v= (sonst wäre immutable gefährlich)
+curl -s "$SITE/" | grep -q 'site\.css?v=' || fail "Startseite verweist nicht auf site.css?v= (wurde dist/ deployt?)"
+curl -s "$SITE/app" | grep -q 'app\.js?v=' || fail "/app verweist nicht auf app.js?v= (wurde dist/ deployt?)"
 
 want=$(node -p "require('./extension/manifest.json').version")
 zip=$(mktemp); trap 'rm -f "$zip"' EXIT # unzip braucht eine Datei, keine Pipe
