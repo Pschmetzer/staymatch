@@ -114,7 +114,7 @@ const ROOM_URL = 'https://www.airbnb.com/rooms/4242?checkin=2026-05-01&checkout=
 test('R7: Unterkunftsseite: Betrugshinweis oben, Preis mit Währung vorn', { skip }, async () => {
   const body = `<script type="application/ld+json">${JSON.stringify({ name: 'Loft', aggregateRating: { ratingValue: '4.8', ratingCount: '55' } })}</script>
     <div data-testid="book-it-default"><div>$150 $120 night</div></div>
-    <div data-section-id="DESCRIPTION_DEFAULT">Bitte kontaktiere mich per WhatsApp.</div>`;
+    <div data-section-id="DESCRIPTION_DEFAULT">Bitte kontaktiere mich per WhatsApp, die Zahlung machen wir vorab.</div>`;
   const chrome = chromeMock();
   const { doc } = makePage({ body, url: ROOM_URL, chrome });
   const box = await until(() => shadow(doc, 'sm-room')?.querySelector('.box'));

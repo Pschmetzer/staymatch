@@ -5,6 +5,7 @@
   const { getTrip, allListings, h, panel, copyText, settings, keys, REPORT_URL } = SMC;
 
   const FILTERS = [['rating', '⭐ ab 4,7'], ['budget', '💶 im Budget'], ['beds', '🛏️ genug Betten'], ['fav', '🏅 Favorit/Superhost'], ['lux', '✨ nur Luxus'], ['lowFees', '💸 niedrige Gebühren']];
+  let lastPoolJson = '';
   let lastSig = '', lastView = null, filters = {}, quick = { budgetNight: null, wishes: [] };
   let compareMode = false, flash = '';
 
@@ -53,12 +54,15 @@
     const pool = POOL.mergePool(stored.pool, location.href, current);
     // R7 E: Spuren-Pause: Sammlung, letzte Suche und Preis-Log nur im Speicher, nichts schreiben
     const paused = settings.pauseUntil > Date.now();
-    if (!paused) chrome.storage.local.set({ pool }).catch?.(() => {});
+    // Schreiblast senken: Sammlung nur schreiben, wenn sie sich wirklich geändert hat
+    if (!paused) { try { const j = JSON.stringify(pool); if (j !== lastPoolJson) { lastPoolJson = j; chrome.storage.local.set({ pool }).catch?.(() => {}); } } catch {} }
     const byId = new Map(current.map(l => [l.id, l]));
     const listings = Object.values(pool.items).map(p => byId.get(p.id) || p);
 
     // Reise nur nutzen, wenn sie zu dieser Suche passt (gleiches Datum oder Unterkünfte nahe den Vierteln)
-    const trip = savedTrip && ((sp.checkin && sp.checkin === savedTrip.checkin) ||
+    // Vergangene Reise (Anreise liegt vor heute) gilt nicht mehr, sonst greift ein altes Budget still
+    const tripStale = savedTrip?.checkin && sp.checkin !== savedTrip.checkin && String(savedTrip.checkin) < new Date().toISOString().slice(0, 10);
+    const trip = savedTrip && !tripStale && ((sp.checkin && sp.checkin === savedTrip.checkin) ||
       listings.some(l => l.lat != null && R.areaFor({ lat: l.lat, lon: l.lon }, savedTrip.areas || []))) ? savedTrip : null;
     const seen = new Set(items.map(i => i.id));
     const disliked = new Set(items.filter(i => i.vote === -1).map(i => i.id));
@@ -90,7 +94,7 @@
     // R7 E: Zähler „heute bewertet“ fürs Popup (nur Zahlen, nie gesendet)
     if (!(settings.pauseUntil > Date.now())) {
       const day = new Date().toISOString().slice(0, 10), st = stored.stats?.day === day ? stored.stats : { day, rated: 0, opened: 0, ids: [] };
-      const fresh = current.filter(l => !st.ids.includes(l.id)).map(l => l.id);
+      const seenIds = new Set(st.ids), fresh = current.filter(l => !seenIds.has(l.id)).map(l => l.id);
       if (fresh.length) chrome.storage.local.set({ stats: { ...st, rated: st.rated + fresh.length, opened: items.filter(i => i.lastSeen && new Date(i.lastSeen).toISOString().slice(0, 10) === day).length, ids: [...st.ids, ...fresh].slice(-1000) } }).catch?.(() => {});
     }
 
@@ -169,11 +173,14 @@
     const toggleWish = k => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] });
     const XW = X?.EXTRA_WISHES || {};
     const sentence = h('input', { type: 'text', placeholder: 'z. B. ruhige ganze Wohnung mit WLAN unter 120', 'aria-label': 'Wünsche als Satz', style: 'width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--bg);color:var(--fg);font:12px system-ui' });
-    sentence.onchange = () => { const r = X.wishesFromSentence(sentence.value); setQuick({ wishes: [...new Set([...quick.wishes, ...r.wishes])], ...(r.budgetNight && !trip ? { budgetNight: r.budgetNight } : {}) }); };
+    sentence.onchange = () => { const r = X.wishesFromSentence(sentence.value); setQuick({ wishes: [...new Set([...quick.wishes, ...r.wishes])], ...(r.budgetNight && !trip?.budget ? { budgetNight: r.budgetNight } : {}) }); };
     const xwOn = quick.wishes.filter(k => XW[k]).length;
     // R7 E: Kamin und Sauna nur Oktober bis März (Monat der Anreise, sonst heute)
     const mon = +(P.searchParams(location.href).checkin || new Date().toISOString()).slice(5, 7);
-    const winter = [10, 11, 12, 1, 2, 3].includes(mon);
+    // Halbkugel: Breite der Unterkünfte, sonst Länderendung der Airbnb-Domain (Südhalbkugel: .com.au, .co.nz, .com.br …); Tropen: nie „Winter“
+    const latOf = (lastView?.ranked || []).find(l => l.lat != null)?.lat;
+    const hostLat = /\.(?:com\.au|co\.nz|com\.br|co\.za|com\.ar|cl|com\.pe|com\.py|co\.id)$/.test(location.hostname) ? -35 : null;
+    const winter = X ? X.isColdSeason(latOf ?? hostLat, mon) : [10, 11, 12, 1, 2, 3].includes(mon);
     const moreWishes = X ? h('details', { open: lastView.openWishes ? '' : null, ontoggle: e => { lastView.openWishes = e.target.open; } }, h('summary', {}, `Mehr Wünsche und Gruppe${xwOn ? ` (${xwOn} aktiv)` : ''}`),
       h('div', { class: 'muted' }, 'Ausstattung prüft StayMatch nur bei Unterkünften, deren Seite du geöffnet hast.'),
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Wunsch-Profile' }, Object.entries(X.PROFILES).map(([k, p]) => h('button', { title: p.wishes.join(', '), onclick: () => setQuick({ wishes: p.wishes.filter(w => R.WISHES[w] || R.REVIEW_WISHES[w] || XW[w]), profile: k }) }, chip(p.label)))),
@@ -190,18 +197,20 @@
     const insights = lastView.insights || [];
     const shifts = X ? X.shiftLinks(location.href) : [];
     const fsug = X ? X.filterSuggestion(location.href, lastView.ranked, ctx.people) : null;
-    const speak = () => { try { const u = new SpeechSynthesisUtterance(top.map((l, i) => `Platz ${i + 1}: ${l.title || l.kind}. ${l.rank.score} Punkte. ${l.rank.why.slice(0, 2).join('. ')}`).join(' ')); u.lang = 'de-DE'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} };
+    let speaking = false; // Text ist deutsch, daher de-DE
+    const stopSpeak = () => { try { speechSynthesis.cancel(); speaking = false; } catch {} };
+    const speak = () => { try { const u = new SpeechSynthesisUtterance(top.map((l, i) => `Platz ${i + 1}: ${l.title || l.kind}. ${l.rank.score} Punkte. ${l.rank.why.slice(0, 2).join('. ')}`).join(' ')); u.lang = 'de-DE'; u.onend = () => { speaking = false; }; speechSynthesis.cancel(); speaking = true; speechSynthesis.speak(u); } catch {} };
     const morePage = X && (insights.length || shifts.length || fsug) ? h('details', {}, h('summary', {}, `Mehr zu dieser Seite (${insights.length})`),
       h('ul', {}, insights.map(x => h('li', {}, x))),
       shifts.length || fsug ? h('div', { class: 'muted' }, 'Selbst öffnen (StayMatch lädt nichts): ', ...shifts.flatMap(x => [h('a', { href: x.url, target: '_blank', rel: 'noopener' }, x.label), ' · ']), fsug ? h('a', { href: fsug.url, target: '_blank', rel: 'noopener' }, fsug.text) : null) : null,
-      typeof speechSynthesis !== 'undefined' && top.length ? h('button', { onclick: speak }, '🔊 Top 3 vorlesen') : null) : null;
+      typeof speechSynthesis !== 'undefined' && top.length ? h('span', {}, h('button', { onclick: speak }, '🔊 Top 3 vorlesen'), ' ', h('button', { onclick: stopSpeak, 'aria-label': 'Vorlesen stoppen' }, '⏹ Stopp')) : null) : null;
     const inBudget = lastView.ranked.filter(l => l.rank.parts.price != null && l.rank.parts.price >= 0.75).length;
     panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : 'Top 3 auf dieser Seite', [
       h('div', { class: 'muted' }, `${count} Unterkünfte${pages > 1 ? ` von ${pages} Seiten, die du geöffnet hast,` : ' auf dieser Seite'} bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}${lastView.delta ? ' (angepasst)' : ''}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget && eb ? ` · Budget ${Math.round(eb)} €${ctx.nights ? ` für ${ctx.nights} Nächte` : ''}` : ''}`),
       quick.wishes.includes('luxury') ? h('div', { class: 'muted' }, `✨ ${lastView.ranked.filter(l => l.rank.luxury?.state === true).length} von ${count} als Luxus erkannt (Stichwörter im Titel, Preislage, Bäder).${lastView.ranked.some(l => l.rank.luxury?.state === true) ? '' : ' Keine Treffer: Suche nach „Villa“ oder „Penthouse“ verfeinern.'}`) : null,
       lastView.booked?.length ? h('div', { class: 'err', role: 'status' }, h('b', {}, '✅ Für diese Daten hast du schon gebucht: '), lastView.booked.map(b => b.title || 'Unterkunft').join(', '), '. Suchst du aus Versehen weiter?') : null,
       lacking.length ? h('div', { class: 'err muted' }, `⚠️ ${lacking.join(', ')} bei den meisten Karten nicht gelesen. Airbnb hat vermutlich etwas geändert, die Wertung ist ungenauer.`) : null,
-      !trip ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, 'Budget pro Nacht (€):'), budgetInput) : null,
+      !trip?.budget ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, 'Budget pro Nacht (€):'), budgetInput) : null,
       h('div', { class: 'chips', role: 'group', 'aria-label': 'Deine Wünsche' }, Object.entries(R.WISHES).map(([k, w]) => h('button', {
         class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
         onclick: () => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] }),
@@ -231,7 +240,7 @@
         : null,
       top.length && !compareMode ? top.map((l, i) => h('div', { class: 'item hotel' },
         h('div', { class: 'ph' },
-          l.image ? h('img', { src: l.image, alt: l.title || l.kind || '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : null,
+          l.image && !settings.blind ? h('img', { src: l.image, alt: l.title || l.kind || '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : null,
           h('span', { class: 'rank' }, `${i + 1}`),
           h('span', { class: 'score', title: 'Passt-Wert 0–100' }, l.rank.score),
           l.rank.luxury?.state === true ? h('span', { class: 'lux', title: l.rank.luxury.words.join(', ') }, `✨ Luxus${l.rank.luxury.words[0] ? ' · ' + l.rank.luxury.words[0] : ''}`) : null),
@@ -246,7 +255,7 @@
         : !top.length ? h('div', { class: 'muted' }, 'Keine Unterkunft erfüllt alle Filter. Filter lockern oder weiterblättern. ', af.length ? h('button', { onclick: resetFilters }, 'Filter zurücksetzen') : null) : null,
       morePage,
       h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → die Seiten, die du öffnest, werden zusammen bewertet. Es wird nichts von selbst nachgeladen.'),
-      pages > 1 ? h('div', { class: 'row' }, h('button', { onclick: async () => { await chrome.storage.local.remove('pool'); lastSig = ''; lastView = null; SMC.route?.(); } }, 'Sammlung leeren')) : null,
+      pages > 1 ? h('div', { class: 'row' }, h('button', { onclick: async () => { await chrome.storage.local.remove('pool'); lastPoolJson = ''; lastSig = ''; lastView = null; SMC.route?.(); } }, 'Sammlung leeren')) : null,
       h('div', { class: 'muted' }, 'Tasten: Alt+Shift+V Vergleich · K kopieren · M ein-/ausklappen'),
       // R7 E: Kennenlernen beim ersten Panel, danach nie wieder
       !settings.onboarded ? h('div', { class: 'err muted', role: 'note' }, h('b', {}, 'Kurz erklärt: '), 'Die Zahl rechts ist der Passt-Wert (0–100). Chips oben sind deine Wünsche, darunter die Filter. Auf der Unterkunftsseite merkst du mit 👍/👎. ',
@@ -292,5 +301,5 @@
   // R7: abgelaufene Sammlung (älter als 2 h) beim Start löschen, statt sie dauerhaft liegen zu lassen
   chrome.storage.local.get('pool').then(r => { if (r.pool && !(Date.now() - r.pool.at < POOL.TTL)) chrome.storage.local.remove('pool'); }).catch(() => {});
 
-  window.StayMatchContent.search = { handle: handleSearch, checkEmpty, reset() { lastSig = ''; lastView = null; } };
+  window.StayMatchContent.search = { handle: handleSearch, checkEmpty, reset() { lastSig = ''; lastPoolJson = ''; lastView = null; } };
 })();
