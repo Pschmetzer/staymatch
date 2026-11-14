@@ -1,6 +1,6 @@
 # Datenschutz bei StayMatch
 
-Stand: 13.11.2026 (Webfassung: https://staymatch-tau.vercel.app/datenschutz). StayMatch hat kein Konto, keinen eigenen Server mit Datenbank und kein Tracking.
+Stand: 13.11.2026 (Webfassung: https://staymatch.pro/datenschutz). StayMatch hat kein Konto, keinen eigenen Server mit Datenbank und kein Tracking.
 
 ## Plugin (Chrome-Erweiterung)
 - Liest nur Airbnb-Seiten, die du selbst öffnest. Es fragt keine Seiten oder Daten bei Airbnb ab und fängt keine Netzwerkdaten ab.

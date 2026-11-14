@@ -6,18 +6,18 @@ Einreichen musst du selbst (Entwicklerkonto, einmalig 5 USD): https://chrome.goo
 **Kurzbeschreibung (max. 132 Zeichen, steht auch in manifest.json):** Bewertet jede Unterkunft auf der Suchseite nach Budget, Sternen und Wünschen und zeigt die Top 3. Alles lokal.
 **Single Purpose (Pflichtfeld im Store):** Hilft bei der Auswahl einer Unterkunft: Bewertet die Unterkünfte auf der geöffneten Airbnb-Suchseite nach deinem Budget und deinen Wünschen, zeigt die besten drei mit Begründung und merkt sich auf Unterkunftsseiten deine Auswahl (👍/👎, Notizen) als lokalen Merkzettel.
 **Kategorie:** Reisen / Produktivität
-**Datenschutz-URL:** https://staymatch-tau.vercel.app/datenschutz (falls die Seite dort live ist, sonst https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md; vor dem Einreichen prüfen)
+**Datenschutz-URL:** https://staymatch.pro/datenschutz (falls die Seite dort live ist, sonst https://github.com/Pschmetzer/staymatch/blob/main/PRIVACY.md; vor dem Einreichen prüfen)
 
 **Beschreibung:**
 Finde schneller die passende Unterkunft, statt 40 Inserate einzeln anzuklicken. Öffne eine normale Airbnb-Suche, und StayMatch bewertet jede Unterkunft auf der Seite: Sterne mit Gewichtung nach Anzahl der Bewertungen, Gesamtpreis gegen dein Budget pro Nacht, Betten und deine Wünsche (ganze Unterkunft, Superhost/Gäste-Favorit, viele Bewertungen, kein gewerblicher Anbieter). Die besten drei erscheinen mit Begründung, jede Karte bekommt einen Punktwert.
-Optional: Der Viertel-Finder (https://staymatch-tau.vercel.app/app) sucht vorher das Stadtviertel, das zu dir passt (mit Freunden: in dem alle zufrieden sind), und übergibt Wünsche, Budget und Viertel ans Plugin.
+Optional: Der Viertel-Finder (https://staymatch.pro/app) sucht vorher das Stadtviertel, das zu dir passt (mit Freunden: in dem alle zufrieden sind), und übergibt Wünsche, Budget und Viertel ans Plugin.
 Dazu: Verlauf, 👍/👎, Notizen, Preisverlauf, Export.
 Kein Konto, keine Server, kein Tracking. Das Plugin liest nur Seiten, die du selbst öffnest. Unabhängig, nicht mit Airbnb verbunden. Open Source (MIT).
 
 **Begründung der Berechtigungen (Formular):**
 - `storage`: speichert Verlauf, Likes, Notizen und die Reise lokal im Browser (`chrome.storage.local`). Es wird nichts gesendet.
 - Zugriff auf airbnb-Seiten: liest die geöffnete Such- und Unterkunftsseite, um Preise, Bewertungen und Lage zu bewerten.
-- Zugriff auf staymatch-tau.vercel.app: übernimmt Gruppe, Budget und Viertel-Wertungen aus dem Viertel-Finder.
+- Zugriff auf staymatch.pro: übernimmt Gruppe, Budget und Viertel-Wertungen aus dem Viertel-Finder.
 
 **Datennutzung (Formular):** Es werden keine Nutzerdaten gesammelt, übertragen oder verkauft. Gespeichert wird nur lokal (`chrome.storage.local`): besuchte Unterkünfte, Likes, Notizen, Einstellungen, Reise aus dem Viertel-Finder. Alle drei Zusicherungen (kein Verkauf, keine Nutzung außerhalb des Zwecks, keine Kreditwürdigkeits-Nutzung) ankreuzen.
 **Remote Code:** Nein. Das Plugin lädt und führt keinen Code von außen aus; alle Skripte liegen im Paket. Einzige Netzwerkanfragen: Vorschaubilder der Top-3-Unterkünfte im Panel, geladen vom Bild-Server von Airbnb (Adresse stammt von der Airbnb-Seite, ohne Referrer).

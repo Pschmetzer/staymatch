@@ -4,11 +4,11 @@
 
 [![CI](https://github.com/Pschmetzer/staymatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Pschmetzer/staymatch/actions/workflows/ci.yml)
 [![License: code MIT, map data ODbL (see [THIRD_PARTY.md](THIRD_PARTY.md))](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Live demo](https://img.shields.io/badge/live-staymatch--tau.vercel.app-000000?logo=vercel)](https://staymatch-tau.vercel.app)
+[![Live demo](https://img.shields.io/badge/live-staymatch.pro-000000)](https://staymatch.pro)
 
 Your helper for finding the right Airbnb faster. The Chrome extension scores every listing on the Airbnb search page by budget, honest star ratings and your wishes (entire place, Superhost, quiet …) and shows the **top 3 with reasons**. Optionally, the neighbourhood finder first picks the area that suits you. On top of that you get history, 👍/👎, notes and review keywords. Groups work too: the least satisfied person counts.
 
-**Live:** https://staymatch-tau.vercel.app · Concept and roadmap: [KONZEPT.md](KONZEPT.md) (German)
+**Live:** https://staymatch.pro · Concept and roadmap: [KONZEPT.md](KONZEPT.md) (German)
 
 ## How it works
 1. **Directly:** Open an Airbnb search and choose your budget per night and wishes in the StayMatch panel (entire place, no commercial hosts, Superhost, 20+ reviews, quiet/clean/Wi-Fi).
@@ -23,7 +23,7 @@ python3 -m http.server 8765 -d web
 Then open http://localhost:8765 (landing page) or http://localhost:8765/app.html (neighbourhood finder). Legal pages: `impressum.html` (placeholder, `TODO Nutzer`) and `datenschutz.html`. Hero image or video: see [LUMINA-PROMPTS.md](LUMINA-PROMPTS.md).
 
 ## Chrome extension (`extension/`)
-Download as ZIP: https://staymatch-tau.vercel.app/staymatch-plugin.zip (built on deploy, locally with `./scripts/build-plugin-zip.sh`).
+Download as ZIP: https://staymatch.pro/staymatch-plugin.zip (built on deploy, locally with `./scripts/build-plugin-zip.sh`).
 
 1. Open `chrome://extensions`
 2. Turn on **Developer mode** (top right)
