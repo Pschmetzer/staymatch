@@ -36,13 +36,15 @@ test('404-Alias-Tabelle und Städteliste passen zu scripts/cities.json', () => {
   }
 });
 
-test('Cache-Control: nirgends immutable ohne Hash im Namen (außer legal.css mit ?v=), Daten und Medien gecacht', () => {
+test('Cache-Control: immutable nur für JS/CSS, die im Build-Ausgang mit ?v=Hash verlinkt sind; Daten und Medien gecacht, Index und Seiten frisch', () => {
   const cache = vercel.headers.filter((r) => r.headers.some((h) => h.key === 'Cache-Control'));
   const val = (src) => cache.find((r) => r.source.includes(src)).headers.find((h) => h.key === 'Cache-Control').value;
   for (const r of cache) {
     const v = r.headers.find((h) => h.key === 'Cache-Control').value;
-    if (/immutable/.test(v)) assert.equal(r.source, '/legal.css');
+    if (/immutable/.test(v)) assert.match(r.source, /^\/\((?:app\|app-extra\|core\|scoring|site\|legal)\)\\\.(js|css)$/, `${r.source}: immutable nur für gehashte Dateien`);
   }
+  assert.match(cache.find((r) => r.source === '/data/index\\.json').headers[0].value, /must-revalidate/);
+  assert.ok(!new RegExp('^' + cache.find((r) => r.source.startsWith('/data/(')).source + '$').test('/data/index.json'), 'Datenregel darf index.json nicht abdecken');
   for (const s of ['/(fonts|vendor)', '/media/', '/data/', 'og\\.png']) assert.match(val(s), /max-age=\d{5,}/, s);
   assert.match(val('(app|app-extra'), /max-age=0, must-revalidate/);
 });

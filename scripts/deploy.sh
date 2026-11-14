@@ -66,6 +66,10 @@ for p in / /en /staedte/rom; do
   hdr "$p" content-security-policy | grep -Eq 'nominatim|overpass' && fail "$p: CSP ist zu weit (Fremddienste nur für /app)"
 done
 
+# Build-Ausgang: JS/CSS-Verweise tragen ?v= (sonst wäre immutable gefährlich)
+curl -s "$SITE/" | grep -q 'site\.css?v=' || fail "Startseite verweist nicht auf site.css?v= (wurde dist/ deployt?)"
+curl -s "$SITE/app" | grep -q 'app\.js?v=' || fail "/app verweist nicht auf app.js?v= (wurde dist/ deployt?)"
+
 want=$(node -p "require('./extension/manifest.json').version")
 zip=$(mktemp); trap 'rm -f "$zip"' EXIT # unzip braucht eine Datei, keine Pipe
 curl -s -o "$zip" "$SITE/staymatch-plugin.zip"
