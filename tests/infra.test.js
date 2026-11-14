@@ -27,7 +27,8 @@ test('404-Alias-Tabelle und Städteliste passen zu scripts/cities.json', () => {
   const cities = JSON.parse(fs.readFileSync(path.join(root, 'scripts', 'cities.json'), 'utf8'));
   const cityObj = /const cities = (\{[^}]+\})/.exec(html)[1];
   const slugs = [...cityObj.matchAll(/(\w+): '/g)].map((m) => m[1]).sort();
-  assert.deepEqual(slugs, Object.keys(cities).sort(), 'Städte in 404.html ≠ cities.json');
+  const fetched = Object.keys(cities).filter((k) => fs.existsSync(path.join(web, 'data', `${k}.json`))).sort(); // vorgemerkte Städte ohne Datei haben noch keine Stadtseite
+  assert.deepEqual(slugs, fetched, 'Städte in 404.html ≠ cities.json (mit Datei)');
   const alias = Object.fromEntries([...(/const alias = \{([^}]+)\}/.exec(html)[1]).matchAll(/(\w+): '(\w+)'/g)].map((m) => [m[1], m[2]]));
   for (const [a, slug] of Object.entries(alias)) assert.ok((cities[slug] || []).includes(a), `Alias ${a} → ${slug} fehlt in cities.json`);
   for (const r of vercel.redirects.filter((x) => x.source.startsWith('/staedte/'))) {

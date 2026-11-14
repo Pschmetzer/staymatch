@@ -17,6 +17,18 @@ Erzeugt mit [`scripts/prefetch-cities.mjs`](../../scripts/prefetch-cities.mjs) (
 
 Felder jeder Datei: `v` (Schema-Version), `t` (Abrufzeitpunkt, ms), `city`, `center` (Zentrum laut Nominatim; bei den ersten zehn Städten am 13.11.2026 nachgetragen), `bbox` ([Süd, West, Nord, Ost]), `fields`, `license`, `attribution`, `source` (Overpass-Server), `ms` (Abrufdauer), `queryHash` (Version der Abfrage), `rows`.
 
+## Welche Viertel-Ebene die Daten haben
+
+Als Viertel gilt, was in OpenStreetMap als `place=suburb`, `neighbourhood` oder `quarter` mit Namen eingetragen ist. Welche Ebene Mitwirkende wählen, ist je Stadt verschieden; StayMatch gleicht das nicht aus:
+
+- **Barcelona:** Der Eixample steht in fünf Namen (Eixample Sud, Dreta, Antiga und Nova Esquerra, l'Eixample); sie können nebeneinander auftauchen.
+- **Budapest:** 155 von 257 Einträgen sind `suburb`, darunter viele Wohnsiedlungen (Lakótelep) und Randgebiete ohne Orte für Reisende.
+- **Lissabon:** sehr feine Unterteilung in kleine Freguesias.
+- **Paris:** Arrondissements, Quartiers und kleine Inseln (Îlots) stehen gemischt.
+- Manche bekannte Gegenden fehlen als eigener Eintrag (z. B. Príncipe Real in Lissabon, Canal Saint-Martin in Paris). Sie zählen über die Orte in der Nähe trotzdem mit, werden aber nicht als Viertel vorgeschlagen.
+
+Die Stadtseiten filtern wie die App: Viertel mit weniger als 10 Orten im Umkreis (800 m) oder mehr als 6 km vom Zentrum erscheinen nicht, und keine zwei empfohlenen Viertel liegen näher als 1,2 km beieinander. `npm run check:data` warnt bei auffälligen Anteilen (unbenannte Gärten und Spielplätze, Viertel mit wenigen Orten, doppelte Namen).
+
 ## Abrufdaten je Stadt
 
 <!-- staedte:start -->
