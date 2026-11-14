@@ -35,8 +35,20 @@
     p.finally(() => { if (saveQueues.get(id) === p) saveQueues.delete(id); }).catch(() => {});
     return p;
   }
+  // Sperre über alle Tabs derselben Herkunft (z. B. alle airbnb.de-Tabs); fehlt die Web-Locks-Schnittstelle oder dauert es zu lang, ohne Sperre weiter.
+  // Offen bleibt: Popup ↔ Tab und airbnb.de ↔ airbnb.com (andere Herkunft, eigene Sperren).
+  async function withLock(name, fn) {
+    const L = typeof navigator !== 'undefined' ? navigator.locks : null;
+    if (!L?.request || typeof AbortSignal === 'undefined' || !AbortSignal.timeout) return fn();
+    let started = false;
+    try { return await L.request(name, { signal: AbortSignal.timeout(2000) }, () => { started = true; return fn(); }); }
+    catch (e) { if (started) throw e; return fn(); }
+  }
   async function doSave(id, patch) {
     await SMC.ready; // Einstellungen (Pause!) sind geladen, bevor irgendetwas geschrieben wird
+    return withLock('staymatch:' + KEY(id), () => doSaveLocked(id, patch));
+  }
+  async function doSaveLocked(id, patch) {
     const old = (await getListing(id)) || { id, firstSeen: Date.now(), visits: 0 };
     const item = { ...old, ...patch, id, lastSeen: Date.now(), schema: SCHEMA };
     // R7 E: Spuren-Pause (Popup): nichts speichern, also auch kein „schon gesehen“. Ausnahme: was du ausdrücklich klickst (👍/👎, Notiz, gebucht)
@@ -240,6 +252,8 @@
       if (/^\/s\//.test(path)) SMC.search.handle().catch(e => console.debug('StayMatch:', e));
     }
     SMC.route = route;
+    // Erst wenn die Einstellungen (Pause!) geladen sind: sonst schreibt die Suchseite schon mit den Standardwerten
+    const hook = () => {
     new MutationObserver(muts => {
       // eigene Änderungen ignorieren
       const ours = n => n?.nodeType === 1 && !!n.closest('[data-staymatch]');
@@ -251,7 +265,9 @@
     // R7: mit Navigation API kein zusätzliches popstate (sonst lief route() bei Zurück doppelt)
     if (window.navigation?.addEventListener) window.navigation.addEventListener('navigatesuccess', () => route());
     else { setInterval(() => { if (location.href !== lastUrl) route(); }, 1000); window.addEventListener('popstate', () => route()); }
-    T.api = { route, handleSearch: () => SMC.search.handle(), handleRoom: id => SMC.room.handle(id), checkEmpty: () => SMC.search.checkEmpty(), onKey };
     route();
+    };
+    T.api = { route, handleSearch: () => SMC.search.handle(), handleRoom: id => SMC.room.handle(id), checkEmpty: () => SMC.search.checkEmpty(), onKey };
+    ready.then(hook);
   }
 })();

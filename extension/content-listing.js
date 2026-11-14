@@ -108,7 +108,15 @@
     ctx.paused = SMC.isPaused();
     roomPanel(item, area, ctx);
     // Langsame Leitung: Preis und Hinweise fehlen noch → einmal später nochmal lesen
-    if (attempt < 1 && !data.pricePerNight && P.ROOM_RE.test(location.pathname) && location.pathname.includes(id)) setTimeout(() => { if (location.pathname.includes(id)) handleRoom(id, attempt + 1).catch(e => console.debug('StayMatch:', e)); }, T.roomRetry ?? 4000);
+    // (nicht, solange du gerade eine Notiz tippst: der Neuaufbau würde sie zurücksetzen)
+    if (attempt < 1 && (!data.pricePerNight || !data.hints?.length) && P.ROOM_RE.test(location.pathname) && location.pathname.includes(id)) {
+      const again = () => {
+        if (!location.pathname.includes(id)) return;
+        if (roomTimers.has(id) || SMC.rootOf('sm-room')?.activeElement?.tagName === 'TEXTAREA') return setTimeout(again, 1500); // Notiz in Arbeit: später
+        handleRoom(id, attempt + 1).catch(e => console.debug('StayMatch:', e));
+      };
+      setTimeout(again, T.roomRetry ?? 4000);
+    }
   }
   const priceKey = e => [e.c || '', e.ci || '', e.n || ''].join('|');
 
@@ -185,7 +193,7 @@
     const ppn = item.pricePerNight && ctx.people > 1 ? Math.round(item.pricePerNight / ctx.people) : null;
     const note = h('textarea', { placeholder: 'Notiz: was gefällt / stört?', 'aria-label': 'Notiz' });
     note.value = item.note || ''; // value statt innerHTML → kein Code-Einschleusen
-    note.oninput = () => { clearTimeout(roomTimers.get(item.id)); roomTimers.set(item.id, setTimeout(() => saveListing(item.id, { note: note.value }), T.noteDelay ?? 400)); };
+    note.oninput = () => { clearTimeout(roomTimers.get(item.id)); roomTimers.set(item.id, setTimeout(() => { roomTimers.delete(item.id); saveListing(item.id, { note: note.value }); }, T.noteDelay ?? 400)); };
     const ph = item.priceHistory || [];
     const lastP = ph.at(-1), firstSame = lastP && ph.find(e => priceKey(e) === priceKey(lastP));
     const change = firstSame && firstSame !== lastP ? Math.round((lastP.p / firstSame.p - 1) * 100) : 0;

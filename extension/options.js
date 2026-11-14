@@ -7,8 +7,10 @@ const cdnOk = u => { const x = host(u); return !!x && x.protocol === 'https:' &&
 const out = document.getElementById('out');
 document.getElementById('file').onchange = async e => {
   try {
-    const { entries, skipped } = I.parseImport(await e.target.files[0].text(), { isRoomUrl: roomOk, isCdnImage: cdnOk });
+    const parsed = I.parseImport(await e.target.files[0].text(), { isRoomUrl: roomOk, isCdnImage: cdnOk });
+    const { entries, skipped } = parsed;
     const r = await I.applyImport(chrome.storage.local, entries);
+    await I.applyExtras(chrome.storage.local, parsed);
     out.textContent = `${entries.length} übernommen, ${skipped} übersprungen (${r.added} neu, ${r.merged} mit vorhandenen zusammengeführt).`;
   } catch (err) { out.textContent = err?.message || 'Datei konnte nicht gelesen werden.'; }
   e.target.value = '';

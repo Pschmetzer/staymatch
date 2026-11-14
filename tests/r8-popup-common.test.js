@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const fs = require('node:fs'), path = require('node:path');
 const D = require('./helpers/dom.js');
 const skip = !D.JSDOM && 'jsdom nicht installiert (npm install --prefix tests)';
-const { makePage, chromeMock, shadow, until, sleep } = D;
+const { makePage, chromeMock, searchBody, shadow, until, sleep } = D;
 test.after(D.closeAll);
 
 vm.runInThisContext(D.src('import.js'));
@@ -240,7 +240,7 @@ test('Bewertungs-Selektor: Überschrift zählt nicht; Panel nennt „2 gelesen v
   const body = ROOM.replace(/Sehr ruhig[^<]*/, 'Alles gut und die Gastgeber sind freundlich gewesen').replace(/Alles wunderbar[^<]*/, 'Sehr schöne Wohnung und genau wie auf den Fotos');
   const { doc } = makePage({ body, url: ROOM_URL, chrome });
   const box = await until(() => shadow(doc, 'sm-room')?.querySelector('.box'));
-  assert.match(box.textContent, /\(2 gelesen von 212\)|Pause|gelesen/);
+  assert.match(box.textContent, /Aus den Bewertungen \(2 gelesen von 212\)/);
   assert.equal(chrome.data['l:12345'].reviewsRead, 2);
   assert.ok(!(chrome.data['l:12345'].hints || []).includes('⚠️ Treppen'), 'alter Hinweis blieb stehen');
 });
@@ -300,4 +300,35 @@ test('Options-Seite lädt nur lokale Skripte und hat Dateifeld', () => {
   assert.match(html, /type="file"/);
   assert.ok(!/<script(?![^>]*src=)[^>]*>/.test(html), 'Inline-Skript (MV3-CSP)');
   for (const f of ['core.js', 'import.js', 'options.js']) assert.ok(html.includes(`src="${f}"`), f);
+});
+
+test('Pause gilt auch auf der Suchseite, bevor die Einstellungen da sind (Sammlung, letzte Suche, Preis-Mediane, Statistik)', { skip }, async () => {
+  const chrome = chromeMock({ settings: { pauseUntil: Date.now() + 3600e3 } });
+  const get = chrome.storage.local.get;
+  chrome.storage.local.get = async k => { if (k === 'settings') await sleep(80); return get(k); };
+  const { doc } = makePage({ body: searchBody(), chrome });
+  await until(() => shadow(doc, 'sm-search')?.querySelector('.box'), 2500);
+  await sleep(150);
+  for (const k of ['pool', 'lastSearch', 'priceLog', 'stats']) assert.ok(!(k in chrome.data), k + ' trotz Pause geschrieben');
+});
+
+test('Sperre: Speichern nimmt navigator.locks, wenn vorhanden, und fällt ohne zurück', { skip }, async () => {
+  const chrome = chromeMock();
+  const names = [];
+  const { doc, w } = makePage({ body: ROOM, url: ROOM_URL, chrome });
+  await until(() => shadow(doc, 'sm-room')?.querySelector('.box'));
+  assert.ok(chrome.data['l:12345']); // ohne navigator.locks (jsdom) geschrieben
+  Object.defineProperty(w.navigator, 'locks', { value: { request: async (n, o, f) => { names.push(n); return f(); } }, configurable: true });
+  press(doc, w, 'KeyL'); await until(() => chrome.data['l:12345'].vote === 1);
+  assert.deepEqual([...new Set(names)], ['staymatch:l:12345']);
+});
+
+test('Import: volle Sicherung bringt Freundes-Listen zurück und Reise nur ohne vorhandene', async () => {
+  const c = chromeMock({});
+  const p = I.parseImport(JSON.stringify({ format: 'staymatch-merkliste', version: 1, listings: {}, friendLikes: { 5: ['Lena'] }, trip: { savedAt: 9, city: 'Rom' } }));
+  await I.applyExtras(c.storage.local, p);
+  assert.deepEqual(c.data.friendLikes, { 5: ['Lena'] }); assert.equal(c.data.trip.city, 'Rom');
+  const c2 = chromeMock({ trip: { savedAt: 1, city: 'Alt' } });
+  await I.applyExtras(c2.storage.local, p);
+  assert.equal(c2.data.trip.city, 'Alt');
 });

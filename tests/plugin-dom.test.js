@@ -199,7 +199,7 @@ test('Manifest: Version 0.5.0, keine neuen Berechtigungen, alle Skripte vorhande
 
 test('Plugin lädt keine fremden Adressen nach (kein fetch/XHR/WebSocket im Code)', () => {
   const fs = require('node:fs');
-  for (const f of [...D.CONTENT_SCRIPTS, 'popup.js', 'bridge.js']) {
+  for (const f of [...D.CONTENT_SCRIPTS, 'popup.js', 'bridge.js', 'import.js', 'options.js']) {
     const s = fs.readFileSync(require('node:path').join(__dirname, '..', 'extension', f), 'utf8');
     assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon|chrome\.(tabs|webRequest|scripting|alarms)/.test(s), f);
   }

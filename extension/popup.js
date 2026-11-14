@@ -208,8 +208,10 @@ $('import').onclick = () => {
 };
 $('file').onchange = async e => {
   try {
-    const { entries, skipped } = I.parseImport(await e.target.files[0].text(), { isRoomUrl, isCdnImage });
+    const parsed = I.parseImport(await e.target.files[0].text(), { isRoomUrl, isCdnImage });
+    const { entries, skipped } = parsed;
     const r = await I.applyImport(chrome.storage.local, entries);
+    await I.applyExtras(chrome.storage.local, parsed);
     await load();
     // R7: Rückmeldung, was übernommen wurde (neue und zusammengeführte Einträge)
     $('list').prepend(h('div', { class: 'item muted', role: 'status' }, `${entries.length} übernommen, ${skipped} übersprungen (${r.added} neu, ${r.merged} mit vorhandenen zusammengeführt)`));
@@ -317,7 +319,7 @@ $('wipe').onclick = async () => {
   if (!pick) { alert('Nichts gelöscht: bitte verlauf, zwischenspeicher, reise, diese reise oder alles eingeben.'); return; }
   const del = keys.filter(pick);
   if (!del.length) return;
-  if ((k === 'verlauf' || k === 'alles') && confirm('Vorher eine Sicherung als Datei speichern?\n\nOK = Sicherung laden, Abbrechen = ohne.')) exportJson(true);
+  if ((k === 'verlauf' || k === 'alles') && confirm('Vorher eine Sicherung als Datei speichern?\n\nSie enthält Unterkünfte, Notizen, Freundes-Listen und Reise (nicht: Zwischenspeicher, Filter, Wünsche).\n\nOK = Sicherung laden, Abbrechen = ohne.')) exportJson(true);
   undoSnap = Object.fromEntries(del.map(x => [x, all[x]]));
   await chrome.storage.local.remove(del); await load();
   $('list').prepend(h('div', { class: 'item muted', role: 'status' }, `${del.length} Einträge gelöscht. `, h('button', { class: 'lnk', onclick: async () => { if (undoSnap) { await chrome.storage.local.set(undoSnap); undoSnap = null; await load(); } } }, 'Rückgängig')));

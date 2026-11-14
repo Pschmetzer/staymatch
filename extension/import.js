@@ -36,7 +36,7 @@
     const all = Object.values(src);
     const entries = all.filter(v => isObj(v) && /^\d{1,20}$/.test(String(v.id ?? '')))
       .map(v => migrateListing({ ...v, id: String(v.id), image: isCdnImage(v.image) ? v.image : undefined, url: isRoomUrl(v.url) ? v.url : undefined }));
-    return { entries, skipped: all.length - entries.length };
+    return { entries, skipped: all.length - entries.length, friendLikes: isObj(j.friendLikes) ? j.friendLikes : null, trip: isObj(j.trip) ? j.trip : null };
   }
 
   // Zwei Stände derselben Unterkunft zusammenführen: der Eintrag mit neuerem lastSeen liefert die Felder,
@@ -73,6 +73,19 @@
     if (keys.length) await local.set(out);
     return { added, merged };
   }
+  // Volle Sicherung (JSON mit Persönlichem): Freundes-Listen zusammenführen, Reise nur übernehmen, wenn keine gespeichert ist
+  async function applyExtras(local, parsed) {
+    const out = {};
+    const cur = await local.get(['friendLikes', 'trip']);
+    if (parsed.friendLikes) {
+      const fl = { ...(cur.friendLikes || {}) };
+      for (const [id, names] of Object.entries(parsed.friendLikes).slice(0, 5000)) if (/^\d{1,20}$/.test(id) && Array.isArray(names)) fl[id] = [...new Set([...(fl[id] || []), ...names.filter(n => typeof n === 'string').map(n => n.slice(0, 30))])];
+      out.friendLikes = fl;
+    }
+    if (parsed.trip && !cur.trip && Number.isFinite(+parsed.trip.savedAt)) out.trip = parsed.trip;
+    if (Object.keys(out).length) await local.set(out);
+    return Object.keys(out);
+  }
 
   // Teilen-Export: alles Persönliche raus (Notiz, Gastgeber-Kennung, Preisverlauf mit Reisedaten, Buchung,
   // Reisedaten, Besuchsspuren, fremde Bewertungstexte).
@@ -96,5 +109,5 @@
     reise: x => x === 'trip',
   };
 
-  root.StayMatchImport = { SCHEMA, FORMAT, EXPORT_VERSION, migrateListing, migrateSettings, parseImport, mergeListing, applyImport, sanitizeListings, sanitizeTrip, localDay, WIPE, PRIVATE_FIELDS };
+  root.StayMatchImport = { SCHEMA, FORMAT, EXPORT_VERSION, migrateListing, migrateSettings, parseImport, mergeListing, applyImport, applyExtras, sanitizeListings, sanitizeTrip, localDay, WIPE, PRIVATE_FIELDS };
 })(typeof window !== 'undefined' ? window : globalThis);
