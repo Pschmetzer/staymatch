@@ -314,7 +314,7 @@
       const rank = [...topIds].indexOf(l.id);
       card.style.outline = rank >= 0 && !settings.scoreOnly ? '3px solid #e0475b' : '';
       card.style.outlineOffset = rank >= 0 ? '-3px' : '';
-      if (rank >= 0) b.textContent = `Top ${rank + 1} · ` + b.textContent;
+      if (rank >= 0) b.dataset.top = String(rank + 1); else delete b.dataset.top;
       if (seenIds.has(l.id) && !settings.scoreOnly) b.textContent += ' · 👁 schon angesehen';
       card.style.opacity = l.rank.disliked ? '0.45' : !passes(l) ? '0.35' : '';
     }
