@@ -41,7 +41,17 @@
   const dateTime = (d, opts) => new Date(d).toLocaleString(locale(), opts);
   const num = (n, opts) => Number(n).toLocaleString(locale(), opts);
 
-  const api = { t, setLang, lang, add, has, locale, dec, date, dateTime, num, DICT, LANGS };
+  // Statische HTML-Seiten: data-i18n="key" setzt textContent, data-i18n-attr="placeholder:key;aria-label:key2" setzt Attribute (nie innerHTML)
+  function apply(rootEl) {
+    const doc = rootEl || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+    for (const el of doc.querySelectorAll('[data-i18n]')) el.textContent = t(el.getAttribute('data-i18n'));
+    for (const el of doc.querySelectorAll('[data-i18n-attr]'))
+      for (const pair of el.getAttribute('data-i18n-attr').split(';')) { const [a, k] = pair.split(':').map(x => x.trim()); if (a && k) el.setAttribute(a, t(k)); }
+    try { if (doc.documentElement) doc.documentElement.lang = lang(); } catch {}
+  }
+
+  const api = { apply, t, setLang, lang, add, has, locale, dec, date, dateTime, num, DICT, LANGS };
   root.StayMatchI18n = api;
   if (typeof module === 'object' && module.exports) { module.exports = api; try { require('./strings.js'); } catch {} } // Node: Wörterbücher mitladen
 })(typeof window !== 'undefined' ? window : globalThis);
