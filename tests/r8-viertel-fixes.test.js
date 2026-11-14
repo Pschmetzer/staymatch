@@ -54,9 +54,11 @@ test('Normierung: Ausreißer drückt die anderen nicht mehr', () => {
 test('personScore: Abneigung skaliert mit ihrem Gewichtsanteil, bleibt in 0..100', () => {
   const w = { sights: 1, party: -1 };
   assert.equal(SM.personScore({ sights: 1, party: 0 }, w), 100);
-  assert.equal(SM.personScore({ sights: 1, party: 1 }, w), 50); // statt vorher 0
+  assert.equal(SM.personScore({ sights: 1, party: 1 }, w), 0);
+  assert.equal(SM.personScore({ sights: 1, party: 1 }, { sights: 2, party: -1 }), 50);
+  assert.equal(SM.personScore({ sights: 1, party: 0.5 }, { sights: 2, party: -1 }), 75);
   assert.equal(SM.personScore({ sights: 0, party: 1 }, w), 0);
-  assert.equal(SM.personScore({ sights: 1, party: 1 }, { sights: 1, party: -0.1 }), 91);
+  assert.equal(SM.personScore({ sights: 1, party: 1 }, { sights: 1, party: -0.1 }), 90);
   assert.equal(SM.personScore({ party: 0 }, { party: -1 }), 100);
   assert.equal(SM.personScore({ party: 1 }, { party: -1 }), 0);
   assert.equal(SM.personScore({ party: 1 }, { sights: 1 }), 0);

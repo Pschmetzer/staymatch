@@ -202,12 +202,12 @@
   // Zufriedenheit einer Person (0..100)
   function personScore(norm, weights) {
     // Wünsche (positive Gewichte): erfüllter Anteil 0..1. Abneigungen (negative): Störanteil 0..1.
-    // Der Störanteil mindert den Wert höchstens um den Anteil der Abneigungen am Gesamtgewicht (|neg| / (pos + |neg|)), skaliert also wie die Wünsche.
+    // Der Störanteil mindert den Wert höchstens um das Verhältnis Abneigungen zu Wünschen (|neg| / max(pos, |neg|)), skaliert also wie die Wünsche.
     let sp = 0, t = 0, sn = 0, neg = 0;
     for (const [k, w] of Object.entries(weights)) { const x = norm[k] || 0; if (w > 0) { sp += w * x; t += w; } else if (w < 0) { sn -= w * x; neg -= w; } }
     // Nur Abneigungen (Regler alle ≤ 0): 100 = nichts davon in der Nähe, 0 = alles voll davon
     if (!t) return neg ? Math.max(0, Math.min(100, Math.round(100 - (sn / neg) * 100))) : 0; // nichts gewählt = kein Treffer
-    const pen = neg ? (neg / (t + neg)) * (sn / neg) : 0;
+    const pen = neg ? (neg / Math.max(t, neg)) * (sn / neg) : 0;
     return Math.max(0, Math.min(100, Math.round((sp / t) * (1 - pen) * 100)));
   }
 
@@ -250,7 +250,7 @@
     const f = t ? sp / t : 0; // erfüllter Anteil der Wünsche; Abneigungen mindern ihn nur im Verhältnis ihres Gewichts
     return Object.entries(weights).filter(([, w]) => w).map(([k, w]) => {
       const x = norm[k] || 0;
-      const pts = w > 0 ? (w * x) / t : t ? -f * (-w * x) / (t + neg) : -(-w * x) / neg; // nur Abneigungen: 0 bis −100
+      const pts = w > 0 ? (w * x) / t : t ? -f * (-w * x) / Math.max(t, neg) : -(-w * x) / neg; // nur Abneigungen: 0 bis −100
       return { key: k, label: CATEGORIES[k].label, pts: Math.round(pts * 100) };
     }).filter(x => x.pts).sort((x, y) => Math.abs(y.pts) - Math.abs(x.pts));
   }
