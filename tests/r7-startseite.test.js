@@ -7,7 +7,8 @@ const crypto = require('node:crypto');
 
 const root = path.join(__dirname, '..');
 const web = path.join(root, 'web');
-const read = (f) => fs.readFileSync(path.join(web, f), 'utf8');
+const { inlineScripts } = require('./helpers/web.js');
+const read = (f) => inlineScripts(fs.readFileSync(path.join(web, f), 'utf8'));
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]);
 const htmlFiles = () => walk(web).filter((f) => f.endsWith('.html')).map((f) => path.relative(web, f));
 const pages = { de: 'index.html', en: 'en.html' };

@@ -82,8 +82,9 @@ if (existsSync(join(SRC, '.vercel'))) cpSync(join(SRC, '.vercel'), join(OUT, '.v
 if (process.argv.includes('--check')) {
   for (const p of walk(SRC)) if (!existsSync(join(OUT, relative(SRC, p)))) { console.error(`Fehlt in dist/: ${relative(SRC, p)}`); process.exit(1); }
 }
-const MAX_JS = 140_000; // R11: gruppe.js + vergleich.js (neue Seiten-Skripte) kamen dazu, vorher 115 000. Budget für web/*.js nach Minify (Bytes; ausgeliefert zusätzlich mit Brotli)
-const jsTotal = sizes.filter(([f]) => f.endsWith('.js')).reduce((n, [, , b]) => n + b, 0);
+const MAX_JS = 125_000; // R11: gruppe.js (Gruppen-Abstimmung in der App, ca. 5 KB minifiziert) kam dazu, vorher 115 000; vergleich.js ist Seitenskript (siehe PAGE_JS). Budget für web/*.js nach Minify (Bytes; ausgeliefert zusätzlich mit Brotli)
+const PAGE_JS = /^(theme-[a-z]+|home-[a-z]+|page404|app-boot|app-ui|vergleich)\.js$/; // Seitenskripte (früher inline), zählen nicht zum App-Budget
+const jsTotal = sizes.filter(([f]) => f.endsWith('.js') && !PAGE_JS.test(f)).reduce((n, [, , b]) => n + b, 0);
 if (process.argv.includes('--check') && jsTotal > MAX_JS) { console.error(`Minifizierte JS zusammen ${jsTotal} > ${MAX_JS} Bytes`); process.exit(1); }
 const kb = (n) => (n / 1024).toFixed(1);
 for (const [f, a, b] of sizes) console.log(`${f.padEnd(14)} ${kb(a).padStart(6)} KB → ${kb(b).padStart(6)} KB`);

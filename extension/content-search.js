@@ -151,6 +151,7 @@
     if (now && !paused && !log.some(e => e.path === now.path && e.ci === now.ci && e.nights === now.nights)) chrome.storage.local.set({ priceLog: [...log, now].slice(-60) }).catch?.(() => {});
     const booked = items.filter(i => i.booked && sp.checkin && i.booked.checkin === sp.checkin);
     const lastYear = X && anchor ? X.lastYear(items.filter(i => i.booked && i.booked.checkin !== sp.checkin), location.pathname, anchor.median, anchor.currency) : null;
+    SMC.reportStatus(P.pageStatus(/^\/wishlists\//.test(location.pathname) ? 'wishlist' : 'search', current.length, null));
     lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear, openWishes: lastView?.openWishes, items, fixScope };
     // R7 E: Seiten-Auswertung einmal je Suche rechnen (nicht bei jedem Chip-Klick)
     const top0 = currentTop();
@@ -173,9 +174,12 @@
 
   // Nach einer Wartezeit noch keine Unterkünfte gelesen → klare Meldung statt leerem Panel
   function checkEmpty() {
-    if (!/^\/s\//.test(location.pathname) || lastView) return; // Wunschliste: keine Fehlerseite (Aufbau ungeprüft)
+    if (!SMC.isList(location.pathname) || lastView) return;
     if (P.parseSearch(document).length) return handleSearch().catch(() => {}); // R7: erst prüfen, dann (teure) Diagnose
     const d = P.diagnose(document);
+    const wish = /^\/wishlists\//.test(location.pathname);
+    SMC.reportStatus(P.pageStatus(wish ? 'wishlist' : 'search', 0, d));
+    if (wish) return; // Wunschliste (Aufbau ungeprüft): still bleiben statt Fehlerseite, nur im Popup als „nicht erkannt“ vermerkt
     const ver = chrome.runtime?.getManifest?.().version || '?';
     const report = `StayMatch ${ver}\nSeitendaten: ${d.stateNote} (${d.stateCount})\nKarten: ${d.cards}\nLinks: ${d.roomLinks}`; // ohne URL und ohne Seiteninhalt
     panel('sm-error', 'Seite nicht verstanden', [

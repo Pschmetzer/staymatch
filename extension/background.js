@@ -22,7 +22,14 @@ async function syncAlarms() {
     for (const w of want) if (!have.some(a => a.name === R.alarmName(w.id) && Math.abs(a.scheduledTime - w.when) < 1000)) await chrome.alarms.create(R.alarmName(w.id), { when: w.when });
   } catch {}
 }
-chrome.alarms?.onAlarm.addListener(async al => {
+// „alarms“ und „notifications“ sind optional (Optionen → Erinnerung). Der Hörer wird gesetzt, sobald die Berechtigung da ist.
+let alarmHooked = false;
+function hookAlarms() {
+  if (alarmHooked || !chrome.alarms?.onAlarm) return;
+  alarmHooked = true;
+  chrome.alarms.onAlarm.addListener(onAlarm);
+}
+async function onAlarm(al) {
   try {
     const R = self.StayMatchReminders, id = R.idOfAlarm(al.name);
     if (!id) return;
@@ -36,7 +43,10 @@ chrome.alarms?.onAlarm.addListener(async al => {
     await chrome.storage.local.set({ remindDone: { ...done, [id]: p.day } });
     chrome.notifications.create('sm-cancel-' + id, { type: 'basic', iconUrl: 'icons/128.png', title: 'Kostenlose Stornierung endet bald', message: `${p.title}: bis ${p.day.split('-').reverse().join('.')} kostenlos stornierbar.` });
   } catch {}
-});
+}
+hookAlarms();
+chrome.permissions?.onAdded?.addListener(() => { hookAlarms(); syncAlarms(); });
+chrome.permissions?.onRemoved?.addListener(() => { try { chrome.alarms?.clearAll?.(); } catch {} });
 // Druckseite der Top 3 öffnen (das Panel auf Airbnb darf keine Erweiterungsseite öffnen)
 chrome.runtime.onMessage?.addListener((msg, sender) => {
   if (msg && msg.type === 'sm-print' && sender.id === chrome.runtime.id) chrome.tabs.create({ url: chrome.runtime.getURL('print.html') });

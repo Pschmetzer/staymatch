@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const web = path.join(__dirname, '..', 'web');
-const read = (f) => fs.readFileSync(path.join(web, f), 'utf8');
+const { inlineScripts } = require('./helpers/web.js');
+const read = (f) => inlineScripts(fs.readFileSync(path.join(web, f), 'utf8'));
 const vercel = JSON.parse(read('vercel.json'));
 const csp = (src) => vercel.headers.find((r) => r.source === src).headers[0].value;
 

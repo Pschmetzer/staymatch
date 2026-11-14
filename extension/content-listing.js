@@ -88,6 +88,7 @@
     const old = await getListing(id);
     const recent = old && Date.now() - old.lastSeen < C.VISIT_WINDOW_MS; // Reload ≠ neuer Besuch
     const { _readOk, ...data } = roomData(id);
+    SMC.reportStatus(P.pageStatus('room', data.title && (data.rating != null || data.image || data.lat != null || data.reviewCount) ? 1 : 0, null));
     // fehlende Felder nicht mit null überschreiben. Ausnahme: war der Abschnitt lesbar und ist das Ergebnis leer, wird das Alte ersetzt
     // (ein verschwundener Hinweis bleibt sonst ewig im Verlauf)
     const clean = Object.fromEntries(Object.entries(data).filter(([k, v]) => (v != null && !(Array.isArray(v) && !v.length)) || (_readOk[k] && Array.isArray(v) && old?.[k]?.length)));

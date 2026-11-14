@@ -55,10 +55,30 @@
     const explicit = patch && ('vote' in patch || 'note' in patch || 'booked' in patch || 'tags' in patch);
     if (isPaused() && !explicit) return { ...old, ...patch, id, paused: true }; // ohne neuen lastSeen
     try { await chrome.storage.local.set({ [KEY(id)]: item }); }
-    catch (e) { console.debug('StayMatch: Speichern fehlgeschlagen (Speicher voll?)', e); SMC.saveFailed = true; }
+    catch (e) { console.debug('StayMatch: Speichern fehlgeschlagen (Speicher voll?)', e); SMC.saveFailed = true; storageWarning(e); }
     return item;
   }
+  // Seitenstatus fürs Popup (Zahlen, keine Inhalte); nur schreiben, wenn sich etwas geändert hat. Fehler still ignorieren.
+  let lastStatusJson = '';
+  function reportStatus(st) {
+    try {
+      const j = JSON.stringify({ ...st, at: undefined });
+      if (j === lastStatusJson) return; lastStatusJson = j;
+      chrome.storage.local.set({ pageStatus: { ...st, at: Date.now() } }).catch?.(() => {});
+    } catch {}
+  }
   const isPaused = () => settings.pauseUntil > Date.now();
+  // Sichtbare Meldung (einmal je Seite), wenn Speichern scheitert: sonst glaubt man, Notiz oder 👍 seien gesichert
+  let warned = false;
+  function storageWarning(e) {
+    if (warned) return; warned = true;
+    const quota = /quota/i.test(String(e?.message || e));
+    try {
+      panel('sm-storage', quota ? 'Speicher voll' : 'Speichern fehlgeschlagen', [
+        h('div', { class: 'err', role: 'alert' }, h('b', {}, 'Deine letzte Änderung wurde nicht gespeichert.'), h('div', {}, quota ? 'Der Speicher der Erweiterung ist voll. Öffne das StayMatch-Popup → „Löschen…“ (vorher „Alles sichern“) und versuche es erneut.' : 'Der Browser hat das Speichern abgelehnt. Lade die Seite neu und versuche es erneut.'))]);
+      SMC.say?.('Achtung: Deine Änderung wurde nicht gespeichert.');
+    } catch {}
+  }
   async function allListings() {
     const all = await chrome.storage.local.get(null);
     return Object.entries(all).filter(([k]) => k.startsWith('l:')).map(([, v]) => migrateListing(v));
@@ -78,11 +98,16 @@
   }
 
   // ---------- kleine DOM-Helfer: Airbnb-Texte immer über textContent ----------
+  const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href', 'srcset', 'poster', 'data']);
+  const SAFE_URL = /^(https?:\/\/|blob:|#|\/(?!\/))/i;
   function h(tag, attrs = {}, ...kids) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
       if (v == null || v === false) continue; // null heißt „Attribut weglassen“ (sonst würde disabled="null" gelten)
-      if (k === 'style') e.style.cssText = v; else if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v);
+      if (k === 'style') e.style.cssText = v;
+      else if (k.startsWith('on')) { if (typeof v === 'function') e[k] = v; } // nie Text als Handler
+      else if (URL_ATTRS.has(k.toLowerCase()) && !SAFE_URL.test(String(v))) continue; // kein javascript:/data: aus Seitendaten
+      else e.setAttribute(k, v);
     }
     for (const k of kids.flat(Infinity)) if (k != null) e.append(k instanceof Node ? k : String(k));
     return e;
@@ -274,7 +299,7 @@
   // Trefferlisten: Suche (/s/…) und Wunschliste (/wishlists/<id>), beide werden gelesen und bewertet
   const isList = path => /^\/s\//.test(path) || /^\/wishlists\/[^/]+/.test(path);
   const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
-  const SMC = window.StayMatchContent = { say, isList, ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
+  const SMC = window.StayMatchContent = { reportStatus, say, isList, ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
   function start() {
     // R7: fehlt ein Seiten-Modul (Syntaxfehler, halbes Update), nicht in jedem route() stumm werfen
     if (!SMC.search || !SMC.room) {
@@ -295,7 +320,7 @@
         if (!roomId) document.getElementById('sm-room')?.remove();
         if (!isList(path)) { document.getElementById('sm-search')?.remove(); document.getElementById('sm-error')?.remove(); }
         if (roomId) setTimeout(() => SMC.room.handle(roomId).catch(e => console.debug('StayMatch:', e)), T.roomDelay ?? 2000);
-        else if (/^\/s\//.test(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
+        else if (isList(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
       }
       if (isList(path)) SMC.search.handle().catch(e => console.debug('StayMatch:', e));
     }

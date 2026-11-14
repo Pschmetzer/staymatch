@@ -16,8 +16,9 @@ for (const f of [...pages, ...cityPages]) {
 }
 const js = readdirSync('web').filter((f) => f.endsWith('.js')).map((f) => `web/${f}`);
 let total = 0;
+const PAGE_JS = /^web\/(theme-[a-z]+|home-[a-z]+|page404|app-boot|app-ui)\.js$/; // Seitenskripte (früher inline), nicht im App-Budget
 for (const f of js) {
-  total += size(f);
+  if (!PAGE_JS.test(f)) total += size(f);
   if (size(f) > LIMITS.jsEach) errors.push(`${f}: ${size(f)} > ${LIMITS.jsEach} Bytes`);
   else if (size(f) > LIMITS.jsEach * WARN_AT) warnings.push(`${f}: ${size(f)} Bytes, über 90 % der Grenze ${LIMITS.jsEach}`);
 }
