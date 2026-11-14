@@ -476,6 +476,8 @@
   const curOf = l => R().normCur(l.currency) || '€';
   // Hauptwährung der Seite (die meisten Karten), damit € und $ nicht gemischt werden
   function mainCurrency(list) { const c = {}; for (const l of list) { const k = curOf(l); c[k] = (c[k] || 0) + 1; } return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || '€'; }
+  // Währung der Seite: die der meisten Karten mit gelesener Währung (kein „€“ erfinden: ohne Karten mit Währung null)
+  function pageCurrency(list) { const c = {}; for (const l of list || []) { const k = R().normCur(l.currency); if (k) c[k] = (c[k] || 0) + 1; } return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || null; }
   const night = (l, nights) => (l.priceImplausible ? null : R().perNight(l, nights));
   const PRIVATE = /privatzimmer|private room|chambre privée|habitación privada|camera privata/i;
 
@@ -493,7 +495,7 @@
     if (!bn) return null;
     const extra = Math.max(5, Math.round(bn * 0.1));
     const gain = list.filter(l => { const n = night(l, ctx.nights); return n != null && n > bn && n <= bn + extra && isTrusted(l) && (l.rating || 0) >= 4.7; });
-    return gain.length ? `Mit ${money(extra, '€')} mehr pro Nacht kämen ${gain.length} gut bewertete ${gain.length === 1 ? 'Superhost-/Favoriten-Unterkunft' : 'Superhost-/Favoriten-Unterkünfte'} dazu` : null;
+    return gain.length ? `Mit ${money(extra, ctx.budgetCurrency || mainCurrency(list))} mehr pro Nacht kämen ${gain.length} gut bewertete ${gain.length === 1 ? 'Superhost-/Favoriten-Unterkunft' : 'Superhost-/Favoriten-Unterkünfte'} dazu` : null;
   }
   // Günstiger Zwilling: fast gleich gut (höchstens 3 Punkte weniger), deutlich günstiger
   function cheapTwins(top, list) {
@@ -598,7 +600,7 @@
     const share = first.rank.stay / eb;
     if (share > 1) return null;
     const rest = eb - first.rank.stay;
-    return `Platz 1 nutzt ${Math.round(share * 100)} % des Budgets, es bleiben ${money(rest, '€')}${ctx.people > 1 ? ` (${money(rest / ctx.people, '€')} pro Person)` : ''}`;
+    return `Platz 1 nutzt ${Math.round(share * 100)} % des Budgets, es bleiben ${money(rest, ctx.budgetCurrency || curOf(first))}${ctx.people > 1 ? ` (${money(rest / ctx.people, ctx.budgetCurrency || curOf(first))} pro Person)` : ''}`;
   }
   // Was kostet ein Stern mehr? Lineare Regression Nachtpreis gegen Sterne (ab 10 Karten mit ≥ 5 Bewertungen)
   function starPrice(list, ctx = {}) {
@@ -822,7 +824,7 @@
     claimConflicts, lastMinute, discountHonesty, subRatings, subRatingNotes, contactLike, hostReviewCount, cancelTradeoff, lastYear,
     linkCheck, friendIds, tripsText, storageSummary,
     priceAnchor, budgetLever, cheapTwins, robustness, gapToFirst, discountThreshold, shiftLinks, filterSuggestion, soloAlternative, outlierPick, stopPaging, mapCorner,
-    budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, sinceLastVisit, visitStore, visitText, VISIT_GAP, mainCurrency,
+    budgetRest, starPrice, totalSwitchHint, mixedUnits, twoFlats, priceHistoryNotes, pageInsights, sinceLastVisit, visitStore, visitText, VISIT_GAP, mainCurrency, pageCurrency,
     advanceText,
     deposit, extraGuestFee, extraGuestCost, onSiteCosts, checkoutChores, fees, feeShare, parkingInfo, diningSeats, dishesFor, bedWidth, area, floorInfo,
     features, coffee, kitchenLevel, minAge, petLimits, petFee, allergy, ruleCount, hostExtra, license, greenClaims, superlatives, dayLength,
