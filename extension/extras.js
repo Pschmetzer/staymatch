@@ -495,7 +495,7 @@
     if (!bn) return null;
     const extra = Math.max(5, Math.round(bn * 0.1));
     const gain = list.filter(l => { const n = night(l, ctx.nights); return n != null && n > bn && n <= bn + extra && isTrusted(l) && (l.rating || 0) >= 4.7; });
-    return gain.length ? `Mit ${money(extra, ctx.budgetCurrency || mainCurrency(list))} mehr pro Nacht kämen ${gain.length} gut bewertete ${gain.length === 1 ? 'Superhost-/Favoriten-Unterkunft' : 'Superhost-/Favoriten-Unterkünfte'} dazu` : null;
+    return gain.length ? `Mit ${money(extra, ctx.budgetCurrency || pageCurrency(list))} mehr pro Nacht kämen ${gain.length} gut bewertete ${gain.length === 1 ? 'Superhost-/Favoriten-Unterkunft' : 'Superhost-/Favoriten-Unterkünfte'} dazu` : null;
   }
   // Günstiger Zwilling: fast gleich gut (höchstens 3 Punkte weniger), deutlich günstiger
   function cheapTwins(top, list) {
@@ -617,7 +617,7 @@
     const share = first.rank.stay / eb;
     if (share > 1) return null;
     const rest = eb - first.rank.stay;
-    return `Platz 1 nutzt ${Math.round(share * 100)} % des Budgets, es bleiben ${money(rest, ctx.budgetCurrency || curOf(first))}${ctx.people > 1 ? ` (${money(rest / ctx.people, ctx.budgetCurrency || curOf(first))} pro Person)` : ''}`;
+    return `Platz 1 nutzt ${Math.round(share * 100)} % des Budgets, es bleiben ${money(rest, ctx.budgetCurrency || R().normCur(first.currency))}${ctx.people > 1 ? ` (${money(rest / ctx.people, ctx.budgetCurrency || R().normCur(first.currency))} pro Person)` : ''}`;
   }
   // Was kostet ein Stern mehr? Lineare Regression Nachtpreis gegen Sterne (ab 10 Karten mit ≥ 5 Bewertungen)
   function starPrice(list, ctx = {}) {

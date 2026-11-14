@@ -90,8 +90,10 @@
     // Schreiblast senken: Sammlung nur schreiben, wenn sie sich wirklich geändert hat
     if (!paused) { try { const j = JSON.stringify(pool); if (j !== lastPoolJson) { lastPoolJson = j; chrome.storage.local.set({ pool }).catch?.(() => {}); } } catch {} }
     const byId = new Map(current.map(l => [l.id, l]));
+    // Preis-Korrekturen gelten nur für diese Reisedaten (ein Mai-Preis darf im Dezember nicht weiterrechnen)
+    const fixScope = `${sp.checkin || ''}|${sp.checkout || ''}`;
     // Preis-Korrekturen und -Ausschlüsse von Hand (quick.priceFix), gelten für diese Wertung und das Popup
-    const listings = R.applyPriceFixes(Object.values(pool.items).map(p => byId.get(p.id) || p), stored.quick?.priceFix);
+    const listings = R.applyPriceFixes(Object.values(pool.items).map(p => byId.get(p.id) || p), stored.quick?.priceFix, fixScope);
 
     // Reise nur nutzen, wenn sie zu dieser Suche passt (gleiches Datum oder Unterkünfte nahe den Vierteln)
     // Vergangene Reise (Anreise liegt vor heute) gilt nicht mehr, sonst greift ein altes Budget still
@@ -149,7 +151,7 @@
     if (now && !paused && !log.some(e => e.path === now.path && e.ci === now.ci && e.nights === now.nights)) chrome.storage.local.set({ priceLog: [...log, now].slice(-60) }).catch?.(() => {});
     const booked = items.filter(i => i.booked && sp.checkin && i.booked.checkin === sp.checkin);
     const lastYear = X && anchor ? X.lastYear(items.filter(i => i.booked && i.booked.checkin !== sp.checkin), location.pathname, anchor.median, anchor.currency) : null;
-    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear, openWishes: lastView?.openWishes, items };
+    lastView = { since, seenIds: new Set(items.filter(i => (i.visits || 0) > 0).map(i => i.id)), ranked, ctx, disliked, trip, count: listings.length, pages: pool.pages.length, quality: P.quality(current), min: !!stored['min:sm-search'], pool, listings, history, booked, basePeople, delta, deltaKey, lastYear, openWishes: lastView?.openWishes, items, fixScope };
     // R7 E: Seiten-Auswertung einmal je Suche rechnen (nicht bei jedem Chip-Klick)
     const top0 = currentTop();
     lastView.insights = X ? X.pageInsights(ranked.filter(l => !l.rank.disliked), top0, ctx, { pool, history, lastYear, listings: listings.length <= 300 ? listings : null }) : [];
@@ -171,7 +173,7 @@
 
   // Nach einer Wartezeit noch keine Unterkünfte gelesen → klare Meldung statt leerem Panel
   function checkEmpty() {
-    if (!SMC.isList(location.pathname) || lastView) return;
+    if (!/^\/s\//.test(location.pathname) || lastView) return; // Wunschliste: keine Fehlerseite (Aufbau ungeprüft)
     if (P.parseSearch(document).length) return handleSearch().catch(() => {}); // R7: erst prüfen, dann (teure) Diagnose
     const d = P.diagnose(document);
     const ver = chrome.runtime?.getManifest?.().version || '?';
@@ -251,9 +253,9 @@
         h('button', { class: quick.ownBed ? 'on' : '', 'aria-pressed': String(!!quick.ownBed), title: 'Doppelbett zählt dann als ein Bett', onclick: () => setQuick({ ownBed: !quick.ownBed }) }, chip('🛏️ jede Person eigenes Bett')),
         h('button', { class: quick.smoker ? 'on' : '', 'aria-pressed': String(!!quick.smoker), title: 'Prüft auf der Unterkunftsseite Rauchverbot und Außenfläche', onclick: () => setQuick({ smoker: !quick.smoker }) }, chip('🚬 Raucher dabei')))) : null;
     // Preis von Hand korrigieren (Nachtpreis) oder ausschließen; gespeichert in quick.priceFix, höchstens 200 Einträge
-    const setFix = (id, fix) => { const f = { ...(quick.priceFix || {}) }; delete f[id]; if (fix) f[id] = fix; setQuick({ priceFix: Object.fromEntries(Object.entries(f).slice(-200)) }); };
+    const setFix = (id, fix) => { const k = `${id}|${lastView.fixScope}`; const f = { ...(quick.priceFix || {}) }; delete f[k]; if (fix) f[k] = fix; setQuick({ priceFix: Object.fromEntries(Object.entries(f).slice(-200)) }); };
     const priceFixUi = l => {
-      const fx = (quick.priceFix || {})[l.id];
+      const fx = (quick.priceFix || {})[`${l.id}|${lastView.fixScope}`];
       const inp = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': `Nachtpreis in ${l.currency || 'deiner Währung'} für ${cut(l.title || l.kind, 30)}`, style: 'width:80px;font:inherit' });
       inp.value = fx?.price || (l.priceFixed ? l.totalPrice : '');
       const ok = () => { const v = Math.round(Number(inp.value)); if (v > 0) setFix(l.id, { price: v }); };
@@ -386,7 +388,7 @@
       const s = l.rank.score;
       const bg = s >= 75 ? '#1f9d6b' : s >= 55 ? '#d68a00' : '#9a9aa0';
       b.style.cssText = `position:absolute;right:52px;top:12px;z-index:3;background:${bg};color:#fff;font:600 12px system-ui;padding:3px 8px;border-radius:999px;${settings.scoreOnly ? 'pointer-events:none' : 'pointer-events:auto;cursor:pointer'}`;
-      if (!settings.scoreOnly) { b.setAttribute('role', 'button'); b.onclick = e => { e.preventDefault(); e.stopPropagation(); lastView.whyId = l.id; renderSearch(); }; }
+      if (!settings.scoreOnly) b.onclick = e => { e.preventDefault(); e.stopPropagation(); lastView.whyId = l.id; SMC.rootOf('sm-search')?.querySelector('.box')?.classList.remove('min'); chrome.storage.local.set({ 'min:sm-search': false }); renderSearch(); }; // nur Maus-Abkürzung: das Panel zeigt dieselben Infos
       const pp = l.rank.ppn?.person;
       // R7 E: Screenshot-Modus: nur die Punkte, ohne Preis und ohne Tooltip
       b.textContent = settings.scoreOnly ? String(s) : `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;

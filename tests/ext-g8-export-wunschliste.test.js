@@ -80,3 +80,21 @@ test('Service Worker: öffnet print.html nur auf Nachricht der eigenen Erweiteru
   onMsg({ type: 'sm-print' }, { id: 'fremd' }); onMsg({ type: 'anderes' }, { id: 'me' }); assert.equal(tabs.length, 0);
   onMsg({ type: 'sm-print' }, { id: 'me' }); assert.deepEqual([...tabs], ['chrome-extension://me/print.html']);
 });
+
+test('heartOf: Gespeichert/Speichern in DE, EN, IT, FR, ES (keine Verwechslung der Wortstämme)', { skip }, () => {
+  const { w } = D.makePage({ body: '' });
+  const P = w.StayMatchParse;
+  const of = lab => { const d = new w.DOMParser().parseFromString(`<div><button data-testid="listing-card-save-button" aria-label="${lab}"></button></div>`, 'text/html'); return P.heartOf(d.body.firstChild); };
+  for (const on of ['Saved to wishlist', 'Remove from wishlist', 'Salvato nella lista dei desideri', 'Rimuovi dalla lista dei desideri', 'Enregistré dans la liste de souhaits', 'Guardado en la lista de deseos', 'In Wunschliste gespeichert', 'Aus Wunschliste entfernen']) assert.equal(of(on), true, on);
+  for (const off of ['Save to wishlist', 'Add to wishlist', 'Salva nella lista dei desideri', 'Enregistrer dans la liste de souhaits', 'Ajouter à la liste de souhaits', 'Guardar en la lista de deseos', 'Zur Wunschliste hinzufügen']) assert.equal(of(off), false, off);
+  assert.equal(of('Wunschliste öffnen'), null);
+});
+
+test('Wunschliste ohne lesbare Karten: keine Fehlerseite „Seite nicht verstanden“ (Aufbau ungeprüft)', { skip }, async () => {
+  const { doc } = D.makePage({ body: '<main><p>leer</p></main>', url: 'https://www.airbnb.de/wishlists/123456' });
+  await D.sleep(250);
+  assert.equal(D.shadow(doc, 'sm-error'), null);
+  const s = D.makePage({ body: '<main><p>leer</p></main>', url: 'https://www.airbnb.de/s/Barcelona/homes?adults=2' });
+  await D.until(() => D.shadow(s.doc, 'sm-error'));
+  assert.ok(D.shadow(s.doc, 'sm-error'), 'auf der Suche bleibt die Diagnose');
+});

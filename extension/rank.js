@@ -287,11 +287,11 @@
 
   const median = a => { const x = a.filter(v => v != null && isFinite(v)).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
 
-  // Preis von Hand korrigieren oder ausschließen (fixes: { id: { price } | { exclude: true } }). Nur Nachtpreise, höchstens 200 Einträge.
-  function applyPriceFixes(listings, fixes) {
+  // Preis von Hand korrigieren oder ausschließen (fixes: { 'id|anreise|abreise': { price } | { exclude: true } }). Nur Nachtpreise, höchstens 200 Einträge.
+  function applyPriceFixes(listings, fixes, scope = '') {
     if (!fixes || typeof fixes !== 'object') return listings;
     return listings.map(l => {
-      const f = Object.prototype.hasOwnProperty.call(fixes, l.id) ? fixes[l.id] : null;
+      const k = `${l.id}|${scope}`, f = Object.prototype.hasOwnProperty.call(fixes, k) ? fixes[k] : null;
       if (!f || typeof f !== 'object') return l;
       if (f.exclude) return { ...l, priceImplausible: true, priceExcluded: true };
       const p = Number(f.price);

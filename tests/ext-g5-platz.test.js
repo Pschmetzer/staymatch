@@ -22,10 +22,11 @@ test('Klick auf die Plakette einer Karte öffnet „Warum nicht Platz 1?“ ohne
   await D.until(() => doc.querySelectorAll('[data-staymatch-badge]').length >= 4);
   const badge = [...doc.querySelectorAll('[data-staymatch-badge]')].find(b => !b.dataset.top);
   assert.ok(badge, 'Karte außerhalb der Top 3');
-  assert.equal(badge.getAttribute('role'), 'button');
+  assert.equal(badge.getAttribute('role'), null, 'Maus-Abkürzung, kein unfokussierbarer „Button“');
   const ev = new w.MouseEvent('click', { bubbles: true, cancelable: true }); badge.dispatchEvent(ev);
   assert.ok(ev.defaultPrevented, 'Link der Karte nicht ausgelöst');
   await D.until(() => /Warum nicht Platz 1\?/.test(D.shadow(doc, 'sm-search')?.textContent || ''));
+  assert.equal(D.shadow(doc, 'sm-search').querySelector('.box').classList.contains('min'), false);
   const t = D.shadow(doc, 'sm-search').textContent;
   assert.match(t, /Platz 4 von 4: \d+ Punkte hinter Platz 1/);
   [...D.shadow(doc, 'sm-search').querySelectorAll('button')].find(b => b.textContent === 'Schließen').click();
@@ -41,4 +42,13 @@ test('Suche merkt die Reihenfolge, die Unterkunftsseite sagt „Platz 2 von 4“
   const r = D.makePage({ body: `<main><script type="application/ld+json">{"name":"Loft"}</script><div data-testid="book-it-default">100 € pro Nacht</div></main>`, url: `https://www.airbnb.de/rooms/${id}?checkin=2026-05-01&checkout=2026-05-05`, chrome });
   await D.until(() => /Platz 2 von 4 in deiner letzten Suche/.test(D.shadow(r.doc, 'sm-room')?.textContent || ''));
   assert.match(D.shadow(r.doc, 'sm-room').textContent, /Platz 2 von 4 in deiner letzten Suche/);
+});
+
+test('Klick auf die Plakette klappt ein eingeklapptes Panel aus', { skip }, async () => {
+  const { doc } = D.makePage({ body: D.searchBody(), chrome: D.chromeMock({ 'min:sm-search': true }) });
+  await D.until(() => doc.querySelectorAll('[data-staymatch-badge]').length >= 4);
+  assert.ok(D.shadow(doc, 'sm-search').querySelector('.box').classList.contains('min'));
+  [...doc.querySelectorAll('[data-staymatch-badge]')].find(b => !b.dataset.top).click();
+  await D.until(() => /Warum nicht Platz 1\?/.test(D.shadow(doc, 'sm-search')?.textContent || ''));
+  assert.equal(D.shadow(doc, 'sm-search').querySelector('.box').classList.contains('min'), false);
 });

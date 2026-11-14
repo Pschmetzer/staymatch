@@ -295,7 +295,7 @@
         if (!roomId) document.getElementById('sm-room')?.remove();
         if (!isList(path)) { document.getElementById('sm-search')?.remove(); document.getElementById('sm-error')?.remove(); }
         if (roomId) setTimeout(() => SMC.room.handle(roomId).catch(e => console.debug('StayMatch:', e)), T.roomDelay ?? 2000);
-        else if (isList(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
+        else if (/^\/s\//.test(path)) emptyTimer = setTimeout(() => SMC.search.checkEmpty(), T.diagDelay ?? 9000);
       }
       if (isList(path)) SMC.search.handle().catch(e => console.debug('StayMatch:', e));
     }

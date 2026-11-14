@@ -27,3 +27,12 @@ test('Panel: Budgetfeld und -zeile zeigen CHF, wenn die Seite in CHF rechnet', {
   const t = D.shadow(doc, 'sm-search').textContent;
   assert.match(t, /Budget pro Nacht \(CHF\)/); assert.doesNotMatch(t, /Budget pro Nacht \(€\)/);
 });
+
+test('Ohne gelesene Währung kein erfundenes „€“ in Budgettexten', () => {
+  const first = { id: '1', rank: { stay: 400, parts: { price: 1 } } };
+  const t = X.budgetRest(first, { budget: 1000, nights: 4, tripNights: 4, people: 2 });
+  assert.ok(t && !/€/.test(t), t);
+  const list = Array.from({ length: 10 }, (_, i) => ({ id: 'x' + i, totalPrice: 100 + i, isTotal: false, rating: 4.8, badges: ['Superhost'] }));
+  const lever = X.budgetLever(list, { budgetPerNight: 100, nights: 4 });
+  assert.ok(!lever || !/€/.test(lever), lever);
+});
