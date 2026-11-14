@@ -50,7 +50,7 @@ test('R7E Kopiertext: ohne Preise, ohne Emojis, Markdown, Preisstand, Entscheidu
   const qs = R.decisionQuestions(top);
   assert.equal(qs.length, 2);
   assert.match(qs[0], /150 € mehr/);
-  assert.match(R.shareText(items, { questions: qs }), /Zum Entscheiden:\n- 1 kostet/);
+  assert.match(R.shareText(items, { questions: qs }), /Zum Entscheiden:\n- Platz 1 kostet/);
 });
 
 test('R7E Seiten-Auswertung: Anker, Hebel, Zwilling, Lücke, Rabattschwelle, Links, Filter, Solo, Stern-Preis, Gesamtpreis-Schalter', () => {

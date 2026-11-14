@@ -44,13 +44,15 @@
   const NEG = U(/\b(nicht|kein|keine|keinen|nie|not|never|no|wasn't|isn't)\b/);
   // R7: „nicht nur sauber, sondern …“ ist keine Verneinung
   const NOT_ONLY = U(/\b(nicht nur|not only|not just|non solo|pas seulement|no solo)\b/g);
+  const NOT_ONLY_G = new RegExp(NOT_ONLY.source, 'giu'); // R8: einmal bauen, nicht je Satz
 
   // → ["👍 sauber", "⚠️ laut (2×)", …], häufigste zuerst
   function reviewHints(text) {
     const sentences = String(text || '').split(/(?<=[.!?\n])\s+/);
     const counts = {};
     for (const raw of sentences) {
-      const s = raw.replace(new RegExp(NOT_ONLY.source, 'giu'), ' ');
+      NOT_ONLY_G.lastIndex = 0;
+      const s = raw.replace(NOT_ONLY_G, ' ');
       for (const [label, re, pos, flip, negLabel] of HINTS) {
         const m = s.match(re);
         if (!m) continue;
@@ -68,7 +70,18 @@
   const warnings = hints => (hints || []).filter(x => String(x).startsWith('⚠️'));
 
   // ---------- R7 E: Auswertungen über einzelne Bewertungen (reviewTexts: je Bewertung ein Text) ----------
-  const critical = t => reviewHints(t).some(x => x.startsWith('⚠️'));
+  // R8: je Text nur einmal rechnen (criticalShare, hostReplies fragen denselben Text mehrfach)
+  const CRIT_CACHE = new Map();
+  const critical = t => {
+    const k = String(t || '');
+    let v = CRIT_CACHE.get(k);
+    if (v === undefined) {
+      v = reviewHints(k).some(x => x.startsWith('⚠️'));
+      if (CRIT_CACHE.size > 500) CRIT_CACHE.clear();
+      CRIT_CACHE.set(k, v);
+    }
+    return v;
+  };
   // „4 von 30 Bewertungen kritisch“; ein Kritiker unter vielen Lobenden ist ein Einzelfall
   function criticalShare(texts) {
     const list = (texts || []).filter(Boolean);
@@ -82,7 +95,8 @@
     let night = 0, morning = 0;
     for (const s of String((texts || []).join('\n')).split(/(?<=[.!?\n])\s+/)) {
       if (!NOISE.test(s)) continue;
-      for (const m of s.matchAll(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(uhr|h\b|am|pm|a\.m\.|p\.m\.)/gi)) {
+      // R8: „am“/„pm“ nur als eigenes Wort („2 amazing nights“ ist keine Uhrzeit)
+      for (const m of s.matchAll(/(?<![\d:.,])\b(\d{1,2})(?:[:.](\d{2}))?\s*(uhr\b|h\b|(?:am|pm)(?![\p{L}])|a\.m\.|p\.m\.)/giu)) {
         let h = +m[1]; const ap = m[3].toLowerCase();
         if (ap.startsWith('p') && h < 12) h += 12; if (ap.startsWith('a') && h === 12) h = 0;
         if (h >= 22 || h <= 4) night++; else if (h >= 5 && h <= 9) morning++;
@@ -117,16 +131,18 @@
   }
   // Renovierung: „neu renoviert“, „neue Matratzen“ in den jüngsten Bewertungen
   const RENOV = U(/\b(neu\s+renoviert|frisch\s+renoviert|renovier\w*|neue\s+matratze\w*|newly renovated|just renovated|new mattress\w*)\b/);
-  const renovated = (texts, recent = 5) => (texts || []).slice(0, recent).some(t => RENOV.test(t));
+  // R8: „jüngste“ stimmt nur, wenn die Texte neueste zuerst kommen. Airbnb sortiert standardmäßig nach Relevanz:
+  // ohne opts.newestFirst (der Aufrufer muss die Sortierung kennen) gibt es keine Aussage über „zuletzt“.
+  const renovated = (texts, recent = 5, opts = {}) => !!opts?.newestFirst && (texts || []).slice(0, recent).some(t => RENOV.test(t));
   // Stichwort-Trend: Lob „sauber“ in den neuesten 10 gegen ältere (Reihenfolge wie auf der Seite: neueste zuerst)
-  function keywordTrend(texts, label = 'sauber') {
+  function keywordTrend(texts, label = 'sauber', opts = {}) {
+    if (!opts?.newestFirst) return null; // R8: Reihenfolge unbekannt (Relevanz-Sortierung) → kein Trend behaupten
     const list = texts || []; if (list.length < 16) return null;
     const rate = a => a.filter(t => reviewHints(t).some(x => x.startsWith('👍 ' + label))).length / a.length;
     const neu = rate(list.slice(0, 10)), alt = rate(list.slice(10));
     if (alt >= 0.3 && neu <= alt / 2) return `„${label}“ früher oft gelobt, zuletzt selten`;
     return null;
   }
-  // Höflichkeits-Bewertung: 5 Sterne, Text nennt Mängel (reviews: [{ rating, text }])
   // Gastgeber antwortet auf Kritik? Kritische Bewertungen mit Antwort, lösungsorientiert („behoben“, „ersetzt“)
   function hostReplies(texts) {
     const crit = (texts || []).filter(critical);
@@ -136,7 +152,6 @@
     const fix = replied.filter(t => /behoben|repariert|ersetzt|ausgetauscht|neu gekauft|fixed|replaced|repaired|resolved|réparé|remplacé/i.test(t));
     return { critical: crit.length, replied: replied.length, fixing: fix.length };
   }
-  function politeFives(reviews) { return (reviews || []).filter(r => +r.rating === 5 && r.text && critical(r.text)).length; }
 
-  root.StayMatchHints = { reviewHints, warnings, HINTS, criticalShare, noiseTimes, guestMix, languages, numberFacts, renovated, keywordTrend, politeFives, hostReplies };
+  root.StayMatchHints = { reviewHints, warnings, HINTS, criticalShare, noiseTimes, guestMix, languages, numberFacts, renovated, keywordTrend, hostReplies };
 })(typeof window !== 'undefined' ? window : globalThis);
