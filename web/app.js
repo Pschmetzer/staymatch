@@ -127,13 +127,13 @@ function renderPeople() {
     const row = document.createElement('div');
     row.className = 'person';
     row.innerHTML = `<input value="${escapeHtml(p.name)}" maxlength="40" autocomplete="off" aria-label="Name Person ${i + 1}">
-      <select aria-label="Typ von ${escapeHtml(p.name)}">${Object.entries(SM.PRESETS).map(([k, v]) => `<option value="${k}" ${k === p.type ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
+      <select aria-label="Typ von ${escapeHtml(p.name)}">${Object.entries(SM.PRESETS).map(([k, v]) => `<option value="${k}" ${k === p.type && !SM.isQuiet(p) ? 'selected' : ''}>${v.label}</option>`).join('')}<option value="quiet" ${SM.isQuiet(p) ? 'selected' : ''}>🤫 Ruhig</option></select>
       <button type="button" class="tunebtn" aria-expanded="${openTune.has(p)}" aria-label="Wünsche von ${escapeHtml(p.name)} feinjustieren" title="Wünsche feinjustieren">⚙️</button>
       <button type="button" title="Entfernen" aria-label="${escapeHtml(p.name)} entfernen">✕</button>`;
     row.children[0].oninput = e => { p.name = e.target.value; save(); };
     // Enter im Namensfeld: neue Person darunter, Fokus dorthin
     row.children[0].onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addPerson(); } };
-    row.children[1].onchange = e => { p.type = e.target.value; if (p.type2 === p.type) delete p.type2; delete p.custom; save(); renderPeople(); };
+    row.children[1].onchange = e => { const q = SM.typePerson(e.target.value); p.type = q.type; if (p.type2 === p.type) delete p.type2; delete p.custom; if (q.custom) p.custom = q.custom; save(); renderPeople(); };
     row.children[2].onclick = () => { openTune.has(p) ? openTune.delete(p) : openTune.add(p); renderPeople(); };
     row.children[3].onclick = () => { offerUndo(`${p.name} entfernt.`); removePerson(i); };
     if (solo()) { row.classList.add('solo'); row.children[0].hidden = row.children[3].hidden = true; }
@@ -424,7 +424,8 @@ async function run(pick) {
     // 1) vorab geladene Stadt (sofort, ohne Anfrage an OpenStreetMap-Server)
     let geo, rows = null, at = Date.now();
     const pre = pick ? null : await prefetched(city, signal);
-    if (pre) { geo = pre.geo; rows = pre.rows; at = pre.at || at; }
+    let meta = null;
+    if (pre) { geo = pre.geo; rows = pre.rows; at = pre.at || at; meta = pre.meta; }
     // 2) sonst: Ort suchen (bei mehreren gleich wichtigen Treffern nachfragen) und Daten holen (Tageszwischenspeicher im Browser)
     if (!rows) {
       let res = pick;
@@ -445,7 +446,7 @@ async function run(pick) {
     setBusy.set('Schritt 3 von 3: Bewerte Viertel', 3);
     const { areas, pois } = SM.buildData(rows); // dieselben Orte als Punkt und Gebäude, Bahnhofseingänge: nur einmal zählen
     if (areas.length < 2) throw new Error('Keine Viertel in OpenStreetMap gefunden – andere Stadt versuchen.');
-    lastData = { areas, pois, geo, q: cityId(city), qOld: normCity(city), at };
+    lastData = { areas, pois, geo, q: cityId(city), qOld: normCity(city), at, meta };
     migrateKeys(lastData);
     cmp = []; lastView = null; shown = 8; renderMap.key = null;
     $('stale').hidden = true;
@@ -573,7 +574,7 @@ function renderHead() {
   const at = lastData && lastData.at ? new Date(lastData.at) : null;
   const stamp = at ? (at.toDateString() === new Date().toDateString() ? 'heute geladen' : `Stand ${at.toLocaleDateString(LANG)}`) : '';
   $('resSummary').textContent = `Für ${g} ${g === 1 ? 'Person' : 'Personen'}${kids + babys ? ` + ${kids + babys} Kind${kids + babys > 1 ? 'er' : ''}` : ''}, ${b.n || '?'} Nächte${b.perNight ? `, ${Math.round(b.perNight)} € pro Nacht` : ''}. OpenStreetMap-Daten, ${stamp}.`;
-  const opts = [['fair', solo() ? 'Beste Wertung (Standard)' : 'Fairste Wahl (Standard)'], ...(solo() ? [] : [['avg', 'Höchster Schnitt'], ...people.map((p, i) => [`p:${i}`, `Beste für ${p.name}`])]), ['transit', 'Nächste Bahn'], ['center', 'Nah am Zentrum'], ['cheap', 'Günstigere Lage (Schätzung)']];
+  const opts = [['fair', solo() ? 'Beste Wertung (Standard)' : 'Fairste Wahl (Standard)'], ...(solo() ? [] : [['avg', 'Höchster Schnitt'], ...people.map((p, i) => [`p:${i}`, `Beste für ${p.name}`])]), ['transit', 'Nächste Bahn'], ['center', 'Nah am Zentrum'], ['cheap', 'Günstigere Lage (Schätzung)'], ['quiet', 'Ruhigste Lage (Schätzung)']];
   const sel = $('sort');
   if (sel.dataset.sig !== JSON.stringify(opts)) { sel.innerHTML = opts.map(([v, l]) => `<option value="${v}">${escapeHtml(l)}</option>`).join(''); sel.dataset.sig = JSON.stringify(opts); }
   sel.value = sortMode;
@@ -760,6 +761,7 @@ function renderMap(ranked, geo, r = 800, pois = []) {
   const color = (a, i) => pi < 0 ? (i === 0 ? col('accent') : '#888') : (score(a) >= 70 ? col('good') : score(a) < 40 ? col('warn') : '#888');
   $('mapLegend').textContent = pi < 0 ? 'Nummern = beste Viertel, Platz 1 farbig. Kleine Punkte = weitere bewertete Viertel (grün gut, rot schwach). Gestrichelt: ausgewertete Fläche.'
     : `Kreise für ${lastView.ppl[pi].name}: grün ab 70, orange unter 40, grau dazwischen. Kleine Punkte = weitere Viertel (grün gut, rot schwach).`;
+  $('mapLegend').textContent += ` Kreis = ${r} m Luftlinie, etwa ${SM.walkMin(r)} Min. zu Fuß (Luftlinie × 1,3).`;
   const goto = i => { const el = $('area-' + i); if (el) { el.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' }); el.focus({ preventScroll: true }); } };
   const mark = (i, on) => { const el = $('area-' + i); if (el) el.classList.toggle('hl', on); };
   // Kreis = Wertungsradius (gleich wie in der Wertung und im Airbnb-Ausschnitt)
@@ -839,6 +841,7 @@ $('city').addEventListener('input', () => {
   const q = new URLSearchParams(location.search), n = Math.floor(+q.get('n'));
   if (!location.hash.startsWith('#t=') && q.get('c')) {
     applyForm({ c: q.get('c'), i: q.get('i'), o: q.get('o') }); syncMin(false);
+    const tp = SM.typePerson(q.get('t')); if (tp) people[0] = SM.cleanPerson({ name: people[0].name, ...tp }) || people[0]; // ?t=party oder quiet: Typ der ersten Person
     if (n > 1 && n <= 16 && people.length === 1) people = Array.from({ length: n }, (_, i) => i ? { name: `Person ${i + 1}`, type: 'chill' } : people[0]);
     saveForm(); store.set('sm_people', people);
   }

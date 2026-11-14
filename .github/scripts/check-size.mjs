@@ -2,7 +2,7 @@
 import { readdirSync, statSync, existsSync, appendFileSync } from 'node:fs';
 
 const LIMITS = { 'web/index.html': 90_000, 'web/en.html': 90_000, // DE/EN: beide über 97 % der alten 80 KB (unkomprimiert, ausgeliefert mit Brotli)
-   'web/app.html': 40_000, 'web/404.html': 10_000, 'web/datenschutz.html': 20_000, 'web/impressum.html': 10_000, city: 20_000, jsEach: 66_000, jsTotal: 176_000 }; // R8: app.js/scoring.js lagen bei 59,4/57,9 KB, Viertel-Finder-Fixes brauchen 3–5 KB; R7: app-extra.js (Viertel-Features) kam dazu; unkomprimiert gemessen, ausgeliefert mit Brotli
+   'web/app.html': 40_000, 'web/404.html': 10_000, 'web/datenschutz.html': 20_000, 'web/impressum.html': 10_000, city: 20_000, jsEach: 70_000, jsTotal: 176_000 }; // R10: scoring.js wächst um ca. 6 KB (Typ-Link, Sensitivität, Konfidenz, Ruhe, Steckbrief), daher jsEach 70 KB; R8: app.js/scoring.js lagen bei 59,4/57,9 KB, Viertel-Finder-Fixes brauchen 3–5 KB; R7: app-extra.js (Viertel-Features) kam dazu; unkomprimiert gemessen, ausgeliefert mit Brotli
 const errors = [];
 const warnings = [];
 const WARN_AT = 0.9; // Frühwarnung ab 90 % der Grenze

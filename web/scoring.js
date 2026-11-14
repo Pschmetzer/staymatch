@@ -158,6 +158,7 @@
     const dmax = Math.max(1000, ds[Math.floor(ds.length * 0.9)] || 1000);
     for (const a of areas) {
       a.centerDist = Math.round(distM(a, centre));
+      Object.defineProperty(a.norm, 'quiet', { value: quietScore(a) / 100, enumerable: false, configurable: true, writable: true });
       const s = 0.65 * (1 - Math.min(1, a.centerDist / dmax)) + 0.35 * ((a.norm && a.norm.sights) || 0);
       a.tier = s > 0.6 ? 3 : s > 0.35 ? 2 : 1;
     }
@@ -214,7 +215,8 @@
   // Fairness: 60 % schwächste Person (Maximin) + 40 % Durchschnitt
   function groupScore(norm, people, fairness = 0.6) {
     const f = cleanFairness(fairness);
-    const scores = people.map(p => personScore(norm, p.w || weightsOf(p)));
+    // Ruhig-Typ: 35 % der Wertung aus der Ruhe-Schätzung (norm.quiet, nicht aufzählbar, damit Schleifen über norm sie nicht sehen)
+    const scores = people.map(p => { const s = personScore(norm, p.w || weightsOf(p)); return norm.quiet != null && isQuiet(p) ? Math.round(0.65 * s + 35 * norm.quiet) : s; });
     if (!scores.length) return { total: 0, scores, min: 0, avg: 0 };
     const min = Math.min(...scores);
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
@@ -297,6 +299,7 @@
       transit: (a, b) => num(a.nearest.transit) - num(b.nearest.transit) || byTotal(a, b),
       center: (a, b) => a.centerDist - b.centerDist || byTotal(a, b),
       cheap: (a, b) => a.tier - b.tier || byTotal(a, b),
+      quiet: (a, b) => quietScore(b) - quietScore(a) || byTotal(a, b),
     }[mode];
     if (cmp) return [...areas].sort(cmp);
     const m = /^p:(\d+)$/.exec(mode);
@@ -406,7 +409,7 @@
     const rows = C.rowsToTags(d.fields, d.rows);
     const [s, w, n, e] = d.bbox, c = Array.isArray(d.center) ? { lat: +d.center[0], lon: +d.center[1] } : d.center || {};
     const ok = Number.isFinite(+c.lat) && Number.isFinite(+c.lon) && +c.lat >= s && +c.lat <= n && +c.lon >= w && +c.lon <= e;
-    return { geo: { name: d.city, bbox: d.bbox, lat: ok ? +c.lat : (s + n) / 2, lon: ok ? +c.lon : (w + e) / 2 }, rows, at: d.t };
+    return { geo: { name: d.city, bbox: d.bbox, lat: ok ? +c.lat : (s + n) / 2, lon: ok ? +c.lon : (w + e) / 2 }, rows, at: d.t, meta: { src: d.source, lic: d.license, attr: d.attribution, n: d.rows.length } };
   }
   // Zeilen → Viertel (nur PLACE_TYPES mit Namen, Plätze zählen als Orte) und Orte je Kategorie (ohne Doppelte); Logik im Kern
   function buildData(rows) {
@@ -879,4 +882,61 @@
   Object.assign(root.StayMatch, { dayLength, daylightText, sundayNote, gapToFirst, gapText, worstAreas, groupConflicts, robustness, robustText, oddOneOut, plainText, familySpots,
     parseWishes, interestsToWeights, duelPairs, duelWeights, stayWeights, stayNote, parsePlaces, placesNear, cleanVotes, tallyVotes, cleanLegs, legIssues, legsText,
     decisionQuestions, areasText, fairMemory, groupSig });
+  // ---- Runde 9: Typ-Link, Sensitivität, Konfidenz, Ruhe, Gehzeit, Steckbrief, OSM-Editor ----
+  const QUIET_W = { party: -1, chill: 1, sights: 0.1, food: 0.4, transit: 0.3, shop: 0, sport: 0, kids: 0 }; // „Ruhig“: wie Chill, aber ohne Nachtleben und mit etwas Bahn
+  // ?t= im Link: Typschlüssel (oder „quiet“) → Person-Felder; unbekannt = null
+  const typePerson = t => t === 'quiet' ? { type: 'chill', custom: { ...QUIET_W } } : typeof t === 'string' && Object.hasOwn(PRESETS, t) ? { type: t } : null;
+  const isQuiet = p => !!p && p.type === 'chill' && !!p.custom && KEYS.every(k => (p.custom[k] || 0) === QUIET_W[k]);
+  const deepLink = ({ c, t, i, o }) => `${C.APP_URL}?${[['c', c], ['t', t], ['i', i], ['o', o]].filter(x => x[1]).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')}`;
+  // Lärmproxy 0..100 (100 = ruhig): Bars/Clubs im Umkreis und Nähe zum Zentrum. Straßen- und Bahnlärm stehen nicht in den Daten.
+  const quietScore = a => Math.round(100 * (1 - Math.min(1, 0.65 * a.norm.party + 0.35 * (1 - Math.min(1, a.centerDist / 3000)))));
+  // Gehzeit: Luftlinie × 1,3 bei 80 m/min
+  const walkMin = m => Math.max(1, Math.round(m * 1.3 / 80));
+  // Wie weit darf ein Wunsch sinken, bis Platz 1 wechselt? Größter Wunsch der Gruppe schrittweise (−10 %) kleiner gerechnet.
+  function sensitivity(areas, ppl, fairness = 0.6) {
+    const pool = [...areas].sort((a, b) => b.group.total - a.group.total).slice(0, 60);
+    if (pool.length < 2 || !ppl.length) return null;
+    const k = KEYS.filter(x => meanW(ppl, x) > 0).sort((x, y) => meanW(ppl, y) - meanW(ppl, x))[0];
+    if (!k) return null;
+    const top = pool[0], first = m => { const pp = ppl.map(p => ({ ...p, w: { ...wOf(p), [k]: wOf(p)[k] * m } })); let b = null, bt = -1; for (const a of pool) { const t = groupScore(a.norm, pp, fairness).total; if (t > bt) { bt = t; b = a; } } return b; };
+    let lo = 1; // kleinster Faktor, bei dem Platz 1 noch gleich bleibt
+    for (let m = 9; m >= 0; m--) { if (first(m / 10) !== top) break; lo = m / 10; }
+    const cur = Math.round(meanW(ppl, k) * 10) / 10, min = Math.round(cur * lo * 10) / 10;
+    return { top: top.name, key: k, label: lbl(k), cur, min, always: lo === 0, tight: lo === 1 };
+  }
+  const num1 = n => String(n).replace('.', ',');
+  function sensitivityText(s) {
+    if (!s) return '';
+    if (s.always) return `${s.top} bleibt vorn, auch wenn ${s.label} gar nicht zählt.`;
+    if (s.tight) return `${s.top} liegt knapp vorn: Zählt ${s.label} etwas weniger als ${num1(s.cur)}, wechselt Platz 1.`;
+    return `${s.top} bleibt vorn, solange ${s.label} ≥ ${num1(s.min)} (jetzt ${num1(s.cur)}).`;
+  }
+  // Konfidenz je Viertel: Datendichte im Umkreis und Anteil der Orte mit Namen
+  function confidence(a, pois, r = RADIUS.area) {
+    let n = 0, named = 0;
+    for (const p of pois) if (distM(a, p) <= r) { n++; if (p.name) named++; }
+    const share = n ? named / n : 0, level = n < 30 || share < 0.35 ? 'low' : n < 80 || share < 0.6 ? 'mid' : 'high';
+    return { n, named, share: Math.round(share * 100), level, text: `Datenlage ${{ low: 'dünn', mid: 'mittel', high: 'gut' }[level]}: ${n} Orte im Umkreis, ${Math.round(share * 100)} % mit Namen` };
+  }
+  // Stadt-Steckbrief als Absatz, nur aus den Zahlen (keine KI)
+  function cityStory(name, areas, pois) {
+    const ok = areas.filter(a => a.norm && Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10);
+    if (ok.length < 3) return '';
+    const topOf = k => [...ok].sort((a, b) => b.norm[k] - a.norm[k])[0].name;
+    const quiet = [...ok].filter(a => a.nearest.transit != null && a.nearest.transit < 600).sort((a, b) => quietScore(b) - quietScore(a))[0];
+    const st = cityStats(ok), named = pois.filter(p => p.name).length, tn = ok.filter(a => a.nearest.transit != null && a.nearest.transit <= 500).length;
+    const dens = Math.round(100 * ok.filter(a => a.counts.party >= 20).length / ok.length);
+    return `${name}: ${ok.length} von ${areas.length} Viertel haben genug Daten für die Wertung, insgesamt ${pois.length.toLocaleString('de')} Orte, ${Math.round(100 * named / Math.max(1, pois.length))} % davon mit Namen. `
+      + `Im Schnitt liegen je Viertel ${st.food} Restaurants, ${st.chill} Parks und Cafés und ${st.sights} Sehenswürdigkeiten im Umkreis. `
+      + `Nachtleben bündelt sich rund um ${topOf('party')}${dens ? ` (in ${dens} % der Viertel gibt es mindestens 20 Bars)` : ''}, Sehenswürdigkeiten findest du am dichtesten in ${topOf('sights')}, Cafés und Grün in ${topOf('chill')}. `
+      + `${Math.round(100 * tn / ok.length)} % der Viertel haben eine Bahnstation in 500 m.${quiet ? ` Ruhig und trotzdem mit Bahn: ${quiet.name}.` : ''}`;
+  }
+  // „Fehlt ein Viertel?“: OSM-Editor (iD) an der Stelle, Vorlage place=neighbourhood
+  const osmEditUrl = (lat, lon) => `https://www.openstreetmap.org/edit?editor=id#map=17/${(+lat).toFixed(5)}/${(+lon).toFixed(5)}&presets=place/neighbourhood`;
+  // Zeilen der Bildkarte (Canvas-Zeichnung in app-extra.js)
+  function shareCardData(a, i, city, ppl) {
+    const keys = KEYS.filter(k => ppl.some(p => wOf(p)[k] > 0)).slice(0, 5);
+    return { title: `${i + 1}. ${a.name}`, sub: `${city} · ${a.group.total}/100 · ${verdict(a.group.total)}`, bars: keys.map(k => [lbl(k), Math.round(a.norm[k] * 100)]), line: summary(a, ppl).slice(0, 70), foot: 'staymatch.pro' };
+  }
+  Object.assign(root.StayMatch, { QUIET_W, typePerson, isQuiet, deepLink, quietScore, walkMin, sensitivity, sensitivityText, confidence, cityStory, osmEditUrl, shareCardData });
 })(typeof window !== 'undefined' ? window : globalThis);
