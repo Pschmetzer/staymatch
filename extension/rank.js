@@ -271,14 +271,14 @@
     const level = badge || strong.length ? 1 : Math.min(1, weak.length * 0.45 + soft.length * 0.2 + (pricey ? 0.35 : 0) + (bath ? 0.25 : 0));
     return { state: level >= 0.7 ? true : null, words, level };
   }
-  const ROOM_ONLY = /\bzimmer in\b|hotelzimmer|\broom in\b|hotel room|chambre d'hôtel|habitación en|stanza in/i;
-  const WHOLE_PLACE = /wohnung|apartment|appartement|apartamento|appartamento|entire|entero|logement entier|intero|hele |ganze|alojamento inteiro|cały|haus\b|\bpiso\b|vivienda|\bflat\b|\bcabin\b|h[üu]tte|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
-  const PRIVATE_ROOM = /privatzimmer|private room|chambre privée|habitación privada|camera privata|\bkamer\b/i;
-  const SHARED_ROOM = /gemeinsch|geteilt\w* zimmer|shared room|chambre partagée|habitación compartida|camera condivisa|hostel|schlafsaal|\bdorm\b|dormitory/i;
+  const ROOM_ONLY = /^\s*(?:chambre|habitaci[oó]n|camera|stanza|pok[oó]j|quarto|slaapkamer)\b|\b(?:chambre|camera|stanza|quarto)\s+(?:dans|chez|in|presso|em|no|na)\b|\bpok[oó]j\s+(?:w|u)\b|chambres? d'hôtes?|\bzimmer in\b|hotelzimmer|\broom in\b|hotel room|chambre d'hôtel|habitación en|stanza in/i;
+  const WHOLE_PLACE = /inteir[oa]s?\b|entière?s?\b|cał[aey]\b|całą|\bgîte\b|dépendance|cabaña|mieszkanie|domek|\bwoning\b|\bhuis\b|casa vacanze|wohnung|apartment|appartement|apartamento|appartamento|entire|entero|logement entier|intero|hele |ganze|alojamento inteiro|cały|haus\b|\bpiso\b|vivienda|\bflat\b|\bcabin\b|h[üu]tte|\bhome\b|\bhouse\b|loft|studio|villa|ferienwohnung|condo|bungalow|cottage|chalet|townhouse|casa|maison/i;
+  const PRIVATE_ROOM = /pok[oó]j prywatny|prywatny pok[oó]j|quarto privado|privat(?:e)? (?:værelse|rum|rom|soverom)|privatrum|yksityinen huone|soukrom[a-zà-ž]* pokoj|privatzimmer|private room|chambre privée|habitación privada|camera privata|\bkamer\b/i;
+  const SHARED_ROOM = /wspólny pok[oó]j|współdzielon[a-zà-ž]*|pok[oó]j wieloosobowy|quarto (?:compartilhado|partilhado)|delt (?:værelse|rom)|delat rum|jaettu huone|sdílen[a-zà-ž]* pokoj|gedeelde kamer|gemeinsch|geteilt\w* zimmer|shared room|chambre partagée|habitación compartida|camera condivisa|hostel|schlafsaal|\bdorm\b|dormitory/i;
   const sepNum = (n, d = 1) => String(Math.round(n * 10 ** d) / 10 ** d).replace('.', ',');
 
   // R5-100: Währungen vergleichbar machen („€“ = „EUR“)
-  const CUR_ALIAS = { EUR: '€', GBP: '£', USD: '$', 'US$': '$' };
+  const CUR_ALIAS = { EUR: '€', GBP: '£', USD: '$', 'US$': '$', PLN: 'zł', CZK: 'Kč', HUF: 'Ft', INR: '₹', TRY: '₺', RON: 'lei', JPY: '¥', AUD: 'A$', CAD: 'CA$', NZD: 'NZ$', MXN: 'MX$', BRL: 'R$' };
   const normCur = c => (c ? CUR_ALIAS[String(c).trim().toUpperCase()] || String(c).trim() : null);
   // R7: Betrag mit Währung; ohne gelesene Währung nur die Zahl (nicht still „€“)
   // R7: Zahlen gerundet und gruppiert („1.235“ statt „1234.5“)
