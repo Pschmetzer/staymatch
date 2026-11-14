@@ -451,6 +451,8 @@
       score, parts, area, why, warn, info, ppn, stay: total == null ? null : Math.round(total),
       disliked, unsuitable, unsuitableReasons, badgeReason,
       breakdown, adjust, people, peopleMismatch: pe.mismatch,
+      // Datenlage: auf wie vielen Teilen der Passt-Wert beruht (eine Person: Betten zählen nicht mit)
+      coverage: { have: breakdown.length, of: solo ? 5 : 6 },
       budgetKnown: !!(budget || ctx.budgetPerNight), tripTotal: total, priceUncertain: !!l.multiUnit, feeShare: fees,
     };
   }

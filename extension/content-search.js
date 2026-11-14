@@ -170,6 +170,8 @@
     const PART_NAMES = { area: 'Viertel', rating: 'Sterne', price: 'Preis', wishes: 'Wünsche', beds: 'Betten', taste: 'Geschmack' };
     const bd = l => [...(l.rank.breakdown || []).map(b => `${PART_NAMES[b.key] || b.key} ${Math.round(b.points)}`),
       l.rank.adjust ? `Abzüge ${l.rank.adjust}` : null].filter(Boolean).join(' · ');
+    // Datenlage: nur sagen, wenn Teile fehlen (dann ist der Passt-Wert weniger belastbar)
+    const coverageText = l => { const c = l.rank.coverage; return c && c.have < c.of ? `Passt-Wert beruht auf ${c.have} von ${c.of} Teilen` : ''; };
     const eb = R.effectiveBudget(ctx);
     const budgetKnown = !!(R.effectiveBudget(ctx) || ctx.budgetPerNight);
     const setQuick = async patch => { quick = { ...quick, ...patch }; await chrome.storage.local.set({ quick }); lastSig = ''; handleSearch().catch(e => console.debug('StayMatch:', e)); };
@@ -251,7 +253,7 @@
         h('div', { class: 'ph' },
           l.image && !settings.blind ? h('img', { src: l.image, alt: l.title || l.kind || '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : null,
           h('span', { class: 'rank' }, `${i + 1}`),
-          h('span', { class: 'score', title: 'Passt-Wert 0–100' }, l.rank.score),
+          h('span', { class: 'score', title: coverageText(l) ? `Passt-Wert 0–100, ${coverageText(l)}` : 'Passt-Wert 0–100' }, l.rank.score),
           l.rank.luxury?.state === true ? h('span', { class: 'lux', title: l.rank.luxury.words.join(', ') }, `✨ Luxus${l.rank.luxury.words[0] ? ' · ' + l.rank.luxury.words[0] : ''}`) : null),
         h('div', { class: 'meta' },
           h('a', { class: 'name', href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener' }, l.title || l.kind),
@@ -261,7 +263,8 @@
         l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, M(l.totalPrice, l)), l.isTotal ? ' gesamt' : ' pro Nacht', l.rank.ppn?.person ? ` · ${M(l.rank.ppn.person, l)} p. P./Nacht` : '', l.discounted ? ' · Rabatt' : '') : null,
         h('ul', {}, l.rank.why.map(w => h('li', {}, w)), l.rank.warn.map(w => h('li', { class: 'warn' }, '⚠️ ' + w)), (l.rank.info || []).map(w => h('li', { class: 'muted' }, w)),
           i > 0 && X ? [X.gapToFirst(l, first)].filter(Boolean).map(w => h('li', { class: 'muted' }, w)) : null),
-        h('div', { class: 'muted' }, 'Zusammensetzung (Punkte): ' + bd(l))))
+        h('div', { class: 'muted' }, 'Zusammensetzung (Punkte): ' + bd(l)),
+        coverageText(l) ? h('div', { class: 'muted' }, `Datenlage: ${coverageText(l)}`) : null))
         : !top.length ? h('div', { class: 'muted' }, 'Keine Unterkunft erfüllt alle Filter. Filter lockern oder weiterblättern. ', af.length ? h('button', { onclick: resetFilters }, 'Filter zurücksetzen') : null) : null,
       morePage,
       h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → die Seiten, die du öffnest, werden zusammen bewertet. Es wird nichts von selbst nachgeladen.'),
@@ -309,7 +312,7 @@
       // R7 E: Screenshot-Modus: nur die Punkte, ohne Preis und ohne Tooltip
       b.textContent = settings.scoreOnly ? String(s) : `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;
       // R7: Airbnbs Skripte können das title-Attribut lesen: keine Namen der Mitreisenden hinein
-      b.title = settings.scoreOnly ? '' : [...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
+      b.title = settings.scoreOnly ? '' : [...(l.rank.coverage && l.rank.coverage.have < l.rank.coverage.of ? [`Auf ${l.rank.coverage.have} von ${l.rank.coverage.of} Teilen`] : []), ...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
       // Top-3 hervorgehoben, „schon angesehen“ (du hast die Unterkunftsseite geöffnet) als Zusatz an der Plakette
       const rank = [...topIds].indexOf(l.id);
       card.style.outline = rank >= 0 && !settings.scoreOnly ? '3px solid #e0475b' : '';
