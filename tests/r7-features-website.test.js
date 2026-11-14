@@ -9,7 +9,8 @@ const R = globalThis.StayMatchRank, SM = globalThis.StayMatch;
 const Core = require('../shared/core.js');
 
 const web = path.join(__dirname, '..', 'web');
-const read = (f) => fs.readFileSync(path.join(web, f), 'utf8');
+const { inlineScripts } = require('./helpers/web.js');
+const read = (f) => inlineScripts(fs.readFileSync(path.join(web, f), 'utf8'));
 const pages = { de: 'index.html', en: 'en.html' };
 let JSDOM = null;
 try { ({ JSDOM } = require('jsdom')); } catch {}

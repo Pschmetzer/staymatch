@@ -62,7 +62,8 @@ const { bootApp, until: untilApp, hasDom } = require('./helpers/app-dom.js');
 const bootExtra = opt => { const w = bootApp(opt); w.eval(fs.readFileSync(path.join(ROOT, 'web', 'app-extra.js'), 'utf8') + '\n//# sourceURL=app-extra.js'); return w; };
 
 test('Startseite: Schnellsuche gibt Kinder und Budget pro Nacht an die Viertel-Finder-Links weiter (DE und EN gleich)', () => {
-  const de = fs.readFileSync(path.join(ROOT, 'web', 'index.html'), 'utf8'), en = fs.readFileSync(path.join(ROOT, 'web', 'en.html'), 'utf8');
+  const { inlineScripts } = require('./helpers/web.js');
+  const de = inlineScripts(fs.readFileSync(path.join(ROOT, 'web', 'index.html'), 'utf8')), en = inlineScripts(fs.readFileSync(path.join(ROOT, 'web', 'en.html'), 'utf8'));
   for (const s of [de, en]) {
     assert.match(s, /if \(kn > 0\) q\.set\('k', kn\); if \(bn > 0\) q\.set\('b', bn\);/);
     assert.match(s, /form\.elements\.children\.value/);

@@ -22,7 +22,7 @@
 <style>
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-:root { --bg:#0b0b0d; --bg2:#121216; --card:#17171c; --line:#26262d; --text:#f4f4f6; --muted:#9a9aa4; --dim:#8f8f9a; --accent:#e0475b; --accent2:#ff8a5c; --good:#2fbf85; --warn:#e6a23c; --btn:#f4f4f6; --btnText:#0b0b0d; }
+:root { --bg:#0b0b0d; --bg2:#121216; --card:#17171c; --line:#26262d; --text:#f4f4f6; --muted:#9a9aa4; --dim:#8f8f9a; --accent:#ee6074; --accent2:#ff8a5c; --good:#2fbf85; --warn:#e6a23c; --btn:#f4f4f6; --btnText:#0b0b0d; }
 :root { color-scheme:dark; }
 :root[data-theme="light"] { color-scheme:light; --bg:#fff; --bg2:#f7f7f7; --card:#fff; --line:#ebebeb; --text:#222; --muted:#6a6a6a; --dim:#717171; --accent:#d70466; --good:#008a05; --warn:#b4560b; --btn:#222; --btnText:#fff; }
 :root { --brand:#ff385c; }
@@ -216,7 +216,7 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 #reshead label, #reshead select { max-width:100%; }
 @media (max-width:520px) { .xduel { grid-template-columns:1fr; } }
 </style>
-<script>(function () { let t = 'light'; try { t = localStorage.getItem('sm_theme'); } catch {} document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light'; })();</script>
+<script src="theme-app.js"></script>
 </head>
 <body>
 <a class="skip" href="#f">Zum Formular springen</a> <a class="skip" href="#status">Zu den Ergebnissen springen</a>
@@ -393,39 +393,12 @@ button.primary svg { width:18px; height:18px; fill:none; stroke:currentColor; st
 <footer>
   <div class="wrap">© 2026 StayMatch · Open Source (MIT) · <a href="https://github.com/Pschmetzer/staymatch" target="_blank" rel="noopener">GitHub</a> · Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Nicht mit Airbnb verbunden. · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a></div>
 </footer>
-<script>
-// Leaflet (150 KB) erst bei der ersten Eingabe oder im Leerlauf laden, nicht im kritischen Pfad. Danach die Karte neu zeichnen lassen,
-// falls schon Ergebnisse da sind (app.js zeichnet sie bei Änderung von #mapWho neu). Service Worker: App-Shell und Städte offline.
-(function () {
-  let started = false;
-  function loadMap() {
-    if (started) return; started = true;
-    const css = new Promise((ok) => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'vendor/leaflet/leaflet.css'; l.onload = l.onerror = ok; document.head.appendChild(l); });
-    const js = new Promise((ok) => { const s = document.createElement('script'); s.src = 'vendor/leaflet/leaflet.js'; s.onload = s.onerror = ok; document.head.appendChild(s); });
-    Promise.all([css, js]).then(() => { const w = document.getElementById('mapWho'); if (window.L && w) w.dispatchEvent(new Event('change')); });
-  }
-  ['pointerdown', 'keydown', 'touchstart'].forEach((t) => addEventListener(t, loadMap, { once: true, passive: true }));
-  addEventListener('load', () => { if (window.requestIdleCallback) requestIdleCallback(loadMap, { timeout: 4000 }); else setTimeout(loadMap, 3000); });
-  if ('serviceWorker' in navigator) addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/app' }).then(() => navigator.serviceWorker.ready)
-      .then((r) => setTimeout(() => r.active && r.active.postMessage('warm'), 3000)).catch(() => {});
-  });
-})();
-</script>
+<script src="app-boot.js"></script>
 <!-- Reihenfolge wichtig: core.js zuerst (klassische Skripte, gemeinsamer globaler Bereich) -->
 <script src="core.js" defer></script>
 <script src="scoring.js" defer></script>
 <script src="app.js" defer></script>
 <script src="app-extra.js" defer></script>
-<script>
-  addEventListener('DOMContentLoaded', () => {
-  document.getElementById('theme').onclick = () => {
-    const root = document.documentElement, next = root.dataset.theme === 'light' ? 'dark' : 'light';
-    root.dataset.theme = next; try { localStorage.setItem('sm_theme', next); } catch {}
-    document.getElementById('theme').setAttribute('aria-pressed', String(next === 'dark'));
-  };
-  document.getElementById('theme').setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
-  });
-</script>
+<script src="app-ui.js"></script>
 </body>
 </html>

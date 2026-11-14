@@ -23,7 +23,7 @@ test('Weiterleitungen: Quellen sind eindeutig, Ziele existieren (Seite oder Stad
 });
 
 test('404-Alias-Tabelle und Städteliste passen zu scripts/cities.json', () => {
-  const html = fs.readFileSync(path.join(web, '404.html'), 'utf8');
+  const html = require('./helpers/web.js').inlineScripts(fs.readFileSync(path.join(web, '404.html'), 'utf8'));
   const cities = JSON.parse(fs.readFileSync(path.join(root, 'scripts', 'cities.json'), 'utf8'));
   const cityObj = /const cities = (\{[^}]+\})/.exec(html)[1];
   const slugs = [...cityObj.matchAll(/(\w+): '/g)].map((m) => m[1]).sort();
@@ -84,4 +84,19 @@ test('Altadresse staymatch-tau.vercel.app: Anzahl in web/ und Skripten (Warnung,
   if (hits.length) t.diagnostic(`Warnung: staymatch-tau noch in ${hits.join(', ')}`);
   if (process.env.STRICT_OLD_HOST) assert.deepEqual(hits, []);
   assert.deepEqual(wl, [], 'staymatch-tau nur noch im Kern (core.js) erlaubt, bis dort umgestellt ist');
+});
+
+test("CSP: script-src ohne 'unsafe-inline'; keine Seite hat Inline-Skript oder Inline-Ereignisattribute", () => {
+  for (const r of vercel.headers) for (const h of r.headers) {
+    if (h.key !== 'Content-Security-Policy') continue;
+    const script = /script-src ([^;]+)/.exec(h.value)[1];
+    assert.equal(script, "'self'", `${r.source}: script-src muss 'self' sein`);
+  }
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === 'vendor' ? [] : walk(path.join(d, e.name))) : [path.join(d, e.name)]);
+  for (const f of walk(web).filter((p) => p.endsWith('.html'))) {
+    const html = fs.readFileSync(f, 'utf8');
+    for (const m of html.matchAll(/<script\b([^>]*)>/g)) assert.ok(/\bsrc=|type="application\/(ld\+)?json"/.test(m[1]), `${path.relative(web, f)}: Inline-Skript verletzt die CSP, in eine Datei auslagern`);
+    assert.ok(!/<[a-z][^>]*\son[a-z]+\s*=/i.test(html), `${path.relative(web, f)}: Inline-Ereignisattribut verletzt die CSP`);
+    assert.ok(!/href="javascript:/i.test(html), `${path.relative(web, f)}: javascript:-Adresse`);
+  }
 });
