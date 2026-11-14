@@ -41,7 +41,7 @@ test('ICS: gültiges Format, Zeilenumbruch CRLF, Sonderzeichen maskiert, Storno-
     2: { id: '2', booked: { checkin: null } } }, Date.UTC(2026, 10, 1));
   assert.ok(t.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0') && t.endsWith('END:VCALENDAR\r\n'));
   assert.match(t, /DTSTART;VALUE=DATE:20261220\r\nDTEND;VALUE=DATE:20261223/);
-  assert.match(t, /SUMMARY:Loft\; "Sol"\\, Gràcia/);
+  assert.ok(t.includes('SUMMARY:Loft\\; "Sol"\\, Gràcia'), 'Semikolon und Komma nach RFC 5545 mit Rückstrich');
   assert.match(t, /DTSTART;VALUE=DATE:20261205\r\nDTEND;VALUE=DATE:20261206/);
   assert.equal((t.match(/BEGIN:VEVENT/g) || []).length, 2, 'Eintrag ohne Anreise fehlt');
   for (const line of t.split('\r\n')) assert.ok(new TextEncoder().encode(line).length <= 75, line);

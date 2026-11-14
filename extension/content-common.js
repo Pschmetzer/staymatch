@@ -98,11 +98,16 @@
   }
 
   // ---------- kleine DOM-Helfer: Airbnb-Texte immer über textContent ----------
+  const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href', 'srcset', 'poster', 'data']);
+  const SAFE_URL = /^(https?:\/\/|blob:|#|\/(?!\/))/i;
   function h(tag, attrs = {}, ...kids) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
       if (v == null || v === false) continue; // null heißt „Attribut weglassen“ (sonst würde disabled="null" gelten)
-      if (k === 'style') e.style.cssText = v; else if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v);
+      if (k === 'style') e.style.cssText = v;
+      else if (k.startsWith('on')) { if (typeof v === 'function') e[k] = v; } // nie Text als Handler
+      else if (URL_ATTRS.has(k.toLowerCase()) && !SAFE_URL.test(String(v))) continue; // kein javascript:/data: aus Seitendaten
+      else e.setAttribute(k, v);
     }
     for (const k of kids.flat(Infinity)) if (k != null) e.append(k instanceof Node ? k : String(k));
     return e;

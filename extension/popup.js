@@ -10,7 +10,12 @@ const safeSearchUrl = u => { const x = parseUrl(u); const d = StayMatchCore.AIRB
 const $ = id => document.getElementById(id);
 function h(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v); }
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) { if (typeof v === 'function') e[k] = v; }
+    else if (['href', 'src', 'action', 'formaction', 'srcset', 'poster', 'data'].includes(k.toLowerCase()) && !/^(https?:\/\/|blob:|#|\/(?!\/))/i.test(String(v))) continue; // kein javascript:/data:
+    else e.setAttribute(k, v);
+  }
   for (const k of kids.flat(Infinity)) if (k != null && k !== false) e.append(k instanceof Node ? k : String(k));
   return e;
 }

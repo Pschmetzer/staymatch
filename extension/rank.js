@@ -567,6 +567,8 @@
   // Text für den Gruppenchat. Nur Titel, Eckdaten und der Link, den die Gruppe selbst öffnet.
   // R7 E: meta.noPrices (ohne Beträge), meta.noEmoji (für Screenreader), meta.markdown (Tabelle), meta.stamp (Preisstand), meta.questions
   const stripEmoji = t => String(t).replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, '').replace(/ {2,}/g, ' ').trim();
+  // Hosttitel können Zeilenumbrüche enthalten: im Kopiertext in eine Zeile zwingen (sonst täuscht ein Titel weitere Plätze vor)
+  const one = v => String(v ?? '').replace(/[\r\n\u2028\u2029]+/g, ' ');
   function shareText(items, meta = {}) {
     const head = meta.title || 'Meine Auswahl (StayMatch)';
     const star = meta.noEmoji ? 'Sterne ' : '⭐ ';
@@ -581,13 +583,13 @@
       const safeUrl = u => String(u).replace(/[()<>\s]/g, c => encodeURIComponent(c));
       const cols = ['#', 'Unterkunft', 'Ort', 'Sterne', 'Wert', ...(meta.noPrices ? [] : ['Preis']), 'Link'];
       const rows = items.map((l, i) => [i + 1, l.title || l.kind || 'Unterkunft', l.locality || '–', l.rating != null ? String(l.rating).replace('.', ',') : 'neu', l.score != null ? `${l.score}/100` : '–', ...(meta.noPrices ? [] : [price(l).join(', ') || '–'])].map(esc).concat(l.url ? `[öffnen](${safeUrl(l.url)})` : '–'));
-      out = [`**${head}**`, meta.sub ? `_${meta.sub}_` : null, '', `| ${cols.join(' | ')} |`, `|${cols.map(() => ' --- ').join('|')}|`, ...rows.map(r => `| ${r.join(' | ')} |`), stamp ? `\n_${stamp}_` : null].filter(x => x != null).join('\n');
+      out = [`**${esc(head)}**`, meta.sub ? `_${esc(meta.sub)}_` : null, '', `| ${cols.join(' | ')} |`, `|${cols.map(() => ' --- ').join('|')}|`, ...rows.map(r => `| ${r.join(' | ')} |`), stamp ? `\n_${stamp}_` : null].filter(x => x != null).join('\n');
     } else {
       const lines = [head];
       if (meta.sub) lines.push(meta.sub);
       items.forEach((l, i) => {
-        const bits = [l.locality, l.rating != null && `${star}${String(l.rating).replace('.', ',')}`, l.score != null && `${l.score}/100`, ...price(l)].filter(Boolean);
-        lines.push('', `${i + 1}. ${l.title || l.kind || 'Unterkunft'}${bits.length ? ' – ' + bits.join(' · ') : ''}`);
+        const bits = [l.locality && one(l.locality), l.rating != null && `${star}${String(l.rating).replace('.', ',')}`, l.score != null && `${l.score}/100`, ...price(l)].filter(Boolean);
+        lines.push('', `${i + 1}. ${one(l.title || l.kind || 'Unterkunft')}${bits.length ? ' – ' + bits.join(' · ') : ''}`);
         if (l.note && meta.notes) lines.push(`   Notiz: ${l.note}`); // R7: private Notizen nur auf Wunsch
         if (l.url) lines.push(`   ${l.url}`);
       });
