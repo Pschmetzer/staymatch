@@ -1,7 +1,7 @@
 // Einfache HTML-Prüfung ohne Abhängigkeiten (kein html-validate nötig).
 // Prüft: Doctype, lang, title, charset, viewport, richtig geschachtelte Tags, doppelte IDs, <img alt>.
 // Aufruf: node .github/scripts/check-html.mjs [Datei ...]   (Standard: web/**/*.html ohne vendor/data/media und extension/popup.html)
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 
 const VOID = new Set('area base br col embed hr img input link meta source track wbr'.split(' '));
 const OPTIONAL_END = new Set('p li dt dd tr td th thead tbody tfoot option optgroup colgroup caption'.split(' '));
