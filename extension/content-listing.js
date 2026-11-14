@@ -25,7 +25,10 @@
     const bp = P.bookPrice(book?.innerText || '');
     // R7: verschachtelte Treffer derselben Bewertung nur einmal (nur die äußersten Elemente)
     const outer = sel => { const els = [...document.querySelectorAll(sel)]; return els.filter(e => !els.some(o => o !== e && o.contains(e))); };
-    const reviews = outer('[data-review-id], [data-testid*="review"], [data-section-id*="REVIEWS"] [role="listitem"]').map(e => e.innerText).join('\n');
+    // Nur echte Bewertungs-Blöcke: [data-testid*="review"] traf auch Überschrift, Histogramm und Knöpfe. Darum Tags und Mindestlänge prüfen.
+    const isReviewBlock = e => !/^(H[1-6]|BUTTON|A|SVG|INPUT)$/i.test(e.tagName) && !e.closest('button, [role="progressbar"], [role="heading"]') && (e.innerText || '').trim().split(/\s+/).length >= 2;
+    const reviewEls = outer('[data-review-id], [data-testid^="review-"], [data-section-id*="REVIEWS"] [role="listitem"]').filter(isReviewBlock);
+    const reviews = reviewEls.map(e => e.innerText).join('\n');
     // R5-99: fertige Textparser aus parse.js anwenden (ungeprüft live: wo diese Abschnitte im echten Seitenaufbau stehen)
     const sec = sel => [...document.querySelectorAll(sel)].map(e => e.innerText || '').join('\n').slice(0, 20000);
     const rulesText = sec('[data-section-id*="POLICIES"], [data-section-id*="HOUSE_RULES"], [data-section-id*="CANCELLATION"]');
@@ -73,24 +76,28 @@
       currency: bp.currency, stayTotal: bp.total ?? null,
       checkin: sp.checkin, checkout: sp.checkout,
       hints: reviews ? reviewHints(reviews) : [],
+      reviewsRead: reviewEls.length || null, // wie viele Bewertungen auf der Seite gelesen wurden (Airbnb lädt nur einen Teil)
+      _readOk: { hints: !!reviews, scamSignals: !!descText }, // Abschnitt war lesbar: leeres Ergebnis darf Altes überschreiben
     };
   }
 
   const roomTimers = new Map(); // ein Timer pro Unterkunft
   let currentRoom = null;
-  async function handleRoom(id) {
+  async function handleRoom(id, attempt = 0) {
+    await SMC.ready; // Pause-Einstellung zuerst laden
     const old = await getListing(id);
     const recent = old && Date.now() - old.lastSeen < C.VISIT_WINDOW_MS; // Reload ≠ neuer Besuch
-    const data = roomData(id);
-    // fehlende Felder nicht mit null überschreiben
-    const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v != null && !(Array.isArray(v) && !v.length)));
+    const { _readOk, ...data } = roomData(id);
+    // fehlende Felder nicht mit null überschreiben. Ausnahme: war der Abschnitt lesbar und ist das Ergebnis leer, wird das Alte ersetzt
+    // (ein verschwundener Hinweis bleibt sonst ewig im Verlauf)
+    const clean = Object.fromEntries(Object.entries(data).filter(([k, v]) => (v != null && !(Array.isArray(v) && !v.length)) || (_readOk[k] && Array.isArray(v) && old?.[k]?.length)));
     // R7: Preisverlauf je Reise (Anreise, Nächte, Währung), sonst vergleicht er Juli mit November
     const priceHistory = [...(old?.priceHistory || [])];
     const sp = P.searchParams(location.href);
     const entry = { t: Date.now(), p: data.pricePerNight, c: data.currency || null, ci: sp.checkin || null, n: sp.nights || null };
     const last = priceHistory.at(-1);
     if (data.pricePerNight && !(last && last.p === entry.p && priceKey(last) === priceKey(entry))) priceHistory.push(entry);
-    const item = await saveListing(id, { ...clean, priceHistory: priceHistory.slice(-30), visits: (old?.visits || 0) + (recent ? 0 : 1) });
+    const item = await saveListing(id, { ...clean, priceHistory: priceHistory.slice(-30), visits: (old?.visits || 0) + (recent || SMC.isPaused() ? 0 : 1) });
     const trip = await getTrip();
     const area = trip?.areas?.length ? R.areaFor(item, trip.areas) : null;
     const { quick = {}, lastSearch } = await chrome.storage.local.get(['quick', 'lastSearch']);
@@ -98,7 +105,18 @@
     const pe = R.resolvePeople({ people: trip?.people?.length || null, adults: sp.adults || null });
     const fromSearch = (lastSearch?.top || []).find(l => l.id === id) || null;
     const ctx = { solo: !pe.people || pe.people === 1, people: pe.people, wishes: quick.wishes || trip?.wishes || [], fromSearch, sp, smoker: !!quick.smoker, memory: await memoryFor(item, old) };
+    ctx.paused = SMC.isPaused();
     roomPanel(item, area, ctx);
+    // Langsame Leitung: Preis und Hinweise fehlen noch → einmal später nochmal lesen
+    // (nicht, solange du gerade eine Notiz tippst: der Neuaufbau würde sie zurücksetzen)
+    if (attempt < 1 && (!data.pricePerNight || !data.hints?.length) && P.ROOM_RE.test(location.pathname) && location.pathname.includes(id)) {
+      const again = () => {
+        if (!location.pathname.includes(id)) return;
+        if (roomTimers.has(id) || SMC.rootOf('sm-room')?.activeElement?.tagName === 'TEXTAREA') return setTimeout(again, 1500); // Notiz in Arbeit: später
+        handleRoom(id, attempt + 1).catch(e => console.debug('StayMatch:', e));
+      };
+      setTimeout(again, T.roomRetry ?? 4000);
+    }
   }
   const priceKey = e => [e.c || '', e.ci || '', e.n || ''].join('|');
 
@@ -175,7 +193,7 @@
     const ppn = item.pricePerNight && ctx.people > 1 ? Math.round(item.pricePerNight / ctx.people) : null;
     const note = h('textarea', { placeholder: 'Notiz: was gefällt / stört?', 'aria-label': 'Notiz' });
     note.value = item.note || ''; // value statt innerHTML → kein Code-Einschleusen
-    note.oninput = () => { clearTimeout(roomTimers.get(item.id)); roomTimers.set(item.id, setTimeout(() => saveListing(item.id, { note: note.value }), T.noteDelay ?? 400)); };
+    note.oninput = () => { clearTimeout(roomTimers.get(item.id)); roomTimers.set(item.id, setTimeout(() => { roomTimers.delete(item.id); saveListing(item.id, { note: note.value }); }, T.noteDelay ?? 400)); };
     const ph = item.priceHistory || [];
     const lastP = ph.at(-1), firstSame = lastP && ph.find(e => priceKey(e) === priceKey(lastP));
     const change = firstSame && firstSame !== lastP ? Math.round((lastP.p / firstSame.p - 1) * 100) : 0;
@@ -218,6 +236,7 @@
       item.scamSignals?.length ? h('div', { class: 'err', role: 'alert' }, h('b', {}, '⚠️ Vorsicht (Hinweis, kein Beweis): '), item.scamSignals.join(' · '), '. Nur über Airbnb zahlen und schreiben. ', scamHelp()) : null,
       // R7: Passt-Wert aus deiner letzten Suche, wenn du von dort kommst
       fs?.score != null ? h('div', {}, h('b', {}, `Passt-Wert ${fs.score}/100`), ' aus deiner Suche', (fs.why || []).length ? ` · ${fs.why.slice(0, 2).join(' · ')}` : '') : null,
+      ctx.paused ? h('div', { class: 'muted', role: 'status' }, '⏸ Pause aktiv, nichts wird gespeichert (außer 👍/👎, Notiz und Gebucht, die du selbst klickst).') : null,
       h('div', {}, item.rating ? `⭐ ${item.rating}${item.reviewCount ? ` (${item.reviewCount})` : ''}` : 'Noch keine Sterne gefunden'),
       area ? h('div', {}, `Viertel ${area.name}: ${area.total}/100 ${ctx.solo ? 'für dich' : 'für eure Gruppe'}`) : null,
       ppn ? h('div', {}, h('b', {}, R.money(ppn, item.currency)), ' pro Person und Nacht') : null,
@@ -227,12 +246,12 @@
       ...topWarn.map(c => h('div', { class: 'warn' }, '⚠️ ' + c)),
       ctx.copiedContact && !item.scamSignals?.length ? h('div', { class: 'muted' }, scamHelp()) : null,
       warns.length ? h('div', { class: 'err' }, h('b', {}, 'Achtung aus den Bewertungen: '), warns.map(x => x.replace(/^⚠️\s*/, '')).join(' · ')) : null,
-      item.hints?.length ? h('div', { class: 'muted' }, 'Aus den Bewertungen: ' + item.hints.join(' · ')) : null,
+      item.hints?.length ? h('div', { class: 'muted' }, `Aus den Bewertungen${item.reviewsRead ? ` (${item.reviewsRead} gelesen${item.reviewCount ? ` von ${item.reviewCount}` : ''})` : ''}: ` + item.hints.join(' · ')) : null,
       change ? h('div', { class: 'muted' }, `Preis seit dem ersten Besuch ${change > 0 ? '+' : ''}${change} %`) : null,
       more.length ? h('details', {}, h('summary', {}, `Mehr Hinweise (${more.length})`), h('ul', {}, more.map(x => h('li', {}, x)))) : null,
       h('div', { class: 'row' },
-        h('button', { class: item.vote === 1 ? 'on' : '', title: 'Alt+Shift+L', onclick: () => setVote(1) }, '👍 Gefällt mir'),
-        h('button', { class: item.vote === -1 ? 'on' : '', title: 'Alt+Shift+N', onclick: () => setVote(-1) }, '👎 Nein')),
+        h('button', { class: item.vote === 1 ? 'on' : '', 'aria-pressed': String(item.vote === 1), 'aria-keyshortcuts': 'Alt+Shift+L', title: 'Alt+Shift+L', onclick: () => setVote(1) }, '👍 Gefällt mir'),
+        h('button', { class: item.vote === -1 ? 'on' : '', 'aria-pressed': String(item.vote === -1), 'aria-keyshortcuts': 'Alt+Shift+N', title: 'Alt+Shift+N', onclick: () => setVote(-1) }, '👎 Nein')),
       h('div', { class: 'row' },
         h('button', { class: booked ? 'on' : '', 'aria-pressed': String(!!booked), onclick: setBooked }, booked ? '✅ Gebucht' : 'Als gebucht markieren'),
         booked && ctx.people > 1 && total ? h('button', { onclick: async e => { e.target.textContent = (await copyText(advanceText())) ? 'Kopiert ✓' : 'Nicht möglich'; } }, '💸 Vorkasse-Text') : null),
