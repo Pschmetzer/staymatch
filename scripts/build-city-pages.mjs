@@ -106,7 +106,7 @@ ${r.top[k].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} v
       { '@type': 'ListItem', position: 1, name: 'StayMatch', item: `${BASE}/` },
       { '@type': 'ListItem', position: 2, name: 'Städte', item: `${BASE}/#staedte` },
       { '@type': 'ListItem', position: 3, name, item: url }] },
-    { '@type': 'WebPage', '@id': url, url, name: title, inLanguage: 'de', description: desc, dateModified: date, primaryImageOfPage: img },
+    { '@type': 'WebPage', '@id': url, url, name: title, inLanguage: 'de', dateModified: date },
     ...TYPES.map(([k, label]) => ({ '@type': 'ItemList', name: `Beste Viertel in ${name} für ${label}`, itemListOrder: 'https://schema.org/ItemListOrderDescending', numberOfItems: r.top[k].length,
       itemListElement: r.top[k].map(({ a }, i) => ({ '@type': 'ListItem', position: i + 1, name: a.name })) })),
   ] };
@@ -123,7 +123,7 @@ ${r.top[k].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} v
 <meta property="og:type" content="article"><meta property="og:site_name" content="StayMatch"><meta property="og:locale" content="de_DE">
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${url}">
 <meta property="og:image" content="${img}"><meta property="og:image:alt" content="${esc(name)}">
-<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(desc)}"><meta name="twitter:image" content="${img}">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#fbfaf8">
