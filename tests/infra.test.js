@@ -46,7 +46,7 @@ test('Cache-Control: immutable nur für JS/CSS, die im Build-Ausgang mit ?v=Hash
   assert.match(cache.find((r) => r.source === '/data/index\\.json').headers[0].value, /must-revalidate/);
   assert.ok(!new RegExp('^' + cache.find((r) => r.source.startsWith('/data/(')).source + '$').test('/data/index.json'), 'Datenregel darf index.json nicht abdecken');
   for (const s of ['/(fonts|vendor)', '/media/', '/data/', 'og\\.png']) assert.match(val(s), /max-age=\d{5,}/, s);
-  assert.match(val('(app|app-extra'), /max-age=0, must-revalidate/);
+  assert.match(val('(app|app-extra'), /max-age=31536000, immutable/); // Build hängt ?v=Hash an
 });
 
 test('Alle Pfade außer /app: CSP ohne Fremddienste; Regeln überschneiden sich nicht', () => {
