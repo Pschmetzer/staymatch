@@ -111,6 +111,8 @@
   $('whatif').after(box);
   let duel = null, plainOn = !!st.get('sm_plain', false);
 
+  const cfCache = new WeakMap(); // hängt nicht von den Gewichten ab: einmal je Viertel rechnen
+  const cfOf = (a, v) => { let c = cfCache.get(a); if (!c || c.r !== v.r) cfCache.set(a, c = { r: v.r, val: SM.confidence(a, v.pois, v.r) }); return c.val; };
   function cardDecor(v) {
     const best = v.byTotal[0], kidsWanted = v.ppl.some(p => (p.w.kids || 0) > 0) || +$('kids').value > 0 || +$('babys').value > 0;
     const tally = new Map(SM.tallyVotes(votesFor(qNow())).map(t => [t.key, t.names]));
@@ -126,9 +128,9 @@
       const f = SM.familySpots(a, v.pois, v.r);
       if (kidsWanted && f.pairs) rows.push(`<div>🛝 ${f.pairs} ${f.pairs === 1 ? 'Spielplatz' : 'Spielplätze'} mit Café daneben</div>`);
       if (f.market) rows.push(`<div class="muted">🧺 Markt ${f.market.d} m${f.market.name ? ` (${esc(f.market.name)})` : ''}, Öffnungstage bitte vor Ort prüfen</div>`);
-      if (i === 0 && sens) rows.push(`<div>🎚️ ${esc(sens)}</div>`);
-      const cf = SM.confidence(a, v.pois, v.r); rows.push(`<div class="muted">${cf.level === 'low' ? '⚠️' : '📊'} ${esc(cf.text)}</div>`);
-      if (v.sortMode === 'quiet' || v.ppl.some(SM.isQuiet)) rows.push(`<div class="muted">🤫 Ruhe-Schätzung ${SM.quietScore(a)}/100 aus Bars und Clubs im Umkreis und Nähe zum Zentrum. Straßen- und Bahnlärm kennen wir nicht.</div>`);
+      if (i === 0 && sens && sens.startsWith(a.name)) rows.push(`<div>🎚️ ${esc(sens)}</div>`); // nur wenn Platz 1 der Karte auch Platz 1 der Wertung ist (andere Sortierung)
+      const cf = cfOf(a, v); rows.push(`<div class="muted">${cf.level === 'low' ? '⚠️' : '📊'} ${esc(cf.text)}</div>`);
+      if (v.sortMode === 'quiet' || v.ppl.some(SM.isQuiet)) rows.push(`<div class="muted">🤫 Ruhe-Schätzung ${SM.quietScore(a)}/100 aus Bars und Clubs im Umkreis und Nähe zum Zentrum. Straßen- und Bahnlärm kennen wir nicht.${v.ppl.some(SM.isQuiet) ? ' Beim Ruhig-Typ zählt sie zu 35 % in den Wert.' : ''}</div>`);
       rows.push(`<div class="muted">🚶 ${a.nearest.transit != null ? `Bahn ≈ ${SM.walkMin(a.nearest.transit)} Min., ` : ''}Zentrum ≈ ${SM.walkMin(a.centerDist)} Min. zu Fuß (Luftlinie × 1,3; Flüsse und Bahntrassen nicht berücksichtigt)</div>`);
       rows.push(`<div class="xrow"><button type="button" class="link" data-xcard="${i}">🖼️ Bild für den Gruppenchat</button> <a class="sub2" href="${SM.osmEditUrl(a.lat, a.lon)}" target="_blank" rel="noopener">Fehlt ein Viertel? Im OSM-Editor ergänzen<span class="sr"> (neuer Tab)</span></a></div>`);
       if (rows.length) art.querySelector('.actions')?.before(el('div', { class: 'xcard' }, rows.join('')));
@@ -138,7 +140,7 @@
   // Datenstand und Quelle der Stadt (Vorabdatei oder live)
   function dataLine(d) {
     const m = d.meta, day = d.at ? new Date(d.at).toLocaleDateString('de') : 'heute';
-    return `Datenstand ${day} · ${d.areas.length} Viertel, ${d.pois.length} Orte · ${m ? `Quelle: ${m.attr || '© OpenStreetMap-Mitwirkende'} (${m.lic || 'ODbL'}), abgerufen über ${m.src || 'Overpass'}, ${m.n} Zeilen` : 'Quelle: © OpenStreetMap-Mitwirkende (ODbL), live abgerufen'}.`;
+    return `Datenstand ${day} · ${d.areas.length} Viertel, ${d.pois.length.toLocaleString('de')} Orte (alle Viertel) · ${m ? `Quelle: ${m.attr || '© OpenStreetMap-Mitwirkende'} (${m.lic || 'ODbL'}), abgerufen über ${m.src || 'Overpass'}, ${m.n.toLocaleString('de')} Zeilen` : 'Quelle: © OpenStreetMap-Mitwirkende (ODbL), live abgerufen'}.`;
   }
   // Bildkarte (Canvas) für den Gruppenchat: Teilen-Dialog, sonst Download
   function cardImage(i) {

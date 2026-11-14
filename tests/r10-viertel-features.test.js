@@ -63,6 +63,18 @@ test('Ruhe: Lärmproxy fällt mit Bars und steigt mit Abstand zum Zentrum', () =
   const s = SM.sortAreas(areas, 'quiet'); assert.ok(SM.quietScore(s[0]) >= SM.quietScore(s[s.length - 1]));
 });
 
+test('Ruhig-Typ: andere Top 8 als Chill, ruhigere Lage; Teilen-Link-Rundlauf behält den Typ', () => {
+  const { areas } = load('rom'), mk = p => withW([{ name: 'A', ...p }]);
+  const top = ppl => rank(areas, ppl).slice(0, 8), avgQ = l => l.reduce((x, a) => x + SM.quietScore(a), 0) / l.length;
+  const chill = top(mk({ type: 'chill' })).map(a => a.name), quietL = top(mk(SM.typePerson('quiet')));
+  assert.notDeepEqual(quietL.map(a => a.name), chill); assert.ok(quietL.map(a => a.name).filter(n => chill.includes(n)).length < 8);
+  assert.ok(avgQ(quietL) > avgQ(top(mk({ type: 'chill' }))), 'Ruhig-Typ soll ruhigere Viertel wählen');
+  assert.equal(Object.keys(areas[0].norm).includes('quiet'), false); // nicht aufzählbar
+  const st = { c: 'Rom', i: '', o: '', fairness: 0.6, people: [SM.cleanPerson({ name: 'Ich', ...SM.typePerson('quiet') }), SM.cleanPerson({ name: 'Tom', ...SM.typePerson('party') })], wishes: [], m: [], mw: 'g' };
+  const back = SM.shareDecode(SM.shareEncode(st));
+  assert.equal(SM.isQuiet(back.people[0]), true); assert.equal(back.people[1].type, 'party'); assert.equal(SM.isQuiet(back.people[1]), false);
+});
+
 test('Gehzeit: Luftlinie × 1,3 bei 80 m/min, mindestens 1 Minute', () => {
   assert.equal(SM.walkMin(800), 13); assert.equal(SM.walkMin(0), 1); assert.equal(SM.walkMin(80), 1); assert.equal(SM.walkMin(1500), 24);
 });
@@ -70,7 +82,7 @@ test('Gehzeit: Luftlinie × 1,3 bei 80 m/min, mindestens 1 Minute', () => {
 test('Steckbrief: erzählender Absatz aus echten Zahlen, ohne Viertel leer', () => {
   const { areas, pois } = load('rom'); rank(areas, withW([{ name: 'A', type: 'chill' }]));
   const t = SM.cityStory('Rom', areas, pois);
-  assert.match(t, /^Rom: \d+ Viertel mit .* Orten ausgewertet/); assert.match(t, /Nachtleben bündelt sich rund um/); assert.ok(t.length > 250);
+  assert.match(t, /^Rom: \d+ von \d+ Viertel haben genug Daten/); assert.match(t, /Nachtleben bündelt sich rund um/); assert.ok(t.length > 250);
   assert.equal(SM.cityStory('X', [], []), '');
 });
 
@@ -108,7 +120,12 @@ test('App: Karten zeigen Sensitivität, Konfidenz, Gehzeit, Bild- und OSM-Editor
   assert.match(first.textContent, /Party/); assert.match(first.textContent, /Datenlage/); assert.match(first.textContent, /Min\. zu Fuß/);
   assert.ok(first.querySelector('button[data-xcard="0"]'));
   assert.match(first.querySelector('a[href*="openstreetmap.org/edit"]').href, /presets=place\/neighbourhood/);
-  assert.doesNotMatch(d.querySelector('#area-1 .xcard').textContent, /bleibt vorn/); // nur Platz 1
+  assert.doesNotMatch(d.querySelector('#area-1 .xcard').textContent, /bleibt vorn|liegt knapp vorn/); // nur Platz 1
+  // andere Sortierung: Platz 1 der Karte ist nicht Platz 1 der Wertung, dann darf die Zeile nicht an einem fremden Viertel stehen
+  const sel = d.getElementById('sort'); sel.value = 'transit'; sel.dispatchEvent(new w.Event('change')); await new Promise(r => setTimeout(r, 50));
+  const card = d.querySelector('#area-0'), name = card.querySelector('h3').textContent.replace(/^\d+\.\s*/, '');
+  const m = /(.+?) (bleibt vorn|liegt knapp vorn)/.exec(card.querySelector('.xcard').textContent.split('🎚️')[1] || '');
+  if (m) assert.equal(m[1].trim(), name);
   assert.match(d.getElementById('story').textContent, /^Rom: /);
   assert.match(d.getElementById('dataInfo').textContent, /Datenstand .* Quelle: .*ODbL/);
   assert.match(fs.readFileSync(path.join(web, 'app.js'), 'utf8'), /mapLegend'\)\.textContent \+= .*walkMin\(r\)/); // Karte braucht Leaflet, hier nur Quelltext

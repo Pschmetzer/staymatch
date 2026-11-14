@@ -158,6 +158,7 @@
     const dmax = Math.max(1000, ds[Math.floor(ds.length * 0.9)] || 1000);
     for (const a of areas) {
       a.centerDist = Math.round(distM(a, centre));
+      Object.defineProperty(a.norm, 'quiet', { value: quietScore(a) / 100, enumerable: false, configurable: true, writable: true });
       const s = 0.65 * (1 - Math.min(1, a.centerDist / dmax)) + 0.35 * ((a.norm && a.norm.sights) || 0);
       a.tier = s > 0.6 ? 3 : s > 0.35 ? 2 : 1;
     }
@@ -214,7 +215,8 @@
   // Fairness: 60 % schwächste Person (Maximin) + 40 % Durchschnitt
   function groupScore(norm, people, fairness = 0.6) {
     const f = cleanFairness(fairness);
-    const scores = people.map(p => personScore(norm, p.w || weightsOf(p)));
+    // Ruhig-Typ: 35 % der Wertung aus der Ruhe-Schätzung (norm.quiet, nicht aufzählbar, damit Schleifen über norm sie nicht sehen)
+    const scores = people.map(p => { const s = personScore(norm, p.w || weightsOf(p)); return norm.quiet != null && isQuiet(p) ? Math.round(0.65 * s + 35 * norm.quiet) : s; });
     if (!scores.length) return { total: 0, scores, min: 0, avg: 0 };
     const min = Math.min(...scores);
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
@@ -924,7 +926,7 @@
     const quiet = [...ok].filter(a => a.nearest.transit != null && a.nearest.transit < 600).sort((a, b) => quietScore(b) - quietScore(a))[0];
     const st = cityStats(ok), named = pois.filter(p => p.name).length, tn = ok.filter(a => a.nearest.transit != null && a.nearest.transit <= 500).length;
     const dens = Math.round(100 * ok.filter(a => a.counts.party >= 20).length / ok.length);
-    return `${name}: ${ok.length} Viertel mit ${pois.length.toLocaleString('de')} Orten ausgewertet, ${Math.round(100 * named / Math.max(1, pois.length))} % davon mit Namen. `
+    return `${name}: ${ok.length} von ${areas.length} Viertel haben genug Daten für die Wertung, insgesamt ${pois.length.toLocaleString('de')} Orte, ${Math.round(100 * named / Math.max(1, pois.length))} % davon mit Namen. `
       + `Im Schnitt liegen je Viertel ${st.food} Restaurants, ${st.chill} Parks und Cafés und ${st.sights} Sehenswürdigkeiten im Umkreis. `
       + `Nachtleben bündelt sich rund um ${topOf('party')}${dens ? ` (in ${dens} % der Viertel gibt es mindestens 20 Bars)` : ''}, Sehenswürdigkeiten findest du am dichtesten in ${topOf('sights')}, Cafés und Grün in ${topOf('chill')}. `
       + `${Math.round(100 * tn / ok.length)} % der Viertel haben eine Bahnstation in 500 m.${quiet ? ` Ruhig und trotzdem mit Bahn: ${quiet.name}.` : ''}`;
@@ -934,7 +936,7 @@
   // Zeilen der Bildkarte (Canvas-Zeichnung in app-extra.js)
   function shareCardData(a, i, city, ppl) {
     const keys = KEYS.filter(k => ppl.some(p => wOf(p)[k] > 0)).slice(0, 5);
-    return { title: `${i + 1}. ${a.name}`, sub: `${city} · ${a.group.total}/100 · ${verdict(a.group.total)}`, bars: keys.map(k => [lbl(k), Math.round(a.norm[k] * 100)]), line: summary(a, ppl).slice(0, 120), foot: 'staymatch.pro' };
+    return { title: `${i + 1}. ${a.name}`, sub: `${city} · ${a.group.total}/100 · ${verdict(a.group.total)}`, bars: keys.map(k => [lbl(k), Math.round(a.norm[k] * 100)]), line: summary(a, ppl).slice(0, 70), foot: 'staymatch.pro' };
   }
   Object.assign(root.StayMatch, { QUIET_W, typePerson, isQuiet, deepLink, quietScore, walkMin, sensitivity, sensitivityText, confidence, cityStory, osmEditUrl, shareCardData });
 })(typeof window !== 'undefined' ? window : globalThis);
