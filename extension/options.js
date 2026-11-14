@@ -16,10 +16,11 @@ const setSetting = patch => (q = q.then(async () => {
   await chrome.storage.local.set({ settings: next });
 }));
 
-chrome.storage.local.get('settings').then(r => { $('side').value = r.settings?.panelSide === 'left' ? 'left' : 'right'; });
+chrome.storage.local.get('settings').then(r => { $('badge').checked = r.settings?.badge !== false; $('side').value = r.settings?.panelSide === 'left' ? 'left' : 'right'; });
 $('side').onchange = async e => { await setSetting({ panelSide: e.target.value === 'left' ? 'left' : undefined, panelPos: undefined }); $('panelInfo').textContent = 'Gespeichert.'; };
 $('resetPos').onclick = async () => { await setSetting({ panelPos: undefined, panelSide: undefined }); $('side').value = 'right'; $('panelInfo').textContent = 'Position zurückgesetzt.'; };
 
+$('badge').onchange = e => setSetting({ badge: e.target.checked ? undefined : false });
 $('file').onchange = async e => {
   try {
     const parsed = I.parseImport(await e.target.files[0].text(), { isRoomUrl: roomOk, isCdnImage: cdnOk });
