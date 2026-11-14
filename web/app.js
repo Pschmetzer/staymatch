@@ -505,6 +505,7 @@ function migrateKeys(d) {
     }
   } catch (e) { console.debug(e); }
 }
+const favSet = () => new Set((favStore()[lastData && lastData.q] || []));
 function clearResults(msg, keepHead) {
   $('results').innerHTML = ''; $('compare').innerHTML = ''; $('whatif').innerHTML = ''; $('reshead').hidden = !keepHead; $('more').hidden = true;
   for (const l of [layer, poiLayer]) if (l) l.remove(); // alte Kreise, Pins und Orte weg
