@@ -1,6 +1,6 @@
 const { APP_URL } = window.StayMatchCore;
 document.getElementById('app').href = APP_URL;
-let tab = 'top', listings = {}, lastSearch = null, trip = null, query = '', extraKeys = {}, sortBy = 'seen', onlyBooked = false;
+let tagFilter = '', tab = 'top', listings = {}, lastSearch = null, trip = null, query = '', extraKeys = {}, sortBy = 'seen', onlyBooked = false;
 const I = window.StayMatchImport;
 const X = window.StayMatchExtras || null; // R7 E: Popup-Werkzeuge (in alten Tests nicht geladen)
 const LIMIT = 100, STALE_MS = 24 * 3600 * 1000;
@@ -99,6 +99,7 @@ function itemRow(i) {
       h('div', { class: 'muted' }, [i.rating && '⭐ ' + i.rating, i.pricePerNight && window.StayMatchRank.money(i.pricePerNight, i.currency) + '/Nacht', i.locality, (i.visits || 1) + '× angesehen', i.lastSeen && new Date(i.lastSeen).toLocaleDateString('de-DE')].filter(Boolean).join(' · ')),
       i.lastSeen && Date.now() - i.lastSeen > STALE_MS && i.pricePerNight ? h('div', { class: 'muted warn' }, `Preis vom ${new Date(i.lastSeen).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}, auf der Seite neu prüfen`) : null,
       i.hints?.length ? h('div', { class: 'muted' }, i.hints.slice(0, 4).join(' · ')) : null,
+      i.tags?.length ? h('div', { class: 'muted' }, i.tags.map(t => '🏷 ' + t).join(' · ')) : null,
       i.note ? h('div', { class: 'muted' }, '📝 ' + i.note) : null));
 }
 
@@ -136,11 +137,15 @@ function render() {
   } else {
     const q = query.trim().toLowerCase();
     const SORTS = { seen: (a, b) => (b.lastSeen || 0) - (a.lastSeen || 0), price: (a, b) => (a.pricePerNight ?? Infinity) - (b.pricePerNight ?? Infinity), rating: (a, b) => (b.rating || 0) - (a.rating || 0), booked: (a, b) => (b.booked?.at || 0) - (a.booked?.at || 0) };
-    const shown = items.filter(i => (tab === 'all' || (tab === 'liked' ? i.vote === 1 : i.vote === -1)) && (!onlyBooked || i.booked) &&
-      (!q || [i.title, i.locality, i.note].some(t => (t || '').toLowerCase().includes(q)))).sort(SORTS[sortBy] || SORTS.seen);
+    const shown = items.filter(i => (tab === 'all' || (tab === 'liked' ? i.vote === 1 : i.vote === -1)) && (!onlyBooked || i.booked) && (!tagFilter || (i.tags || []).includes(tagFilter)) &&
+      (!q || [i.title, i.locality, i.note, ...(i.tags || [])].some(t => (t || '').toLowerCase().includes(q)))).sort(SORTS[sortBy] || SORTS.seen);
     rows = shown.length ? shown.slice(0, LIMIT).map(itemRow) : [h('div', { class: 'item muted' }, 'Noch nichts hier.')];
     if (shown.length > LIMIT) rows.push(h('div', { class: 'item muted' }, `${shown.length - LIMIT} weitere, Suche verfeinern`));
   }
+  const allTags = [...new Set(items.flatMap(i => i.tags || []))].sort();
+  if (tagFilter && !allTags.includes(tagFilter)) tagFilter = '';
+  $('tagFilter').replaceChildren(h('option', { value: '' }, 'alle'), ...allTags.map(t => h('option', { value: t }, t)));
+  $('tagFilter').value = tagFilter; $('tagFilter').parentElement.hidden = !allTags.length;
   $('search').hidden = tab === 'top'; $('sortbar').hidden = tab === 'top';
   $('list').replaceChildren(...rows);
   renderExtras(items);
@@ -177,6 +182,7 @@ tabs.forEach((b, i) => {
   };
 });
 $('search').oninput = e => { query = e.target.value; render(); };
+$('tagFilter').onchange = e => { tagFilter = e.target.value; render(); };
 $('sort').onchange = e => { sortBy = e.target.value; render(); saveUi(); };
 $('onlyBooked').onchange = e => { onlyBooked = e.target.checked; render(); saveUi(); };
 $('list').addEventListener('scroll', saveUi, { passive: true });

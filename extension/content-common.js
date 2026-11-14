@@ -52,7 +52,7 @@
     const old = (await getListing(id)) || { id, firstSeen: Date.now(), visits: 0 };
     const item = { ...old, ...patch, id, lastSeen: Date.now(), schema: SCHEMA };
     // R7 E: Spuren-Pause (Popup): nichts speichern, also auch kein „schon gesehen“. Ausnahme: was du ausdrücklich klickst (👍/👎, Notiz, gebucht)
-    const explicit = patch && ('vote' in patch || 'note' in patch || 'booked' in patch);
+    const explicit = patch && ('vote' in patch || 'note' in patch || 'booked' in patch || 'tags' in patch);
     if (isPaused() && !explicit) return { ...old, ...patch, id, paused: true }; // ohne neuen lastSeen
     try { await chrome.storage.local.set({ [KEY(id)]: item }); }
     catch (e) { console.debug('StayMatch: Speichern fehlgeschlagen (Speicher voll?)', e); SMC.saveFailed = true; }
@@ -231,7 +231,7 @@
     box.style.setProperty('--sm-scale', String(scale()));
     placeBox(box);
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
-    const dock = h('button', { 'aria-label': 'Panel links oder rechts andocken', title: 'Links/rechts andocken (Alt+Shift+L)', onclick: dockToggle }, '⇆');
+    const dock = h('button', { 'aria-label': 'Panel links oder rechts andocken', title: 'Links/rechts andocken (Alt+Shift+D)', onclick: dockToggle }, '⇆');
     const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');
     // CSS einmal parsen und an jeden Shadow Root hängen (statt bei jedem Panel-Neubau ein <style> neu zu parsen); Rückfall: <style>
     const sheet = sharedSheet();
@@ -256,7 +256,7 @@
     if (act) { e.preventDefault(); act(); }
   }
   const dockToggle = () => saveSetting({ panelSide: settings.panelSide === 'left' && !settings.panelPos ? undefined : 'left', panelPos: undefined }).catch(() => {});
-  keys.KeyL = dockToggle;
+  keys.KeyD = dockToggle;
   keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } } };
   document.addEventListener('keydown', onKey, true);
 
