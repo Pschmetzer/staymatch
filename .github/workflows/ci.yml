@@ -49,11 +49,11 @@ jobs:
         run: npm ci --prefix tests --no-audit --no-fund --ignore-scripts
       - name: jsdom ist wirklich da (sonst würden DOM-Tests still übersprungen)
         run: node -e "require('./tests/node_modules/jsdom')"
-      - name: Tests
-        if: matrix.node != 24
+      - name: Tests auf Node 26 (Abdeckung wird auf 22 und 24 gemessen)
+        if: matrix.node == 26
         run: node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./.github/scripts/gh-annotate.mjs --test-reporter-destination=stdout tests/*.test.js
       - name: Tests mit Abdeckung (mindestens 90 % der Zeilen)
-        if: matrix.node == 24
+        if: matrix.node != 26
         run: >-
           node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-exclude='tests/**'
           --test-reporter=spec --test-reporter-destination=stdout
@@ -92,3 +92,36 @@ jobs:
         with: { node-version: 22 }
       - name: Tote Links in Markdown-Dateien
         run: node .github/scripts/check-links.mjs --online
+
+  vendor:
+    # Gebündeltes Leaflet (web/vendor/leaflet) kennt Dependabot nicht: wöchentlich gegen npm prüfen. Blockiert keine PRs.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 22 }
+      - name: Leaflet-Version gegen npm prüfen
+        run: node .github/scripts/check-vendor.mjs
+
+  e2e:
+    # Browser-Rauchtest gegen den lokalen Server (mit den echten Headern aus vercel.json): Startseite und /app ohne CSP-Verstöße.
+    # Eigener Job, weil Playwright und Chromium gebraucht werden; nur im Job installiert, nicht im Repo (keine Abhängigkeit des Plugins).
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true # erst blockierend machen, wenn der Job einige Wochen stabil lief
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 22 }
+      - name: Playwright (nur hier, ohne Eintrag in package.json)
+        run: |
+          npm install --no-save --no-audit --no-fund --ignore-scripts --prefix "$RUNNER_TEMP/pw" playwright@1.49.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Rauchtest
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node .github/scripts/e2e-smoke.mjs

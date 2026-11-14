@@ -1,0 +1,39 @@
+name: Qualitätsprüfung (Lighthouse, axe)
+# Wöchentlich gegen die Live-Seite. Blockiert nichts: Ergebnisse stehen im Job-Summary und als Artefakt.
+on:
+  schedule: [{ cron: "43 5 * * 3" }]
+  workflow_dispatch:
+    inputs:
+      site: { description: "Basisadresse", required: false, default: "https://staymatch.pro" }
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    env:
+      SITE: ${{ inputs.site || 'https://staymatch.pro' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 22 }
+      - name: Lighthouse (Startseite, Englisch, Stadtseite, App)
+        run: |
+          mkdir -p audit
+          for p in "" en staedte/rom app; do
+            n=$(echo "${p:-start}" | tr / -)
+            npx --yes lighthouse@12.3.0 "$SITE/$p" --quiet --chrome-flags="--headless=new --no-sandbox" \
+              --only-categories=performance,accessibility,best-practices,seo --output=json --output=html --output-path="audit/lh-$n" || echo "Lighthouse für /$p fehlgeschlagen"
+          done
+          node -e '
+            const fs=require("fs");let md="### Lighthouse\n\n| Seite | Leistung | Barrierefreiheit | Best Practices | SEO |\n| --- | ---: | ---: | ---: | ---: |\n";
+            for(const f of fs.readdirSync("audit").filter(f=>f.endsWith(".json"))){const c=JSON.parse(fs.readFileSync("audit/"+f)).categories;const s=k=>Math.round((c[k]?.score??0)*100);md+=`| ${f.slice(3,-5)} | ${s("performance")} | ${s("accessibility")} | ${s("best-practices")} | ${s("seo")} |\n`}
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,md+"\n")'
+      - name: axe-core (Barrierefreiheit, WCAG 2.1 AA)
+        run: |
+          npx --yes @axe-core/cli@4.10.1 "$SITE/" "$SITE/en" "$SITE/staedte/rom" "$SITE/app" --tags wcag2a,wcag2aa,wcag21aa --save audit/axe.json --chrome-options="headless=new,no-sandbox" || echo "axe meldet Verstöße oder konnte nicht laufen"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with: { name: audit, path: audit/, retention-days: 30 }
