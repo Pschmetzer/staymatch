@@ -91,7 +91,7 @@ test('R7E Popup: „diese reise“ löscht nur Reise, Sammlung, letzte Suche und
     'l:1': { id: '1', checkin: '2026-05-01' }, 'l:2': { id: '2', checkin: '2026-08-01' }, 'l:3': { id: '3' } });
   const dom = new D.JSDOM(fs.readFileSync(path.join(D.EXT, 'popup.html'), 'utf8').replace(/<script[^>]*><\/script>/g, ''), { runScripts: 'outside-only', url: 'chrome-extension://x/popup.html' });
   const w = dom.window; w.chrome = chrome; D.track(w);
-  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('extras.js')); w.eval(D.src('popup.js'));
+  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('extras.js')); w.eval(D.src('import.js')); w.eval(D.src('popup.js'));
   const doc = w.document;
   assert.match(doc.getElementById('aiInfo').textContent, /nicht verfügbar/);
   assert.match(w.aiStatus({ Summarizer: 1 }), /Summarizer vorhanden/);

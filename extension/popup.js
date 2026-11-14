@@ -1,6 +1,7 @@
 const { APP_URL } = window.StayMatchCore;
 document.getElementById('app').href = APP_URL;
-let tab = 'top', listings = {}, lastSearch = null, trip = null, query = '', extraKeys = {};
+let tab = 'top', listings = {}, lastSearch = null, trip = null, query = '', extraKeys = {}, sortBy = 'seen', onlyBooked = false;
+const I = window.StayMatchImport;
 const X = window.StayMatchExtras || null; // R7 E: Popup-Werkzeuge (in alten Tests nicht geladen)
 const LIMIT = 100, STALE_MS = 24 * 3600 * 1000;
 // R7: gleiche Hostprüfung wie isRoomUrl (Regex ließ „www.airbnb.evil.com“ durch)
@@ -25,8 +26,29 @@ const isCdnImage = u => { const x = parseUrl(u); return !!x && x.protocol === 'h
 async function readStore() {
   const s = chrome.storage.local;
   if (typeof s.getKeys !== 'function') return s.get(null);
-  const keys = (await s.getKeys()).filter(k => k.startsWith('l:') || ['listings', 'lastSearch', 'trip', 'settings', 'stats', 'tasteIgnore'].includes(k));
+  const keys = (await s.getKeys()).filter(k => k.startsWith('l:') || ['listings', 'lastSearch', 'trip', 'settings', 'stats', 'tasteIgnore', 'friendLikes'].includes(k));
   return keys.length ? s.get(keys) : {};
+}
+// Tab, Sortierung und Scrollposition merken (Sitzungsspeicher, sonst lokal); das Popup schließt sich bei jedem Klick daneben
+const uiStore = () => chrome.storage.session || chrome.storage.local;
+let uiRestored = false, savedScroll = 0;
+async function restoreUi() {
+  try {
+    const u = (await uiStore().get('popupUi')).popupUi || {};
+    if (['top', 'all', 'liked', 'disliked'].includes(u.tab)) tab = u.tab;
+    if (['seen', 'price', 'rating', 'booked'].includes(u.sort)) sortBy = u.sort;
+    onlyBooked = !!u.onlyBooked; savedScroll = +u.scroll || 0;
+    const b = tabs.find(x => x.dataset.tab === tab);
+    if (b) tabs.forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', String(x === b)); x.tabIndex = x === b ? 0 : -1; });
+    if (b) $('list').setAttribute('aria-labelledby', b.id);
+    $('sort').value = sortBy; $('onlyBooked').checked = onlyBooked;
+  } catch {}
+}
+function restoreScroll() { if (savedScroll) $('list').scrollTop = savedScroll; }
+let saveUiT = null;
+function saveUi() {
+  clearTimeout(saveUiT);
+  saveUiT = setTimeout(() => { try { Promise.resolve(uiStore().set({ popupUi: { tab, sort: sortBy, onlyBooked, scroll: $('list').scrollTop } })).catch(() => {}); } catch {} }, 150);
 }
 async function load() {
   const all = await readStore();
@@ -36,10 +58,12 @@ async function load() {
     await chrome.storage.local.set(moved); await chrome.storage.local.remove('listings');
     Object.assign(all, moved);
   }
-  listings = Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('l:')).map(([, v]) => [v.id, v]));
+  listings = Object.fromEntries(Object.entries(all).filter(([k, v]) => k.startsWith('l:') && v && v.id).map(([, v]) => [v.id, I.migrateListing(v)]));
   lastSearch = all.lastSearch || null; trip = all.trip || null;
-  extraKeys = { settings: all.settings || {}, stats: all.stats || null, tasteIgnore: all.tasteIgnore || [] };
+  extraKeys = { settings: all.settings || {}, stats: all.stats || null, tasteIgnore: all.tasteIgnore || [], friendLikes: all.friendLikes || {} };
+  if (!uiRestored) await restoreUi();
   render();
+  if (!uiRestored) { uiRestored = true; restoreScroll(); }
 }
 
 function profile(items) {
@@ -48,12 +72,13 @@ function profile(items) {
   // R7: Preis je Währung (wie im Ranking), nicht € und $ gemischt
   const byCur = window.StayMatchRank.buildTaste(items)?.avgPricePerNightByCurrency || {};
   const prices = Object.entries(byCur).map(([c, v]) => `≈ ${Math.round(v)} ${c}/Nacht`);
-  const r = avg(liked.map(i => i.rating).filter(Boolean));
+  // Ab welcher Note das Ranking 👍 erwartet: Median minus 0,05 (rank.js buildTaste), nicht der Durchschnitt
+  const r = window.StayMatchRank.buildTaste(items)?.minRating;
   // R7 E: Geschmack korrigieren: Orte einzeln streichen (zählen dann nicht mehr für den Geschmack)
   const ign = new Set((extraKeys.tasteIgnore || []).map(x => String(x).toLowerCase()));
   const places = [...new Set(liked.map(i => i.locality).filter(Boolean))].filter(p => !ign.has(p.toLowerCase())).slice(0, 4);
   const drop = p => async () => { const t = [...(extraKeys.tasteIgnore || []), p]; await chrome.storage.local.set({ tasteIgnore: t }); extraKeys.tasteIgnore = t; render(); };
-  return [h('b', {}, 'Dein Geschmack'), ` (aus ${liked.length} 👍): `, [...prices, r && `⭐ ab ${r.toFixed(2)}`].filter(Boolean).join(' · '),
+  return [h('b', {}, 'Dein Geschmack'), ` (aus ${liked.length} 👍): `, [...prices, r != null && `⭐ ab ${r.toFixed(2).replace('.', ',')}`].filter(Boolean).join(' · '),
     places.length ? [' · Orte: ', ...places.flatMap((p, i) => [i ? ', ' : '', p, h('button', { title: `${p} nicht mehr als Vorliebe zählen`, 'aria-label': `${p} aus dem Geschmack streichen`, onclick: drop(p) }, '✕')])] : null,
     ign.size ? h('div', { class: 'muted' }, `Gestrichen: ${[...ign].join(', ')} `, h('button', { onclick: async () => { await chrome.storage.local.set({ tasteIgnore: [] }); extraKeys.tasteIgnore = []; render(); } }, 'zurücksetzen')) : null];
 }
@@ -62,7 +87,7 @@ function profile(items) {
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 function roomLink(i) {
   const u = safeUrl(i.url);
-  if (u === '#' || !DATE.test(i.checkin || '') || !DATE.test(i.checkout || '') || i.checkout <= i.checkin || i.checkin < new Date().toISOString().slice(0, 10)) return u;
+  if (u === '#' || !DATE.test(i.checkin || '') || !DATE.test(i.checkout || '') || i.checkout <= i.checkin || i.checkin < I.localDay()) return u;
   const x = new URL(u); x.searchParams.set('check_in', i.checkin); x.searchParams.set('check_out', i.checkout);
   return x.href;
 }
@@ -72,7 +97,7 @@ function itemRow(i) {
     h('div', {},
       h('div', {}, (i.booked ? '✅ ' : '') + (i.vote === 1 ? '👍 ' : i.vote === -1 ? '👎 ' : '') + (i.title || 'Unterkunft')),
       h('div', { class: 'muted' }, [i.rating && '⭐ ' + i.rating, i.pricePerNight && window.StayMatchRank.money(i.pricePerNight, i.currency) + '/Nacht', i.locality, (i.visits || 1) + '× angesehen', i.lastSeen && new Date(i.lastSeen).toLocaleDateString('de-DE')].filter(Boolean).join(' · ')),
-      i.lastSeen && Date.now() - i.lastSeen > STALE_MS && i.pricePerNight ? h('div', { class: 'muted warn' }, 'Preis älter als 24 h, auf der Seite neu prüfen') : null,
+      i.lastSeen && Date.now() - i.lastSeen > STALE_MS && i.pricePerNight ? h('div', { class: 'muted warn' }, `Preis vom ${new Date(i.lastSeen).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}, auf der Seite neu prüfen`) : null,
       i.hints?.length ? h('div', { class: 'muted' }, i.hints.slice(0, 4).join(' · ')) : null,
       i.note ? h('div', { class: 'muted' }, '📝 ' + i.note) : null));
 }
@@ -110,14 +135,16 @@ function render() {
       : [h('div', { class: 'item muted' }, trip ? START_TEXT : 'Noch keine Suche bewertet.')];
   } else {
     const q = query.trim().toLowerCase();
-    const shown = items.filter(i => (tab === 'all' || (tab === 'liked' ? i.vote === 1 : i.vote === -1)) &&
-      (!q || [i.title, i.locality, i.note].some(t => (t || '').toLowerCase().includes(q))));
+    const SORTS = { seen: (a, b) => (b.lastSeen || 0) - (a.lastSeen || 0), price: (a, b) => (a.pricePerNight ?? Infinity) - (b.pricePerNight ?? Infinity), rating: (a, b) => (b.rating || 0) - (a.rating || 0), booked: (a, b) => (b.booked?.at || 0) - (a.booked?.at || 0) };
+    const shown = items.filter(i => (tab === 'all' || (tab === 'liked' ? i.vote === 1 : i.vote === -1)) && (!onlyBooked || i.booked) &&
+      (!q || [i.title, i.locality, i.note].some(t => (t || '').toLowerCase().includes(q)))).sort(SORTS[sortBy] || SORTS.seen);
     rows = shown.length ? shown.slice(0, LIMIT).map(itemRow) : [h('div', { class: 'item muted' }, 'Noch nichts hier.')];
     if (shown.length > LIMIT) rows.push(h('div', { class: 'item muted' }, `${shown.length - LIMIT} weitere, Suche verfeinern`));
   }
-  $('search').hidden = tab === 'top';
+  $('search').hidden = tab === 'top'; $('sortbar').hidden = tab === 'top';
   $('list').replaceChildren(...rows);
   renderExtras(items);
+  renderFriends();
 }
 // R7 E: Backup-Erinnerung (alle 3 Monate, ab 5 Einträgen) und Zähler „heute bewertet“
 const BACKUP_MS = 90 * 864e5;
@@ -127,7 +154,7 @@ function renderExtras(items) {
   $('backup').hidden = !due;
   if (due) $('backup').replaceChildren('Deine Daten liegen nur hier. Sichern? ', h('button', { class: 'lnk', onclick: () => $('export').click() }, 'Jetzt als Datei sichern'));
   if (!st.firstUse) setSetting({ firstUse: Date.now() });
-  const today = new Date().toISOString().slice(0, 10), stt = extraKeys.stats;
+  const today = I.localDay(), stt = extraKeys.stats;
   $('stats').textContent = stt?.day === today && stt.rated ? `Heute hat StayMatch ${stt.rated} Unterkünfte für dich bewertet, du hast ${stt.opened || 0} davon geöffnet.` : '';
   const pu = st.pauseUntil || 0;
   $('pauseInfo').textContent = pu > Date.now() ? `aktiv bis ${new Date(pu).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : '';
@@ -138,7 +165,7 @@ const tabs = [...document.querySelectorAll('nav button')];
 function selectTab(b, focus) {
   tabs.forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', String(x === b)); x.tabIndex = x === b ? 0 : -1; });
   $('list').setAttribute('aria-labelledby', b.id);
-  tab = b.dataset.tab; render(); if (focus) b.focus();
+  tab = b.dataset.tab; render(); saveUi(); if (focus) b.focus();
 }
 tabs.forEach((b, i) => {
   b.onclick = () => selectTab(b);
@@ -150,41 +177,44 @@ tabs.forEach((b, i) => {
   };
 });
 $('search').oninput = e => { query = e.target.value; render(); };
+$('sort').onchange = e => { sortBy = e.target.value; render(); saveUi(); };
+$('onlyBooked').onchange = e => { onlyBooked = e.target.checked; render(); saveUi(); };
+$('list').addEventListener('scroll', saveUi, { passive: true });
 function download(name, text, type) {
   const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name }); a.click();
 }
-$('export').onclick = () => {
-  // Notizen und Namen der Mitreisenden sind persönlich: nur auf Wunsch mitnehmen
-  const withPrivate = confirm('Notizen und Namen der Mitreisenden mit exportieren?\n\nOK = mit, Abbrechen = ohne (gut zum Teilen).');
-  const ls = withPrivate ? listings : Object.fromEntries(Object.entries(listings).map(([k, v]) => [k, (({ note, ...r }) => r)(v)]));
-  const t = trip && !withPrivate ? { ...trip, people: (trip.people || []).map(p => ({ type: p?.type })), areas: (trip.areas || []).map(a => ({ ...a, minName: undefined })) } : trip;
+$('export').onclick = () => exportJson(confirm('Persönliche Angaben mit exportieren (Notizen, Namen der Mitreisenden, Reisedaten, Preisverlauf, Buchungen, Gastgeber)?\n\nOK = alles (Sicherung), Abbrechen = bereinigt (gut zum Teilen).'));
+// Notizen, Namen, Reisedaten, Preisverlauf, Buchungen und Gastgeber-Kennungen sind persönlich: nur auf Wunsch mitnehmen
+function exportJson(withPrivate) {
+  const ls = withPrivate ? listings : I.sanitizeListings(listings);
+  const t = withPrivate ? trip : I.sanitizeTrip(trip);
   // R7 E: offenes Format mit Kennung und Version, damit andere Werkzeuge die Datei lesen können
-  download('staymatch.json', JSON.stringify({ format: 'staymatch-merkliste', version: 1, exportedAt: new Date().toISOString(), listings: ls, trip: t }, null, 2), 'application/json');
+  download('staymatch.json', JSON.stringify({ format: I.FORMAT, version: I.EXPORT_VERSION, exportedAt: new Date().toISOString(), listings: ls, trip: t, ...(withPrivate ? { friendLikes: extraKeys.friendLikes || {} } : {}) }, null, 2), 'application/json');
   setSetting({ lastBackup: Date.now() });
 };
 $('csv').onclick = () => {
   // R7: wie beim JSON-Export nach Notizen fragen; Datum und Art als eigene Spalten (ISO-Datum)
   const withNotes = confirm('Notizen mit exportieren?\n\nOK = mit, Abbrechen = ohne (gut zum Teilen).');
-  const iso = t => t ? new Date(t).toISOString().slice(0, 10) : '';
+  const iso = t => t ? I.localDay(new Date(t)) : '';
   const cols = ['title', 'kind', 'locality', 'rating', 'reviewCount', 'pricePerNight', 'currency', 'checkin', 'checkout', 'lastSeen', 'vote', 'visits', ...(withNotes ? ['note'] : []), 'url'];
   const esc = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; };
   const val = (i, c) => c === 'lastSeen' ? iso(i.lastSeen) : i[c];
   download('staymatch.csv', '\ufeff' + [cols.join(';'), ...Object.values(listings).map(i => cols.map(c => esc(val(i, c))).join(';'))].join('\n'), 'text/csv;charset=utf-8');
 };
-$('import').onclick = () => $('file').click();
+// Chrome schließt das Popup oft, sobald der Dateidialog aufgeht: Import läuft in einem eigenen Tab (options.html).
+$('import').onclick = () => {
+  const url = chrome.runtime?.getURL?.('options.html');
+  if (url) window.open(url, '_blank'); else $('file').click(); // window.open: keine zusätzliche Berechtigung nötig
+};
 $('file').onchange = async e => {
   try {
-    const j = JSON.parse(await e.target.files[0].text());
-    const src = j.listings || j;
-    const all = Object.values(src);
-    const entries = all.filter(v => v && v.id && /^\d+$/.test(String(v.id)))
-      .map(v => ({ ...v, image: isCdnImage(v.image) ? v.image : undefined, url: isRoomUrl(v.url) ? v.url : undefined }));
-    await chrome.storage.local.set(Object.fromEntries(entries.map(v => ['l:' + v.id, v])));
+    const { entries, skipped } = I.parseImport(await e.target.files[0].text(), { isRoomUrl, isCdnImage });
+    const r = await I.applyImport(chrome.storage.local, entries);
     await load();
-    // R7: R\u00fcckmeldung, was \u00fcbernommen wurde
-    $('list').prepend(h('div', { class: 'item muted', role: 'status' }, `${entries.length} \u00fcbernommen, ${all.length - entries.length} \u00fcbersprungen`));
-  } catch { alert('Datei konnte nicht gelesen werden.'); }
-  e.target.value = ''; // R7: dieselbe Datei l\u00e4sst sich erneut w\u00e4hlen
+    // R7: Rückmeldung, was übernommen wurde (neue und zusammengeführte Einträge)
+    $('list').prepend(h('div', { class: 'item muted', role: 'status' }, `${entries.length} übernommen, ${skipped} übersprungen (${r.added} neu, ${r.merged} mit vorhandenen zusammengeführt)`));
+  } catch (err) { alert(err?.message || 'Datei konnte nicht gelesen werden.'); }
+  e.target.value = ''; // R7: dieselbe Datei lässt sich erneut wählen
 };
 chrome.storage.local.get('settings').then(r => {
   const st = r.settings || {};
@@ -197,9 +227,16 @@ chrome.storage.local.get('settings').then(r => {
   $('optNoEmoji').checked = !!st.share?.noEmoji;
   $('optMarkdown').checked = !!st.share?.markdown;
 });
-async function setSetting(patch) {
-  const { settings = {} } = await chrome.storage.local.get('settings');
-  await chrome.storage.local.set({ settings: { ...settings, ...patch } });
+// Schreibzugriffe auf „settings“ nacheinander und direkt vor dem Schreiben frisch lesen, damit zwei schnelle Klicks sich nicht überschreiben
+let settingsQueue = Promise.resolve();
+function setSetting(patch) {
+  const run = async () => {
+    const { settings = {} } = await chrome.storage.local.get('settings');
+    const next = { ...I.migrateSettings(settings), ...patch };
+    await chrome.storage.local.set({ settings: next });
+    extraKeys.settings = next;
+  };
+  return (settingsQueue = settingsQueue.then(run, run));
 }
 $('optBadges').onchange = e => setSetting({ showBadges: e.target.checked });
 $('optTheme').onchange = e => setSetting({ theme: e.target.value });
@@ -211,7 +248,7 @@ for (const id of ['optNoPrices', 'optNoEmoji', 'optMarkdown']) $(id).onchange = 
 $('pause').onclick = async () => {
   const { settings = {} } = await chrome.storage.local.get('settings');
   const pu = settings.pauseUntil > Date.now() ? 0 : Date.now() + 3600e3;
-  await setSetting({ pauseUntil: pu }); extraKeys.settings = { ...settings, pauseUntil: pu }; render();
+  await setSetting({ pauseUntil: pu }); render();
 };
 $('linkCheck').oninput = e => {
   const v = e.target.value.trim(), r = v && X ? X.linkCheck(v, StayMatchCore.AIRBNB_DOMAINS) : null;
@@ -225,10 +262,23 @@ $('friendAdd').onclick = async () => {
   const name = (prompt('Von wem ist die Liste? (Name bleibt nur hier)', '') || 'Freund').trim().slice(0, 30);
   const { friendLikes = {} } = await chrome.storage.local.get('friendLikes');
   for (const id of ids) friendLikes[id] = [...new Set([...(friendLikes[id] || []), name])];
-  await chrome.storage.local.set({ friendLikes });
+  await chrome.storage.local.set({ friendLikes }); extraKeys.friendLikes = friendLikes; renderFriends();
   $('friendInfo').textContent = `${ids.length} Unterkünfte von ${name} übernommen. Auf der Suchseite steht dann „${name} mag das“.`;
   $('friendText').value = '';
 };
+// Namen und Listen der Freunde ansehen und einzeln entfernen
+function renderFriends() {
+  const fl = extraKeys.friendLikes || {}, by = {};
+  for (const [id, names] of Object.entries(fl)) for (const n of [].concat(names)) (by[n] ||= []).push(id);
+  const box = $('friendList'); if (!box) return;
+  box.replaceChildren(...Object.entries(by).map(([n, ids]) => h('div', {}, `${n}: ${ids.length} Unterkünfte `,
+    h('button', { class: 'lnk', 'aria-label': `Liste von ${n} löschen`, onclick: async () => {
+      const cur = (await chrome.storage.local.get('friendLikes')).friendLikes || {};
+      for (const k of Object.keys(cur)) { cur[k] = [].concat(cur[k]).filter(x => x !== n); if (!cur[k].length) delete cur[k]; }
+      if (Object.keys(cur).length) await chrome.storage.local.set({ friendLikes: cur }); else await chrome.storage.local.remove('friendLikes');
+      extraKeys.friendLikes = cur; renderFriends();
+    } }, 'löschen'))));
+}
 $('trips').onclick = async () => {
   const text = X ? X.tripsText(Object.values(listings)) : '';
   if (!text) { $('trips').textContent = 'Noch nichts als gebucht markiert'; return; }
@@ -248,21 +298,29 @@ $('share').onclick = async () => {
   setTimeout(() => { $('share').textContent = 'Merkliste kopieren'; }, 2500);
 };
 // Löschen getrennt nach Art; Einstellungen bleiben immer erhalten
+// Vor „verlauf“ und „alles“ Sicherung anbieten; danach ein Rückgängig-Knopf, solange das Popup offen ist
+let undoSnap = null;
 $('wipe').onclick = async () => {
-  const kind = prompt('Was löschen? Tippe: verlauf (Unterkünfte, Likes, Notizen), zwischenspeicher (letzte Suche, gesammelte Seiten), reise, diese reise (Reise samt Unterkünften mit ihrem Anreisedatum) oder alles. Das kann nicht rückgängig gemacht werden.', 'verlauf');
+  const kind = prompt('Was löschen? Tippe: verlauf (Unterkünfte, Likes, Notizen, Freundes-Listen, Preis-Mediane, Statistik), zwischenspeicher (letzte Suche, gesammelte Seiten, Preis-Mediane), reise, diese reise (Reise samt Unterkünften mit ihrem Anreisedatum) oder alles (auch Reise und Zwischenspeicher).', 'verlauf');
   if (!kind) return;
   const k = kind.trim().toLowerCase();
-  const keys = Object.keys(await chrome.storage.local.get(null));
+  const all = await chrome.storage.local.get(null);
+  const keys = Object.keys(all);
   const pick = {
-    verlauf: x => x.startsWith('l:') || x === 'listings',
-    zwischenspeicher: x => ['lastSearch', 'pool', 'quick', 'filters'].includes(x) || x.startsWith('min:'), // R7: auch Einklapp-Zustand
-    reise: x => x === 'trip',
+    verlauf: I.WIPE.verlauf,
+    zwischenspeicher: I.WIPE.zwischenspeicher,
+    reise: I.WIPE.reise,
     // R7 E: „Reise vergessen“: Reise, Sammlung und die Unterkünfte mit diesem Anreisedatum; der Rest bleibt
-    'diese reise': x => x === 'trip' || x === 'pool' || x === 'lastSearch' || (x.startsWith('l:') && !!trip?.checkin && listings[x.slice(2)]?.checkin === trip.checkin),
+    'diese reise': x => x === 'trip' || x === 'pool' || x === 'lastSearch' || x === 'priceLog' || (x.startsWith('l:') && !!trip?.checkin && listings[x.slice(2)]?.checkin === trip.checkin),
     alles: x => x !== 'settings',
   }[k];
   if (!pick) { alert('Nichts gelöscht: bitte verlauf, zwischenspeicher, reise, diese reise oder alles eingeben.'); return; }
-  await chrome.storage.local.remove(keys.filter(pick)); load();
+  const del = keys.filter(pick);
+  if (!del.length) return;
+  if ((k === 'verlauf' || k === 'alles') && confirm('Vorher eine Sicherung als Datei speichern?\n\nOK = Sicherung laden, Abbrechen = ohne.')) exportJson(true);
+  undoSnap = Object.fromEntries(del.map(x => [x, all[x]]));
+  await chrome.storage.local.remove(del); await load();
+  $('list').prepend(h('div', { class: 'item muted', role: 'status' }, `${del.length} Einträge gelöscht. `, h('button', { class: 'lnk', onclick: async () => { if (undoSnap) { await chrome.storage.local.set(undoSnap); undoSnap = null; await load(); } } }, 'Rückgängig')));
 };
 // R7 E: ehrlich anzeigen, ob Chromes eingebaute KI-Schnittstellen hier vorhanden sind (nur Erkennung, kein Download; StayMatch nutzt sie nicht)
 function aiStatus(g) {

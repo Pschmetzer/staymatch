@@ -102,7 +102,7 @@ test('R7: Popup zeigt „pro Nacht“ statt „gesamt“ bei Nachtpreisen', { sk
   const chrome = chromeMock({ lastSearch: { at: 1, url: 'https://www.airbnb.de/s/x', top: [{ id: '1', title: 'A', score: 80, totalPrice: 120, currency: '€', isTotal: false, url: 'https://www.airbnb.de/rooms/1' }, { id: '2', title: 'B', score: 70, totalPrice: 600, currency: '€', isTotal: true, url: 'https://www.airbnb.de/rooms/2' }] } });
   const dom = new D.JSDOM(fs.readFileSync(path.join(D.EXT, 'popup.html'), 'utf8').replace(/<script[^>]*><\/script>/g, ''), { runScripts: 'outside-only', url: 'chrome-extension://x/popup.html' });
   const w = dom.window; w.chrome = chrome; D.track(w);
-  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('popup.js'));
+  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('import.js')); w.eval(D.src('popup.js'));
   await until(() => w.document.getElementById('list').querySelectorAll('.item').length > 1);
   const txt = w.document.getElementById('list').textContent;
   assert.match(txt, /120 € pro Nacht/);

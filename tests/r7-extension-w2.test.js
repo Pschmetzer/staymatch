@@ -18,7 +18,7 @@ function popup(data) {
   const chrome = chromeMock(data);
   const dom = new D.JSDOM(fs.readFileSync(path.join(D.EXT, 'popup.html'), 'utf8').replace(/<script[^>]*><\/script>/g, ''), { runScripts: 'outside-only', url: 'chrome-extension://x/popup.html' });
   const w = dom.window; w.chrome = chrome; D.track(w);
-  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('popup.js'));
+  w.eval(D.src('core.js')); w.eval(D.src('rank.js')); w.eval(D.src('import.js')); w.eval(D.src('popup.js'));
   return { w, chrome, doc: w.document };
 }
 

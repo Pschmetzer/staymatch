@@ -14,20 +14,42 @@
   const KEY = id => 'l:' + id;
 
   // ---------- Speicher (ein Schlüssel pro Unterkunft, damit Tabs sich nicht überschreiben) ----------
-  async function getListing(id) { return (await chrome.storage.local.get(KEY(id)))[KEY(id)] || null; }
-  async function saveListing(id, patch) {
+  // Schemaversion der gespeicherten Einträge (l:*) und der Einstellungen. Gleiche Regeln wie import.js (Kopie: Content-Skripte laden import.js nicht).
+  const SCHEMA = 2;
+  function migrateListing(v) {
+    if (!v || typeof v !== 'object' || v.schema >= SCHEMA) return v;
+    const o = { ...v, schema: SCHEMA };
+    o.visits = Number.isFinite(+o.visits) && +o.visits > 0 ? +o.visits : 1;
+    if (o.priceHistory != null && !Array.isArray(o.priceHistory)) delete o.priceHistory;
+    if (o.hints != null && !Array.isArray(o.hints)) delete o.hints;
+    return o;
+  }
+  async function getListing(id) { const v = (await chrome.storage.local.get(KEY(id)))[KEY(id)]; return v ? migrateListing(v) : null; }
+  // Schreibzugriffe je Unterkunft nacheinander (zwei schnelle Klicks in einem Tab überschreiben sich nicht);
+  // zwischen Tabs wird direkt vor dem Schreiben frisch gelesen.
+  const saveQueues = new Map();
+  function saveListing(id, patch) {
+    const run = () => doSave(id, patch);
+    const p = (saveQueues.get(id) || Promise.resolve()).then(run, run);
+    saveQueues.set(id, p);
+    p.finally(() => { if (saveQueues.get(id) === p) saveQueues.delete(id); }).catch(() => {});
+    return p;
+  }
+  async function doSave(id, patch) {
+    await SMC.ready; // Einstellungen (Pause!) sind geladen, bevor irgendetwas geschrieben wird
     const old = (await getListing(id)) || { id, firstSeen: Date.now(), visits: 0 };
-    const item = { ...old, ...patch, id, lastSeen: Date.now() };
+    const item = { ...old, ...patch, id, lastSeen: Date.now(), schema: SCHEMA };
     // R7 E: Spuren-Pause (Popup): nichts speichern, also auch kein „schon gesehen“. Ausnahme: was du ausdrücklich klickst (👍/👎, Notiz, gebucht)
     const explicit = patch && ('vote' in patch || 'note' in patch || 'booked' in patch);
-    if (settings.pauseUntil > Date.now() && !explicit) return { ...item, paused: true };
+    if (isPaused() && !explicit) return { ...old, ...patch, id, paused: true }; // ohne neuen lastSeen
     try { await chrome.storage.local.set({ [KEY(id)]: item }); }
     catch (e) { console.debug('StayMatch: Speichern fehlgeschlagen (Speicher voll?)', e); SMC.saveFailed = true; }
     return item;
   }
+  const isPaused = () => settings.pauseUntil > Date.now();
   async function allListings() {
     const all = await chrome.storage.local.get(null);
-    return Object.entries(all).filter(([k]) => k.startsWith('l:')).map(([, v]) => v);
+    return Object.entries(all).filter(([k]) => k.startsWith('l:')).map(([, v]) => migrateListing(v));
   }
   async function getTrip() { return (await chrome.storage.local.get('trip')).trip || null; }
 
@@ -71,7 +93,8 @@
     // Neue Reise aus dem Viertel-Finder wirkt sofort, ohne die Airbnb-Seite neu zu laden
     if (ch.trip && SMC.route) { SMC.search?.reset(); SMC.route(); }
   });
-  chrome.storage.local.get('settings').then(r => setSettings(r.settings)).catch(() => {});
+  // Erst wenn die Einstellungen da sind, wird geschrieben (sonst gälten kurz die Standardwerte, auch bei aktiver Pause)
+  const ready = chrome.storage.local.get('settings').then(r => setSettings(r.settings)).catch(() => {});
 
   async function copyText(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch {}
@@ -123,7 +146,8 @@
     .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     b.brand span { color: var(--accent); }
     button { font: inherit; color: inherit; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; cursor: pointer; }
-    button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.on { background: var(--accent); color: #fff; border: 2px solid var(--accent); padding: 4px 7px; font-weight: 600; }
+    @media (forced-colors: active) { button.on, button[aria-pressed="true"] { background: Highlight; color: HighlightText; border: 2px solid HighlightText; forced-color-adjust: none; } }
     button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .muted { color: var(--muted); font-size: 12px; }
     .item { border-top: 1px solid var(--line); padding: 8px 0; }
@@ -147,6 +171,11 @@
     .box { font-size: calc(13px * var(--sm-scale, 1)); }
   `;
 
+  let cssSheet;
+  function sharedSheet() {
+    if (cssSheet === undefined) { try { cssSheet = new CSSStyleSheet(); cssSheet.replaceSync(CSS); } catch { cssSheet = null; } }
+    return cssSheet;
+  }
   function panel(id, title, bodyNodes, opts = {}) {
     const { minimized = false } = opts;
     const root = host(id);
@@ -158,7 +187,11 @@
     box.style.setProperty('--sm-scale', String(scale()));
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
     const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');
-    box.append(h('style', {}, CSS),
+    // CSS einmal parsen und an jeden Shadow Root hängen (statt bei jedem Panel-Neubau ein <style> neu zu parsen); Rückfall: <style>
+    const sheet = sharedSheet();
+    let styled = false;
+    if (sheet) { try { root.adoptedStyleSheets = [sheet]; styled = true; } catch {} }
+    box.append(...(styled ? [] : [h('style', {}, CSS)]),
       h('div', { class: 'head' }, h('b', { class: 'brand' }, 'Stay', h('span', {}, 'Match'), ' · ', title), h('div', {}, toggle, ' ', close)),
       h('div', { class: 'body' }, bodyNodes));
     root.append(box);
@@ -169,18 +202,19 @@
   const keys = {};
   function onKey(e) {
     if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
+    if (e.repeat) return; // gehaltene Taste toggelt nicht im Dauertakt
     const t = e.composedPath?.()[0] || e.target;
     if (t?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName || '')) return;
     const act = keys[e.code];
     if (act) { e.preventDefault(); act(); }
   }
-  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) rootOf(id)?.querySelector('.box')?.classList.toggle('min'); };
+  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } } };
   document.addEventListener('keydown', onKey, true);
 
     // Kartenverschieben und Zoomen ändert nur diese Parameter; das ist keine neue Suche (Panel und Budgeteingabe bleiben)
   const MAP_PARAMS = ['ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'zoom', 'zoom_level', 'center_lat', 'center_lng', 'search_by_map', 'map_toggle', 'viewport_width', 'viewport_height', 'update_selected_filters'];
   const searchKey = () => { const u = new URL(location.href); MAP_PARAMS.forEach(k => u.searchParams.delete(k)); u.hash = ''; return u.href; };
-  const SMC = window.StayMatchContent = { rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
+  const SMC = window.StayMatchContent = { ready, isPaused, SCHEMA, migrateListing, rootOf, searchKey, getListing, saveListing, allListings, getTrip, tasteFrom, h, panel, copyText, settings, settingsListeners, keys, T, REPORT_URL, SCAM_HELP_URL, search: null, room: null, start };
   function start() {
     // R7: fehlt ein Seiten-Modul (Syntaxfehler, halbes Update), nicht in jedem route() stumm werfen
     if (!SMC.search || !SMC.room) {
