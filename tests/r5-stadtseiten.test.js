@@ -23,7 +23,7 @@ test('Stadtseite: Titel, canonical, ODbL-Hinweis, keine Fremdhosts außer OSM-Li
     assert.ok(h.includes('OpenStreetMap') && h.includes('ODbL'), f + ' ohne Quellenangabe');
     const n = (h.match(/<li><b>/g) || []).length; // kleine Städte (Salzburg) haben zu wenig Viertel mit Mindestabstand für volle 5
     assert.ok(n >= 20 && n <= 25, f + `: 5 Typen × bis zu 5 Viertel, gefunden ${n}`);
-    assert.ok(![...h.matchAll(/<script[^>]*>/gi)].some(m => !m[0].includes('application/ld+json')), f + ' nur JSON-LD als Skript');
+    assert.ok(![...h.matchAll(/<script[^>]*>/gi)].some(m => !m[0].includes('application/ld+json') && !m[0].includes('src="/theme-legal.js"')), f + ' nur JSON-LD und das eigene Theme-Skript');
     const hosts = new Set([...h.matchAll(/https?:\/\/([^/"' ]+)/g)].map(m => m[1]));
     for (const x of hosts) assert.ok(['staymatch.pro', 'opendatacommons.org', 'www.openstreetmap.org', 'www.airbnb.de', 'schema.org'].includes(x), `${f}: Fremdhost ${x}`);
   }
