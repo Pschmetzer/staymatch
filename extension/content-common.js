@@ -7,6 +7,8 @@
 // content-listing.js startet zuletzt den Router.
 (() => {
   const P = window.StayMatchParse;
+  const I18n = window.StayMatchI18n;
+  const t = (k, v) => I18n.t(k, v);
   const T = window.__STAYMATCH_TEST__ || {}; // nur in Tests gesetzt (Zeiten kürzen, Funktionen erreichen)
   const REPORT_URL = 'https://github.com/Pschmetzer/staymatch/issues/new';
   // Betrugsverdacht: Schritt-für-Schritt-Hilfe auf der Startseite (nur ein Link, das Plugin lädt dort nichts)
@@ -74,9 +76,9 @@
     if (warned) return; warned = true;
     const quota = /quota/i.test(String(e?.message || e));
     try {
-      panel('sm-storage', quota ? 'Speicher voll' : 'Speichern fehlgeschlagen', [
-        h('div', { class: 'err', role: 'alert' }, h('b', {}, 'Deine letzte Änderung wurde nicht gespeichert.'), h('div', {}, quota ? 'Der Speicher der Erweiterung ist voll. Öffne das StayMatch-Popup → „Löschen…“ (vorher „Alles sichern“) und versuche es erneut.' : 'Der Browser hat das Speichern abgelehnt. Lade die Seite neu und versuche es erneut.'))]);
-      SMC.say?.('Achtung: Deine Änderung wurde nicht gespeichert.');
+      panel('sm-storage', quota ? t('panel.storage.fullTitle') : t('panel.storage.failedTitle'), [
+        h('div', { class: 'err', role: 'alert' }, h('b', {}, t('panel.storage.unsaved')), h('div', {}, quota ? t('panel.storage.full') : t('panel.storage.denied')))]);
+      SMC.say?.(t('panel.storage.say'));
     } catch {}
   }
   async function allListings() {
@@ -254,12 +256,12 @@
     const live = root.querySelector('.sr-live') || h('div', { class: 'sr-live', role: 'status', 'aria-live': 'polite', style: 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap' });
     root.replaceChildren(live);
     if (opts.announce != null && live.textContent !== opts.announce) setTimeout(() => { live.textContent = opts.announce; }, 50);
-    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: window.StayMatchI18n?.lang() || 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
+    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: window.StayMatchI18n?.lang() || 'de' }); // R7: Panelsprache folgt der Sprache der Seite (i18n.js)
     box.style.setProperty('--sm-scale', String(scale()));
     placeBox(box);
-    const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
-    const dock = h('button', { 'aria-label': 'Panel links oder rechts andocken', title: 'Links/rechts andocken (Alt+Shift+D)', onclick: dockToggle }, '⇆');
-    const close = h('button', { 'aria-label': 'Schließen', onclick: () => document.getElementById(id)?.remove() }, '✕');
+    const toggle = h('button', { 'aria-label': t('panel.toggle'), onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');
+    const dock = h('button', { 'aria-label': t('panel.dock.label'), title: t('panel.dock.title'), onclick: dockToggle }, '⇆');
+    const close = h('button', { 'aria-label': t('panel.close'), onclick: () => document.getElementById(id)?.remove() }, '✕');
     // CSS einmal parsen und an jeden Shadow Root hängen (statt bei jedem Panel-Neubau ein <style> neu zu parsen); Rückfall: <style>
     const sheet = sharedSheet();
     let styled = false;
@@ -290,8 +292,8 @@
     setTimeout(() => { live.textContent = text; }, 50);
   }
   const dockToggle = () => saveSetting({ panelSide: settings.panelSide === 'left' && !settings.panelPos ? undefined : 'left', panelPos: undefined }).catch(() => {});
-  keys.KeyD = () => { say(settings.panelSide === 'left' && !settings.panelPos ? 'Panel rechts angedockt' : 'Panel links angedockt'); dockToggle(); };
-  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); say(box.classList.contains('min') ? 'Panel eingeklappt' : 'Panel ausgeklappt'); } } };
+  keys.KeyD = () => { say(settings.panelSide === 'left' && !settings.panelPos ? t('panel.say.dockedRight') : t('panel.say.dockedLeft')); dockToggle(); };
+  keys.KeyM = () => { for (const id of ['sm-search', 'sm-room']) { const box = rootOf(id)?.querySelector('.box'); if (box) { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); say(box.classList.contains('min') ? t('panel.say.collapsed') : t('panel.say.expanded')); } } };
   document.addEventListener('keydown', onKey, true);
 
     // Kartenverschieben und Zoomen ändert nur diese Parameter; das ist keine neue Suche (Panel und Budgeteingabe bleiben)
@@ -304,7 +306,7 @@
     // R7: fehlt ein Seiten-Modul (Syntaxfehler, halbes Update), nicht in jedem route() stumm werfen
     if (!SMC.search || !SMC.room) {
       console.debug('StayMatch: Modul fehlt', { search: !!SMC.search, room: !!SMC.room });
-      if (isList(location.pathname) || P.ROOM_RE.test(location.pathname)) panel('sm-error', 'Plugin unvollständig', [h('div', { class: 'err' }, 'Ein Teil des Plugins wurde nicht geladen. Bitte das Plugin unter chrome://extensions neu laden.')]);
+      if (isList(location.pathname) || P.ROOM_RE.test(location.pathname)) panel('sm-error', t('panel.incomplete.title'), [h('div', { class: 'err' }, t('panel.incomplete.text'))]);
       return;
     }
     let lastUrl = '', lastKey = '', debounce = null, emptyTimer = null;

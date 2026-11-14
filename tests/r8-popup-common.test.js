@@ -8,7 +8,7 @@ const skip = !D.JSDOM && 'jsdom nicht installiert (npm install --prefix tests)';
 const { makePage, chromeMock, searchBody, shadow, until, sleep } = D;
 test.after(D.closeAll);
 
-vm.runInThisContext(D.src('import.js'));
+vm.runInThisContext(D.src('i18n.js')); vm.runInThisContext(D.src('strings.js')); vm.runInThisContext(D.src('import.js'));
 const I = globalThis.StayMatchImport;
 
 // ---------- import.js (reine Funktionen) ----------

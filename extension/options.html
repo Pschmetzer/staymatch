@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><title>StayMatch: Optionen</title>
+<html lang="de"><head><meta charset="utf-8"><title data-i18n="opts.title">StayMatch: Optionen</title>
 <style>
 body{max-width:560px;margin:24px auto;padding:0 16px;font:14px/1.5 system-ui;color:#1d1d1f;background:#fff}
 h1{font-size:18px} h2{font-size:15px;margin:22px 0 4px} section{border-top:1px solid #e4e2dc;margin-top:18px} select{font:inherit} h1 span{color:#e0475b} .muted{color:#6b6b70;font-size:12px}
@@ -8,25 +8,27 @@ button:focus-visible,input:focus-visible{outline:2px solid #e0475b;outline-offse
 @media (prefers-color-scheme: dark){body{background:#1e1e22;color:#f2f2f4}.muted{color:#a0a0a8}button{border-color:#34343a}}
 </style></head>
 <body>
-<h1>Stay<span>Match</span> · Optionen</h1>
-<section id="panel"><h2>Panel auf Airbnb</h2>
-<label>Seite: <select id="side"><option value="right">rechts unten</option><option value="left">links unten</option></select></label>
-<p class="muted">Das Panel lässt sich auf der Airbnb-Seite auch an der Kopfzeile verschieben; „Zurücksetzen“ stellt die Standard-Position wieder her.</p>
-<button id="resetPos">Position zurücksetzen</button> <span id="panelInfo" class="muted" role="status"></span></section>
-<section id="bd"><h2>Toolbar-Symbol</h2>
-<label><input type="checkbox" id="badge" checked> Zahl der Treffer am Symbol anzeigen</label></section>
-<section id="rem"><h2>Gebuchte Etappen</h2>
-<label><input type="checkbox" id="remind"> Erinnerung am Tag vor Ablauf der kostenlosen Stornierung</label>
-<p class="muted">Dafür fragt Chrome einmalig nach „Benachrichtigungen“. Die Erinnerung entsteht lokal auf diesem Gerät, es wird nichts gesendet.</p>
-<button id="icsBtn">Etappen als Kalender-Datei (.ics) laden</button> <span id="remInfo" class="muted" role="status"></span></section>
-<section id="imp"><h2>Merkliste importieren</h2>
-<p class="muted">Wähle eine Datei, die du mit „JSON“ im StayMatch-Popup gesichert hast. Vorhandene Unterkünfte werden zusammengeführt: Notiz, Stimme und Besuche gehen nicht verloren, der neuere Stand gewinnt. Alles bleibt in diesem Browser.</p>
-<p><input type="file" id="file" accept="application/json,.json" aria-label="Datei wählen"></p>
+<h1>Stay<span>Match</span><span data-i18n="opts.h1"> · Optionen</span></h1>
+<section id="panel"><h2 data-i18n="opts.panel.h">Panel auf Airbnb</h2>
+<label><span data-i18n="opts.side">Seite:</span> <select id="side"><option value="right" data-i18n="opts.side.right">rechts unten</option><option value="left" data-i18n="opts.side.left">links unten</option></select></label>
+<p class="muted" data-i18n="opts.panel.note">Das Panel lässt sich auf der Airbnb-Seite auch an der Kopfzeile verschieben; „Zurücksetzen“ stellt die Standard-Position wieder her.</p>
+<button id="resetPos" data-i18n="opts.resetPos">Position zurücksetzen</button> <span id="panelInfo" class="muted" role="status"></span></section>
+<section id="bd"><h2 data-i18n="opts.toolbar.h">Toolbar-Symbol</h2>
+<label><input type="checkbox" id="badge" checked> <span data-i18n="opts.badge">Zahl der Treffer am Symbol anzeigen</span></label></section>
+<section id="rem"><h2 data-i18n="opts.rem.h">Gebuchte Etappen</h2>
+<label><input type="checkbox" id="remind"> <span data-i18n="opts.remind">Erinnerung am Tag vor Ablauf der kostenlosen Stornierung</span></label>
+<p class="muted" data-i18n="opts.rem.note">Dafür fragt Chrome einmalig nach „Benachrichtigungen“. Die Erinnerung entsteht lokal auf diesem Gerät, es wird nichts gesendet.</p>
+<button id="icsBtn" data-i18n="opts.icsBtn">Etappen als Kalender-Datei (.ics) laden</button> <span id="remInfo" class="muted" role="status"></span></section>
+<section id="imp"><h2 data-i18n="opts.imp.h">Merkliste importieren</h2>
+<p class="muted" data-i18n="opts.imp.note">Wähle eine Datei, die du mit „JSON“ im StayMatch-Popup gesichert hast. Vorhandene Unterkünfte werden zusammengeführt: Notiz, Stimme und Besuche gehen nicht verloren, der neuere Stand gewinnt. Alles bleibt in diesem Browser.</p>
+<p><input type="file" id="file" accept="application/json,.json" aria-label="Datei wählen" data-i18n-attr="aria-label:opts.imp.file"></p>
 <div id="out" role="status" aria-live="polite"></div></section>
-<section id="exp"><h2>Sichern und löschen</h2>
-<p><button id="exportFull">Alles sichern (JSON)</button> <button id="exportClean">Bereinigt exportieren (zum Teilen)</button></p>
-<p><label>Löschen: <select id="wipeKind"><option value="verlauf">Verlauf (Unterkünfte, Likes, Notizen, Statistik)</option><option value="zwischenspeicher">Zwischenspeicher (letzte Suche, Sammlung)</option><option value="reise">Reise</option><option value="alles">Alles (Einstellungen bleiben)</option></select></label> <button id="wipe">Löschen…</button></p>
+<section id="exp"><h2 data-i18n="opts.exp.h">Sichern und löschen</h2>
+<p><button id="exportFull" data-i18n="opts.exportFull">Alles sichern (JSON)</button> <button id="exportClean" data-i18n="opts.exportClean">Bereinigt exportieren (zum Teilen)</button></p>
+<p><label><span data-i18n="opts.wipeLabel">Löschen:</span> <select id="wipeKind"><option value="verlauf" data-i18n="opts.wipe.verlauf">Verlauf (Unterkünfte, Likes, Notizen, Statistik)</option><option value="zwischenspeicher" data-i18n="opts.wipe.zwischenspeicher">Zwischenspeicher (letzte Suche, Sammlung)</option><option value="reise" data-i18n="opts.wipe.reise">Reise</option><option value="alles" data-i18n="opts.wipe.alles">Alles (Einstellungen bleiben)</option></select></label> <button id="wipe" data-i18n="opts.wipeBtn">Löschen…</button></p>
 <div id="wipeOut" role="status" aria-live="polite" class="muted"></div></section>
+<section id="langSec"><h2 data-i18n="opts.lang.h">Sprache</h2>
+<select id="lang" aria-label="Sprache" data-i18n-attr="aria-label:opts.lang.aria"><option value="auto" data-i18n="opts.lang.auto">Automatisch (Airbnb-Seite bzw. Browser)</option><option value="de">Deutsch</option><option value="en">English</option></select></section>
 <script src="core.js"></script>
 <script src="i18n.js"></script>
 <script src="strings.js"></script>

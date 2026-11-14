@@ -14,40 +14,41 @@ button.lnk{font-size:12px;color:#e0475b;background:none;border:0;cursor:pointer;
 footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cursor:pointer;padding:0}
 </style></head>
 <body>
-<header><h1>Stay<span>Match</span></h1><div class="muted">Lokal gespeichert, verlässt deinen Browser nicht.</div></header>
+<header><h1>Stay<span>Match</span></h1><div class="muted" data-i18n="popup.privacy">Lokal gespeichert, verlässt deinen Browser nicht.</div></header>
 <div id="pageStatus" class="muted" role="status" style="padding:4px 14px;font-size:12px"></div>
 <div id="profile"></div>
 <div id="trip"></div>
 <div id="wishProfile" style="padding:6px 14px;font-size:12px;border-bottom:1px solid #eee" hidden><button id="profileBtn" class="lnk" aria-pressed="false"></button> <span id="profileInfo" class="muted" role="status"></span></div>
-<nav role="tablist" aria-label="Ansicht"><button role="tab" id="tab-top" aria-selected="true" aria-controls="list" data-tab="top" class="on">Empfehlungen</button><button role="tab" id="tab-all" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="all">Verlauf</button><button role="tab" id="tab-liked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="liked">Gefällt mir</button><button role="tab" id="tab-disliked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="disliked">Nein</button></nav>
-<input type="search" id="search" placeholder="Suchen (Titel, Ort, Notiz)" aria-label="Verlauf durchsuchen" hidden>
-<div id="sortbar" style="padding:0 14px 6px;font-size:12px" hidden><label>Sortieren: <select id="sort"><option value="seen">zuletzt gesehen</option><option value="price">Preis (günstig zuerst)</option><option value="rating">Note (beste zuerst)</option><option value="booked">gebucht zuerst</option></select></label> <label><input type="checkbox" id="onlyBooked"> nur gebucht</label> <label>Etikett: <select id="tagFilter"><option value="">alle</option></select></label></div>
+<nav role="tablist" data-i18n-attr="aria-label:popup.nav" aria-label="Ansicht"><button role="tab" id="tab-top" aria-selected="true" aria-controls="list" data-tab="top" data-i18n="popup.tab.top" class="on">Empfehlungen</button><button role="tab" id="tab-all" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="all" data-i18n="popup.tab.all">Verlauf</button><button role="tab" id="tab-liked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="liked" data-i18n="popup.tab.liked">Gefällt mir</button><button role="tab" id="tab-disliked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="disliked" data-i18n="popup.tab.disliked">Nein</button></nav>
+<input type="search" id="search" placeholder="Suchen (Titel, Ort, Notiz)" aria-label="Verlauf durchsuchen" data-i18n-attr="placeholder:popup.search.ph;aria-label:popup.search.aria" hidden>
+<div id="sortbar" style="padding:0 14px 6px;font-size:12px" hidden><label><span data-i18n="popup.sort">Sortieren:</span> <select id="sort"><option value="seen" data-i18n="popup.sort.seen">zuletzt gesehen</option><option value="price" data-i18n="popup.sort.price">Preis (günstig zuerst)</option><option value="rating" data-i18n="popup.sort.rating">Note (beste zuerst)</option><option value="booked" data-i18n="popup.sort.booked">gebucht zuerst</option></select></label> <label><input type="checkbox" id="onlyBooked"> <span data-i18n="popup.onlyBooked">nur gebucht</span></label> <label><span data-i18n="popup.tag">Etikett:</span> <select id="tagFilter"><option value="" data-i18n="popup.tag.all">alle</option></select></label></div>
 <div id="list" role="tabpanel" aria-labelledby="tab-top" tabindex="0"></div>
 <div id="opts" style="padding:6px 14px;font-size:12px;border-top:1px solid #eee">
-<label style="display:block"><input type="checkbox" id="optBadges" checked> Punkte an den Airbnb-Karten anzeigen</label>
-<label style="display:block;margin-top:4px">Panel-Design: <select id="optTheme"><option value="auto">automatisch</option><option value="light">hell</option><option value="dark">dunkel</option></select></label>
-<button id="share" style="margin-top:6px;font-size:12px;color:#e0475b;background:none;border:0;cursor:pointer;padding:0">Merkliste kopieren</button>
+<label style="display:block"><input type="checkbox" id="optBadges" checked> <span data-i18n="popup.badges">Punkte an den Airbnb-Karten anzeigen</span></label>
+<label style="display:block;margin-top:4px"><span data-i18n="popup.theme">Panel-Design:</span> <select id="optTheme"><option value="auto" data-i18n="popup.theme.auto">automatisch</option><option value="light" data-i18n="popup.theme.light">hell</option><option value="dark" data-i18n="popup.theme.dark">dunkel</option></select></label>
+<button id="share" data-i18n="popup.share" style="margin-top:6px;font-size:12px;color:#e0475b;background:none;border:0;cursor:pointer;padding:0">Merkliste kopieren</button>
 <div id="backup" class="muted warn" hidden></div>
 <div id="stats" class="muted"></div>
-<details id="more"><summary>Mehr Einstellungen und Werkzeuge</summary>
-<label style="display:block;margin-top:4px">Textgröße im Panel: <select id="optScale"><option value="1">100 %</option><option value="1.15">115 %</option><option value="1.3">130 %</option><option value="1.5">150 %</option></select></label>
-<label style="display:block"><input type="checkbox" id="optScoreOnly"> Screenshot-Modus: an den Karten nur die Punkte</label>
-<label style="display:block"><input type="checkbox" id="optBlind"> Blindverkostung: Fotos auf der Suchseite ausblenden</label>
-<div style="margin-top:4px">Kopiertexte: <label><input type="checkbox" id="optNoPrices"> ohne Preise</label> <label><input type="checkbox" id="optNoEmoji"> ohne Emojis</label> <label><input type="checkbox" id="optMarkdown"> als Markdown-Tabelle</label></div>
+<details id="more"><summary data-i18n="popup.more">Mehr Einstellungen und Werkzeuge</summary>
+<label style="display:block;margin-top:4px"><span data-i18n="popup.lang">Sprache</span>: <select id="optLang"><option value="auto" data-i18n="popup.lang.auto">Automatisch (Airbnb-Seite bzw. Browser)</option><option value="de">Deutsch</option><option value="en">English</option></select></label>
+<label style="display:block;margin-top:4px"><span data-i18n="popup.scale">Textgröße im Panel:</span> <select id="optScale"><option value="1">100 %</option><option value="1.15">115 %</option><option value="1.3">130 %</option><option value="1.5">150 %</option></select></label>
+<label style="display:block"><input type="checkbox" id="optScoreOnly"> <span data-i18n="popup.scoreOnly">Screenshot-Modus: an den Karten nur die Punkte</span></label>
+<label style="display:block"><input type="checkbox" id="optBlind"> <span data-i18n="popup.blind">Blindverkostung: Fotos auf der Suchseite ausblenden</span></label>
+<div style="margin-top:4px"><span data-i18n="popup.copyTexts">Kopiertexte:</span> <label><input type="checkbox" id="optNoPrices"> <span data-i18n="popup.noPrices">ohne Preise</span></label> <label><input type="checkbox" id="optNoEmoji"> <span data-i18n="popup.noEmoji">ohne Emojis</span></label> <label><input type="checkbox" id="optMarkdown"> <span data-i18n="popup.markdown">als Markdown-Tabelle</span></label></div>
 <div style="margin-top:4px"><button id="pause" class="lnk">Spuren-Pause: 1 Stunde ohne Verlauf</button> <span id="pauseInfo" class="muted"></span></div>
-<div style="margin-top:4px"><button id="trips" class="lnk">Gebuchte Etappen kopieren</button> · <button id="ics" class="lnk">als Kalender (.ics)</button></div>
-<label style="display:block;margin-top:6px">Link prüfen: <input type="url" id="linkCheck" placeholder="https://…" style="width:60%"></label>
+<div style="margin-top:4px"><button id="trips" class="lnk" data-i18n="popup.trips">Gebuchte Etappen kopieren</button> · <button id="ics" class="lnk" data-i18n="popup.ics">als Kalender (.ics)</button></div>
+<label style="display:block;margin-top:6px"><span data-i18n="popup.linkCheck">Link prüfen:</span> <input type="url" id="linkCheck" placeholder="https://…" style="width:60%"></label>
 <div id="linkResult" class="muted" role="status"></div>
-<label style="display:block;margin-top:6px">Merkliste eines Freundes (kopierter Text): <textarea id="friendText" rows="2" style="width:100%;box-sizing:border-box"></textarea></label>
-<button id="friendAdd" class="lnk">Übernehmen</button> <span id="friendInfo" class="muted"></span>
-<div id="friendList" class="muted" aria-label="Gespeicherte Listen von Freunden"></div>
-<div style="margin-top:6px"><button id="dataInfo" class="lnk">Was ist gespeichert?</button></div>
+<label style="display:block;margin-top:6px"><span data-i18n="popup.friendText">Merkliste eines Freundes (kopierter Text):</span> <textarea id="friendText" rows="2" style="width:100%;box-sizing:border-box"></textarea></label>
+<button id="friendAdd" class="lnk" data-i18n="popup.friendAdd">Übernehmen</button> <span id="friendInfo" class="muted"></span>
+<div id="friendList" class="muted" aria-label="Gespeicherte Listen von Freunden" data-i18n-attr="aria-label:popup.friendList.aria"></div>
+<div style="margin-top:6px"><button id="dataInfo" class="lnk" data-i18n="popup.dataInfo">Was ist gespeichert?</button></div>
 <div id="dataOut" class="muted"></div>
 <div id="aiInfo" class="muted"></div>
-<details style="margin-top:4px"><summary class="muted">Selbst prüfen: keine Anfragen</summary><div class="muted">Rechtsklick auf das Popup → „Untersuchen“ → Reiter „Netzwerk“. Auf Airbnb: Entwicklerwerkzeuge (F12) → „Netzwerk“, Filter „chrome-extension“. StayMatch stellt keine eigenen Anfragen; Bilder kommen nur von Airbnb selbst.</div></details>
+<details style="margin-top:4px"><summary class="muted" data-i18n="popup.selfCheck">Selbst prüfen: keine Anfragen</summary><div class="muted" data-i18n="popup.selfCheckBody">Rechtsklick auf das Popup → „Untersuchen“ → Reiter „Netzwerk“. Auf Airbnb: Entwicklerwerkzeuge (F12) → „Netzwerk“, Filter „chrome-extension“. StayMatch stellt keine eigenen Anfragen; Bilder kommen nur von Airbnb selbst.</div></details>
 </details>
 </div>
-<footer><a id="app" target="_blank">Viertel-Finder öffnen</a><span><button id="csv">CSV</button> · <button id="export">JSON</button> · <button id="import">Import</button> · <button id="options">Optionen</button> · <button id="wipe">Löschen…</button></span></footer>
+<footer><a id="app" target="_blank" data-i18n="popup.app">Viertel-Finder öffnen</a><span><button id="csv">CSV</button> · <button id="export">JSON</button> · <button id="import" data-i18n="popup.import">Import</button> · <button id="options" data-i18n="popup.options">Optionen</button> · <button id="wipe" data-i18n="popup.wipe">Löschen…</button></span></footer>
 <input type="file" id="file" accept="application/json" hidden>
 <script src="core.js"></script>
 <script src="i18n.js"></script>

@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const D = require('./helpers/dom.js');
-const I = (() => { const g = {}; new Function('window', D.src('import.js'))(g); return g.StayMatchImport; })();
+const I = (() => { const g = {}; new Function('window', D.src('i18n.js') + '\n' + D.src('strings.js') + '\n' + D.src('import.js'))(g); return g.StayMatchImport; })();
 const skip = !D.JSDOM && 'jsdom nicht installiert';
 test.after(D.closeAll);
 

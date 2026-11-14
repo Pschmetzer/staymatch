@@ -1,4 +1,6 @@
-# Chrome Web Store: Vorbereitung
+# Chrome Web Store: Vorbereitung (Deutsch, English below)
+
+Sprachen: Die Erweiterung erscheint auf Deutsch (Airbnb .de/.at/.ch bzw. deutsche Browsersprache) und sonst auf Englisch; in den Optionen lässt sich die Sprache festlegen. Name und Kurzbeschreibung kommen aus `extension/_locales/{de,en}/messages.json` (`default_locale: de`). Store-Texte: unten DE, danach EN (beide im Entwicklerkonto als eigene Sprachversionen eintragen).
 
 Einreichen musst du selbst (Entwicklerkonto, einmalig 5 USD): https://chrome.google.com/webstore/devconsole
 
@@ -35,3 +37,34 @@ Kein Konto, keine Server, kein Tracking. Das Plugin liest nur Seiten, die du sel
 2. Bilder: Screenshots 1280×800 (Panel auf Suchseite, Popup, Viertel-Finder), kleine Werbekachel 440×280 (Pflicht) und optional große Kachel 1400×560. Echte Screenshots mit „Beispiel“ kennzeichnen.
 3. Länderliste (24 Domains) in `extension/manifest.json` auf getestete Domains kürzen und `localhost:8765` für den Store-Build entfernen.
 4. `./scripts/build-plugin-zip.sh` → ZIP hochladen.
+
+---
+
+# Chrome Web Store: preparation (English)
+
+You have to submit it yourself (developer account, one-time USD 5): https://chrome.google.com/webstore/devconsole. Add this block as the English listing; the German block above is the default listing.
+
+**Name:** StayMatch – Stay Shortlist (same as `extName` in `_locales/en/messages.json`; no "for Airbnb" in the title; the text says "works on Airbnb pages" so no affiliation is implied)
+**Short description (max 132 characters, also in `_locales/en`):** Scores every listing on the search page by budget, stars and your wishes and shows the top 3. Everything stays local.
+**Single purpose (required field):** Helps you choose a place to stay: scores the listings on the Airbnb search page you have open by your budget and wishes, shows the best three with reasons, and keeps your picks (thumbs up/down, notes) on listing pages as a local shortlist.
+**Category:** Travel / Productivity
+**Privacy policy URL:** https://staymatch.pro/datenschutz (German; check before submitting)
+
+**Description:**
+Find the right place faster instead of clicking through 40 listings one by one. Open a normal Airbnb search and StayMatch scores every listing on the page: stars weighted by number of reviews, total price against your budget per night, beds and your wishes (entire place, Superhost/guest favourite, many reviews, not a commercial host). The best three appear in a panel with reasons and warnings; every card gets a score badge.
+Optional: the neighbourhood finder (https://staymatch.pro/app) first finds the area that suits you (with friends: the one everybody is happy with) and hands wishes, budget and areas to the extension.
+Also: history, thumbs up/down, notes, price history, export (backup, cleaned file, calendar), an options page (panel position, badge with the number of listings, reminder before free cancellation ends as an opt-in), a printable top 3 page and a page diagnosis in the popup.
+No account, no servers, no tracking. The extension only reads pages you open yourself. Independent, not affiliated with Airbnb. Open source (MIT).
+
+**Permission justifications (form):**
+- `storage`: keeps history, likes, notes and the trip locally in the browser (`chrome.storage.local`). Nothing is sent.
+- `alarms` (optional, only on your click on "Reminder" in the options): a local alarm for the reminder before the free cancellation of a booked stay ends.
+- `notifications` (optional, same click): shows that reminder as a notification. Without your permission there is no reminder.
+- Access to airbnb pages: reads the open search and listing page to score prices, ratings and location.
+- Access to staymatch.pro: takes over group, budget and area scores from the neighbourhood finder.
+
+**Data usage (form):** No user data is collected, transmitted or sold. Only local storage (`chrome.storage.local`): visited listings, likes, notes, settings, trip from the neighbourhood finder. Tick all three assurances (no sale, no use beyond the purpose, no creditworthiness use).
+**Remote code:** No. The extension neither loads nor runs code from outside; all scripts are in the package. The only network requests: preview images of the top 3 listings in the panel, loaded from Airbnb's image server (address taken from the Airbnb page, no referrer).
+**Incognito:** The extension is not active in incognito windows (`incognito: not_allowed`), so no history is created there.
+**Test instructions for reviewers:** Install, open a normal Airbnb search (city, dates, guests); the panel appears bottom right with the top 3 and scores on the cards. Open a listing: panel with thumbs up/down and a note. Popup (toolbar icon): history, export. No account needed. To see the English interface use airbnb.com (or set Language to English in the options).
+**Excluded pages:** booking, account settings, hosting area, messages and payments (`exclude_matches` in the manifest).

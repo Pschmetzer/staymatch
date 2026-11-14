@@ -1,13 +1,16 @@
 // StayMatch – Zusatz-Hinweise (Runde 7 E). Reine Funktionen ohne chrome.* und ohne DOM.
 // Teil 1: Texte der Unterkunftsseite (Beschreibung, Hausregeln, Ausstattung, Gastgeber, Buchungsbereich).
 // Teil 2: Auswertungen über alle Karten der Suchseite (Preisanker, Lockpreis, Zwilling, Stabilität …).
-// Alle Texte sind deutsch und stehen hier lokal (später nach i18n.js). Ungeprüft live: wie Airbnb die Abschnitte genau schreibt.
+// Alle Texte stehen in strings.js (Präfix extras.) und werden zur Aufrufzeit übersetzt. Ungeprüft live: wie Airbnb die Abschnitte genau schreibt.
 (function (root) {
   const P = root.StayMatchParse || (typeof require === 'function' ? (require('./parse.js'), globalThis.StayMatchParse) : null);
+  const I18n = root.StayMatchI18n || (typeof require === 'function' ? require('./i18n.js') : null);
+  const tr = (k, v) => I18n.t(k, v); // (t ist in diesem Modul oft Parametername)
+  const jn = a => a.join(', ');
   const R = () => root.StayMatchRank || globalThis.StayMatchRank;
   const S = v => String(v || '');
-  const sep = (n, d = 1) => String(Math.round(n * 10 ** d) / 10 ** d).replace('.', ',');
-  const fmt = v => Math.round(v).toLocaleString('de-DE');
+  const sep = (n, d = 1) => I18n.dec(String(Math.round(n * 10 ** d) / 10 ** d));
+  const fmt = v => Math.round(v).toLocaleString(I18n.locale());
   const money = (v, c) => (c ? `${fmt(v)} ${c}` : fmt(v));
   // Betrag mit Währung im Satzstück nach einem Stichwort (ohne Währung kein Betrag: „3 Gäste“ ist kein Preis)
   function amountAfter(t, re, span = 70) {
@@ -47,28 +50,28 @@
 
   // Kosten, die erst vor Ort dazukommen
   const ONSITE = [
-    [/strom\s+(?:nach|wird nach)\s+verbrauch|electricity (?:is )?(?:charged|paid) (?:separately|by consumption|on site)|électricité en sus/i, 'Strom nach Verbrauch'],
-    [/heiz(?:kosten|ung)\s+(?:nach verbrauch|extra|wird extra)|heating (?:is )?(?:charged|extra)/i, 'Heizkosten extra'],
-    [/(?:kurtaxe|ortstaxe|city tax|tourist tax|taxe de séjour|tasa turística|tassa di soggiorno)[^.\n]{0,40}(?:bar|vor ort|in cash|on site|on arrival|sur place|en efectivo|in contanti)/i, 'Kurtaxe vor Ort'],
-    [/endreinigung[^.\n]{0,30}vor ort|final cleaning[^.\n]{0,30}(?:on site|on arrival|cash)|ménage final[^.\n]{0,30}sur place/i, 'Endreinigung vor Ort'],
-    [/bettwäsche[^.\n]{0,40}(?:gegen gebühr|gegen aufpreis|kostenpflichtig|extra|mieten)|(?:bed )?linens?[^.\n]{0,30}(?:for a fee|extra charge|not included|available for rent)|draps[^.\n]{0,30}(?:en supplément|non fournis)/i, 'Bettwäsche/Handtücher gegen Gebühr'],
+    [/strom\s+(?:nach|wird nach)\s+verbrauch|electricity (?:is )?(?:charged|paid) (?:separately|by consumption|on site)|électricité en sus/i, 'extras.onsite.electricity'],
+    [/heiz(?:kosten|ung)\s+(?:nach verbrauch|extra|wird extra)|heating (?:is )?(?:charged|extra)/i, 'extras.onsite.heating'],
+    [/(?:kurtaxe|ortstaxe|city tax|tourist tax|taxe de séjour|tasa turística|tassa di soggiorno)[^.\n]{0,40}(?:bar|vor ort|in cash|on site|on arrival|sur place|en efectivo|in contanti)/i, 'extras.onsite.tax'],
+    [/endreinigung[^.\n]{0,30}vor ort|final cleaning[^.\n]{0,30}(?:on site|on arrival|cash)|ménage final[^.\n]{0,30}sur place/i, 'extras.onsite.cleaning'],
+    [/bettwäsche[^.\n]{0,40}(?:gegen gebühr|gegen aufpreis|kostenpflichtig|extra|mieten)|(?:bed )?linens?[^.\n]{0,30}(?:for a fee|extra charge|not included|available for rent)|draps[^.\n]{0,30}(?:en supplément|non fournis)/i, 'extras.onsite.linen'],
   ];
-  const onSiteCosts = t => ONSITE.filter(([re]) => re.test(S(t))).map(([, l]) => l);
+  const onSiteCosts = t => ONSITE.filter(([re]) => re.test(S(t))).map(([, k]) => tr(k));
 
   // Putzliste beim Check-out
   const CHORES = [
-    [/spülmaschine|geschirr\s+(?:spülen|abwaschen)|dishwasher|wash (?:the )?dishes|vaisselle/i, 'Geschirr'],
-    [/bettwäsche\s+abziehen|betten\s+abziehen|strip (?:the )?beds?|enlever les draps/i, 'Betten abziehen'],
-    [/müll|abfall|trash|garbage|rubbish|poubelles?/i, 'Müll'],
-    [/handtücher\s+(?:sammeln|zusammen)|towels? (?:in|into) (?:a )?pile|gather (?:the )?towels/i, 'Handtücher'],
-    [/staubsaugen|fegen|vacuum|sweep/i, 'Saugen/Fegen'],
-    [/waschmaschine\s+(?:anstellen|laufen)|start (?:a |the )?(?:laundry|washing machine)/i, 'Wäsche'],
+    [/spülmaschine|geschirr\s+(?:spülen|abwaschen)|dishwasher|wash (?:the )?dishes|vaisselle/i, 'extras.chore.dishes'],
+    [/bettwäsche\s+abziehen|betten\s+abziehen|strip (?:the )?beds?|enlever les draps/i, 'extras.chore.beds'],
+    [/müll|abfall|trash|garbage|rubbish|poubelles?/i, 'extras.chore.trash'],
+    [/handtücher\s+(?:sammeln|zusammen)|towels? (?:in|into) (?:a )?pile|gather (?:the )?towels/i, 'extras.chore.towels'],
+    [/staubsaugen|fegen|vacuum|sweep/i, 'extras.chore.vacuum'],
+    [/waschmaschine\s+(?:anstellen|laufen)|start (?:a |the )?(?:laundry|washing machine)/i, 'extras.chore.laundry'],
   ];
   function checkoutChores(t) {
     const s = S(t);
     const m = s.match(/(?:vor (?:der |deiner )?abreise|beim check-?out|check-?out[- ]?(?:anweisungen|anleitung|instructions)|before you leave|avant de partir)[\s\S]{0,400}/i);
     const part = m ? m[0] : '';
-    return CHORES.filter(([re]) => re.test(part)).map(([, l]) => l);
+    return CHORES.filter(([re]) => re.test(part)).map(([, k]) => tr(k));
   }
 
   // Buchungsbereich: Reinigungs- und Servicegebühr. „Reinigungsgebühr 80 €“, „Cleaning fee $80“
@@ -191,20 +194,20 @@
     grabBars: /haltegriff\w*|grab bars?|barres d'appui/i,
   };
   const COFFEE = [
-    [/nespresso|kapselmaschine|kaffeekapsel|pod coffee|capsule|dolce gusto|tassimo|senseo|keurig/i, 'Kapselmaschine'],
-    [/siebträger|espressomaschine|espresso machine|machine à expresso|cafetera express/i, 'Espressomaschine'],
-    [/vollautomat|kaffeevollautomat|bean[- ]to[- ]cup/i, 'Vollautomat'],
-    [/filterkaffee|filtermaschine|kaffeemaschine|drip coffee|coffee maker|cafetière filtre|cafetera de goteo/i, 'Filterkaffee'],
-    [/french press|stempelkanne|cafetière à piston/i, 'French Press'],
-    [/moka|herdkanne|espressokocher|bialetti/i, 'Herdkanne'],
-    [/instant|löslich\w* kaffee|nescafé/i, 'nur Instant'],
+    [/nespresso|kapselmaschine|kaffeekapsel|pod coffee|capsule|dolce gusto|tassimo|senseo|keurig/i, 'extras.coffee.capsule'],
+    [/siebträger|espressomaschine|espresso machine|machine à expresso|cafetera express/i, 'extras.coffee.espresso'],
+    [/vollautomat|kaffeevollautomat|bean[- ]to[- ]cup/i, 'extras.coffee.bean'],
+    [/filterkaffee|filtermaschine|kaffeemaschine|drip coffee|coffee maker|cafetière filtre|cafetera de goteo/i, 'extras.coffee.filter'],
+    [/french press|stempelkanne|cafetière à piston/i, 'extras.coffee.press'],
+    [/moka|herdkanne|espressokocher|bialetti/i, 'extras.coffee.moka'],
+    [/instant|löslich\w* kaffee|nescafé/i, 'extras.coffee.instant'],
   ];
   function features(t) {
     const out = {};
     for (const [k, re] of Object.entries(FEATURES)) if (present(t, re)) out[k] = true;
     return out;
   }
-  const coffee = t => { const s = S(t); const hit = COFFEE.find(([re]) => re.test(s)); return hit ? hit[1] : null; };
+  const coffee = t => { const s = S(t); const hit = COFFEE.find(([re]) => re.test(s)); return hit ? tr(hit[1]) : null; };
   // Küche in drei Stufen
   function kitchenLevel(f, t) {
     if (f.oven && (f.stove || f.dishwasher)) return 'full';
@@ -220,22 +223,22 @@
   const SMOKING_OK = /rauchen (?:ist )?(?:erlaubt|gestattet)|raucher willkommen|smoking (?:is )?allowed|smoking permitted|fumeurs autorisés|se permite fumar|è consentito fumare/i;
   function petLimits(t) {
     const s = S(t), out = [];
-    if (/nur kleine? (?:hunde|haustiere|tiere)|small (?:dogs|pets) only|only small (?:dogs|pets)|petits chiens uniquement/i.test(s)) out.push('nur kleine Tiere');
+    if (/nur kleine? (?:hunde|haustiere|tiere)|small (?:dogs|pets) only|only small (?:dogs|pets)|petits chiens uniquement/i.test(s)) out.push(tr('extras.pet.small'));
     const m = s.match(/(?:max(?:imal|\.)?|höchstens|up to|maximum(?: of)?)\s*(\d)\s*(?:haustier\w*|hund\w*|tier\w*|pets?|dogs?|animaux)/i);
-    if (m) out.push(`höchstens ${m[1]} ${+m[1] === 1 ? 'Tier' : 'Tiere'}`);
-    if (/keine katzen|no cats|pas de chats/i.test(s)) out.push('keine Katzen');
-    if (/keine hunde|no dogs|pas de chiens/i.test(s)) out.push('keine Hunde');
+    if (m) out.push(tr('extras.pet.max', { n: +m[1] }));
+    if (/keine katzen|no cats|pas de chats/i.test(s)) out.push(tr('extras.pet.nocats'));
+    if (/keine hunde|no dogs|pas de chiens/i.test(s)) out.push(tr('extras.pet.nodogs'));
     return out;
   }
   const petFee = t => amountAfter(t, /haustiergebühr|gebühr für (?:haus)?tiere|tierpauschale|pet fee|pet cleaning fee|frais (?:pour )?animaux|tarifa (?:por )?mascota/i, 40);
   // Allergie: Tiere leben in der Unterkunft, Teppich, Federbetten
   const ALLERGY = [
-    [/(?:katze|kater)\s+(?:lebt|wohnt)|(?:unsere?|meine?)\s+katzen?\b|cat lives|resident cat|(?:our|my) cats?\b|chat vit/i, 'Katze lebt in der Unterkunft'],
-    [/(?:hund)\s+(?:lebt|wohnt)|(?:unser|mein)\s+hund\b|dog lives|resident dog|(?:our|my) dogs?\b|chien vit/i, 'Hund lebt in der Unterkunft'],
-    [/teppichboden|teppiche\b|carpet(?:ed|ing)?\b|moquette/i, 'Teppichboden'],
-    [/federbett\w*|daunen\w*|feather (?:duvet|pillows?)|down (?:duvet|comforter|pillows?)|couette en plumes/i, 'Federbetten/Daunen'],
+    [/(?:katze|kater)\s+(?:lebt|wohnt)|(?:unsere?|meine?)\s+katzen?\b|cat lives|resident cat|(?:our|my) cats?\b|chat vit/i, 'extras.allergy.cat'],
+    [/(?:hund)\s+(?:lebt|wohnt)|(?:unser|mein)\s+hund\b|dog lives|resident dog|(?:our|my) dogs?\b|chien vit/i, 'extras.allergy.dog'],
+    [/teppichboden|teppiche\b|carpet(?:ed|ing)?\b|moquette/i, 'extras.allergy.carpet'],
+    [/federbett\w*|daunen\w*|feather (?:duvet|pillows?)|down (?:duvet|comforter|pillows?)|couette en plumes/i, 'extras.allergy.feather'],
   ];
-  const allergy = t => ALLERGY.filter(([re]) => re.test(S(t))).map(([, l]) => l);
+  const allergy = t => ALLERGY.filter(([re]) => re.test(S(t))).map(([, k]) => tr(k));
   // Regel-Dichte: Zeilen bzw. Sätze der Hausregeln
   const ruleCount = t => S(t).split(/\n|(?<=[.!])\s+/).map(x => x.trim()).filter(x => x.length >= 6).length;
 
@@ -256,9 +259,9 @@
   // ---------- Sonstiges ----------
   const LICENSE = /(?:registriernummer|registrierungsnummer|lizenz(?:nummer)?|genehmigungsnummer|registration (?:number|no\.?)|licen[cs]e (?:number|no\.?)|policy number|numéro d'enregistrement|número de registro|n(?:úmero)? de licencia|codice identificativo|CIN|CIR)\s*[:#]?\s*([A-Z0-9][A-Z0-9/._-]{3,30})/i;
   const license = t => { const m = S(t).match(LICENSE); return m && /\d/.test(m[1]) ? m[1] : null; };
-  const GREEN = [[/ökostrom|grüner strom|green (?:energy|electricity)|renewable energy|énergie verte/i, 'Ökostrom'], [/solar\w*|photovoltaik|solar panels?|panneaux solaires/i, 'Solar'],
-    [/wärmepumpe|heat pump|pompe à chaleur/i, 'Wärmepumpe'], [/mülltrennung|recycling|tri sélectif|reciclaje/i, 'Mülltrennung']];
-  const greenClaims = t => GREEN.filter(([re]) => re.test(S(t))).map(([, l]) => l);
+  const GREEN = [[/ökostrom|grüner strom|green (?:energy|electricity)|renewable energy|énergie verte/i, 'extras.green.power'], [/solar\w*|photovoltaik|solar panels?|panneaux solaires/i, 'extras.green.solar'],
+    [/wärmepumpe|heat pump|pompe à chaleur/i, 'extras.green.heatpump'], [/mülltrennung|recycling|tri sélectif|reciclaje/i, 'extras.green.recycling']];
+  const greenClaims = t => GREEN.filter(([re]) => re.test(S(t))).map(([, k]) => tr(k));
   const SUPERLATIVE = /atemberaubend\w*|einzigartig\w*|traumhaft\w*|oase|paradies\w*|perle|juwel|unvergesslich\w*|spektakulär\w*|fantastisch\w*|exklusiv\w*|luxuriös\w*|wunderschön\w*|stunning|breathtaking|unique|oasis|paradise|gem\b|unforgettable|spectacular|amazing|gorgeous|magnifique|exceptionnel\w*|impresionante|espectacular/giu;
   function superlatives(t) { const s = S(t); const n = (s.match(SUPERLATIVE) || []).length; const words = s.split(/\s+/).filter(Boolean).length; return { count: n, words, share: words ? n / words : 0 }; }
 
@@ -278,12 +281,15 @@
   }
 
   // Was die Beschreibung verspricht (für „Inserat sagt X, Gäste sagen Y“)
-  const CLAIMS = [['ruhig', /\bruhig\w*|quiet|calme|tranquil/i, /⚠️ (laut|hellhörig|Baustelle|Ohrstöpsel)/], ['schnelles WLAN', /schnell\w* (wlan|internet|wifi)|fast (wifi|internet)|glasfaser|fibre|fiber/i, /⚠️ WLAN/],
-    ['sauber', /blitzsauber|sehr sauber|spotless|impeccably clean/i, /⚠️ (schmutzig|Geruch|Ungeziefer)/], ['hell', /lichtdurchflutet|sehr hell|bright|lumineux|luminoso/i, /⚠️ dunkel/]];
-  const claims = t => CLAIMS.filter(([, re]) => re.test(S(t))).map(([l]) => l);
+  const CLAIMS = [['quiet', /\bruhig\w*|quiet|calme|tranquil/i, /⚠️ (laut|hellhörig|Baustelle|Ohrstöpsel|noisy|thin walls|construction|earplugs)/], ['wifi', /schnell\w* (wlan|internet|wifi)|fast (wifi|internet)|glasfaser|fibre|fiber/i, /⚠️ (WLAN|Wi-Fi)/],
+    ['clean', /blitzsauber|sehr sauber|spotless|impeccably clean/i, /⚠️ (schmutzig|Geruch|Ungeziefer|dirty|smell|pests)/], ['bright', /lichtdurchflutet|sehr hell|bright|lumineux|luminoso/i, /⚠️ (dunkel|dark)/]];
+  const claimLabel = id => tr('extras.claim.' + id);
+  const claims = t => CLAIMS.filter(([, re]) => re.test(S(t))).map(([id]) => claimLabel(id));
   // Abgleich mit den Bewertungs-Stichworten
   function claimConflicts(cl, hints) {
-    return (cl || []).map(l => { const c = CLAIMS.find(x => x[0] === l); const bad = c && (hints || []).find(x => c[2].test(x)); return bad ? `Inserat sagt „${l}“, Gäste sagen „${bad.replace(/^⚠️\s*/, '')}“` : null; }).filter(Boolean);
+    // gespeicherte Labels können in der anderen Sprache entstanden sein: Id oder Label (de/en) erkennen
+    const find = l => CLAIMS.find(x => x[0] === l || claimLabel(x[0]) === l || I18n.DICT.de['extras.claim.' + x[0]] === l || I18n.DICT.en['extras.claim.' + x[0]] === l);
+    return (cl || []).map(l => { const c = find(l); const bad = c && (hints || []).find(x => c[2].test(x)); return bad ? tr('extras.claimConflict', { claim: l, guests: bad.replace(/^⚠️\s*/, '') }) : null; }).filter(Boolean);
   }
 
   // ---------- Alles auf einmal für die Unterkunftsseite ----------
@@ -325,125 +331,135 @@
     const winter = seasonal && month && (south ? [5, 6, 7, 8, 9] : [11, 12, 1, 2, 3]).includes(month);
     const cur = ctx.currency || x.fees?.currency || null;
     // Preis
-    if (x.deposit) info.push(`Kaution ${money(x.deposit.amount, x.deposit.currency)} (kommt zurück, aber erst später)`);
+    if (x.deposit) info.push(tr('extras.deposit', { amount: money(x.deposit.amount, x.deposit.currency) }));
     const eg = extraGuestCost(x.extraGuest, people, ctx.nights);
-    if (eg) warn.push(`Zusatzgast-Gebühr: etwa ${money(eg, x.extraGuest.currency)} für ${people} Personen (ab ${x.extraGuest.included + 1}. Gast${x.extraGuest.perNight ? ', pro Nacht' : ''})`);
-    else if (x.extraGuest && x.extraGuest.included == null) info.push(`Gebühr für weitere Gäste: ${money(x.extraGuest.amount, x.extraGuest.currency)}`);
-    if (x.onSite?.length) warn.push(`Kommt vor Ort noch dazu: ${x.onSite.join(', ')}`);
+    if (eg) warn.push(tr('extras.eg.warn', { amount: money(eg, x.extraGuest.currency), people, from: x.extraGuest.included + 1, night: x.extraGuest.perNight ? tr('extras.eg.perNight') : '' }));
+    else if (x.extraGuest && x.extraGuest.included == null) info.push(tr('extras.eg.info', { amount: money(x.extraGuest.amount, x.extraGuest.currency) }));
+    if (x.onSite?.length) warn.push(tr('extras.onsite.warn', { list: jn(x.onSite) }));
     const share = feeShare(x.fees, ctx.total);
-    if (share != null && ctx.nights && ctx.nights <= 2) (share >= 0.25 ? warn : info).push(`Reinigung und Service machen ${Math.round(share * 100)} % des Preises aus (Kurztrip)`);
-    if (x.fees?.cleaning && x.chores?.length >= 2) warn.push(`Reinigungsgebühr ${money(x.fees.cleaning, cur)} und trotzdem Putzliste (${x.chores.join(', ')})`);
-    else if (x.chores?.length >= 3) info.push(`Check-out-Pflichten: ${x.chores.join(', ')}`);
-    if (x.parking?.paid) info.push(`Parken kostet extra${x.parking.amount ? ` (${money(x.parking.amount, x.parking.currency)})` : ''}`);
-    else if (x.parking?.garage) plus.push('Garage oder Parkhaus (Gepäck bleibt sicher)');
+    if (share != null && ctx.nights && ctx.nights <= 2) (share >= 0.25 ? warn : info).push(tr('extras.share', { pct: Math.round(share * 100) }));
+    if (x.fees?.cleaning && x.chores?.length >= 2) warn.push(tr('extras.cleanChores', { amount: money(x.fees.cleaning, cur), list: jn(x.chores) }));
+    else if (x.chores?.length >= 3) info.push(tr('extras.chores', { list: jn(x.chores) }));
+    if (x.parking?.paid) info.push(x.parking.amount ? tr('extras.parking.paidAmt', { amount: money(x.parking.amount, x.parking.currency) }) : tr('extras.parking.paid'));
+    else if (x.parking?.garage) plus.push(tr('extras.parking.garage'));
     // Räume und Betten
-    if (x.passRoom && people >= 3) warn.push('Durchgangszimmer oder offener Schlafbereich: wenig Privatsphäre');
-    if (x.seats && people && x.seats < people) warn.push(`Esstisch für ${x.seats}, ihr seid ${people}`);
-    if (x.dishes && people && x.dishes < people) warn.push(`Geschirr für ${x.dishes}, ihr seid ${people}`);
-    if (x.hostNear) info.push('Gastgeber wohnt im Haus oder nebenan (Privatsphäre, aber Hilfe nah)');
-    if (x.floors && (kids || people >= 4)) info.push('Schlafzimmer auf mehreren Etagen oder im Nebengebäude');
-    if (x.loft) (kids ? warn : info).push('Hochbett oder Galerie mit Leiter: für Kleinkinder gefährlich, für Ältere unpraktisch');
-    if (x.bedWidth && people === 2 && x.bedWidth <= 140) info.push(`Bett ${x.bedWidth} cm breit: für zwei Erwachsene eher schmal`);
-    if (x.area && people) { const pp = x.area / people; (pp < 10 ? warn : info).push(`${x.area} m², also ${sep(pp, 0)} m² pro Person${pp < 10 ? ' (eng)' : ''}`); }
-    if (x.floor && !x.floor.ground && x.floor.floor >= 2 && !f.elevator) info.push(`${x.floor.floor}. Stock, kein Aufzug angegeben`);
-    if (x.floor?.ground) plus.push('Erdgeschoss');
+    if (x.passRoom && people >= 3) warn.push(tr('extras.passRoom'));
+    if (x.seats && people && x.seats < people) warn.push(tr('extras.seats', { seats: x.seats, people }));
+    if (x.dishes && people && x.dishes < people) warn.push(tr('extras.dishes', { n: x.dishes, people }));
+    if (x.hostNear) info.push(tr('extras.hostNear'));
+    if (x.floors && (kids || people >= 4)) info.push(tr('extras.floors'));
+    if (x.loft) (kids ? warn : info).push(tr('extras.loft'));
+    if (x.bedWidth && people === 2 && x.bedWidth <= 140) info.push(tr('extras.bedWidth', { w: x.bedWidth }));
+    if (x.area && people) { const pp = x.area / people; (pp < 10 ? warn : info).push(tr(pp < 10 ? 'extras.areaTight' : 'extras.area', { area: x.area, pp: sep(pp, 0) })); }
+    if (x.floor && !x.floor.ground && x.floor.floor >= 2 && !f.elevator) info.push(tr('extras.floor', { floor: x.floor.floor }));
+    if (x.floor?.ground) plus.push(tr('extras.ground'));
     // Hausregeln
-    if (x.notForKids && kids) warn.push('Laut Hausregeln nicht für Kinder geeignet, ihr reist mit Kindern');
-    if (x.minAge) info.push(`Mindestalter ${x.minAge} Jahre`);
-    if (x.noVisitors) info.push('Keine Besucher erlaubt');
-    if (x.smokingOk) info.push('Rauchen erlaubt (Rauchgeruch möglich)');
-    if (ctx.pets && x.petLimits?.length) warn.push(`Haustiere: ${x.petLimits.join(', ')}`);
-    if (ctx.pets && x.petFee) info.push(`Haustiergebühr ${money(x.petFee.amount, x.petFee.currency)}`);
-    if (x.allergy?.length) ((ctx.wishes || []).includes('petFree') ? warn : info).push(`Für Allergiker: ${x.allergy.join(', ')}`);
-    if (x.rules >= 15) info.push(`Lange Hausregel-Liste (${x.rules} Punkte): Gastgeber legt viel fest`);
-    if (ctx.smoker && ctx.noSmoking) (f.balcony ? info : warn).push(f.balcony ? 'Rauchen nur draußen (Balkon/Terrasse vorhanden)' : 'Rauchverbot und keine Außenfläche angegeben');
-    if (ctx.pets && ctx.noPets) info.push('Assistenztiere gelten bei Airbnb nicht als Haustiere (Regel „keine Haustiere“ betrifft sie nicht, siehe Airbnb-Hilfe „Assistenztiere“)');
+    if (x.notForKids && kids) warn.push(tr('extras.notForKids'));
+    if (x.minAge) info.push(tr('extras.minAge', { age: x.minAge }));
+    if (x.noVisitors) info.push(tr('extras.noVisitors'));
+    if (x.smokingOk) info.push(tr('extras.smokingOk'));
+    if (ctx.pets && x.petLimits?.length) warn.push(tr('extras.pets', { list: jn(x.petLimits) }));
+    if (ctx.pets && x.petFee) info.push(tr('extras.petFee', { amount: money(x.petFee.amount, x.petFee.currency) }));
+    if (x.allergy?.length) ((ctx.wishes || []).includes('petFree') ? warn : info).push(tr('extras.allergy', { list: jn(x.allergy) }));
+    if (x.rules >= 15) info.push(tr('extras.longRules', { n: x.rules }));
+    if (ctx.smoker && ctx.noSmoking) (f.balcony ? info : warn).push(tr(f.balcony ? 'extras.smokeOutside' : 'extras.smokeNoOutdoor'));
+    if (ctx.pets && ctx.noPets) info.push(tr('extras.assistance'));
     // Sicherheit (nur wenn die Ausstattung gelesen wurde)
     if (x.amenRead) {
-      const miss = [!f.smoke && 'Rauchmelder', !f.co && 'CO-Melder', !f.extinguisher && 'Feuerlöscher'].filter(Boolean);
-      if (miss.length) info.push(`Nicht angegeben: ${miss.join(', ')}`);
+      const miss = [!f.smoke && tr('extras.safety.smoke'), !f.co && tr('extras.safety.co'), !f.extinguisher && tr('extras.safety.extinguisher')].filter(Boolean);
+      if (miss.length) info.push(tr('extras.safety.missing', { list: jn(miss) }));
     }
-    if (f.camera || f.noiseSensor) info.push(`Laut Inserat: ${[f.camera && 'Außenkamera', f.noiseSensor && 'Lärmsensor'].filter(Boolean).join(' und ')}`);
+    if (f.camera || f.noiseSensor) info.push(tr('extras.cam.line', { list: [f.camera && tr('extras.cam.camera'), f.noiseSensor && tr('extras.cam.noise')].filter(Boolean).join(tr('extras.and')) }));
     // Familie
     if (kids) {
-      const baby = [['crib', 'Kinderbett'], ['highchair', 'Hochstuhl'], ['babyBath', 'Babybadewanne'], ['toys', 'Spielzeug/Bücher']];
-      if (ctx.infants) { const have = baby.filter(([k]) => f[k]).map(([, l]) => l), miss = baby.filter(([k]) => !f[k]).map(([, l]) => l); info.push(`Baby an Bord: ${have.length ? '✓ ' + have.join(', ') : 'nichts angegeben'}${miss.length && have.length ? ` · fehlt: ${miss.join(', ')}` : ''}`); }
-      if (f.pool && !f.fencedGarden) info.push('Pool: Zaun nicht erwähnt, mit Kleinkindern nachfragen');
-      if (f.stairGate || f.outletCovers) plus.push(`Kindersicherheit: ${[f.stairGate && 'Treppenschutzgitter', f.outletCovers && 'Steckdosenschutz'].filter(Boolean).join(', ')}`);
-      if (f.garden) plus.push(f.fencedGarden ? 'Eingezäunter Garten' : 'Garten oder Innenhof');
+      const baby = [['crib', tr('extras.baby.crib')], ['highchair', tr('extras.baby.highchair')], ['babyBath', tr('extras.baby.bath')], ['toys', tr('extras.baby.toys')]];
+      if (ctx.infants) { const have = baby.filter(([k]) => f[k]).map(([, l]) => l), miss = baby.filter(([k]) => !f[k]).map(([, l]) => l); info.push(tr('extras.baby.line', { have: have.length ? '✓ ' + jn(have) : tr('extras.baby.none'), missing: miss.length && have.length ? tr('extras.baby.missing', { list: jn(miss) }) : '' })); }
+      if (f.pool && !f.fencedGarden) info.push(tr('extras.poolFence'));
+      if (f.stairGate || f.outletCovers) plus.push(tr('extras.childSafety.line', { list: jn([f.stairGate && tr('extras.childSafety.gate'), f.outletCovers && tr('extras.childSafety.outlet')].filter(Boolean)) }));
+      if (f.garden) plus.push(tr(f.fencedGarden ? 'extras.garden.fenced' : 'extras.garden.plain'));
     }
-    if (ctx.pets && f.fencedGarden) plus.push('Eingezäunter Garten (gut für Hunde)');
-    if ((kids || (ctx.nights || 0) >= 5) && f.washer) plus.push('Waschmaschine');
-    else if ((ctx.nights || 0) >= 7 && x.amenRead && !f.washer) info.push('Keine Waschmaschine angegeben (lange Reise)');
+    if (ctx.pets && f.fencedGarden) plus.push(tr('extras.garden.dogs'));
+    if ((kids || (ctx.nights || 0) >= 5) && f.washer) plus.push(tr('extras.washer'));
+    else if ((ctx.nights || 0) >= 7 && x.amenRead && !f.washer) info.push(tr('extras.noWasher'));
     // Saison
-    if (f.pool && winter) info.push('Außenpool in der kalten Jahreszeit: oft kalt oder geschlossen, beim Gastgeber fragen');
-    if (summer && !f.ac && /dachgeschoss|dachwohnung|attic|top floor|sous les toits|ático|mansarda/i.test(ctx.text || '')) warn.push('Dachgeschoss im Hochsommer ohne Klimaanlage: kann sehr heiß werden');
+    if (f.pool && winter) info.push(tr('extras.poolWinter'));
+    if (summer && !f.ac && /dachgeschoss|dachwohnung|attic|top floor|sous les toits|ático|mansarda/i.test(ctx.text || '')) warn.push(tr('extras.attic'));
     if (month && ctx.checkin) {
       const md = String(ctx.checkin).slice(5, 10), nights = ctx.nights || 1;
       const end = new Date(Date.parse(ctx.checkin) + nights * 864e5).toISOString().slice(5, 10);
       const coversNye = md <= '12-31' && md >= '12-20' && end >= '01-01' && end <= '01-15';
-      if (coversNye) { const s = [ctx.noParties && 'Partyverbot', x.deposit && `Kaution ${money(x.deposit.amount, x.deposit.currency)}`, x.noVisitors && 'keine Besucher'].filter(Boolean); if (s.length) warn.push(`Silvester: ${s.join(', ')}`); }
+      if (coversNye) { const s = [ctx.noParties && tr('extras.nye.noParties'), x.deposit && tr('extras.depositShort', { amount: money(x.deposit.amount, x.deposit.currency) }), x.noVisitors && tr('extras.nye.noVisitors')].filter(Boolean); if (s.length) warn.push(tr('extras.nye.line', { list: jn(s) })); }
     }
-    if ((ctx.nights || 0) >= 28) info.push('Ab 28 Nächten gilt bei Airbnb oft eine eigene Stornoregel für Langzeitaufenthalte; je nach Land auch Meldepflichten. Bedingungen genau lesen.');
+    if ((ctx.nights || 0) >= 28) info.push(tr('extras.longStay'));
     const dl = ctx.lat != null && ctx.checkin ? dayLength(ctx.lat, ctx.checkin) : null;
-    if (dl != null && (dl < 9 || dl > 17)) info.push(`Tageslicht am Anreisetag: etwa ${sep(dl, 0)} Stunden`);
-    if (dl != null && dl > 17 && !f.blackout && x.amenRead) info.push('Helle Nächte: keine Verdunkelung angegeben');
+    if (dl != null && (dl < 9 || dl > 17)) info.push(tr('extras.daylight', { h: sep(dl, 0) }));
+    if (dl != null && dl > 17 && !f.blackout && x.amenRead) info.push(tr('extras.brightNights'));
     // Gastgeber
     const hx = x.host || {};
-    if (hx.notVerified) warn.push('Identität des Gastgebers nicht bestätigt');
-    if (hx.listings != null && hx.listings >= 5) info.push(`Gastgeber vermietet ${hx.listings} Unterkünfte`);
-    if (hx.listings >= 10 && ctx.hostSince && +ctx.hostSince >= new Date().getFullYear() - 1) warn.push(`Neues Gastgeber-Konto mit ${hx.listings} Unterkünften (viele Inserate, neues Konto: Bewertungen und Identität genau prüfen)`);
-    if (hx.livesIn) info.push(`Gastgeber lebt in ${hx.livesIn}`);
-    if (hx.languages?.length) info.push(`Gastgeber spricht ${hx.languages.join(', ')}`);
-    if (ctx.responseTime === 'day' && ctx.checkin) { const days = (Date.parse(ctx.checkin) - (ctx.now || Date.now())) / 864e5; if (days >= 0 && days < 2) warn.push('Gastgeber antwortet meist erst innerhalb eines Tages, die Anreise ist bald: Sofortbuchung bevorzugen'); }
+    if (hx.notVerified) warn.push(tr('extras.host.unverified'));
+    if (hx.listings != null && hx.listings >= 5) info.push(tr('extras.host.listings', { n: hx.listings }));
+    if (hx.listings >= 10 && ctx.hostSince && +ctx.hostSince >= new Date().getFullYear() - 1) warn.push(tr('extras.host.newMany', { n: hx.listings }));
+    if (hx.livesIn) info.push(tr('extras.host.livesIn', { place: hx.livesIn }));
+    if (hx.languages?.length) info.push(tr('extras.host.speaks', { list: jn(hx.languages) }));
+    if (ctx.responseTime === 'day' && ctx.checkin) { const days = (Date.parse(ctx.checkin) - (ctx.now || Date.now())) / 864e5; if (days >= 0 && days < 2) warn.push(tr('extras.host.slow')); }
     // Sonstiges
-    if (x.license) info.push(`Registriernummer laut Inserat: ${x.license}`);
-    if (x.green?.length) info.push(`Laut Gastgeber (nicht geprüft): ${x.green.join(', ')}`);
-    if (x.superlatives?.count >= 4 && x.superlatives.share >= 0.03) info.push(`${x.superlatives.count} Werbewörter in der Beschreibung („atemberaubend“ & Co.): auf Fakten achten 😉`);
-    if (x.kitchen === 'basic') info.push('Nur Kochnische oder Mikrowelle');
-    else if (x.kitchen === 'full') plus.push('Voll ausgestattete Küche');
-    if (x.coffee) info.push(`Kaffee: ${x.coffee}`);
-    if (f.basics || f.coffeeTea) plus.push('Grundausstattung zum Kochen (Öl, Salz, Kaffee …)');
-    if (f.miniFridge && !f.fridge && people >= 3) warn.push('Nur Minikühlschrank');
-    if (f.freezer) plus.push('Gefrierfach');
-    const access = [f.stepFree && 'stufenlos', f.wideDoor && 'breite Türen', f.showerSeat && 'Duschsitz', f.grabBars && 'Haltegriffe'].filter(Boolean);
-    if (access.length) plus.push(`Barrierefrei laut Inserat: ${access.join(', ')}`);
+    if (x.license) info.push(tr('extras.license', { n: x.license }));
+    if (x.green?.length) info.push(tr('extras.green', { list: jn(x.green) }));
+    if (x.superlatives?.count >= 4 && x.superlatives.share >= 0.03) info.push(tr('extras.superlatives', { n: x.superlatives.count }));
+    if (x.kitchen === 'basic') info.push(tr('extras.kitchen.basic'));
+    else if (x.kitchen === 'full') plus.push(tr('extras.kitchen.full'));
+    if (x.coffee) info.push(tr('extras.coffee.line', { x: x.coffee }));
+    if (f.basics || f.coffeeTea) plus.push(tr('extras.basics'));
+    if (f.miniFridge && !f.fridge && people >= 3) warn.push(tr('extras.miniFridge'));
+    if (f.freezer) plus.push(tr('extras.freezer'));
+    const access = [f.stepFree && tr('extras.access.stepFree'), f.wideDoor && tr('extras.access.wideDoor'), f.showerSeat && tr('extras.access.showerSeat'), f.grabBars && tr('extras.access.grabBars')].filter(Boolean);
+    if (access.length) plus.push(tr('extras.access.line', { list: jn(access) }));
     return { warn, info, plus };
   }
 
   // ---------- Wünsche, die erst die Unterkunftsseite prüfen kann (Ausstattung) ----------
   // check(x) bekommt die gespeicherten roomExtras; true/false/null. false nur, wenn die Ausstattung gelesen wurde.
   const has = k => x => (x?.features?.[k] ? true : x?.amenRead ? false : null);
+  // Texte (label/ok/no/src) entstehen erst beim Lesen (Getter), damit die Sprache zur Anzeigezeit gilt.
+  const wish = (k, o) => ({
+    get label() { return tr(`extras.wish.${k}.label`); },
+    get ok() { return tr(`extras.wish.${k}.ok`); },
+    get no() { return o.noText === false ? null : tr(`extras.wish.${k}.no`); },
+    check: o.check,
+    get src() { return tr(`extras.src.${o.src}`); },
+    ...(o.season ? { season: o.season } : {}),
+  });
   const EXTRA_WISHES = {
-    workspace: { label: '💻 Arbeitsplatz', ok: 'Arbeitsplatz', no: 'kein Arbeitsplatz angegeben', check: has('workspace'), src: 'Ausstattung der Unterkunftsseite' },
-    selfCheckin: { label: '🔑 Self-Check-in', ok: 'Self-Check-in', no: 'kein Self-Check-in', check: has('selfCheckin'), src: 'Ausstattung der Unterkunftsseite' },
-    bathtub: { label: '🛁 Badewanne', ok: 'Badewanne', no: 'keine Badewanne angegeben', check: has('bathtub'), src: 'Ausstattung und Beschreibung' },
-    view: { label: '🌅 Aussicht', ok: 'Aussicht', no: 'keine Aussicht erwähnt', check: x => (x?.features?.view ? true : null), src: 'Ausstattung und Beschreibung' },
-    washer: { label: '🧺 Waschmaschine', ok: 'Waschmaschine', no: 'keine Waschmaschine', check: has('washer'), src: 'Ausstattung der Unterkunftsseite' },
-    ac: { label: '❄️ Klimaanlage', ok: 'Klimaanlage', no: 'keine Klimaanlage', check: has('ac'), src: 'Ausstattung der Unterkunftsseite' },
-    parking: { label: '🚗 Parkplatz', ok: 'Parkplatz', no: 'kein Parkplatz', check: x => (x?.parking?.garage || x?.parking?.street || x?.parking?.paid ? true : null), src: 'Ausstattung und Beschreibung' },
-    ev: { label: '🔌 E-Auto laden', ok: 'Ladestation', no: 'keine Ladestation', check: has('ev'), src: 'Ausstattung der Unterkunftsseite' },
-    bike: { label: '🚲 Fahrradkeller', ok: 'Platz für Fahrräder', no: 'kein Fahrradraum', check: x => (x?.features?.bike ? true : null), src: 'Ausstattung und Beschreibung' },
-    grill: { label: '🔥 Grill', ok: 'Grill', no: 'kein Grill', check: has('grill'), src: 'Ausstattung der Unterkunftsseite' },
-    blackout: { label: '🌙 Verdunkelung', ok: 'Verdunkelung', no: 'keine Verdunkelung angegeben', check: has('blackout'), src: 'Ausstattung der Unterkunftsseite' },
-    garden: { label: '🌳 Garten', ok: 'Garten/Innenhof', no: 'kein Garten', check: has('garden'), src: 'Ausstattung und Beschreibung' },
-    baby: { label: '👶 Baby an Bord', ok: 'Kinderbett', no: 'kein Kinderbett angegeben', check: has('crib'), src: 'Ausstattung der Unterkunftsseite' },
-    lock: { label: '🔒 abschließbares Zimmer', ok: 'abschließbares Zimmer', no: 'kein Schloss angegeben', check: x => (x?.features?.lock ? true : null), src: 'Ausstattung der Unterkunftsseite' },
-    monitor: { label: '🖥️ Monitor', ok: 'externer Monitor', no: 'kein Monitor', check: x => (x?.features?.monitor ? true : null), src: 'Ausstattung der Unterkunftsseite' },
-    fireplace: { label: '🔥 Kamin', ok: 'Kamin', no: 'kein Kamin', check: has('fireplace'), src: 'Ausstattung der Unterkunftsseite', season: 'winter' },
-    sauna: { label: '🧖 Sauna', ok: 'Sauna', no: 'keine Sauna', check: has('sauna'), src: 'Ausstattung der Unterkunftsseite', season: 'winter' },
-    stepFree: { label: '♿ stufenlos', ok: 'stufenloser Zugang', no: 'stufenloser Zugang nicht angegeben', check: x => (x?.features?.stepFree || x?.floor?.ground ? true : x?.amenRead ? false : null), src: 'Barrierefreiheit-Abschnitt und Beschreibung' },
-    beach: { label: '🏖️ Strandausstattung', ok: 'Strandausstattung', no: 'keine Strandausstattung', check: x => (x?.features?.beach ? true : null), src: 'Ausstattung der Unterkunftsseite' },
-    ski: { label: '⛷️ Skiraum', ok: 'Skiraum', no: 'kein Skiraum', check: x => (x?.features?.ski ? true : null), src: 'Ausstattung und Beschreibung' },
-    petFree: { label: '🤧 tierfrei', ok: 'keine Tiere/Teppiche erwähnt', no: 'Tiere oder Teppich (Allergie)', check: x => (x?.allergy?.length ? false : null), src: 'Beschreibung und Hausregeln' },
-    hostOnSite: { label: '🙋 Gastgeber vor Ort', ok: 'Gastgeber vor Ort', no: null, check: (x, l) => (x?.hostNear || /privatzimmer|private room|chambre privée/i.test(S(l?.kind)) ? true : null), src: 'Art der Unterkunft und Beschreibung' },
+    workspace: wish('workspace', { check: has('workspace'), src: 'amen' }),
+    selfCheckin: wish('selfCheckin', { check: has('selfCheckin'), src: 'amen' }),
+    bathtub: wish('bathtub', { check: has('bathtub'), src: 'amenDesc' }),
+    view: wish('view', { check: x => (x?.features?.view ? true : null), src: 'amenDesc' }),
+    washer: wish('washer', { check: has('washer'), src: 'amen' }),
+    ac: wish('ac', { check: has('ac'), src: 'amen' }),
+    parking: wish('parking', { check: x => (x?.parking?.garage || x?.parking?.street || x?.parking?.paid ? true : null), src: 'amenDesc' }),
+    ev: wish('ev', { check: has('ev'), src: 'amen' }),
+    bike: wish('bike', { check: x => (x?.features?.bike ? true : null), src: 'amenDesc' }),
+    grill: wish('grill', { check: has('grill'), src: 'amen' }),
+    blackout: wish('blackout', { check: has('blackout'), src: 'amen' }),
+    garden: wish('garden', { check: has('garden'), src: 'amenDesc' }),
+    baby: wish('baby', { check: has('crib'), src: 'amen' }),
+    lock: wish('lock', { check: x => (x?.features?.lock ? true : null), src: 'amen' }),
+    monitor: wish('monitor', { check: x => (x?.features?.monitor ? true : null), src: 'amen' }),
+    fireplace: wish('fireplace', { check: has('fireplace'), src: 'amen', season: 'winter' }),
+    sauna: wish('sauna', { check: has('sauna'), src: 'amen', season: 'winter' }),
+    stepFree: wish('stepFree', { check: x => (x?.features?.stepFree || x?.floor?.ground ? true : x?.amenRead ? false : null), src: 'access' }),
+    beach: wish('beach', { check: x => (x?.features?.beach ? true : null), src: 'amen' }),
+    ski: wish('ski', { check: x => (x?.features?.ski ? true : null), src: 'amenDesc' }),
+    petFree: wish('petFree', { check: x => (x?.allergy?.length ? false : null), src: 'descRules' }),
+    hostOnSite: wish('hostOnSite', { check: (x, l) => (x?.hostNear || /privatzimmer|private room|chambre privée/i.test(S(l?.kind)) ? true : null), src: 'kindDesc', noText: false }),
   };
   // Profile: ein Klick setzt mehrere Wünsche
+  const profile = (k, wishes) => ({ get label() { return tr('extras.profile.' + k); }, wishes });
   const PROFILES = {
-    work: { label: '💼 Arbeiten', wishes: ['wifi', 'workspace', 'quiet', 'selfCheckin'] },
-    holiday: { label: '🌴 Urlaub', wishes: ['whole', 'trusted', 'clean'] },
-    solo: { label: '🧍 Allein', wishes: ['selfCheckin', 'trusted', 'reviews'] },
-    family: { label: '👨‍👩‍👧 Familie', wishes: ['whole', 'baby', 'washer', 'garden'] },
+    work: profile('work', ['wifi', 'workspace', 'quiet', 'selfCheckin']),
+    holiday: profile('holiday', ['whole', 'trusted', 'clean']),
+    solo: profile('solo', ['selfCheckin', 'trusted', 'reviews']),
+    family: profile('family', ['whole', 'baby', 'washer', 'garden']),
   };
   // „ruhige ganze Wohnung mit WLAN unter 120“ → Wünsche und Budget (ohne KI, nur Wortliste)
   const SENTENCE = [
@@ -464,14 +480,14 @@
   function advanceText(total, people, cur, cancel) {
     if (!total || !people || people < 2) return '';
     const each = Math.ceil(total / people);
-    const c = cancel?.kind === 'free' ? ` Kostenlos stornierbar${cancel.until ? ' bis ' + cancel.until : ''}.` : cancel?.kind === 'nonrefundable' ? ' Nicht erstattungsfähig.' : '';
-    return `Ich zahle die Unterkunft: ${money(total, cur)}. Bitte je ${money(each, cur)} an mich (${people} Personen).${c}`;
+    const c = cancel?.kind === 'free' ? (cancel.until ? tr('extras.adv.freeUntil', { until: cancel.until }) : tr('extras.adv.free')) : cancel?.kind === 'nonrefundable' ? tr('extras.adv.nonref') : '';
+    return tr('extras.adv.line', { total: money(total, cur), each: money(each, cur), people, c });
   }
 
   // ================= Teil 2: Suchseite (über alle bewerteten Karten) =================
   const med = a => { const x = a.filter(v => v != null && isFinite(v)).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
   const qt = (a, p) => { const x = a.filter(v => v != null && isFinite(v)).sort((u, v) => u - v); return x.length ? x[Math.min(x.length - 1, Math.max(0, Math.round((x.length - 1) * p)))] : null; };
-  const title = l => { const t = String(l.title || l.kind || 'Unterkunft'); return t.length > 40 ? t.slice(0, 39) + '…' : t; };
+  const title = l => { const t = String(l.title || l.kind || tr('extras.defaultTitle')); return t.length > 40 ? t.slice(0, 39) + '…' : t; };
   const isTrusted = l => (l.badges || []).some(b => /favorit|superhost/i.test(b));
   const curOf = l => R().normCur(l.currency) || '€';
   // Hauptwährung der Seite (die meisten Karten), damit € und $ nicht gemischt werden
@@ -486,7 +502,7 @@
     const cur = mainCurrency(list);
     const v = list.filter(l => curOf(l) === cur).map(l => night(l, ctx.nights)).filter(x => x != null);
     if (v.length < 8) return null;
-    return { p10: qt(v, 0.1), median: med(v), p90: qt(v, 0.9), currency: cur, text: `Preisrahmen pro Nacht: günstigstes Zehntel bis ${money(qt(v, 0.1), cur)}, Mitte ${money(med(v), cur)}, teuerstes Zehntel ab ${money(qt(v, 0.9), cur)}` };
+    return { p10: qt(v, 0.1), median: med(v), p90: qt(v, 0.9), currency: cur, text: tr('extras.priceAnchor', { p10: money(qt(v, 0.1), cur), med: money(med(v), cur), p90: money(qt(v, 0.9), cur) }) };
   }
   // Budget-Hebel: was brächten 10 % mehr Budget?
   function budgetLever(list, ctx = {}) {
@@ -495,7 +511,7 @@
     if (!bn) return null;
     const extra = Math.max(5, Math.round(bn * 0.1));
     const gain = list.filter(l => { const n = night(l, ctx.nights); return n != null && n > bn && n <= bn + extra && isTrusted(l) && (l.rating || 0) >= 4.7; });
-    return gain.length ? `Mit ${money(extra, ctx.budgetCurrency || pageCurrency(list))} mehr pro Nacht kämen ${gain.length} gut bewertete ${gain.length === 1 ? 'Superhost-/Favoriten-Unterkunft' : 'Superhost-/Favoriten-Unterkünfte'} dazu` : null;
+    return gain.length ? tr('extras.lever', { extra: money(extra, ctx.budgetCurrency || pageCurrency(list)), n: gain.length }) : null;
   }
   // Günstiger Zwilling: fast gleich gut (höchstens 3 Punkte weniger), deutlich günstiger
   function cheapTwins(top, list) {
@@ -504,7 +520,7 @@
       if (t.rank?.stay == null) return;
       const c = list.filter(l => !ids.has(l.id) && !l.rank?.disliked && l.rank?.stay != null && curOf(l) === curOf(t) && l.rank.score >= t.rank.score - 3 && l.rank.stay <= t.rank.stay * 0.95)
         .sort((a, b) => a.rank.stay - b.rank.stay)[0];
-      if (c) out.push({ for: i + 1, id: c.id, text: `Zu Platz ${i + 1}: „${title(c)}“ fast gleich gut (${c.rank.score}), ${money(t.rank.stay - c.rank.stay, c.currency)} günstiger` });
+      if (c) out.push({ for: i + 1, id: c.id, text: tr('extras.twin', { i: i + 1, title: title(c), score: c.rank.score, diff: money(t.rank.stay - c.rank.stay, c.currency) }) });
     });
     return out;
   }
@@ -512,14 +528,16 @@
   function robustness(listings, ctx, topIds) {
     if (!topIds?.length || listings.length < 4) return null;
     const changed = [];
-    for (const [k, name] of [['price', 'Preis'], ['rating', 'Sterne'], ['area', 'Viertel']]) {
+    for (const k of ['price', 'rating', 'area']) {
+      const name = partName(k);
       const r = R().rankListings(listings, { ...ctx, weightTweak: { ...ctx.weightTweak, [k]: (Number(ctx.weightTweak?.[k]) || 1) * 1.3 } }).filter(l => !ctx.disliked?.has?.(l.id)).map(l => l.id);
       if (r[0] !== topIds[0]) changed.push(name);
     }
-    return changed.length ? { stable: false, text: `Empfehlung knapp: zählt ${changed.join(' oder ')} etwas mehr, wäre ein anderes Inserat vorn` } : { stable: true, text: 'Empfehlung stabil: Platz 1 bleibt, auch wenn Preis, Sterne oder Viertel etwas mehr zählen' };
+    return changed.length ? { stable: false, text: tr('extras.robust.close', { list: changed.join(tr('extras.or')) }) } : { stable: true, text: tr('extras.robust.stable') };
   }
   // Abstand zu Platz 1: wo fehlen die Punkte?
-  const PART = { area: 'Viertel', rating: 'Sterne', price: 'Preis', wishes: 'Wünsche', beds: 'Betten', taste: 'Geschmack' };
+  const PART_KEYS = ['area', 'rating', 'price', 'wishes', 'beds', 'taste'];
+  const partName = k => (PART_KEYS.includes(k) ? tr('extras.part.' + k) : k);
   function gapToFirst(l, first) {
     if (!first || l === first || !l.rank || !first.rank) return null;
     const pts = x => Object.fromEntries((x.rank.breakdown || []).map(b => [b.key, b.points]));
@@ -527,29 +545,29 @@
     const diff = Object.keys({ ...a, ...b }).map(k => [k, (a[k] || 0) - (b[k] || 0)]).filter(([, d]) => d <= -1).sort((x, y) => x[1] - y[1]).slice(0, 2);
     const gap = first.rank.score - l.rank.score;
     if (gap <= 0) return null;
-    return `${gap} ${gap === 1 ? 'Punkt' : 'Punkte'} hinter Platz 1${diff.length ? ` (vor allem ${diff.map(([k, d]) => `${PART[k] || k} ${Math.round(d)}`).join(', ')})` : ''}`;
+    return tr('extras.gap', { n: gap, detail: diff.length ? tr('extras.gap.detail', { list: diff.map(([k, d]) => `${partName(k)} ${Math.round(d)}`).join(', ') }) : '' });
   }
   // „Warum nicht Platz 1?“: Rang, Punkteabstand, die Teile mit dem größten Rückstand, Preisunterschied, eigene Warnungen
   function whyNotFirst(l, first, pos = {}) {
     if (!l?.rank) return [];
-    const at = pos.rank ? `Platz ${pos.rank}${pos.of ? ` von ${pos.of}` : ''}` : null;
-    if (!first || l === first || l.id === first.id) return [`${at || 'Platz 1'}: Das ist die beste Unterkunft für deine Wünsche (${l.rank.score} Punkte).`];
-    const out = [`${at ? at + ': ' : ''}${first.rank.score - l.rank.score} ${first.rank.score - l.rank.score === 1 ? 'Punkt' : 'Punkte'} hinter Platz 1 („${title(first)}“).`];
+    const at = pos.rank ? (pos.of ? tr('extras.atOf', { rank: pos.rank, of: pos.of }) : tr('extras.at', { rank: pos.rank })) : null;
+    if (!first || l === first || l.id === first.id) return [tr('extras.why.best', { at: at || tr('extras.first'), score: l.rank.score })];
+    const out = [`${at ? at + ': ' : ''}${tr('extras.why.behind', { n: first.rank.score - l.rank.score, title: title(first) })}`];
     const pts = x => Object.fromEntries((x.rank.breakdown || []).map(b => [b.key, b.points]));
     const a = pts(l), b = pts(first);
     for (const [k, d] of Object.keys({ ...a, ...b }).map(k => [k, (a[k] || 0) - (b[k] || 0)]).filter(([, d]) => d <= -1).sort((x, y) => x[1] - y[1]).slice(0, 3))
-      out.push(`${PART[k] || k}: ${Math.round(a[k] || 0)} statt ${Math.round(b[k] || 0)} Punkte (${Math.round(d)})`);
+      out.push(tr('extras.why.part', { part: partName(k), a: Math.round(a[k] || 0), b: Math.round(b[k] || 0), d: Math.round(d) }));
     for (const [k, d] of Object.keys({ ...a, ...b }).map(k => [k, (a[k] || 0) - (b[k] || 0)]).filter(([, d]) => d >= 1).slice(0, 1))
-      out.push(`Dafür besser bei ${PART[k] || k} (+${Math.round(d)})`);
+      out.push(tr('extras.why.better', { part: partName(k), d: Math.round(d) }));
     if (l.rank.stay != null && first.rank.stay != null && curOf(l) === curOf(first) && Math.abs(l.rank.stay - first.rank.stay) >= 10)
-      out.push(`Preis: ${money(Math.abs(l.rank.stay - first.rank.stay), l.currency)} ${l.rank.stay > first.rank.stay ? 'teurer' : 'günstiger'} als Platz 1 (${money(l.rank.stay, l.currency)} gesamt)`);
+      out.push(tr(l.rank.stay > first.rank.stay ? 'extras.why.dearer' : 'extras.why.cheaper', { diff: money(Math.abs(l.rank.stay - first.rank.stay), l.currency), stay: money(l.rank.stay, l.currency) }));
     for (const w of (l.rank.warn || []).slice(0, 2)) out.push('⚠️ ' + w);
     return out;
   }
   // Rabattschwellen bei 7 und 28 Nächten
   function discountThreshold(nights) {
-    if (nights === 5 || nights === 6) return 'Ab 7 Nächten geben viele Gastgeber Wochenrabatt: prüfe, ob eine Nacht mehr kaum mehr kostet';
-    if (nights >= 25 && nights <= 27) return 'Ab 28 Nächten geben viele Gastgeber Monatsrabatt: prüfe einen längeren Zeitraum';
+    if (nights === 5 || nights === 6) return tr('extras.disc.week');
+    if (nights >= 25 && nights <= 27) return tr('extras.disc.month');
     return null;
   }
   // Dieselbe Suche mit Anreise ±1 Tag (du öffnest die Links selbst, nichts wird geladen)
@@ -560,7 +578,7 @@
     const ci = ciK && u.searchParams.get(ciK), co = u.searchParams.get(coK);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ci || '') || !/^\d{4}-\d{2}-\d{2}$/.test(co || '')) return [];
     const shift = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
-    return [-1, 1].map(n => { const x = new URL(u); x.searchParams.set(ciK, shift(ci, n)); x.searchParams.set(coK, shift(co, n)); for (const k of ['items_offset', 'cursor', 'pagination_search']) x.searchParams.delete(k); return { label: `Anreise einen Tag ${n < 0 ? 'früher' : 'später'}`, url: x.href }; });
+    return [-1, 1].map(n => { const x = new URL(u); x.searchParams.set(ciK, shift(ci, n)); x.searchParams.set(coK, shift(co, n)); for (const k of ['items_offset', 'cursor', 'pagination_search']) x.searchParams.delete(k); return { label: tr(n < 0 ? 'extras.shift.earlier' : 'extras.shift.later'), url: x.href }; });
   }
   // Filter-Vorschlag: „Mindestens 2 Schlafzimmer setzen entfernt 18 unpassende“
   function filterSuggestion(url, list, people) {
@@ -571,7 +589,7 @@
     let u; try { u = new URL(url); } catch { return null; }
     if (+u.searchParams.get('min_bedrooms') >= need) return null;
     u.searchParams.set('min_bedrooms', String(need));
-    return { url: u.href, text: `Mindestens ${need} Schlafzimmer als Filter setzen: das entfernt ${bad} unpassende` };
+    return { url: u.href, text: tr('extras.filter', { need, bad }) };
   }
   // Allein reisen: gut bewertetes Privatzimmer als günstige Alternative zur ganzen Wohnung
   function soloAlternative(list, top, ctx = {}) {
@@ -580,7 +598,7 @@
     if (!tn || PRIVATE.test(`${t.kind} ${t.title}`)) return null;
     const c = list.filter(l => PRIVATE.test(String(l.kind)) && isTrusted(l) && (l.rating || 0) >= 4.7 && curOf(l) === curOf(t) && night(l, ctx.nights) != null && night(l, ctx.nights) <= tn * 0.6)
       .sort((a, b) => night(a, ctx.nights) - night(b, ctx.nights))[0];
-    return c ? { id: c.id, text: `Allein unterwegs: Zimmer bei Superhost/Favorit „${title(c)}“, ${Math.round((1 - night(c, ctx.nights) / tn) * 100)} % günstiger als Platz 1` } : null;
+    return c ? { id: c.id, text: tr('extras.solo', { title: title(c), pct: Math.round((1 - night(c, ctx.nights) / tn) * 100) }) } : null;
   }
   // Ausreißer gegen die eigene Filterblase: sehr gut bewertet, aber anders als dein Geschmack
   function outlierPick(list, top, ctx = {}) {
@@ -588,7 +606,7 @@
     const ids = new Set(top.map(l => l.id));
     const c = list.filter(l => !ids.has(l.id) && !l.rank?.disliked && l.rank?.parts?.taste != null && l.rank.parts.taste <= 0.5 && (l.rating || 0) >= 4.9 && (l.reviewCount || 0) >= 20 && l.rank.score >= 55)
       .sort((a, b) => b.rank.score - a.rank.score)[0];
-    return c ? { id: c.id, text: `Mal was anderes: „${title(c)}“ (⭐ ${sep(c.rating, 2)}, ${c.rank.score} Punkte), passt nicht zu deinem bisherigen Geschmack` } : null;
+    return c ? { id: c.id, text: tr('extras.outlier', { title: title(c), rating: sep(c.rating, 2), score: c.rank.score }) } : null;
   }
   // Weiterblättern lohnt nicht mehr: die zuletzt geöffnete Seite brachte nichts für die Top 3
   function stopPaging(pool, list, top) {
@@ -597,7 +615,7 @@
     const lastIds = new Set(Object.values(pool.items || {}).filter(i => i.page === last).map(i => i.id));
     if (!lastIds.size) return null;
     const better = list.filter(l => lastIds.has(l.id) && l.rank.score >= Math.max(70, min)).length;
-    return better ? null : 'Die zuletzt geöffnete Seite brachte nichts für deine Top 3: Weiterblättern lohnt kaum noch';
+    return better ? null : tr('extras.stopPaging');
   }
   // Kartenausschnitt-Tipp: alle besten Treffer in einer Ecke
   function mapCorner(list, top) {
@@ -606,9 +624,9 @@
     if (pts.length < 15 || tp.length < 3) return null;
     const lats = pts.map(l => l.lat), lons = pts.map(l => l.lon);
     const midLat = (Math.min(...lats) + Math.max(...lats)) / 2, midLon = (Math.min(...lons) + Math.max(...lons)) / 2;
-    const quad = l => (l.lat >= midLat ? 'Nord' : 'Süd') + (l.lon >= midLon ? 'osten' : 'westen');
+    const quad = l => (l.lat >= midLat ? 'n' : 's') + (l.lon >= midLon ? 'e' : 'w');
     const qs = new Set(tp.map(quad));
-    return qs.size === 1 ? `Deine besten Treffer liegen alle im ${[...qs][0]} des Kartenausschnitts: Karte dorthin verschieben zeigt mehr davon` : null;
+    return qs.size === 1 ? tr('extras.mapCorner', { q: tr('extras.quad.' + [...qs][0]) }) : null;
   }
   // Budget-Rest für Platz 1 (Reisebudget ist in €)
   function budgetRest(first, ctx = {}) {
@@ -617,7 +635,7 @@
     const share = first.rank.stay / eb;
     if (share > 1) return null;
     const rest = eb - first.rank.stay;
-    return `Platz 1 nutzt ${Math.round(share * 100)} % des Budgets, es bleiben ${money(rest, ctx.budgetCurrency || R().normCur(first.currency))}${ctx.people > 1 ? ` (${money(rest / ctx.people, ctx.budgetCurrency || R().normCur(first.currency))} pro Person)` : ''}`;
+    return tr('extras.rest', { pct: Math.round(share * 100), rest: money(rest, ctx.budgetCurrency || R().normCur(first.currency)), pp: ctx.people > 1 ? tr('extras.rest.pp', { amount: money(rest / ctx.people, ctx.budgetCurrency || R().normCur(first.currency)) }) : '' });
   }
   // Was kostet ein Stern mehr? Lineare Regression Nachtpreis gegen Sterne (ab 10 Karten mit ≥ 5 Bewertungen)
   function starPrice(list, ctx = {}) {
@@ -628,20 +646,20 @@
     const sxx = pts.reduce((s, p) => s + (p[0] - mx) ** 2, 0), sxy = pts.reduce((s, p) => s + (p[0] - mx) * (p[1] - my), 0);
     if (sxx < 0.01) return null;
     const per01 = sxy / sxx * 0.1;
-    return per01 >= 1 ? `0,1 Sterne mehr kosten hier im Schnitt etwa ${money(per01, cur)} pro Nacht (grobe Schätzung)` : null;
+    return per01 >= 1 ? tr('extras.starPrice', { amount: money(per01, cur) }) : null;
   }
   // Gesamtpreis-Schalter: Airbnb zeigt Nachtpreise ohne Gebühren
   function totalSwitchHint(list, nights) {
     const known = list.filter(l => l.priceWord && l.totalPrice != null);
     if (!nights || nights < 2 || known.length < 5) return null;
-    return known.every(l => !l.isTotal) ? 'Airbnb zeigt hier Nachtpreise ohne Gebühren. Schalte bei Airbnb „Gesamtpreis anzeigen“ ein, dann vergleicht StayMatch die echten Kosten.' : null;
+    return known.every(l => !l.isTotal) ? tr('extras.totalSwitch') : null;
   }
   // Preisanzeige wechselt zwischen den gesammelten Seiten (Gesamt- und Nachtpreise gemischt)
   function mixedUnits(pool) {
     const by = {};
     for (const i of Object.values(pool?.items || {})) if (i.priceWord && i.totalPrice != null) (by[i.page] ||= new Set()).add(i.isTotal ? 'T' : 'N');
     const units = new Set(Object.values(by).flatMap(x => x.size === 1 ? [...x] : []));
-    return Object.keys(by).length >= 2 && units.size === 2 ? 'Die gesammelten Seiten zeigen teils Gesamt-, teils Nachtpreise: Vergleich kann schief sein (Gesamtpreis-Schalter prüfen)' : null;
+    return Object.keys(by).length >= 2 && units.size === 2 ? tr('extras.mixedUnits') : null;
   }
   // Zwei Wohnungen nebeneinander (unter 200 m) für große Gruppen, zusammen günstiger als die günstigste große?
   function distM(a, b) { const C = root.StayMatchCore; if (C?.distM) return C.distM(a, b); const r = Math.PI / 180, x = (b.lon - a.lon) * r * Math.cos((a.lat + b.lat) / 2 * r), y = (b.lat - a.lat) * r; return Math.sqrt(x * x + y * y) * 6371000; }
@@ -661,7 +679,7 @@
       if (!best || sum < best.sum) best = { a, b, sum, d };
     }
     if (!best || (big && (curOf(big) !== curOf(best.a) || best.sum >= big.rank.stay * 0.95))) return null;
-    return { ids: [best.a.id, best.b.id], text: `Zwei Wohnungen ${Math.round(best.d)} m auseinander („${title(best.a)}“ + „${title(best.b)}“) kosten zusammen ${money(best.sum, best.a.currency)}${big ? `, ${money(big.rank.stay - best.sum, best.a.currency)} weniger als die günstigste große` : ''}` };
+    return { ids: [best.a.id, best.b.id], text: tr('extras.twoFlats', { d: Math.round(best.d), a: title(best.a), b: title(best.b), sum: money(best.sum, best.a.currency), less: big ? tr('extras.twoFlats.less', { amount: money(big.rank.stay - best.sum, best.a.currency) }) : '' }) };
   }
   // Ungewöhnlich teuer / Wochenend-Aufschlag aus deinen eigenen früheren Suchen (log: [{ path, ci, nights, med, cur }])
   function priceHistoryNotes(log, now) {
@@ -669,11 +687,11 @@
     if (!now || !now.med) return out;
     const same = (log || []).filter(e => e.path === now.path && e.cur === now.cur && e.ci !== now.ci && e.med);
     const prev = same.at(-1);
-    if (prev && now.med / prev.med >= 1.5) out.push(`Heute ${sep(now.med / prev.med)}× so teuer wie bei deiner Suche für den ${prev.ci}: vielleicht ein Event oder Feiertag`);
+    if (prev && now.med / prev.med >= 1.5) out.push(tr('extras.hist.dear', { x: sep(now.med / prev.med), ci: prev.ci }));
     const wk = e => { const d = new Date(e.ci + 'T12:00:00Z').getUTCDay(); return (d === 5 || d === 6) && e.nights <= 3; };
     const all = [...same, now].filter(e => e.ci && e.nights);
     const we = med(all.filter(wk).map(e => e.med)), wd = med(all.filter(e => !wk(e) && e.nights <= 4).map(e => e.med));
-    if (we && wd && we / wd >= 1.1) out.push(`Wochenende kostet hier etwa +${Math.round((we / wd - 1) * 100)} % (aus deinen eigenen Suchen)`);
+    if (we && wd && we / wd >= 1.1) out.push(tr('extras.hist.weekend', { pct: Math.round((we / wd - 1) * 100) }));
     return out;
   }
   // Alles für den Abschnitt „Mehr zu dieser Seite“
@@ -707,9 +725,9 @@
   function visitText(d, now = Date.now()) {
     if (!d || !(d.fresh.length || d.cheaper.length || d.gone.length)) return null;
     const days = Math.max(0, Math.floor((now - d.since) / 864e5));
-    const when = days === 0 ? 'heute früher' : days === 1 ? 'gestern' : `vor ${days} Tagen`;
-    const parts = [d.fresh.length && `${d.fresh.length} neu`, d.cheaper.length && `${d.cheaper.length} günstiger`, d.gone.length && `${d.gone.length} verschwunden`].filter(Boolean);
-    return `Seit deinem letzten Besuch (${when}): ${parts.join(', ')}.`;
+    const when = days === 0 ? tr('extras.visit.today') : days === 1 ? tr('extras.visit.yesterday') : tr('extras.visit.ago', { days });
+    const parts = [d.fresh.length && tr('extras.visit.new', { c: d.fresh.length }), d.cheaper.length && tr('extras.visit.cheaper', { c: d.cheaper.length }), d.gone.length && tr('extras.visit.gone', { c: d.gone.length })].filter(Boolean);
+    return tr('extras.visit.line', { when, parts: jn(parts) });
   }
 
   function pageInsights(list, top, ctx = {}, opt = {}) {
@@ -739,12 +757,12 @@
   // Link-Echtheit: exakt eine Airbnb-Domain aus der Liste? Nachbauten („airbnb-secure-pay.com“) erkennen
   const OFFICIAL_EXTRA = ['abnb.me', 'airbnb.hu', 'airbnb.co.in'];
   function linkCheck(url, domains) {
-    let u; try { u = new URL(String(url).trim()); } catch { return { ok: false, text: 'Kein gültiger Link' }; }
+    let u; try { u = new URL(String(url).trim()); } catch { return { ok: false, text: tr('extras.link.invalid') }; }
     const host = u.hostname.toLowerCase().replace(/^www\./, '');
     // abnb.me ist die offizielle Kurzlink-Domain; weitere offizielle Landesdomains
-    if (domains.includes(host) || OFFICIAL_EXTRA.includes(host)) return u.protocol === 'https:' ? { ok: true, text: `Echte Airbnb-Adresse (${host})` } : { ok: false, text: 'Airbnb-Adresse, aber ohne https: nicht öffnen' };
-    if (/a[i1l]r[bh]n[bh]|airbnb/i.test(host)) return { ok: false, text: `Vorsicht: ${host} ist KEINE Airbnb-Adresse (Nachbau). Nichts eingeben, nichts zahlen.` };
-    return { ok: false, text: `${host} gehört nicht zu Airbnb` };
+    if (domains.includes(host) || OFFICIAL_EXTRA.includes(host)) return u.protocol === 'https:' ? { ok: true, text: tr('extras.link.ok', { host }) } : { ok: false, text: tr('extras.link.nohttps') };
+    if (/a[i1l]r[bh]n[bh]|airbnb/i.test(host)) return { ok: false, scam: true, text: tr('extras.link.fake', { host }) };
+    return { ok: false, text: tr('extras.link.foreign', { host }) };
   }
   // Merkliste eines Freundes (Text aus „Merkliste kopieren“): Unterkunfts-Ids einsammeln
   function friendIds(text) { return [...new Set([...S(text).matchAll(/\/rooms\/(?:[a-z]+\/)?(\d+)/g)].map(m => m[1]))]; }
@@ -752,16 +770,16 @@
   function tripsText(items) {
     const b = (items || []).filter(i => i.booked).sort((a, c) => S(a.booked.checkin).localeCompare(S(c.booked.checkin)));
     if (!b.length) return '';
-    const lines = ['Unsere Etappen (StayMatch)'];
+    const lines = [tr('extras.trip.head')];
     let clean = 0, cleanCur = null, cleanN = 0;
     b.forEach((i, n) => {
-      const k = i.booked, pp = k.total && k.people > 1 ? ` · ${money(k.total / k.people, k.currency)} p. P.` : k.total ? ` · ${money(k.total, k.currency)}` : '';
-      lines.push('', `${n + 1}. ${i.title || 'Unterkunft'}${i.locality ? ` (${i.locality})` : ''}`, `   ${k.checkin || '?'} bis ${k.checkout || '?'}${pp}`,
-        `   Storno: ${k.cancel ? `kostenlos${k.cancel !== 'ja' ? ' bis ' + k.cancel : ''}` : 'nicht kostenlos oder unbekannt'}`);
+      const k = i.booked, pp = k.total && k.people > 1 ? tr('extras.trip.pp', { amount: money(k.total / k.people, k.currency) }) : k.total ? ` · ${money(k.total, k.currency)}` : '';
+      lines.push('', `${n + 1}. ${i.title || tr('extras.defaultTitle')}${i.locality ? ` (${i.locality})` : ''}`, `   ${tr('extras.trip.dates', { from: k.checkin || '?', to: k.checkout || '?' })}${pp}`,
+        `   ${tr('extras.trip.cancel', { x: k.cancel ? (k.cancel !== 'ja' ? tr('extras.trip.freeUntil', { d: k.cancel }) : tr('extras.trip.free')) : tr('extras.trip.notFree') })}`);
       if (i.url) lines.push(`   ${i.url}`);
       if (i.extra?.fees?.cleaning) { clean += i.extra.fees.cleaning; cleanCur = i.extra.fees.currency; cleanN++; }
     });
-    if (b.length >= 2 && cleanN >= 2) lines.push('', `Reinigungsgebühren der ${cleanN} Wechsel zusammen: ${money(clean, cleanCur)}`);
+    if (b.length >= 2 && cleanN >= 2) lines.push('', tr('extras.trip.clean', { c: cleanN, amount: money(clean, cleanCur) }));
     return lines.join('\n');
   }
   // Datenauskunft: was liegt lokal?
@@ -769,13 +787,13 @@
     const ls = Object.entries(all || {}).filter(([k]) => k.startsWith('l:')).map(([, v]) => v);
     const n = f => ls.filter(f).length;
     return [
-      `${ls.length} Unterkünfte im Verlauf (${n(i => i.vote === 1)} 👍, ${n(i => i.vote === -1)} 👎, ${n(i => i.note)} mit Notiz, ${n(i => i.booked)} gebucht)`,
-      `${n(i => i.reviewTexts?.length)} mit gespeicherten Bewertungsauszügen, ${n(i => i.priceHistory?.length)} mit Preisverlauf`,
-      all?.trip ? `Reise: ${all.trip.city || '?'}, ${all.trip.people?.length || 0} Personen` : 'Keine Reise gespeichert',
-      all?.pool ? `Gesammelte Suchseiten: ${(all.pool.pages || []).length}` : null,
-      all?.priceLog?.length ? `${all.priceLog.length} Preis-Mediane deiner Suchen (nur Stadt, Datum, Median)` : null,
-      all?.friendLikes ? `Merklisten von Freunden: ${Object.keys(all.friendLikes).length} Unterkünfte` : null,
-      'Alles liegt nur in diesem Browser (chrome.storage.local).',
+      tr('extras.store.history', { c: ls.length, up: n(i => i.vote === 1), down: n(i => i.vote === -1), notes: n(i => i.note), booked: n(i => i.booked) }),
+      tr('extras.store.excerpts', { a: n(i => i.reviewTexts?.length), b: n(i => i.priceHistory?.length) }),
+      all?.trip ? tr('extras.store.trip', { city: all.trip.city || '?', c: all.trip.people?.length || 0 }) : tr('extras.store.noTrip'),
+      all?.pool ? tr('extras.store.pool', { c: (all.pool.pages || []).length }) : null,
+      all?.priceLog?.length ? tr('extras.store.priceLog', { c: all.priceLog.length }) : null,
+      all?.friendLikes ? tr('extras.store.friends', { c: Object.keys(all.friendLikes).length }) : null,
+      tr('extras.store.local'),
     ].filter(Boolean);
   }
 
@@ -787,7 +805,7 @@
     if (!was || !now || was <= now) return null;
     const same = (history || []).filter(e => e.p && key(e));
     const low = same.length ? Math.min(...same.map(e => e.p)) : null;
-    return low != null && low <= now * 1.02 ? `Rabatt mit Vorsicht: bei einem früheren Besuch kostete es schon ${fmt(low)} pro Nacht ohne Rabatt-Hinweis` : null;
+    return low != null && low <= now * 1.02 ? tr('extras.honesty', { low: fmt(low) }) : null;
   }
   // Teilbewertungen (Sauberkeit, Genauigkeit, Check-in, Kommunikation, Lage, Preis-Leistung)
   const SUB = { clean: /sauberkeit|cleanliness|propreté|limpieza|pulizia/i, accuracy: /genauigkeit|accuracy|exactitude|veracidad|precisione/i, checkin: /check-?in|arrivée|llegada/i,
@@ -804,13 +822,13 @@
     lines.forEach((l, i) => { for (const [k, re] of Object.entries(SUB)) if (out[k] == null && re.test(l) && l.length < 30) { const m = (lines[i + 1] || '').match(/^(\d)[.,](\d)$/); if (m) out[k] = +(m[1] + '.' + m[2]); } });
     return Object.fromEntries(Object.entries(out).filter(([, v]) => v >= 1 && v <= 5));
   }
-  const SUB_NAMES = { clean: 'Sauberkeit', accuracy: 'Genauigkeit', checkin: 'Check-in', communication: 'Kommunikation', location: 'Lage', value: 'Preis-Leistung' };
+  const subName = k => tr('extras.sub.' + k);
   function subRatingNotes(sub, wishes) {
     const warn = [], info = [];
     if (!sub || !Object.keys(sub).length) return { warn, info };
-    if ((wishes || []).includes('clean') && sub.clean != null && sub.clean < 4.6) warn.push(`passt nicht zu deinem Wunsch „sauber“: Sauberkeit nur ${sep(sub.clean)}`);
-    const low = Object.entries(sub).filter(([k, v]) => v < 4.5 && !(k === 'clean' && (wishes || []).includes('clean'))).map(([k, v]) => `${SUB_NAMES[k]} ${sep(v)}`);
-    if (low.length) info.push(`Schwächere Teilnoten: ${low.join(', ')}`);
+    if ((wishes || []).includes('clean') && sub.clean != null && sub.clean < 4.6) warn.push(tr('extras.sub.warnClean', { v: sep(sub.clean) }));
+    const low = Object.entries(sub).filter(([k, v]) => v < 4.5 && !(k === 'clean' && (wishes || []).includes('clean'))).map(([k, v]) => `${subName(k)} ${sep(v)}`);
+    if (low.length) info.push(tr('extras.sub.low', { list: jn(low) }));
     return { warn, info };
   }
   // Kontaktdaten markiert (Telefon, Mail): außerhalb der Plattform zahlen ist ein häufiger Betrug
@@ -824,7 +842,7 @@
       const a = top[i], b = top[j];
       if (i === j || k(a) !== 'free' || !k(b) || k(b) === 'free' || a.rank?.stay == null || b.rank?.stay == null) continue;
       if (Math.abs(a.rank.score - b.rank.score) > 5 || a.rank.stay <= b.rank.stay) continue;
-      return `Platz ${i + 1} kostet ${money(a.rank.stay - b.rank.stay, a.currency)} mehr als Platz ${j + 1}, ist aber kostenlos stornierbar`;
+      return tr('extras.cancelTradeoff', { i: i + 1, diff: money(a.rank.stay - b.rank.stay, a.currency), j: j + 1 });
     }
     return null;
   }
@@ -834,7 +852,7 @@
     if (!city || !medNow) return null;
     const b = (booked || []).filter(i => i.booked && i.pricePerNight && String(i.city || i.locality || '').toLowerCase().replace(/-/g, ' ').includes(city) && (R().normCur(i.currency) || '€') === cur && i.booked.checkin)
       .sort((x, y) => S(y.booked.checkin).localeCompare(S(x.booked.checkin)))[0];
-    return b ? `Bei deiner Buchung ab ${b.booked.checkin} hast du hier ${money(b.pricePerNight, b.currency)} pro Nacht gezahlt, heute liegt die Mitte bei ${money(medNow, cur)}` : null;
+    return b ? tr('extras.lastYear', { ci: b.booked.checkin, p: money(b.pricePerNight, b.currency), m: money(medNow, cur) }) : null;
   }
 
   root.StayMatchExtras = {

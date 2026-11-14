@@ -7,7 +7,7 @@ try { ({ JSDOM } = require('jsdom')); } catch {}
 const EXT = path.join(__dirname, '..', '..', 'extension');
 const read = f => fs.readFileSync(path.join(EXT, f), 'utf8');
 // Tests laden die Erweiterungsdateien einzeln per eval; core.js kommt immer zuerst und bringt deshalb Motor und Wörterbücher mit (wie die Skriptlisten im Manifest und in den HTML-Seiten).
-const src = f => f === 'core.js' ? read('core.js') + '\n' + read('i18n.js') + '\n' + read('strings.js') : read(f);
+const src = f => f === 'print.js' ? read('i18n.js') + '\n' + read('strings.js') + '\n' + read('print.js') : f === 'core.js' ? read('core.js') + '\n' + read('i18n.js') + '\n' + read('strings.js') : read(f);
 
 const b64 = s => Buffer.from(s).toString('base64');
 // Reihenfolge der Content-Scripts wie im Browser: direkt aus manifest.json (ohne bridge.js)
