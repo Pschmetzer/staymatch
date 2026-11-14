@@ -316,11 +316,14 @@ const overpass = (bbox, outer, onTry, onBytes) => SM.overpassFetch(bbox, outer, 
 
 // Vorab geladene Städte (scripts/prefetch-cities.mjs → web/data/). Der Index wird nur einmal geladen.
 const normCity = C.normCity;
-let indexPromise = null;
+let indexPromise = null, indexData = null;
+// Kanonischer Städteschlüssel (Dateiname der Vorab-Stadt): „Rom“, „Roma“ und „Rom, Italien“ teilen Favoriten und Stimmen. Unbekannte Städte: normierter Text.
+const cityId = c => { const f = indexData && SM.cityKeys(c).map(k => indexData[k]).find(Boolean); return f ? String(f).replace(/\.json$/, '') : normCity(c); };
 async function prefetched(city, signal) {
   try {
     indexPromise = indexPromise || fetch('data/index.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
     const idx = await indexPromise.catch(e => { indexPromise = null; throw e; }); // beim nächsten Mal neu versuchen
+    indexData = idx;
     const file = SM.cityKeys(city).map(k => idx[k]).find(Boolean);
     if (!file) return null;
     const r = await fetch('data/' + file, { signal });
@@ -442,7 +445,8 @@ async function run(pick) {
     setBusy.set('Schritt 3 von 3: Bewerte Viertel', 3);
     const { areas, pois } = SM.buildData(rows); // dieselben Orte als Punkt und Gebäude, Bahnhofseingänge: nur einmal zählen
     if (areas.length < 2) throw new Error('Keine Viertel in OpenStreetMap gefunden – andere Stadt versuchen.');
-    lastData = { areas, pois, geo, q: normCity(city), at };
+    lastData = { areas, pois, geo, q: cityId(city), qOld: normCity(city), at };
+    migrateKeys(lastData);
     cmp = []; lastView = null; shown = 8; renderMap.key = null;
     $('stale').hidden = true;
     compute();
@@ -480,7 +484,27 @@ $('retry').onclick = () => run();
 // Wertung neu rechnen, wenn Gruppe, Umkreis, Fairness oder Sortierung sich ändern (kein neuer Abruf nötig)
 const areaKey = a => `${a.name}@${a.lat.toFixed(4)}`;
 const favStore = () => store.get('sm_fav', {});
-const favSet = () => new Set((favStore()[lastData && lastData.q] || []));
+// Alte Favoriten/Stimmen übernehmen: früher je eingetipptem Namen („rom“, „roma“) gespeichert, und der Schlüssel (Name@Breite) wandert bei neuen Daten um einige Meter.
+// Beim Laden der Daten alles unter den kanonischen Städteschlüssel und auf die aktuellen Schlüssel umschreiben.
+function migrateKeys(d) {
+  try {
+    const own = new Set(d.areas.map(areaKey));
+    const fix = ks => SM.remapKeys(ks, d.areas, areaKey).filter(k => own.has(k)); // Schlüssel, die es nicht mehr gibt, fallen weg
+    for (const name of ['sm_fav', 'sm_votes']) {
+      const all = store.get(name, {}); if (!all || typeof all !== 'object' || Array.isArray(all)) continue;
+      const srcs = [...new Set([d.q, d.qOld, ...Object.keys(all).filter(k => cityId(k) === d.q)])].filter(q => all[q]);
+      if (!srcs.length) continue;
+      if (name === 'sm_fav') all[d.q] = [...new Set(srcs.flatMap(q => fix(all[q])))].slice(0, 200);
+      else {
+        const out = {};
+        for (const q of srcs) for (const [n, ks] of Object.entries(SM.cleanVotes(all[q]))) out[n] = [...new Set([...(out[n] || []), ...fix(ks)])].slice(0, 20);
+        all[d.q] = SM.cleanVotes(out);
+      }
+      for (const q of srcs) if (q !== d.q) delete all[q];
+      store.set(name, all);
+    }
+  } catch (e) { console.debug(e); }
+}
 function clearResults(msg, keepHead) {
   $('results').innerHTML = ''; $('compare').innerHTML = ''; $('whatif').innerHTML = ''; $('reshead').hidden = !keepHead; $('more').hidden = true;
   for (const l of [layer, poiLayer]) if (l) l.remove(); // alte Kreise, Pins und Orte weg
@@ -514,7 +538,7 @@ function compute() {
   // Platzwechsel gegenüber der letzten Rechnung (nur bei gleichen Daten)
   const prev = lastView && lastView.data === lastData && lastView.sortMode === sortMode ? new Map(lastView.ranked.map((a, i) => [areaKey(a), i])) : null;
   ranked.forEach((a, i) => { a.delta = prev && prev.has(areaKey(a)) ? prev.get(areaKey(a)) - i : null; });
-  lastView = { data: lastData, sortMode, ranked, pool, okAreas, byTotal, ppl, r, pois, geo, minDist, stats: SM.cityStats(areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10)), medCentre: SM.median(okAreas.map(a => a.centerDist)),
+  lastView = { data: lastData, sortMode, ranked, pool, okAreas, byTotal, ppl, r, pois, geo, minDist, stats: SM.cityStats(areas.filter(a => Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10)), medCentre: SM.quantile(okAreas.map(a => a.centerDist), 0.75),
     awards: SM.awards(ranked, ppl), relevant };
   if (!ranked.length) {
     clearResults('', true); renderHead();
@@ -538,7 +562,7 @@ function compute() {
   dispatchEvent(new Event('staymatch:render'));
 }
 let rescoreTimer = null;
-const rescore = () => { clearTimeout(rescoreTimer); rescoreTimer = setTimeout(() => { try { compute(); } catch (e) { console.debug(e); } }, 250); };
+const rescore = () => { clearTimeout(rescoreTimer); rescoreTimer = setTimeout(() => { try { compute(); } catch (e) { console.error(e); const st = $('status'); st.classList.remove('sr'); st.textContent = 'Die Neuberechnung ist fehlgeschlagen. Die Liste unten kann veraltet sein. Seite neu laden oder die Suche erneut starten.'; } }, 250); };
 $('more').onclick = () => { shown += 8; renderMap.keep = true; compute(); }; // Karte springt bei „Mehr“ nicht weg
 $('onlyFav').addEventListener('change', () => { shown = 8; compute(); });
 
@@ -567,7 +591,7 @@ function renderWhatIf(byTotal, ppl) {
 
 function airbnbFor(a) {
   const { ppl, geo, r } = lastView, b = budgetNums();
-  return SM.airbnbUrl({ lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length,
+  return SM.airbnbUrl({ lang: LANG, cc: SM.cityCountry(lastData && lastData.qOld || geo.name), lat: a.lat, lon: a.lon, name: a.name, city: geo.name, checkin: $('checkin').value, checkout: $('checkout').value, adults: ppl.length,
     children: guests().k, infants: guests().y, minBedrooms: $('beds').checked ? Math.max(1, Math.ceil(ppl.length / 2)) : 0, priceMaxNight: b.perNight, radius: r });
 }
 function renderResults() {
@@ -699,8 +723,18 @@ function restoreMap() {
   if (lastView) { renderMap.key = null; renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois); }
   else if (bboxLayer) { bboxLayer.remove(); bboxLayer = null; }
 }
+// Leaflet erst nach dem ersten Ergebnis laden (spart beim Start Skript und Stylesheet)
+let leafletP = null;
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  leafletP = leafletP || new Promise((ok, no) => {
+    const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'vendor/leaflet/leaflet.css'; document.head.appendChild(l);
+    const sc = document.createElement('script'); sc.src = 'vendor/leaflet/leaflet.js'; sc.onload = ok; sc.onerror = () => { leafletP = null; no(new Error('Leaflet')); }; document.head.appendChild(sc);
+  });
+  return leafletP;
+}
 function renderMap(ranked, geo, r = 800, pois = []) {
-  if (!window.L) return;
+  if (!window.L) { loadLeaflet().then(() => lastView && renderMap(lastView.ranked, lastData.geo, lastView.r, lastData.pois)).catch(() => { $('tileMsg').hidden = false; }); return; }
   $('mapSection').hidden = false;
   buildMapBar(lastView ? lastView.ppl : []);
   ensureMap();
@@ -739,7 +773,7 @@ function renderMap(ranked, geo, r = 800, pois = []) {
     m.on('click', () => goto(i)); return m;
   });
   // Weitere bewertete Viertel als kleine Punkte (grün gut, rot schwach)
-  const others = (lastView ? lastView.okAreas : []).filter(a => !ranked.includes(a)).slice(0, 150).map(a =>
+  const others = (lastView ? lastView.okAreas : []).filter(a => !ranked.includes(a)).sort((x, y) => score(y) - score(x)).slice(0, 150).map(a =>
     L.circleMarker([a.lat, a.lon], { radius: 5, weight: 1, color: `hsl(${Math.round(Math.max(0, Math.min(100, score(a))) * 1.2)},65%,45%)`, fillOpacity: 0.7 }).bindTooltip(`${escapeHtml(a.name)} (${score(a)})`));
   // Suchausschnitt der Airbnb-Suche für Platz 1
   const a0 = ranked[0], dLat = r / 111320, dLon = r / (111320 * Math.cos(a0.lat * Math.PI / 180));
@@ -786,15 +820,16 @@ function applyShared(h) {
   } catch { return false; }
 }
 $('share').onclick = async () => {
-  const url = location.origin + location.pathname + '#t=' + SM.shareEncode(shareState());
-  try { await navigator.clipboard.writeText(url); $('shareMsg').textContent = solo() ? '✅ Link kopiert. Damit öffnest du deine Suche auch auf einem anderen Gerät.' : '✅ Link kopiert. Schick ihn in den Gruppenchat.'; }
+  const anon = $('shareAnon') && $('shareAnon').checked;
+  const url = location.origin + location.pathname + '#t=' + SM.shareEncode({ ...shareState(), anon });
+  try { await navigator.clipboard.writeText(url); $('shareMsg').textContent = !solo() && !anon ? '✅ Link kopiert, mit den Namen der Mitreisenden. Wer den Link hat, sieht sie. Für einen Link ohne Namen: „Ohne Namen teilen“ ankreuzen.' : solo() ? '✅ Link kopiert. Damit öffnest du deine Suche auch auf einem anderen Gerät.' : '✅ Link kopiert. Schick ihn in den Gruppenchat.'; }
   catch { $('shareMsg').textContent = 'Kopieren nicht möglich. Kopiere den Link aus der Adresszeile.'; }
-  history.replaceState(null, '', url);
+  if (!anon) history.replaceState(null, '', url); // Namen nicht unnötig in die Adresszeile (Verlauf, Lesezeichen)
 };
 // Stadt im Feld geändert, Ergebnisse gehören aber zur alten Stadt
 $('city').addEventListener('input', () => {
   $('choices').hidden = true; saveForm();
-  const stale = lastData && normCity($('city').value) !== lastData.q;
+  const stale = lastData && cityId($('city').value) !== lastData.q;
   $('stale').hidden = !stale;
   if (stale) $('stale').textContent = `Die Ergebnisse unten gehören zu „${lastData.geo.name}“. Mit „Passende Viertel finden“ suchst du die neue Stadt.`;
 });
@@ -845,6 +880,6 @@ extCheck(); setTimeout(extCheck, 800);
 renderWishes();
 renderPeople();
 // Schnittstelle für app-extra.js (Zusatzfunktionen, eigenes Modul wegen der Größengrenze)
-window.SMApp = { view: () => lastView, data: () => lastData, people: () => people, fair: () => fairness, nights: () => budgetNums().n, store, areaKey, offerUndo, rescore,
+window.SMApp = { view: () => lastView, data: () => lastData, people: () => people, fair: () => fairness, nights: () => budgetNums().n, store, areaKey, cityId, offerUndo, rescore,
   setPeople(p) { people = p; save(); renderPeople(); }, setFair(f) { fairness = SM.cleanFairness(f); store.set('sm_fair', fairness); updateFair(); rescore(); },
   setWishes(w) { wishes = cleanWishes(w); store.set('sm_wishes', wishes); renderWishes(); } };

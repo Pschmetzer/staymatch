@@ -12,7 +12,7 @@
   const FS = [1, 1.15, 1.3];
   let fs = FS.includes(st.get('sm_fs', 1)) ? st.get('sm_fs', 1) : 1;
   const applyFs = () => {
-    document.querySelectorAll('main form, #reshead, #whatif, #extra, #compare, #results, #status').forEach(x => { x.style.zoom = fs === 1 ? '' : String(fs); });
+    document.documentElement.style.fontSize = fs === 1 ? '' : `${fs * 100}%`; // Schrift in rem: skaliert mit, ohne das Layout zu zoomen (Karte bleibt unverändert)
     $('fsUp').disabled = fs === FS[FS.length - 1]; $('fsDown').disabled = fs === FS[0];
     $('fsUp').setAttribute('aria-label', `Schrift größer (jetzt ${pct(fs * 100)} %)`);
   };
@@ -85,7 +85,7 @@
   $('placesDel').onclick = () => { places = []; try { localStorage.removeItem('sm_places'); } catch {} $('placesFile').value = ''; placesUi(); A.rescore(); };
 
   // ---------- Gruppen-Abstimmung per Link: Favoriten (♥) sind deine Stimmen, der Teilen-Link nimmt alle Stimmen mit ----------
-  const qNow = () => (A.data() && A.data().q) || C.normCity($('city').value);
+  const qNow = () => (A.data() && A.data().q) || A.cityId($('city').value);
   // Wer bin ich? Gespeicherter Name, sonst die erste Person. Liegen fremde Stimmen vor, erst nachfragen, statt eine fremde Stimme zu überschreiben.
   const me = () => { const n = st.get('sm_me', ''), ppl = A.people(); return ppl.some(p => p.name === n) ? n : Object.keys(SM.cleanVotes(allVotes()[qNow()])).length ? '' : ppl[0].name; };
   const allVotes = () => { const v = st.get('sm_votes', {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; };
@@ -99,7 +99,7 @@
     if (!location.hash.startsWith('#t=')) return;
     const s = SM.shareDecode(location.hash.slice(3));
     if (!s || !s.votes || !Object.keys(s.votes).length) return;
-    const q = C.normCity(s.form.c), all = allVotes(), cur = SM.cleanVotes(all[q]);
+    const q = A.cityId(s.form.c), all = allVotes(), cur = SM.cleanVotes(all[q]);
     for (const [n, ks] of Object.entries(s.votes)) if (n !== st.get('sm_me', '')) cur[n] = ks;
     all[q] = cur; const keys = Object.keys(all); if (keys.length > 20) delete all[keys[0]];
     st.set('sm_votes', all);
