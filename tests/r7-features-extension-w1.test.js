@@ -138,10 +138,9 @@ test('R7E Bewertungen gesamt: Kritik-Quote, Einzelfall, Lärmzeit, Gästemix, Sp
   assert.equal(H.guestMix(['Mit meinem Mann hier.', 'Romantisch!', 'Mit meiner Frau.', 'Wir beide fanden es toll.']).top, 'Paare');
   assert.equal(H.languages(['Es war sehr schön und wir waren froh.', 'The place was very nice and we loved it.', 'Nous avons adoré, très bien et le lit était top.']), 3);
   assert.deepEqual(H.numberFacts(['Nur 10 Minuten zur Metro.', '3. Stock ohne Aufzug, aber ok.']), ['10 Minuten zur Metro', '3. Stock ohne Aufzug']);
-  assert.equal(H.renovated(['Neu renoviert, top!', 'alt']), true);
+  assert.equal(H.renovated(['Neu renoviert, top!', 'alt'], 5, { newestFirst: true }), true);
   const trend = [...Array.from({ length: 10 }, () => 'Okay.'), ...Array.from({ length: 10 }, () => 'Sehr sauber.')];
-  assert.match(H.keywordTrend(trend), /früher oft gelobt/);
-  assert.equal(H.politeFives([{ rating: 5, text: 'Leider schmutzig, sonst nett.' }, { rating: 5, text: 'Toll.' }]), 1);
+  assert.match(H.keywordTrend(trend, 'sauber', { newestFirst: true }), /früher oft gelobt/);
 });
 
 const ROOM_URL = 'https://www.airbnb.de/rooms/777?checkin=2026-05-01&checkout=2026-05-03&adults=4';

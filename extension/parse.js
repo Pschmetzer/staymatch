@@ -49,6 +49,19 @@
     if (!m) m = str.match(new RegExp(`(\\d)[.,](\\d{1,2})\\s*(?:[·•|,–-]\\s*)?(\\d[\\d.,\\u00a0\\u202f\\u2009 ]*)\\s*${REVIEW_WORD}`, 'i'));
     return m ? { value: +(m[1] + '.' + m[2]), count: +m[3].replace(/\D/g, '') } : { value: null, count: null };
   }
+  // R8: „4,92“ und „(123)“ in zwei Zeilen, oder „★ 4,92 (123)“: Note + Anzahl über aufeinanderfolgende Zeilen suchen
+  function ratingFromLines(lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const a = String(lines[i]).replace(/^[★⭐☆*\s]+/, '');
+      if (!/^\d[.,]\d{1,2}(?:\s|$|\(|·|•|[|,–-])/.test(a)) continue;
+      for (const c of [a, lines[i + 1] != null ? `${a} ${lines[i + 1]}` : null]) {
+        if (!c) continue;
+        const r = rating(c);
+        if (r.value != null) return r;
+      }
+    }
+    return { value: null, count: null };
+  }
   // R5-84: Sterne aus dem aria-label („4,92 von 5 Sternen“), wenn die Textzeile nicht lesbar war
   function ratingFromAria(s) {
     const m = String(s || '').match(/(\d)[.,](\d{1,2})\s*(?:von|out of|sur|de|su|van|z|av|af|\/)\s*5/i);
@@ -59,7 +72,10 @@
   // R5-81: „Nicht verfügbar“ ist kein Mehrfachangebot
   const NOT_AVAIL = /nicht verfügbar|not available|unavailable|indisponible|no disponible|non disponibile|niet beschikbaar|indisponível|niedostępn\w*|ikke tilgængelig/gi;
   // R7: nur mit Anzahl davor („3 Wohnungen verfügbar“), nicht „Self check-in available“ oder „Sofort verfügbar“
-  const isMultiUnit = t => /\d+\s+[\p{L} -]{0,30}?(?:verfügbar|available|disponibles?|beschikbaar|disponibili|disponíve(?:l|is)|dostępn\p{L}*)/iu.test(String(t || '').replace(NOT_AVAIL, ''));
+  // R8: „3 Nächte verfügbar“ / „5 days available“ ist ein Zeitraum, kein Mehrfachangebot
+  const TIME_UNIT = /(?<![\p{L}])(?:nächte|nacht|nächten|nights?|noches?|nuits?|notti|notte|nachten|noce|nocy|dagen|tage|tagen|days?|jours?|días|dias|giorni|wochen?|weeks?|semaines?|semanas?)(?![\p{L}])/iu;
+  const MULTI_RE = /\d+\s+[\p{L} -]{0,30}?(?:verfügbar|available|disponibles?|beschikbaar|disponibili|disponíve(?:l|is)|dostępn\p{L}*)/giu;
+  const isMultiUnit = t => [...String(t || '').replace(NOT_AVAIL, '').matchAll(MULTI_RE)].some(m => !TIME_UNIT.test(m[0]));
   // R5-95: Badge-Art vereinheitlichen, egal in welcher Sprache Airbnb den Text liefert
   const FAV_RE = /Gäste-?Favorit|Guest favou?rite|Coup de c(?:œ|oe)ur|Préféré des voyageurs|Preferito dagli ospiti|Gasten-?favoriet|Favorito (?:dos hóspedes|entre huéspedes)|Ulubione/i;
   function normBadge(b) {
@@ -128,6 +144,18 @@
     const b = bookPrice(line);
     return b.night != null && b.total != null && b.total > b.night ? { nightPrice: b.night, allTotal: b.total } : {};
   }
+  // R8: Zeile mit Nacht- UND Gesamtpreis: die Einheit gilt für den ERSTEN Betrag („120 € pro Nacht · 480 € insgesamt“ → 120 je Nacht,
+  // „480 € insgesamt · 120 € pro Nacht“ → 480 gesamt), nicht für die ganze Zeile.
+  function priceFields(line, px, fallbackCur) {
+    const both = bothPrices(line);
+    const cur = px.currency || fallbackCur || null;
+    if (both.allTotal != null) {
+      const firstV = [...line.matchAll(new RegExp(AMT_CUR.source, 'g'))].map(m => toNumber(m[1] || m[4])).find(v => v === both.nightPrice || v === both.allTotal);
+      const lead = px.discounted ? both.nightPrice : firstV;
+      return { totalPrice: px.amount, currency: cur, isTotal: lead === both.allTotal, priceWord: true, ...both };
+    }
+    return { totalPrice: px.amount, currency: cur, isTotal: TOTAL_RE.test(line), priceWord: TOTAL_RE.test(line) || NIGHT_RE.test(line) };
+  }
 
   // "Ferienwohnung in Gràcia" → "Gràcia"; nimmt die LETZTE Präposition ("Zimmer im Zentrum in Rom" → "Rom")
   function localityFromTitle(kind) {
@@ -140,7 +168,7 @@
   // Der Zustand ist nach Blättern/Kartenverschieben VERALTET (ungeprüft live); parseSearch nutzt ihn deshalb nur
   // für Felder, die DOM nicht liefert (Koordinaten, Details), und Preise kommen vom DOM.
   // JSON nur neu parsen, wenn sich der textContent ändert.
-  const stateCache = { text: null, results: [], note: 'fehlt', count: 0 };
+  const stateCache = { parts: null, results: [], note: 'fehlt', count: 0 };
   // R5-89: kein fester Pfad; rekursiv nach „staysSearch“ suchen, in allen data-deferred-state-Blöcken
   function findKey(o, key, depth = 0) {
     if (!o || typeof o !== 'object' || depth > 10) return null;
@@ -156,9 +184,11 @@
   }
   function stateResults(doc) {
     const els = stateEls(doc);
-    if (!els.length) { Object.assign(stateCache, { text: null, results: [], note: 'fehlt', count: 0 }); return []; }
-    const text = els.map(e => e.textContent).join('\u0001');
-    if (text === stateCache.text) return stateCache.results;
+    if (!els.length) { Object.assign(stateCache, { parts: null, results: [], note: 'fehlt', count: 0 }); return []; }
+    // R8: kein MB-großer Sammelstring: je Skript einzeln vergleichen (gleiche Länge, gleicher Inhalt)
+    const parts = els.map(e => e.textContent);
+    const prev = stateCache.parts;
+    if (prev && prev.length === parts.length && parts.every((p, i) => p.length === prev[i].length && p === prev[i])) return stateCache.results;
     // R7: Befund für diagnose() gleich mitschreiben (dort nicht noch einmal alles parsen)
     let results = [], note = 'kein gültiges JSON', count = 0;
     for (const e of els) {
@@ -168,7 +198,7 @@
         if (Array.isArray(r)) { note = 'ok'; count = r.length; if (r.length) { results = r; break; } } else if (note !== 'ok') note = 'Struktur anders als erwartet';
       } catch {}
     }
-    Object.assign(stateCache, { text, results, note, count });
+    Object.assign(stateCache, { parts, results, note, count });
     return results;
   }
   // R5-90: Base64URL und fehlendes Padding verkraften
@@ -196,10 +226,9 @@
         title: r.nameLocalized?.localizedStringWithTranslationPreference || r.subtitle || r.title || '',
         kind: r.title || '', locality: r.eyebrowLocation || null,
         rating: rt.value, reviewCount: rt.count, isNew: rt.value == null && isNewLabel(r.avgRatingLocalized),
-        totalPrice: px.amount, currency: px.currency || currency(priceLabel), discounted: !!(disc && disc.amount != null) || !!px.discounted, // R7: Rabatt mitnehmen
-        isTotal: TOTAL_RE.test(priceLabel), priceWord: TOTAL_RE.test(priceLabel) || NIGHT_RE.test(priceLabel),
+        ...priceFields(priceLabel, px, currency(priceLabel)), discounted: !!(disc && disc.amount != null) || !!px.discounted, // R7: Rabatt mitnehmen
         lat: coord?.latitude ?? null, lon: coord?.longitude ?? null,
-        multiUnit: lines.some(isMultiUnit), ...bothPrices(priceLabel),
+        multiUnit: lines.some(isMultiUnit),
         ...details(lines), ...detailsExt(lines),
         badges: [...new Set((r.badges || []).map(normBadge).filter(Boolean))],
         image: safeImage(r.contextualPictures?.[0]?.picture),
@@ -216,7 +245,7 @@
       const txt = card.innerText || '';
       const lines = txt.split('\n').map(s => s.trim()).filter(Boolean);
       const priceLine = card.querySelector('[data-testid="price-availability-row"]')?.innerText || lines.find(l => CUR_RE.test(l) && /\d/.test(l)) || '';
-      let rt = rating(lines.find(l => /^\d[.,]\d{1,2}\s*(?:\(|·|•|[|,–-]\s*\d)/.test(l)));
+      let rt = ratingFromLines(lines);
       // R5-84: Fallback über das aria-label der Sterne; R5-85: „Neu“ getrennt von „nicht gelesen“
       if (rt.value == null) {
         // R7: nur Sterne-Elemente (role="img" oder Stern-Wort im Label), nicht Bildzähler oder Preislabels
@@ -233,8 +262,8 @@
         discounted: !!px.discounted,
         kind, locality: localityFromTitle(kind),
         rating: rt.value, reviewCount: rt.count, isNew,
-        totalPrice: px.amount, currency: px.currency, isTotal: TOTAL_RE.test(priceLine), priceWord: TOTAL_RE.test(priceLine) || NIGHT_RE.test(priceLine),
-        lat: null, lon: null, multiUnit: isMultiUnit(txt), ...bothPrices(priceLine),
+        ...priceFields(priceLine, px, null),
+        lat: null, lon: null, multiUnit: isMultiUnit(txt),
         ...details(lines), ...detailsExt(lines), badges: [FAV_RE.test(txt) && 'Gäste-Favorit', /Superhost|Superanfitri/i.test(txt) && 'Superhost'].filter(Boolean),
         image: safeImage(card.querySelector('img')?.src), source: 'dom',
       };
@@ -312,36 +341,13 @@
     return { checkin: ci, checkout: co, nights, adults: n('adults'), children: n('children'), infants: n('infants'), pets: n('pets'), flexible };
   }
 
-  // ---- Nr. 6: Sammeln über mehrere Seiten ----
-  const PAGING = new Set(['items_offset', 'section_offset', 'pagination_search', 'cursor', 'page', 'federated_search_id', 'tab_id', 'search_type', 'source', 'search_mode', 'screen_size',
-    'zoom', 'zoom_level', 'search_by_map', 'map_toggle', 'ne_lat', 'ne_lng', 'sw_lat', 'sw_lng', 'bbox', 'search_mode', '_set_bev_on_new_domain']);
-  // Gleiche Suche = gleicher Pfad + gleiche Filter, ohne Seiten- und Kartenparameter
-  function searchKey(url) {
-    let u; try { u = new URL(url); } catch { return ''; }
-    const kv = [...u.searchParams.entries()].filter(([k]) => !PAGING.has(k) && !/^utm_/.test(k)).map(([k, v]) => `${k}=${v}`).sort();
-    return u.pathname.replace(/\/+$/, '') + '?' + kv.join('&');
-  }
-  // prev: {key, items} | null. Andere Suche → neu beginnen. Doppelte Ids werden zusammengelegt (neuer Wert gewinnt, vorhandene Koordinaten bleiben).
-  function mergeSearchResults(prev, next, key) {
-    const base = prev && prev.key === key ? prev.items : [];
-    const map = new Map(base.map(x => [x.id, x]));
-    let added = 0;
-    for (const n of next || []) {
-      if (!n?.id) continue;
-      const o = map.get(n.id);
-      if (!o) added++;
-      map.set(n.id, o ? { ...o, ...Object.fromEntries(Object.entries(n).filter(([, v]) => v != null && v !== '')) } : n);
-    }
-    return { key, items: [...map.values()], added, reset: !!prev && prev.key !== key };
-  }
-
   // ---- Textfunktionen für die Unterkunftsseite (reiner Text rein, Befund raus) ----
   const has = (t, re) => re.test(t);
 
   // Nr. 186/408 Hausregeln
   function houseRules(text) {
     const t = String(text || '');
-    const q = t.match(/(?:ruhezeit(?:en)?|quiet hours|heures? de silence|horas? de silencio|ore di silenzio)[^0-9]{0,20}(\d{1,2})[:.]?(\d{2})?\s*(uhr|h|[ap]\.?m\.?)?\s*(?:-|–|bis|to|and|y|à|a|et|e)\s*(\d{1,2})[:.]?(\d{2})?\s*([ap]\.?m\.?)?/i);
+    const q = t.match(/(?:ruhezeit(?:en)?|quiet hours|heures? de silence|horas? de silencio|ore di silenzio)[^0-9]{0,20}(\d{1,2})[:.]?(\d{2})?\s*(uhr|h|[ap]\.?m\.?)?\s*(?:-|–|(?<![\p{L}])(?:bis|to|and|y|à|a|et|e)(?![\p{L}]))\s*(\d{1,2})[:.]?(\d{2})?\s*([ap]\.?m\.?)?/iu);
     // R7: „10 pm to 8 am“ → 22 bis 8
     const h24 = (h, ap) => { const x = String(ap || '').toLowerCase()[0]; return x === 'p' && h < 12 ? h + 12 : x === 'a' && h === 12 ? 0 : h; };
     return {
@@ -378,7 +384,7 @@
   const AMENITIES = {
     wifi: /w-?lan|wifi|wi-fi|internet/i,
     kitchen: /küche|kitchen|cuisine|cocina|cucina/i,
-    ac: /klimaanlage|air conditioning|climatisation|aire acondicionado|aria condizionata|\bAC\b/i,
+    ac: /klimaanlage|air conditioning|climatisation|aire acondicionado|aria condizionata/i, // „AC“/„A/C“ nur großgeschrieben, siehe AC_CASE
     parking: /parkplatz|parking|stellplatz|garage|aparcamiento|parcheggio/i,
     pool: /\bpool\b(?!\s*(?:table|tisch|billard))|schwimmbad|piscine|piscina|swimming/i, // R7: nicht „Pool table“
     washer: /waschmaschine|(?<!dish)washer|washing machine|lave-linge|lavadora|lavatrice/i,
@@ -386,9 +392,19 @@
     heating: /heizung|heating|chauffage|calefacción|riscaldamento/i,
     elevator: /aufzug|fahrstuhl|elevator|(?<![\p{L}])(?<!ski[\s-])lift(?![\p{L}])|ascenseur|ascensor|ascensore/iu, // R7: nicht „Skilift“
   };
+  // R8: Verneinung wie in extras.present(): „Kein WLAN“, „ohne Parkplatz“, „Pool nicht vorhanden“ zählt nicht als vorhanden
+  const AC_CASE = /(?<![\p{L}\p{N}])A\/?C(?![\p{L}\p{N}])/u; // R8: „ac“ in Fremdtext ist keine Klimaanlage
+  const AM_NEG_BEFORE = /(?<![\p{L}])(?:kein\w*|ohne|nicht|no|not|without|sin|sans|senza|geen|pas de|non)(?![\p{L}])[^,;.\n|·•]{0,25}$/iu;
+  const AM_NEG_AFTER = /^\s*(?:ist |sind |is |are )?(?:nicht|not|no)\s+(?:vorhanden|verfügbar|available|included|inklusive|enthalten)|^\s*:?\s*(?:nein|no)\b/i;
   function amenities(text) {
-    const t = String(text || ''), out = {};
-    for (const [k, re] of Object.entries(AMENITIES)) out[k] = re.test(t);
+    const out = {};
+    const clauses = String(text || '').split(/[,;.\n|·•]+/);
+    const found = re => clauses.some(c => {
+      const g = new RegExp(re.source, re.flags + 'g');
+      for (const m of c.matchAll(g)) if (!AM_NEG_BEFORE.test(c.slice(0, m.index)) && !AM_NEG_AFTER.test(c.slice(m.index + m[0].length))) return true;
+      return false;
+    });
+    for (const [k, re] of Object.entries(AMENITIES)) out[k] = found(re) || (k === 'ac' && found(AC_CASE));
     return out;
   }
 
@@ -426,15 +442,23 @@
 
   // Nr. 291 Betrugsmuster: nur Hinweise, KEIN Beweis (ungeprüft live: wo solcher Text auf der Seite steht)
   const SCAM = [
-    [/\bwhatsapp\b|\btelegram\b|\bsignal[- ]?(?:app|messenger)\b|\b(?:per|via|über|auf|on|by|through)\s+signal\b/i, 'Kontakt außerhalb der Plattform (Messenger) erwähnt'],
     [/(?:außerhalb|ausserhalb) (?:von )?airbnb|outside (?:of )?airbnb|hors d'airbnb|fuera de airbnb/i, 'Zahlung oder Kontakt „außerhalb von Airbnb“ erwähnt'],
     [/western union|moneygram|bitcoin|krypto|crypto|gift ?card|geschenkkarte/i, 'ungewöhnliche Zahlungsart erwähnt'],
     [/(?:iban|überweisung|bank transfer|virement)[^.\n]{0,40}(?:direkt|direct|vorab|upfront|im voraus)/i, 'Vorabüberweisung direkt an den Gastgeber erwähnt'],
     [/nur (?:heute|jetzt) (?:zum )?(?:buchen|reservieren)|book (?:now|today) (?:only|or lose)|last chance.*(?:pay|deposit)/i, 'starker Zeitdruck im Text'],
   ];
+  // R8: Messenger (WhatsApp, Telegram, Signal) ist allein nur ein Hinweis (scamInfos), stark erst mit Zahlungswörtern
+  const MESSENGER = /\bwhatsapp\b|\btelegram\b|\bsignal[- ]?(?:app|messenger)\b|\b(?:per|via|über|auf|on|by|through)\s+signal\b/i;
+  const PAY_WORDS = /zahl\w*|bezahl\w*|überweis\w*|anzahlung|vorkasse|\biban\b|paypal|\bpay(?:ment|ing)?\b|deposit|transfer|bitcoin|krypto|crypto|western union|moneygram|gift ?card|geschenkkarte|virement|pago|pagamento|bonifico/i;
   function scamSignals(text) {
     const t = String(text || '');
-    return SCAM.filter(([re]) => re.test(t)).map(([, msg]) => msg);
+    const out = SCAM.filter(([re]) => re.test(t)).map(([, msg]) => msg);
+    if (MESSENGER.test(t) && PAY_WORDS.test(t)) out.unshift('Kontakt außerhalb der Plattform (Messenger) zusammen mit Zahlung erwähnt');
+    return out;
+  }
+  function scamInfos(text) {
+    const t = String(text || '');
+    return MESSENGER.test(t) && !PAY_WORDS.test(t) ? ['Messenger (z. B. WhatsApp) erwähnt: meist harmlos, Zahlung trotzdem nur über Airbnb'] : [];
   }
 
   // Nr. 293 Touristensteuer
@@ -449,6 +473,6 @@
   root.StayMatchParse = {
     ratingFromAria, isNewLabel, isMultiUnit, normBadge, priceOf, decodeId, findKey,
     diagnose, quality, diagnosisText, parseSearch, fromState, fromCards, searchParams, num, currency, rating, details, detailsExt, localityFromTitle, ROOM_RE,
-    searchKey, mergeSearchResults, bothPrices, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, safeImage, hostInfo, scamSignals, touristTax, TOTAL_RE,
+    bothPrices, priceFields, scamInfos, ratingFromLines, houseRules, amenities, cancellation, bookPrice, NIGHT_RE, safeImage, hostInfo, scamSignals, touristTax, TOTAL_RE,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
