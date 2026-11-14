@@ -49,6 +49,8 @@ jobs:
         run: npm ci --prefix tests --no-audit --no-fund --ignore-scripts
       - name: jsdom ist wirklich da (sonst würden DOM-Tests still übersprungen)
         run: node -e "require('./tests/node_modules/jsdom')"
+      - name: Web-Build (Minify, Hash-Verweise, Budget, vollständig)
+        run: node scripts/build-web.mjs --check
       - name: Tests auf Node 26 (Abdeckung wird auf 22 und 24 gemessen)
         if: matrix.node == 26
         run: node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./.github/scripts/gh-annotate.mjs --test-reporter-destination=stdout tests/*.test.js

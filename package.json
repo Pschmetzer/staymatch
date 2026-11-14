@@ -18,6 +18,8 @@
     "check:data": "node scripts/check-data.mjs",
     "check:pages": "node scripts/build-city-pages.mjs --check",
     "check:feed": "node scripts/build-feed.mjs --check",
+    "build:web": "node scripts/build-web.mjs",
+    "check:build": "node scripts/build-web.mjs --check",
     "feed": "node scripts/build-feed.mjs",
     "check:vendor": "node .github/scripts/check-vendor.mjs",
     "check:zip": "node .github/scripts/check-zip.mjs",

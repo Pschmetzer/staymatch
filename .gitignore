@@ -5,3 +5,4 @@ node_modules
 web/staymatch-plugin.zip
 .env*
 web/staymatch-plugin.zip.sha256
+dist
