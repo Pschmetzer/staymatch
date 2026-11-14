@@ -3,6 +3,16 @@
   <url><loc>https://staymatch.pro/</loc></url>
   <url><loc>https://staymatch.pro/en</loc></url>
   <url><loc>https://staymatch.pro/app</loc></url>
+  <url><loc>https://staymatch.pro/vergleich</loc>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/vergleich"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/compare"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/vergleich"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/compare</loc>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/vergleich"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/compare"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/vergleich"/>
+  </url>
   <url><loc>https://staymatch.pro/staedte/amsterdam</loc><lastmod>2026-11-13</lastmod>
     <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/amsterdam"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/amsterdam"/>

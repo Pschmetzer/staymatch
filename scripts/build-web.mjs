@@ -82,7 +82,7 @@ if (existsSync(join(SRC, '.vercel'))) cpSync(join(SRC, '.vercel'), join(OUT, '.v
 if (process.argv.includes('--check')) {
   for (const p of walk(SRC)) if (!existsSync(join(OUT, relative(SRC, p)))) { console.error(`Fehlt in dist/: ${relative(SRC, p)}`); process.exit(1); }
 }
-const MAX_JS = 115_000; // Budget für web/*.js nach Minify (Bytes; ausgeliefert zusätzlich mit Brotli)
+const MAX_JS = 140_000; // R11: gruppe.js + vergleich.js (neue Seiten-Skripte) kamen dazu, vorher 115 000. Budget für web/*.js nach Minify (Bytes; ausgeliefert zusätzlich mit Brotli)
 const jsTotal = sizes.filter(([f]) => f.endsWith('.js')).reduce((n, [, , b]) => n + b, 0);
 if (process.argv.includes('--check') && jsTotal > MAX_JS) { console.error(`Minifizierte JS zusammen ${jsTotal} > ${MAX_JS} Bytes`); process.exit(1); }
 const kb = (n) => (n / 1024).toFixed(1);
