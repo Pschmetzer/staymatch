@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welche Stadt passt zu uns? Städte vergleichen · StayMatch</title>
+<meta name="description" content="Sag, was dir und deiner Gruppe wichtig ist, und StayMatch ordnet alle Vorab-Städte nach Passung, mit Begründung und dem besten Viertel je Stadt. Alles im Browser, nichts wird gesendet.">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="canonical" href="https://staymatch.pro/vergleich">
+<link rel="alternate" hreflang="de" href="https://staymatch.pro/vergleich">
+<link rel="alternate" hreflang="en" href="https://staymatch.pro/en/compare">
+<link rel="alternate" hreflang="x-default" href="https://staymatch.pro/vergleich">
+<meta property="og:type" content="website"><meta property="og:site_name" content="StayMatch"><meta property="og:locale" content="de_DE">
+<meta property="og:title" content="Welche Stadt passt zu uns? Städte vergleichen · StayMatch"><meta property="og:description" content="Sag, was dir und deiner Gruppe wichtig ist, und StayMatch ordnet alle Vorab-Städte nach Passung, mit Begründung und dem besten Viertel je Stadt. Alles im Browser, nichts wird gesendet.">
+<meta property="og:url" content="https://staymatch.pro/vergleich"><meta property="og:image" content="https://staymatch.pro/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/vergleich.css">
+<script src="/theme-app.js"></script>
+</head>
+<body>
+<a class="skip" href="#cmp">Zum Vergleich springen</a>
+<nav class="top" aria-label="Hauptnavigation">
+  <div class="wrap">
+    <a class="logo" href="/"><i><svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg></i>StayMatch</a>
+    <div class="right">
+      <a href="/app">Viertel-Finder</a>
+      <a class="lang" href="/en/compare" hreflang="en" lang="en" aria-label="English version">EN</a>
+      <button type="button" class="theme" id="theme" aria-label="Dunkles Design" aria-pressed="false">◐</button>
+    </div>
+  </div>
+</nav>
+<main id="main" class="wrap vgl">
+<h1>Welche Stadt passt zu uns?</h1>
+<p class="lead">Wähle, wer mitreist und was euch wichtig ist. StayMatch rechnet alle Vorab-Städte durch und zeigt, welche Stadt am besten passt, mit dem besten Viertel dort. Die Rechnung läuft nur in deinem Browser.</p>
+<noscript><p>Der Vergleich braucht JavaScript.</p></noscript>
+<form id="cmp" novalidate>
+  <fieldset><legend>Wer reist mit?</legend><div id="rows"></div><button type="button" class="btn ghost small" id="add">+ Person</button></fieldset>
+  <div class="row"><label for="fair">Fairness bei Gruppen</label><input type="range" id="fair" min="0" max="100" value="60"><output id="fairOut" for="fair"></output></div>
+  <div class="row"><label for="tier">Preislage (Schätzung)</label><select id="tier"></select></div>
+  <button type="submit" class="btn primary" id="go">Städte vergleichen</button>
+  <p class="hint">Beim ersten Vergleich laden wir einmalig etwa 2,5 MB vorberechnete Städtedaten (OpenStreetMap, komprimiert). Danach wirken alle Änderungen sofort. Deine Eingaben verlassen den Browser nicht.</p>
+</form>
+<p id="status" role="status" aria-live="polite"></p>
+<ol class="rank" id="out" aria-label="Rangliste der Städte" hidden></ol>
+<h2 class="sec">So rechnen wir</h2>
+<ul class="vhow"><li>Jede Stadt wird wie im Viertel-Finder bewertet: Bars, Parks, Sehenswürdigkeiten, Restaurants, Bahnhöfe und mehr im Umkreis von 800 m um jedes Viertel.</li><li>Für den Städtevergleich gilt ein gemeinsamer Maßstab für alle Städte. Städte mit vielen erfassten Orten wirken dichter, in kleinen Städten fehlt OpenStreetMap manchmal etwas.</li><li>Die Stadtwertung (gemeinsamer Maßstab) zählt zu 70 % das beste Viertel und zu 30 % den Schnitt der drei besten Viertel.</li><li>Die Preislage ist eine Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise.</li><li>Die Punkte der Viertel sind wie in der App relativ zur eigenen Stadt. Mit „Viertel ansehen“ öffnest du die App mit Stadt und Typ. Weitere Personen reisen als Wunsch-Link im Fragment (nach dem #) mit, nicht in der Adresse.</li></ul>
+</main>
+<script src="/core.js" defer></script>
+<script src="/scoring.js" defer></script>
+<script src="/gruppe.js" defer></script>
+<script src="/vergleich.js" defer></script>
+</body>
+</html>

@@ -257,6 +257,9 @@ ${sections}
 // Sitemap mit lastmod der Stadtseiten (= Datenstand der Stadt)
 export function renderSitemap(cities) {
   const fixed = ['', 'en', 'app'].map(p => `  <url><loc>${BASE}/${p}</loc></url>`);
+  // Städtevergleich (von Hand gepflegte Seiten DE/EN), gegenseitig per hreflang verbunden
+  const cmpAlt = `\n    <xhtml:link rel="alternate" hreflang="de" href="${BASE}/vergleich"/>\n    <xhtml:link rel="alternate" hreflang="en" href="${BASE}/en/compare"/>\n    <xhtml:link rel="alternate" hreflang="x-default" href="${BASE}/vergleich"/>\n  `;
+  for (const p of ['vergleich', 'en/compare']) fixed.push(`  <url><loc>${BASE}/${p}</loc>${cmpAlt}</url>`);
   // Je Stadt deutsche und englische Seite, gegenseitig per hreflang verbunden (Sitemap-Form der Alternativen)
   const alt = c => `\n    <xhtml:link rel="alternate" hreflang="de" href="${BASE}/staedte/${c.slug}"/>\n    <xhtml:link rel="alternate" hreflang="en" href="${BASE}/en/cities/${c.enSlug}"/>\n    <xhtml:link rel="alternate" hreflang="x-default" href="${BASE}/staedte/${c.slug}"/>\n  `;
   const pages = cities.flatMap(c => [
