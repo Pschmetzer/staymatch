@@ -15,7 +15,7 @@ Hilfreich sind: betroffener Teil (Web-App oder Plugin), Schritte zum Nachstellen
 - Plugin: unerwartete Datenabflüsse, Codeausführung durch präparierte Seiten oder importierte Dateien, zu weite Berechtigungen.
 - Web-App: Skriptinjektion (XSS) über Teilen-Link oder Eingaben, Lücken in der Content-Security-Policy.
 
-Das Plugin nutzt die Berechtigung `storage` und Zugriff auf Airbnb-Seiten (24 Länder-Domains, zum Lesen der geöffneten Seite) sowie auf die StayMatch-Website (Reise übernehmen); siehe `content_scripts` in `extension/manifest.json`. Es sendet keine Daten an eigene Server. Details: [PRIVACY.md](PRIVACY.md).
+Das Plugin nutzt fest nur die Berechtigung `storage` (optional, erst auf Klick: `alarms`, `notifications` für die Erinnerung; eingefroren im Test `tests/ext-h2-privacy.test.js`) und Zugriff auf Airbnb-Seiten (24 Länder-Domains, zum Lesen der geöffneten Seite) sowie auf die StayMatch-Website (Reise übernehmen); siehe `content_scripts` in `extension/manifest.json`. Es sendet keine Daten an eigene Server. Details: [PRIVACY.md](PRIVACY.md).
 
 ## Unterstützte Versionen
 

@@ -11,7 +11,7 @@ const manifest = JSON.parse(D.src('manifest.json'));
 
 test('Manifest: Inkognito aus, sensible Airbnb-Bereiche ausgeschlossen, Mindestversion, keine neuen Rechte', () => {
   assert.equal(manifest.incognito, 'not_allowed');
-  assert.deepEqual(manifest.permissions, ['storage', 'alarms']);
+  assert.deepEqual(manifest.permissions, ['storage']);
   assert.ok(+manifest.minimum_chrome_version >= 102);
   const cs = manifest.content_scripts.find(c => c.js.includes('content-common.js'));
   for (const p of ['book', 'account-settings', 'hosting', 'messaging']) assert.ok(cs.exclude_matches.some(m => m.includes(`/${p}/`)), p);

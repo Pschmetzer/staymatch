@@ -11,11 +11,13 @@ Einreichen musst du selbst (Entwicklerkonto, einmalig 5 USD): https://chrome.goo
 **Beschreibung:**
 Finde schneller die passende Unterkunft, statt 40 Inserate einzeln anzuklicken. Öffne eine normale Airbnb-Suche, und StayMatch bewertet jede Unterkunft auf der Seite: Sterne mit Gewichtung nach Anzahl der Bewertungen, Gesamtpreis gegen dein Budget pro Nacht, Betten und deine Wünsche (ganze Unterkunft, Superhost/Gäste-Favorit, viele Bewertungen, kein gewerblicher Anbieter). Die besten drei erscheinen mit Begründung, jede Karte bekommt einen Punktwert.
 Optional: Der Viertel-Finder (https://staymatch.pro/app) sucht vorher das Stadtviertel, das zu dir passt (mit Freunden: in dem alle zufrieden sind), und übergibt Wünsche, Budget und Viertel ans Plugin.
-Dazu: Verlauf, 👍/👎, Notizen, Preisverlauf, Export.
+Dazu: Verlauf, 👍/👎, Notizen, Preisverlauf, Export (Sicherung, bereinigte Datei, Kalender), Optionen-Seite (Panel-Position, Badge mit Zahl der Unterkünfte, Erinnerung vor Ablauf der kostenlosen Stornierung als Opt-in), Druckseite der Top 3 und eine Seitendiagnose im Popup.
 Kein Konto, keine Server, kein Tracking. Das Plugin liest nur Seiten, die du selbst öffnest. Unabhängig, nicht mit Airbnb verbunden. Open Source (MIT).
 
 **Begründung der Berechtigungen (Formular):**
 - `storage`: speichert Verlauf, Likes, Notizen und die Reise lokal im Browser (`chrome.storage.local`). Es wird nichts gesendet.
+- `alarms` (optional, erst auf Klick bei „Erinnerung“ in den Optionen): ein lokaler Wecker für die Erinnerung vor Ablauf der kostenlosen Stornierung einer gebuchten Unterkunft.
+- `notifications` (optional, gleicher Klick): zeigt diese Erinnerung als Benachrichtigung. Ohne Erlaubnis gibt es keine Erinnerung.
 - Zugriff auf airbnb-Seiten: liest die geöffnete Such- und Unterkunftsseite, um Preise, Bewertungen und Lage zu bewerten.
 - Zugriff auf staymatch.pro: übernimmt Gruppe, Budget und Viertel-Wertungen aus dem Viertel-Finder.
 
