@@ -4,6 +4,35 @@
   const SCHEMA = 2;
   const FORMAT = 'staymatch-merkliste', EXPORT_VERSION = 1;
   const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  // Grenzen für Importdateien (Schutz vor riesigen oder bösartigen Dateien)
+  const MAX_FILE_BYTES = 5 * 1024 * 1024, MAX_ENTRIES = 5000, MAX_STR = 5000, MAX_ARR = 200, MAX_KEYS = 200, MAX_DEPTH = 6;
+  const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+  // Fremde Daten auf reines JSON-Gut zurechtstutzen: keine Prototyp-Schlüssel, begrenzte Tiefe, Länge und Anzahl. Liefert undefined, wenn nichts übrig bleibt.
+  function sanitizeDeep(v, depth = 0) {
+    if (v === null || typeof v === 'boolean') return v;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+    if (typeof v === 'string') return v.slice(0, MAX_STR);
+    if (depth >= MAX_DEPTH) return undefined;
+    if (Array.isArray(v)) return v.slice(0, MAX_ARR).map(x => sanitizeDeep(x, depth + 1)).filter(x => x !== undefined);
+    if (isObj(v)) {
+      const o = {};
+      for (const k of Object.keys(v).slice(0, MAX_KEYS)) { if (BAD_KEYS.has(k)) continue; const x = sanitizeDeep(v[k], depth + 1); if (x !== undefined) o[k] = x; }
+      return o;
+    }
+    return undefined;
+  }
+  // Datei vor dem Lesen auf Größe prüfen (File.size), dann Text liefern
+  async function readFileText(file) {
+    if (!file) throw new Error('Keine Datei gewählt.');
+    if (file.size > MAX_FILE_BYTES) throw new Error(`Datei ist zu groß (über ${MAX_FILE_BYTES / 1048576} MB). Eine StayMatch-Sicherung ist deutlich kleiner.`);
+    return file.text();
+  }
+  // Speicher voll? Chrome meldet „QUOTA_BYTES quota exceeded“ bzw. QuotaExceededError
+  const isQuotaError = e => /quota/i.test(String(e?.message || '') + ' ' + String(e?.name || '') + ' ' + (typeof e === 'string' ? e : ''));
+  const QUOTA_MSG = 'Der Speicher der Erweiterung ist voll. Lösche im Popup alte Einträge („Löschen…“) und versuche es erneut.';
+  async function safeSet(local, obj) {
+    try { await local.set(obj); } catch (e) { throw new Error(isQuotaError(e) ? QUOTA_MSG : 'Speichern fehlgeschlagen: ' + String(e?.message || e).slice(0, 120)); }
+  }
 
   // Alte Einträge (ohne schema) auf den aktuellen Stand heben. Idempotent, verändert das Original nicht.
   // Etiketten („Plan A“): höchstens 5, je 1–20 Zeichen, nur Text, ohne Doppelte
@@ -29,6 +58,7 @@
   // Datei lesen und prüfen: Kennung und Version, nur gültige Einträge. Wirft Error mit deutscher Meldung.
   function parseImport(text, { isRoomUrl = () => true, isCdnImage = () => true } = {}) {
     let j;
+    if (typeof text !== 'string' || text.length > MAX_FILE_BYTES) throw new Error('Datei ist zu groß oder kein Text.');
     try { j = JSON.parse(text); } catch { throw new Error('Datei ist kein gültiges JSON.'); }
     if (!isObj(j)) throw new Error('Datei hat nicht das StayMatch-Format.');
     if (j.format !== undefined && j.format !== FORMAT) throw new Error('Das ist keine StayMatch-Merkliste (Kennung „' + String(j.format).slice(0, 30) + '“).');
@@ -37,9 +67,10 @@
     const src = j.format ? j.listings : (j.listings || j); // ältere Dateien ohne Kennung: Objekt direkt mit Einträgen
     if (!isObj(src)) throw new Error('In der Datei fehlt die Liste der Unterkünfte.');
     const all = Object.values(src);
+    if (all.length > MAX_ENTRIES) throw new Error(`Die Datei enthält zu viele Einträge (über ${MAX_ENTRIES}).`);
     const entries = all.filter(v => isObj(v) && /^\d{1,20}$/.test(String(v.id ?? '')))
-      .map(v => migrateListing({ ...v, id: String(v.id), image: isCdnImage(v.image) ? v.image : undefined, url: isRoomUrl(v.url) ? v.url : undefined }));
-    return { entries, skipped: all.length - entries.length, friendLikes: isObj(j.friendLikes) ? j.friendLikes : null, trip: isObj(j.trip) ? j.trip : null };
+      .map(v => migrateListing({ ...sanitizeDeep(v), id: String(v.id), image: isCdnImage(v.image) ? v.image : undefined, url: isRoomUrl(v.url) ? v.url : undefined }));
+    return { entries, skipped: all.length - entries.length, friendLikes: isObj(j.friendLikes) ? sanitizeDeep(j.friendLikes) : null, trip: isObj(j.trip) ? sanitizeDeep(j.trip) : null };
   }
 
   // Zwei Stände derselben Unterkunft zusammenführen: der Eintrag mit neuerem lastSeen liefert die Felder,
@@ -48,7 +79,7 @@
     if (!a) return b; if (!b) return a;
     const [old, cur] = (a.lastSeen || 0) > (b.lastSeen || 0) ? [b, a] : [a, b]; // cur = neuer
     const out = { ...old };
-    for (const [k, v] of Object.entries(cur)) if (v !== undefined && v !== null && !(Array.isArray(v) && !v.length)) out[k] = v;
+    for (const [k, v] of Object.entries(cur)) if (!BAD_KEYS.has(k) && v !== undefined && v !== null && !(Array.isArray(v) && !v.length)) out[k] = v;
     for (const k of ['note', 'booked']) if (!cur[k] && old[k]) out[k] = old[k];
     if (!cur.vote && old.vote) out.vote = old.vote; // 0/fehlt = keine Stimme
     out.visits = Math.max(+a.visits || 0, +b.visits || 0) || 1;
@@ -73,7 +104,7 @@
       if (ex) merged++; else added++;
       out[k] = migrateListing(mergeListing(ex, v));
     }
-    if (keys.length) await local.set(out);
+    if (keys.length) await safeSet(local, out);
     return { added, merged };
   }
   // Volle Sicherung (JSON mit Persönlichem): Freundes-Listen zusammenführen, Reise nur übernehmen, wenn keine gespeichert ist
@@ -86,7 +117,7 @@
       out.friendLikes = fl;
     }
     if (parsed.trip && !cur.trip && Number.isFinite(+parsed.trip.savedAt)) out.trip = parsed.trip;
-    if (Object.keys(out).length) await local.set(out);
+    if (Object.keys(out).length) await safeSet(local, out);
     return Object.keys(out);
   }
 
@@ -112,5 +143,5 @@
     reise: x => x === 'trip',
   };
 
-  root.StayMatchImport = { cleanTags, SCHEMA, FORMAT, EXPORT_VERSION, migrateListing, migrateSettings, parseImport, mergeListing, applyImport, applyExtras, sanitizeListings, sanitizeTrip, localDay, WIPE, PRIVATE_FIELDS };
+  root.StayMatchImport = { MAX_FILE_BYTES, MAX_ENTRIES, sanitizeDeep, readFileText, isQuotaError, QUOTA_MSG, safeSet, cleanTags, SCHEMA, FORMAT, EXPORT_VERSION, migrateListing, migrateSettings, parseImport, mergeListing, applyImport, applyExtras, sanitizeListings, sanitizeTrip, localDay, WIPE, PRIVATE_FIELDS };
 })(typeof window !== 'undefined' ? window : globalThis);

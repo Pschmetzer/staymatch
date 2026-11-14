@@ -222,7 +222,7 @@ $('import').onclick = () => {
 $('options').onclick = () => { try { chrome.runtime.openOptionsPage(); } catch { $('import').click(); } };
 $('file').onchange = async e => {
   try {
-    const parsed = I.parseImport(await e.target.files[0].text(), { isRoomUrl, isCdnImage });
+    const parsed = I.parseImport(await I.readFileText(e.target.files[0]), { isRoomUrl, isCdnImage });
     const { entries, skipped } = parsed;
     const r = await I.applyImport(chrome.storage.local, entries);
     await I.applyExtras(chrome.storage.local, parsed);

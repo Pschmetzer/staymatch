@@ -23,7 +23,7 @@ $('resetPos').onclick = async () => { await setSetting({ panelPos: undefined, pa
 $('badge').onchange = e => setSetting({ badge: e.target.checked ? undefined : false });
 $('file').onchange = async e => {
   try {
-    const parsed = I.parseImport(await e.target.files[0].text(), { isRoomUrl: roomOk, isCdnImage: cdnOk });
+    const parsed = I.parseImport(await I.readFileText(e.target.files[0]), { isRoomUrl: roomOk, isCdnImage: cdnOk });
     const { entries, skipped } = parsed;
     const r = await I.applyImport(chrome.storage.local, entries);
     await I.applyExtras(chrome.storage.local, parsed);
