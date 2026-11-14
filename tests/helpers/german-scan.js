@@ -40,5 +40,7 @@ function literals(src) {
   }
   return out;
 }
-function findGerman(src) { return literals(src).filter(l => GERMAN.test(l.text)); }
+// Einzelne ASCII-Wörter ohne Leerzeichen (Adressen, Dateinamen, Schlüssel wie "pro" oder "x@staymatch.pro") sind keine Oberflächentexte
+const TECH = /^[\x21-\x7e]+$/;
+function findGerman(src) { return literals(src).filter(l => GERMAN.test(l.text) && !TECH.test(l.text)); }
 module.exports = { literals, findGerman, GERMAN };

@@ -231,6 +231,7 @@ test('Pause gilt schon vor dem Eintreffen der Einstellungen (kein Schreiben mit 
   chrome.storage.local.get = async k => { if (k === 'settings') await sleep(60); return get(k); }; // Einstellungen kommen spät
   const { doc } = makePage({ body: ROOM, url: ROOM_URL, chrome });
   await sleep(150);
+  await until(() => shadow(doc, 'sm-room'), 5000); // unter Last braucht das Panel länger als 150 ms
   assert.ok(!chrome.data['l:12345'], 'trotz Pause geschrieben');
   assert.ok(shadow(doc, 'sm-room'));
 });

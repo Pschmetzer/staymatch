@@ -10,7 +10,9 @@ const EXT = path.join(__dirname, '..', 'extension');
 
 // { datei, text: Teilstring des Literals, grund } – nur Erkennung (liest Airbnb-/Gastgeber-Texte), keine Oberfläche
 const EXCEPT = [
-  // (wird mit dem Ergebnis der Arbeit gefüllt)
+  { datei: 'parse.js', text: 'Gäste-Favorit', grund: 'interne Kennung der Plakette in gespeicherten Daten; angezeigt wird sie über rank.badgeLabel()' },
+  { datei: 'hints.js', text: 'heizung', grund: 'Erkennungsmuster (String.raw) für deutsche Bewertungstexte, kein Oberflächentext' },
+  { datei: 'hints.js', text: 'wlan|wifi', grund: 'Erkennungsmuster (String.raw) für deutsche Bewertungstexte, kein Oberflächentext' },
 ];
 // Generierte oder gemeinsame Dateien: core.js kommt aus shared/core.js (Website und Plugin), i18n.js ist der Motor, strings.js das Wörterbuch.
 const SKIP = new Set(['i18n.js', 'strings.js', 'core.js']);

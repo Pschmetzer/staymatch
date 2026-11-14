@@ -9,14 +9,16 @@ const EXT = path.join(__dirname, '..', 'extension');
 const de = I.DICT.de, en = I.DICT.en;
 const ph = s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort().join(',');
 // Einträge, die auf Englisch dem Deutschen gleichen dürfen (Eigennamen, Symbole, Kürzel)
-const SAME_OK = /^(?!x)$/; // (wird bei Bedarf gefüllt)
+const SAME_OK = /^(popup\.import|extras\.wish\.(monitor\.label|sauna\.(label|ok))|extras\.sub\.checkin)$/; // Lehnwörter, die auf Englisch gleich lauten
 
 test('de und en haben genau dieselben Schlüssel und Platzhalter', () => {
   assert.ok(Object.keys(de).length > 100, 'Wörterbuch gefüllt (' + Object.keys(de).length + ')');
   assert.deepEqual(Object.keys(de).filter(k => !(k in en)), [], 'fehlt auf Englisch');
   assert.deepEqual(Object.keys(en).filter(k => !(k in de)), [], 'fehlt auf Deutsch');
   assert.deepEqual(Object.keys(de).filter(k => ph(de[k]) !== ph(en[k])), [], 'Platzhalter weichen ab');
-  assert.deepEqual(Object.keys(de).filter(k => /\.(one|other)$/.test(k) && !(k.replace(/\.(one|other)$/, m => m === '.one' ? '.other' : '.one') in de)), [], 'one ohne other (oder umgekehrt)');
+  // Mehrzahl: entweder 'key.one' + 'key.other' oder 'key' (Normalfall) + 'key.one'
+  assert.deepEqual(Object.keys(de).filter(k => k.endsWith('.other') && !(k.replace(/\.other$/, '.one') in de)), [], 'other ohne one');
+  assert.deepEqual(Object.keys(de).filter(k => k.endsWith('.one') && !(k.replace(/\.one$/, '.other') in de) && !(k.replace(/\.one$/, '') in de)), [], 'one ohne other und ohne Grundschlüssel');
 });
 
 test('Englisch enthält kein Deutsch und ist nicht bloß kopiert', () => {
@@ -37,7 +39,8 @@ test('Jeder im Code benutzte Schlüssel existiert (de und en)', () => {
     for (const m of s.matchAll(/data-i18n="([\w.\-]+)"/g)) used.set(m[1], f);
     for (const m of s.matchAll(/data-i18n-attr="([^"]+)"/g)) for (const p of m[1].split(';')) { const k = p.split(':')[1]?.trim(); if (k) used.set(k, f); }
   }
-  const missing = [...used].filter(([k]) => !(k in de || k + '.other' in de) || !(k in en || k + '.other' in en)).map(([k, f]) => `${f}: ${k}`);
+  const hasPrefix = (d, p) => Object.keys(d).some(x => x.startsWith(p));
+  const missing = [...used].filter(([k]) => k.endsWith('.') ? !(hasPrefix(de, k) && hasPrefix(en, k)) : !(k in de || k + '.other' in de) || !(k in en || k + '.other' in en)).map(([k, f]) => `${f}: ${k}`);
   assert.deepEqual(missing, []);
   assert.ok(used.size > 100, 'Schlüssel gefunden: ' + used.size);
 });
