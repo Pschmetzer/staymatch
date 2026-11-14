@@ -11,12 +11,14 @@ const appHost = appUrl ? new URL(appUrl).hostname : null;
 const scripts = manifest.content_scripts || [];
 const bridge = scripts.find((s) => (s.js || []).includes('bridge.js'));
 if (!bridge) errors.push('Kein content_script mit bridge.js im Manifest');
+// Übergang: die alte Vercel-Adresse darf die Bridge noch bekommen, bis staymatch.pro überall angekommen ist
+const LEGACY_HOST = 'staymatch-tau.vercel.app';
 const hostOf = (pattern) => /^https?:\/\/([^/:]+)/.exec(pattern)?.[1];
 
 if (bridge && appHost) {
   const hosts = bridge.matches.map(hostOf);
   if (!hosts.includes(appHost)) errors.push(`bridge.js läuft nicht auf ${appHost} (APP_URL), nur auf: ${hosts.join(', ')}`);
-  for (const h of hosts) if (h !== appHost && h !== 'localhost') errors.push(`bridge.js darf nicht auf ${h} laufen (nur APP_URL-Host und localhost)`);
+  for (const h of hosts) if (h !== appHost && h !== 'localhost' && h !== LEGACY_HOST) errors.push(`bridge.js darf nicht auf ${h} laufen (nur APP_URL-Host und localhost)`);
   if (hosts.includes('localhost')) console.warn('Hinweis: localhost steht im Manifest (nur für Entwicklung gedacht, siehe IDEEN Nr. 595).');
 }
 for (const s of scripts.filter((s) => s !== bridge)) {

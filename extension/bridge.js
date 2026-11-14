@@ -22,10 +22,18 @@
     };
     return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined));
   }
+  let lastJson = '';
   function sync() {
     try {
       const trip = clean(JSON.parse(localStorage.getItem('sm_trip') || 'null'));
-      if (trip) chrome.storage.local.set({ trip });
+      if (!trip) return;
+      // Nur schreiben, wenn sich etwas geändert hat: jedes set() löst in allen Airbnb-Tabs onChanged und eine Neuberechnung aus
+      const json = JSON.stringify(trip);
+      if (json === lastJson) return;
+      lastJson = json;
+      const store = chrome.storage.local;
+      if (typeof store.get !== 'function') { store.set({ trip }); return; }
+      Promise.resolve(store.get('trip')).then(r => { if (JSON.stringify(r?.trip ?? null) !== json) return store.set({ trip }); }).catch(() => { lastJson = ''; });
     } catch {}
   }
   sync();

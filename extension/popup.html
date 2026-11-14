@@ -20,6 +20,7 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <div id="wishProfile" style="padding:6px 14px;font-size:12px;border-bottom:1px solid #eee" hidden><button id="profileBtn" class="lnk" aria-pressed="false"></button> <span id="profileInfo" class="muted" role="status"></span></div>
 <nav role="tablist" aria-label="Ansicht"><button role="tab" id="tab-top" aria-selected="true" aria-controls="list" data-tab="top" class="on">Empfehlungen</button><button role="tab" id="tab-all" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="all">Verlauf</button><button role="tab" id="tab-liked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="liked">Gefällt mir</button><button role="tab" id="tab-disliked" aria-selected="false" aria-controls="list" tabindex="-1" data-tab="disliked">Nein</button></nav>
 <input type="search" id="search" placeholder="Suchen (Titel, Ort, Notiz)" aria-label="Verlauf durchsuchen" hidden>
+<div id="sortbar" style="padding:0 14px 6px;font-size:12px" hidden><label>Sortieren: <select id="sort"><option value="seen">zuletzt gesehen</option><option value="price">Preis (günstig zuerst)</option><option value="rating">Note (beste zuerst)</option><option value="booked">gebucht zuerst</option></select></label> <label><input type="checkbox" id="onlyBooked"> nur gebucht</label></div>
 <div id="list" role="tabpanel" aria-labelledby="tab-top" tabindex="0"></div>
 <div id="opts" style="padding:6px 14px;font-size:12px;border-top:1px solid #eee">
 <label style="display:block"><input type="checkbox" id="optBadges" checked> Punkte an den Airbnb-Karten anzeigen</label>
@@ -38,6 +39,7 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <div id="linkResult" class="muted" role="status"></div>
 <label style="display:block;margin-top:6px">Merkliste eines Freundes (kopierter Text): <textarea id="friendText" rows="2" style="width:100%;box-sizing:border-box"></textarea></label>
 <button id="friendAdd" class="lnk">Übernehmen</button> <span id="friendInfo" class="muted"></span>
+<div id="friendList" class="muted" aria-label="Gespeicherte Listen von Freunden"></div>
 <div style="margin-top:6px"><button id="dataInfo" class="lnk">Was ist gespeichert?</button></div>
 <div id="dataOut" class="muted"></div>
 <div id="aiInfo" class="muted"></div>
@@ -49,5 +51,6 @@ footer a,footer button{font-size:12px;color:#e0475b;background:none;border:0;cur
 <script src="core.js"></script>
 <script src="rank.js"></script>
 <script src="extras.js"></script>
+<script src="import.js"></script>
 <script src="popup.js"></script>
 </body></html>

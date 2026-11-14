@@ -93,21 +93,35 @@ test('404 verlinkt Impressum und Datenschutz', () => {
   assert.ok(h.includes('href="/impressum"') && h.includes('href="/datenschutz"'));
 });
 
+const cspOf = (source) => vercel.headers.find((r) => r.source === source).headers.find((h) => h.key === 'Content-Security-Policy').value;
+
 test('vercel.json: Sicherheitsheader für alle Pfade und von keiner späteren Regel überschrieben', () => {
   const [first, ...rest] = vercel.headers;
   assert.equal(first.source, '/(.*)');
-  const need = ['X-Content-Type-Options', 'Referrer-Policy', 'Permissions-Policy', 'X-Frame-Options', 'Content-Security-Policy', 'Cross-Origin-Opener-Policy'];
+  const need = ['X-Content-Type-Options', 'Referrer-Policy', 'Permissions-Policy', 'X-Frame-Options', 'Cross-Origin-Opener-Policy', 'Cross-Origin-Resource-Policy'];
   const keys = first.headers.map((h) => h.key);
   for (const k of need) assert.ok(keys.includes(k), `${k} fehlt`);
+  // CSP steht in zwei Regeln, die sich nicht überschneiden: /app (mit Diensten) und alles außer /app
+  assert.ok(!keys.includes('Content-Security-Policy'));
   for (const r of rest) for (const h of r.headers) assert.ok(!need.includes(h.key), `${r.source} überschreibt ${h.key}`);
+  const csps = rest.filter((r) => r.headers.some((h) => h.key === 'Content-Security-Policy')).map((r) => r.source);
+  assert.deepEqual(csps, ['/((?!app$).*)', '/app']);
+});
+
+test('CSP: Startseite und Stadtseiten ohne Fremddienste, nur /app mit Nominatim, Overpass und Kacheln', () => {
+  const strict = cspOf('/((?!app$).*)');
+  assert.ok(!/nominatim|overpass|tile\.openstreetmap/.test(strict), strict);
+  assert.ok(!strict.includes('manifest-src'));
+  const app = cspOf('/app');
+  for (const h of ['nominatim.openstreetmap.org', 'overpass-api.de', 'tile.openstreetmap.org']) assert.ok(app.includes(h), h);
 });
 
 test('CSP erlaubt jede Fremdadresse, die Viertel-Finder und Kern abfragen', () => {
-  const csp = vercel.headers[0].headers.find((h) => h.key === 'Content-Security-Policy').value;
+  const csp = cspOf('/app');
   const dir = (name) => (new RegExp(`${name} ([^;]+)`).exec(csp) || [, ''])[1].split(' ');
   const allowed = new Set([...dir('connect-src'), ...dir('img-src')]);
   // Nur Linkziele, keine Abfragen: Kartenquelle, Airbnb-Suche, alte App-Adresse der Extension
-  const linkOnly = new Set(['https://www.openstreetmap.org', 'https://www.airbnb.de', 'https://staymatch-tau.vercel.app']);
+  const linkOnly = new Set(['https://www.openstreetmap.org', 'https://www.airbnb.de', 'https://staymatch-tau.vercel.app', 'https://staymatch.pro']);
   const src = ['core.js', 'app.js', 'scoring.js'].map(read).join('\n');
   for (const h of new Set(src.match(/https:\/\/[a-z0-9.-]+/g))) if (!linkOnly.has(h)) assert.ok(allowed.has(h), `${h} fehlt in connect-src/img-src`);
 });
