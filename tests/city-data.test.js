@@ -119,3 +119,57 @@ test('Stadtseiten: kein Platz/keine Insel in den Top-5-Listen', async () => {
       assert.ok(areaNames.has(a.name), `${f}: „${a.name}“ ist kein Viertel laut PLACE_TYPES`);
   }
 });
+
+test('Stadtseiten: Top-5 wie in der App (genug Orte, Zentrumsnähe, Mindestabstand, mehrere Gebiete)', async () => {
+  const { rankCity } = await import('../scripts/build-city-pages.mjs');
+  for (const f of fs.readdirSync(dataDir).filter(f => f.endsWith('.json') && f !== 'index.json')) {
+    const d = JSON.parse(fs.readFileSync(path.join(dataDir, f), 'utf8'));
+    const r = rankCity(d), minDist = Math.max(C.RADIUS.diverse, r.radius * 1.5);
+    assert.equal(r.radius, C.RADIUS.area, 'Umkreis wie die App, nicht autoRadius');
+    for (const [key, list] of Object.entries(r.top)) {
+      assert.ok(list.length >= 3, `${f} ${key}: nur ${list.length} Einträge`);
+      for (const { a } of list) {
+        assert.ok(Object.values(a.counts).reduce((x, y) => x + y, 0) >= 10, `${f}: „${a.name}“ hat weniger als 10 Orte`);
+        assert.ok(a.centerDist <= 6000, `${f}: „${a.name}“ ${a.centerDist} m vom Zentrum`);
+      }
+      for (let i = 0; i < list.length; i++) for (let j = 0; j < i; j++)
+        assert.ok(SM.distM(list[i].a, list[j].a) >= minDist, `${f} ${key}: „${list[i].a.name}“ und „${list[j].a.name}“ zu nah`);
+    }
+  }
+});
+
+test('Stadtseiten: Canonical, hreflang, JSON-LD, og-Tags, CTA mit Stadt, Sprungmarken, Quelle', async () => {
+  const B = await import('../scripts/build-city-pages.mjs');
+  const d = JSON.parse(fs.readFileSync(path.join(dataDir, 'berlin.json'), 'utf8'));
+  const html = B.renderPage('berlin.json', d, { cities: [{ slug: 'berlin', name: 'Berlin' }, { slug: 'rom', name: 'Rom' }] });
+  assert.match(html, /<title>Wo übernachten in Berlin\?/);
+  assert.match(html, /hreflang="de" href="https:\/\/staymatch\.pro\/staedte\/berlin"/);
+  assert.match(html, /property="og:image" content="https:\/\/staymatch\.pro\/media\/staedte\/berlin\.webp"/);
+  assert.match(html, /name="twitter:card"/);
+  const ld = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+  const types = ld['@graph'].map(x => x['@type']);
+  assert.ok(types.includes('BreadcrumbList') && types.filter(t => t === 'ItemList').length === 5);
+  assert.match(html, /href="\/app\?c=Berlin"/);
+  assert.ok((html.match(/href="\/app\?c=Berlin"/g) || []).length >= 3, 'CTA oben, unten und als Leiste');
+  assert.match(html, /href="\/staedte\/rom"/);
+  assert.ok(!html.includes('href="/staedte/berlin"'), 'keine Selbstverlinkung');
+  assert.match(html, /id="daten"[\s\S]*abgerufen am \d\d\.\d\d\.\d{4}/);
+  assert.match(html, /bis zu|ne_lat=/, 'Airbnb-Link mit Kartenausschnitt');
+  assert.ok(!html.includes('Restaurants und Cafés'), 'Text passt zur Kategorie food');
+});
+
+test('Sitemap: lastmod der Stadtseiten = Datenstand', async () => {
+  const B = await import('../scripts/build-city-pages.mjs');
+  const xml = B.renderSitemap([{ slug: 'rom', date: '2026-11-13' }]);
+  assert.match(xml, /<loc>https:\/\/staymatch\.pro\/staedte\/rom<\/loc><lastmod>2026-11-13<\/lastmod>/);
+});
+
+test('Vorabladen: Tab-Trenner, Namen mit „|“ bleiben erhalten', async () => {
+  const D = await import('../scripts/city-data.mjs');
+  const q = D.overpassQueryTab([52.4, 13.3, 52.6, 13.5]);
+  assert.ok(q.includes(';true;"\t")') && !q.includes(';true;"|")'));
+  const row = C.FIELDS.map((f, i) => (f === 'name' ? 'Bar | Café' : String(i))).join('\t');
+  const { rows, dropped } = D.parseOverpassTsv(`@lat\t@lon\n${row}\nzu\tkurz\n`);
+  assert.equal(rows.length, 1); assert.equal(dropped, 1);
+  assert.equal(rows[0][C.FIELDS.indexOf('name')], 'Bar | Café');
+});
