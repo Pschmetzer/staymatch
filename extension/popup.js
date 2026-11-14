@@ -288,6 +288,11 @@ $('trips').onclick = async () => {
   try { await navigator.clipboard.writeText(text); $('trips').textContent = 'Kopiert ✓'; } catch { $('trips').textContent = 'Nicht möglich'; }
   setTimeout(() => { $('trips').textContent = 'Gebuchte Etappen kopieren'; }, 2500);
 };
+$('ics').onclick = () => {
+  const text = window.StayMatchReminders?.ics(listings) || '';
+  if (!text) { $('ics').textContent = 'Noch nichts mit Anreise gebucht'; setTimeout(() => { $('ics').textContent = 'als Kalender (.ics)'; }, 2500); return; }
+  download('staymatch-etappen.ics', text, 'text/calendar;charset=utf-8');
+};
 $('dataInfo').onclick = async () => { const all = await chrome.storage.local.get(null); $('dataOut').replaceChildren(...(X ? X.storageSummary(all) : []).map(t => h('div', {}, t))); };
 // Merkliste (👍) als Text zum Teilen (Preis pro Person nur, wenn mehrere reisen)
 $('share').onclick = async () => {

@@ -15,6 +15,10 @@ button:focus-visible,input:focus-visible{outline:2px solid #e0475b;outline-offse
 <button id="resetPos">Position zurücksetzen</button> <span id="panelInfo" class="muted" role="status"></span></section>
 <section id="bd"><h2>Toolbar-Symbol</h2>
 <label><input type="checkbox" id="badge" checked> Zahl der Treffer am Symbol anzeigen</label></section>
+<section id="rem"><h2>Gebuchte Etappen</h2>
+<label><input type="checkbox" id="remind"> Erinnerung am Tag vor Ablauf der kostenlosen Stornierung</label>
+<p class="muted">Dafür fragt Chrome einmalig nach „Benachrichtigungen“. Die Erinnerung entsteht lokal auf diesem Gerät, es wird nichts gesendet.</p>
+<button id="icsBtn">Etappen als Kalender-Datei (.ics) laden</button> <span id="remInfo" class="muted" role="status"></span></section>
 <section id="imp"><h2>Merkliste importieren</h2>
 <p class="muted">Wähle eine Datei, die du mit „JSON“ im StayMatch-Popup gesichert hast. Vorhandene Unterkünfte werden zusammengeführt: Notiz, Stimme und Besuche gehen nicht verloren, der neuere Stand gewinnt. Alles bleibt in diesem Browser.</p>
 <p><input type="file" id="file" accept="application/json,.json" aria-label="Datei wählen"></p>
@@ -24,6 +28,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #e0475b;outline-offse
 <p><label>Löschen: <select id="wipeKind"><option value="verlauf">Verlauf (Unterkünfte, Likes, Notizen, Statistik)</option><option value="zwischenspeicher">Zwischenspeicher (letzte Suche, Sammlung)</option><option value="reise">Reise</option><option value="alles">Alles (Einstellungen bleiben)</option></select></label> <button id="wipe">Löschen…</button></p>
 <div id="wipeOut" role="status" aria-live="polite" class="muted"></div></section>
 <script src="core.js"></script>
+<script src="reminders.js"></script>
 <script src="import.js"></script>
 <script src="options.js"></script>
 </body></html>

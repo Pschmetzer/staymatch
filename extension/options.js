@@ -16,7 +16,7 @@ const setSetting = patch => (q = q.then(async () => {
   await chrome.storage.local.set({ settings: next });
 }));
 
-chrome.storage.local.get('settings').then(r => { $('badge').checked = r.settings?.badge !== false; $('side').value = r.settings?.panelSide === 'left' ? 'left' : 'right'; });
+chrome.storage.local.get('settings').then(r => { $('badge').checked = r.settings?.badge !== false; $('remind').checked = r.settings?.remind === true; $('side').value = r.settings?.panelSide === 'left' ? 'left' : 'right'; });
 $('side').onchange = async e => { await setSetting({ panelSide: e.target.value === 'left' ? 'left' : undefined, panelPos: undefined }); $('panelInfo').textContent = 'Gespeichert.'; };
 $('resetPos').onclick = async () => { await setSetting({ panelPos: undefined, panelSide: undefined }); $('side').value = 'right'; $('panelInfo').textContent = 'Position zurückgesetzt.'; };
 
@@ -56,4 +56,24 @@ $('wipe').onclick = async () => {
   if (!confirm(`${del.length} Einträge löschen (${k})? Das lässt sich nicht rückgängig machen. Tipp: vorher „Alles sichern“.`)) return;
   await chrome.storage.local.remove(del);
   $('wipeOut').textContent = `${del.length} Einträge gelöscht.`;
+};
+
+// Erinnerung (Opt-in): Berechtigung „notifications“ erst jetzt anfragen, beim Klick
+$('remind').onchange = async e => {
+  const on = e.target.checked;
+  if (on) {
+    let ok = false;
+    try { ok = await chrome.permissions.request({ permissions: ['notifications'] }); } catch {}
+    if (!ok) { e.target.checked = false; $('remInfo').textContent = 'Ohne Erlaubnis für Benachrichtigungen keine Erinnerung.'; return; }
+  }
+  await setSetting({ remind: on ? true : undefined });
+  $('remInfo').textContent = on ? 'Erinnerung ist an.' : 'Erinnerung ist aus.';
+};
+$('icsBtn').onclick = async () => {
+  const { listings } = await readAll();
+  const text = window.StayMatchReminders.ics(listings);
+  if (!text) { $('remInfo').textContent = 'Noch nichts mit Anreisedatum als gebucht markiert.'; return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' })); a.download = 'staymatch-etappen.ics'; a.click();
+  $('remInfo').textContent = 'Kalender-Datei gespeichert.';
 };
