@@ -80,7 +80,8 @@
     // Schreiblast senken: Sammlung nur schreiben, wenn sie sich wirklich geändert hat
     if (!paused) { try { const j = JSON.stringify(pool); if (j !== lastPoolJson) { lastPoolJson = j; chrome.storage.local.set({ pool }).catch?.(() => {}); } } catch {} }
     const byId = new Map(current.map(l => [l.id, l]));
-    const listings = Object.values(pool.items).map(p => byId.get(p.id) || p);
+    // Preis-Korrekturen und -Ausschlüsse von Hand (quick.priceFix), gelten für diese Wertung und das Popup
+    const listings = R.applyPriceFixes(Object.values(pool.items).map(p => byId.get(p.id) || p), stored.quick?.priceFix);
 
     // Reise nur nutzen, wenn sie zu dieser Suche passt (gleiches Datum oder Unterkünfte nahe den Vierteln)
     // Vergangene Reise (Anreise liegt vor heute) gilt nicht mehr, sonst greift ein altes Budget still
@@ -239,6 +240,18 @@
       h('div', { class: 'chips' },
         h('button', { class: quick.ownBed ? 'on' : '', 'aria-pressed': String(!!quick.ownBed), title: 'Doppelbett zählt dann als ein Bett', onclick: () => setQuick({ ownBed: !quick.ownBed }) }, chip('🛏️ jede Person eigenes Bett')),
         h('button', { class: quick.smoker ? 'on' : '', 'aria-pressed': String(!!quick.smoker), title: 'Prüft auf der Unterkunftsseite Rauchverbot und Außenfläche', onclick: () => setQuick({ smoker: !quick.smoker }) }, chip('🚬 Raucher dabei')))) : null;
+    // Preis von Hand korrigieren (Nachtpreis) oder ausschließen; gespeichert in quick.priceFix, höchstens 200 Einträge
+    const setFix = (id, fix) => { const f = { ...(quick.priceFix || {}) }; delete f[id]; if (fix) f[id] = fix; setQuick({ priceFix: Object.fromEntries(Object.entries(f).slice(-200)) }); };
+    const priceFixUi = l => {
+      const fx = (quick.priceFix || {})[l.id];
+      const inp = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': `Nachtpreis in ${l.currency || 'deiner Währung'} für ${cut(l.title || l.kind, 30)}`, style: 'width:80px;font:inherit' });
+      inp.value = fx?.price || (l.priceFixed ? l.totalPrice : '');
+      const ok = () => { const v = Math.round(Number(inp.value)); if (v > 0) setFix(l.id, { price: v }); };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
+      return h('details', { open: l.priceImplausible && !l.priceExcluded ? '' : null }, h('summary', {}, fx ? (fx.exclude ? 'Preis ausgeschlossen' : 'Preis korrigiert') : 'Preis stimmt nicht?'),
+        h('div', { class: 'row', style: 'align-items:center' }, h('span', { class: 'muted' }, 'Nachtpreis:'), inp, h('button', { onclick: ok }, 'Übernehmen')),
+        h('div', { class: 'row' }, h('button', { onclick: () => setFix(l.id, { exclude: true }) }, 'Preis nicht werten'), fx ? h('button', { onclick: () => setFix(l.id, null) }, 'Zurücksetzen') : null));
+    };
     const cmp = compareMode ? compareList() : top;
     const picked = new Set(quick.compare || []);
     const setCompare = ids => setQuick({ compare: ids });
@@ -316,6 +329,7 @@
         l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, M(l.totalPrice, l)), l.isTotal ? ' gesamt' : ' pro Nacht', l.rank.ppn?.person ? ` · ${M(l.rank.ppn.person, l)} p. P./Nacht` : '', l.discounted ? ' · Rabatt' : '') : null,
         h('ul', {}, l.rank.why.map(w => h('li', {}, w)), l.rank.warn.map(w => h('li', { class: 'warn' }, '⚠️ ' + w)), (l.rank.info || []).map(w => h('li', { class: 'muted' }, w)),
           i > 0 && X ? [X.gapToFirst(l, first)].filter(Boolean).map(w => h('li', { class: 'muted' }, w)) : null),
+        priceFixUi(l),
         h('div', { class: 'muted' }, 'Zusammensetzung (Punkte): ' + bd(l)),
         coverageText(l) ? h('div', { class: 'muted' }, `Datenlage: ${coverageText(l)}`) : null))
         : !top.length ? h('div', { class: 'muted' }, 'Keine Unterkunft erfüllt alle Filter. Filter lockern oder weiterblättern. ', af.length ? h('button', { onclick: resetFilters }, 'Filter zurücksetzen') : null) : null,

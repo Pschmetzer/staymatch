@@ -287,6 +287,20 @@
 
   const median = a => { const x = a.filter(v => v != null && isFinite(v)).sort((p, q) => p - q); if (!x.length) return null; const m = x.length >> 1; return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2; };
 
+  // Preis von Hand korrigieren oder ausschließen (fixes: { id: { price } | { exclude: true } }). Nur Nachtpreise, höchstens 200 Einträge.
+  function applyPriceFixes(listings, fixes) {
+    if (!fixes || typeof fixes !== 'object') return listings;
+    return listings.map(l => {
+      const f = Object.prototype.hasOwnProperty.call(fixes, l.id) ? fixes[l.id] : null;
+      if (!f || typeof f !== 'object') return l;
+      if (f.exclude) return { ...l, priceImplausible: true, priceExcluded: true };
+      const p = Number(f.price);
+      if (!Number.isFinite(p) || p <= 0) return l;
+      const { nightPrice, allTotal, unitGuessed, priceStale, multiUnit, ...rest } = l;
+      return { ...rest, totalPrice: p, isTotal: false, priceWord: true, priceFixed: true, priceImplausible: false, discounted: false };
+    });
+  }
+
   // R5-83 / R5-110: Einheit und Plausibilität gegen den Median der Seite prüfen.
   // Fehlt in der Preiszeile jedes Wort für „gesamt“ / „pro Nacht“ (priceWord === false), wird sie als Nachtpreis
   // geraten. Liegt der Betrag aber etwa bei Nächte × Median, ist es wohl ein Gesamtpreis.
@@ -296,7 +310,7 @@
     const per = l => (l.totalPrice == null ? null : l.isTotal ? (nights ? l.totalPrice / nights : null) : l.totalPrice);
     const byCur = {};
     for (const l of listings) {
-      if (l.priceWord === false) continue; // unsichere Einheit zählt nicht für den Median
+      if (l.priceWord === false || l.priceExcluded) continue; // unsichere Einheit zählt nicht für den Median
       const v = per(l); if (v == null) continue;
       (byCur[normCur(l.currency) || '€'] ||= []).push(v);
     }
@@ -304,7 +318,7 @@
     for (const [c, v] of Object.entries(byCur)) if (v.length >= 3) med[c] = median(v);
     return listings.map(l => {
       const m = med[normCur(l.currency) || '€'];
-      if (!m || l.totalPrice == null) return l;
+      if (!m || l.totalPrice == null || l.priceFixed || l.priceExcluded) return l; // von Hand gesetzt: nichts raten
       let out = l;
       if (l.priceWord === false && !l.isTotal && nights >= 2 && l.totalPrice >= m * nights * 0.6 && l.totalPrice >= m * 1.8) out = { ...out, isTotal: true, unitGuessed: true };
       const v = per(out);
@@ -408,7 +422,9 @@
       }
       if (curMismatch) warn.push(`Preis in ${l.currency}, Budget in ${ctx.budgetCurrency}: Preis nicht bewertet`);
       if (ctx.priceUnsure) warn.push('Flexible Daten oder Monatsmiete: Preis nicht bewertet');
-      if (l.priceImplausible) warn.push('Preis auffällig niedrig, vermutlich falsch gelesen: nicht bewertet');
+      if (l.priceExcluded) warn.push('Preis von dir ausgeschlossen: nicht bewertet');
+      else if (l.priceImplausible) warn.push('Preis auffällig niedrig, vermutlich falsch gelesen: nicht bewertet');
+      if (l.priceFixed) info.push(`Preis von dir korrigiert: ${money(l.totalPrice, l.currency)} pro Nacht`);
       if (l.unitGuessed) warn.push('Einheit des Preises geraten: als Gesamtpreis gedeutet');
       if (l.priceStale) warn.push('Preis aus den Seitendaten, kann nach Datumswechsel veraltet sein');
       if (l.multiUnit) warn.push('Mehrere Unterkünfte im Angebot: Preis ist ein „ab“-Preis und kann höher sein');
@@ -594,7 +610,7 @@
   }
 
   root.StayMatchRank = {
-    rankListings, cleanTweak, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
+    rankListings, cleanTweak, applyPriceFixes, scoreListing, areaFor, ratingScore, priceScore, bedScore, tasteScore, WEIGHTS, WISHES, wishScore, luxuryInfo, reviewConflicts, REVIEW_WISHES,
     weightsFor, buildTaste, effectiveBudget, feeShareOf, realSleeps, decisionQuestions, resolvePeople, tripTotal, perNight, weightedRecentRating, fakeReviewHint, filterListings, compareRows, shareText, normalizePrices, normCur, money, isTrusted,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
