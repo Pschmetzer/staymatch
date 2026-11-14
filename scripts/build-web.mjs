@@ -63,7 +63,7 @@ const sw = join(OUT, 'sw.js');
 if (existsSync(sw)) {
   const appHtml = readFileSync(join(OUT, 'app.html'), 'utf8');
   const shell = new Set(['/app', '/manifest.webmanifest', '/data/index.json']);
-  for (const m of appHtml.matchAll(/\b(?:src|href)="(?!https?:|data:|#|\/\/)([^"]+\.(?:js|css|woff2|svg|png|webmanifest))"/g)) shell.add('/' + m[1].replace(/^\//, ''));
+  for (const m of appHtml.matchAll(/\b(?:src|href)="(?!https?:|data:|#|\/\/)([^"?]+\.(?:js|css|woff2|svg|png|webmanifest)(?:\?v=[0-9a-f]+)?)"/g)) shell.add('/' + m[1].replace(/^\//, ''));
   // Leaflet lädt app.html erst per Skript nach; gehört trotzdem in die Offline-Liste
   for (const l of ['/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css']) shell.add(l);
   const list = [...shell].sort();

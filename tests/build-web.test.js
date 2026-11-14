@@ -34,5 +34,10 @@ test('Build: vollständig, minifiziert, Verweise mit ?v=, Daten-Index gehasht', 
   }
   const idx = JSON.parse(fs.readFileSync(path.join(out, 'data', 'index.json'), 'utf8'));
   for (const v of Object.values(idx)) assert.ok(fs.existsSync(path.join(out, 'data', v.split('?')[0])) && /\?v=[0-9a-f]{10}$/.test(v), v);
+  const sw = fs.readFileSync(path.join(out, 'sw.js'), 'utf8');
+  assert.ok(!sw.includes('/*SHELL*/') && !sw.includes("'dev'"), 'sw.js: Platzhalter ersetzt');
+  new vm.Script(sw);
+  for (const f of ['app.js', 'scoring.js', 'core.js', 'app-extra.js']) assert.match(sw, new RegExp(`/${f.replace('.', '\\.')}\\?v=[0-9a-f]{10}`), `Offline-Liste: ${f}`);
+  for (const u of ['/app', '/data/index.json', '/vendor/leaflet/leaflet.js', '/manifest.webmanifest']) assert.ok(sw.includes(`"${u}"`), u);
   fs.rmSync(out, { recursive: true, force: true });
 });
