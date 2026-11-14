@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><title>StayMatch: Top 3 zum Drucken</title>
+<html lang="de"><head><meta charset="utf-8"><title data-i18n="print.title">StayMatch: Top 3 zum Drucken</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body{max-width:720px;margin:24px auto;padding:0 16px;font:15px/1.5 system-ui;color:#1d1d1f;background:#fff}
@@ -12,9 +12,11 @@ button:focus-visible{outline:2px solid #e0475b;outline-offset:2px}
 </style></head>
 <body>
 <h1>Stay<span>Match</span> · Top 3</h1>
-<p class="muted" id="meta" role="status">Wird geladen …</p>
-<p class="noprint"><button id="printBtn">Drucken oder als PDF sichern</button></p>
+<p class="muted" id="meta" data-i18n="print.loading" role="status">Wird geladen …</p>
+<p class="noprint"><button id="printBtn" data-i18n="print.btn">Drucken oder als PDF sichern</button></p>
 <main id="list"></main>
-<p class="muted">Erstellt auf deinem Gerät aus deiner Suche. Die Wertung ist eine Orientierung, prüfe Preis und Regeln vor dem Buchen auf Airbnb selbst.</p>
+<p class="muted" data-i18n="print.foot">Erstellt auf deinem Gerät aus deiner Suche. Die Wertung ist eine Orientierung, prüfe Preis und Regeln vor dem Buchen auf Airbnb selbst.</p>
+<script src="i18n.js"></script>
+<script src="strings.js"></script>
 <script src="print.js"></script>
 </body></html>

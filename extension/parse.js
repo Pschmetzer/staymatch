@@ -2,6 +2,8 @@
 // Reine Funktionen ohne chrome.*, damit sie sich direkt in einem Tab testen lassen.
 // Alles, was nur auf der echten Airbnb-Seite prüfbar ist, ist mit „ungeprüft live“ markiert.
 (function (root) {
+  const I18n = root.StayMatchI18n || (typeof require === 'function' ? require('./i18n.js') : null);
+  const tx = (k, v) => I18n.t(k, v); // lokal tx statt t: mehrere Funktionen haben eine Variable t
   const ROOM_RE = /\/rooms\/(?:[a-z]+\/)?(\d+)/;
 
   // Zahl: "1.234", "1 234", "12,50", "702", indisch "1,23,456" (R7)
@@ -42,7 +44,7 @@
     return m && !/^(?:lei|kr|Ft|Rp|Rs\.?)$/i.test(m[0]) ? m[0] : null;
   }
 
-  const REVIEW_WORD = '(?:Bewertung|review|avis|opini|reseña|recensi|beoordel|ocen|recenz|anmeld|arvost|avalia|αξιολόγ|κριτικ|değerlendir|yorum|omdöm|vurder)';
+  const REVIEW_WORD = /(?:Bewertung|review|avis|opini|reseña|recensi|beoordel|ocen|recenz|anmeld|arvost|avalia|αξιολόγ|κριτικ|değerlendir|yorum|omdöm|vurder)/.source;
   function rating(s) {
     // "4,59 (800)" | "4,9 · 12 Bewertungen" | "4.9 (12 reviews)" | "4,92 (1 234)" (NBSP) | "Neu" | undefined
     const str = String(s || '');
@@ -79,9 +81,10 @@
   const isMultiUnit = t => [...String(t || '').replace(NOT_AVAIL, '').matchAll(MULTI_RE)].some(m => !TIME_UNIT.test(m[0]));
   // R5-95: Badge-Art vereinheitlichen, egal in welcher Sprache Airbnb den Text liefert
   const FAV_RE = /Gäste-?Favorit|Guest favou?rite|Coup de c(?:œ|oe)ur|Préféré des voyageurs|Preferito dagli ospiti|Gasten-?favoriet|Favorito (?:dos hóspedes|entre huéspedes)|Ulubione/i;
+  const BADGE_FAV = 'Gäste-Favorit'; // interne Kennung (gespeicherte Daten, Vergleiche); angezeigt wird sie über rank.badgeLabel
   function normBadge(b) {
     const t = b?.loggingContext?.badgeType, txt = b?.text || '';
-    if (/GUEST_FAVOU?RITE/i.test(t || '') || FAV_RE.test(txt)) return 'Gäste-Favorit';
+    if (/GUEST_FAVOU?RITE/i.test(t || '') || FAV_RE.test(txt)) return BADGE_FAV;
     if (/SUPERHOST/i.test(t || '') || /superhost|superanfitri/i.test(txt)) return 'Superhost';
     // R7: fremder Text landet in Pool, Vergleich und Plakette: Steuerzeichen weg, auf 40 Zeichen kürzen
     return String(txt).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').trim().slice(0, 40) || null;
@@ -169,7 +172,7 @@
   // Der Zustand ist nach Blättern/Kartenverschieben VERALTET (ungeprüft live); parseSearch nutzt ihn deshalb nur
   // für Felder, die DOM nicht liefert (Koordinaten, Details), und Preise kommen vom DOM.
   // JSON nur neu parsen, wenn sich der textContent ändert.
-  const stateCache = { parts: null, results: [], note: 'fehlt', count: 0 };
+  const stateCache = { parts: null, results: [], note: 'missing', count: 0 };
   // R5-89: kein fester Pfad; rekursiv nach „staysSearch“ suchen, in allen data-deferred-state-Blöcken
   function findKey(o, key, depth = 0) {
     if (!o || typeof o !== 'object' || depth > 10) return null;
@@ -190,13 +193,13 @@
   }
   function stateResults(doc) {
     const els = stateEls(doc);
-    if (!els.length) { Object.assign(stateCache, { parts: null, results: [], note: 'fehlt', count: 0 }); return []; }
+    if (!els.length) { Object.assign(stateCache, { parts: null, results: [], note: 'missing', count: 0 }); return []; }
     // R8: kein MB-großer Sammelstring: je Skript einzeln vergleichen (gleiche Länge, gleicher Inhalt)
     const parts = els.map(e => e.textContent);
     const prev = stateCache.parts;
     if (prev && prev.length === parts.length && parts.every((p, i) => p.length === prev[i].length && p === prev[i])) return stateCache.results;
     // R7: Befund für diagnose() gleich mitschreiben (dort nicht noch einmal alles parsen)
-    let results = [], note = 'kein gültiges JSON', count = 0;
+    let results = [], note = 'invalid', count = 0;
     for (const e of els) {
       try {
         const parsed = JSON.parse(e.textContent);
@@ -204,7 +207,7 @@
         // R9: sonst irgendein „searchResults“-Array (Pfad geändert)
         let r = ss?.results?.searchResults;
         if (!Array.isArray(r)) { const alt = findKey(ss || parsed, 'searchResults'); if (Array.isArray(alt)) r = alt; }
-        if (Array.isArray(r)) { note = 'ok'; count = r.length; if (r.length) { results = r; break; } } else if (note !== 'ok') note = 'Struktur anders als erwartet';
+        if (Array.isArray(r)) { note = 'ok'; count = r.length; if (r.length) { results = r; break; } } else if (note !== 'ok') note = 'shape';
       } catch {}
     }
     Object.assign(stateCache, { parts, results, note, count });
@@ -322,7 +325,7 @@
         rating: rt.value, reviewCount: rt.count, isNew,
         ...priceFields(priceLine, px, null),
         lat: null, lon: null, multiUnit: isMultiUnit(txt),
-        ...details(lines), ...detailsExt(lines), badges: [FAV_RE.test(txt) && 'Gäste-Favorit', /Superhost|Superanfitri/i.test(txt) && 'Superhost'].filter(Boolean),
+        ...details(lines), ...detailsExt(lines), badges: [FAV_RE.test(txt) && BADGE_FAV, /Superhost|Superanfitri/i.test(txt) && 'Superhost'].filter(Boolean),
         image: safeImage(card.querySelector('img')?.src), source: 'dom', wishlisted: heartOf(card),
       };
     }).filter(x => x.id);
@@ -367,7 +370,7 @@
   // Selbstdiagnose: Warum haben wir (nichts) gefunden? Liefert nur Zahlen und Stichworte, keine Seiteninhalte.
   function diagnose(doc) {
     stateResults(doc); // nutzt den Cache
-    const d = { stateFound: stateCache.note === 'ok', stateCount: stateCache.count, stateNote: stateCache.note, cards: 0, roomLinks: 0 };
+    const d = { stateFound: stateCache.note === 'ok', stateCount: stateCache.count, stateNote: tx('parse.state.' + stateCache.note), stateCode: stateCache.note, cards: 0, roomLinks: 0 };
     d.cards = doc.querySelectorAll('[data-testid="card-container"]').length;
     if (!d.cards) { d.cards = cardEls(doc).length; if (d.cards) d.cardsFallback = true; } // R9
     d.roomLinks = new Set([...doc.querySelectorAll('a[href*="/rooms/"]')].map(a => a.getAttribute('href')?.match(ROOM_RE)?.[1]).filter(Boolean)).size;
@@ -389,10 +392,10 @@
       noTitle: listings.filter(l => l.titleFallback === true).length, noCoords: listings.filter(l => l.coordsMissing === true).length };
   }
   function diagnosisText(d) {
-    if (d.cards === 0 && d.roomLinks > 0) return 'Es gibt Links zu Unterkünften, aber keine Karten im bekannten Format. Airbnb hat den Seitenaufbau vermutlich geändert.';
-    if (d.cards === 0 && d.stateCount > 0) return 'Airbnb hat Daten geladen, aber die Karten sind nicht im bekannten Format. Seitenaufbau vermutlich geändert.';
-    if (d.cards === 0) return 'Keine Unterkünfte gefunden. Vielleicht lädt die Seite noch, die Suche hat keine Treffer, oder der Seitenaufbau ist neu.';
-    return 'Karten gefunden, aber keine Unterkunfts-Nummer lesbar. Die Link-Form hat sich vermutlich geändert.';
+    if (d.cards === 0 && d.roomLinks > 0) return tx('parse.diag.links');
+    if (d.cards === 0 && d.stateCount > 0) return tx('parse.diag.state');
+    if (d.cards === 0) return tx('parse.diag.none');
+    return tx('parse.diag.nolink');
   }
 
   function searchParams(url) {
@@ -428,7 +431,7 @@
   // R7: Preis im Buchungsbereich der Unterkunftsseite. Währung vorn oder hinten („$120 night“, „200 € pro Nacht“).
   // Nachtpreis = Betrag direkt vor dem Nacht-Wort (bei Rabatt steht der alte Preis davor), Gesamtpreis = Betrag am Gesamt-Wort.
   const NIGHT_AFTER = /^\s*(?:\/\s*|pro\s+|per\s+|par\s+|por\s+|a\s+|za\s+|na\s+)?(?:nacht|night|nuit|noche|noite|notte|noc|natt|nat|yö|gece)(?![\p{L}])/iu;
-  const TOTAL_WORDS = '(?:insgesamt|gesamt\\w*|total|totaal|totalt|totale|łącznie|razem|celkem|i alt)';
+  const TOTAL_WORDS = /(?:insgesamt|gesamt\w*|total|totaal|totalt|totale|łącznie|razem|celkem|i alt)/.source;
   const TOTAL_AFTER = new RegExp(`^\\s*${TOTAL_WORDS}(?![\\p{L}])`, 'iu');
   const TOTAL_BEFORE = new RegExp(`${TOTAL_WORDS}[^\\d\\n]{0,24}$`, 'i');
   function bookPrice(text) {
@@ -508,23 +511,23 @@
 
   // Nr. 291 Betrugsmuster: nur Hinweise, KEIN Beweis (ungeprüft live: wo solcher Text auf der Seite steht)
   const SCAM = [
-    [/(?:außerhalb|ausserhalb) (?:von )?airbnb|outside (?:of )?airbnb|hors d'airbnb|fuera de airbnb/i, 'Zahlung oder Kontakt „außerhalb von Airbnb“ erwähnt'],
-    [/western union|moneygram|bitcoin|krypto|crypto|gift ?card|geschenkkarte/i, 'ungewöhnliche Zahlungsart erwähnt'],
-    [/(?:iban|überweisung|bank transfer|virement)[^.\n]{0,40}(?:direkt|direct|vorab|upfront|im voraus)/i, 'Vorabüberweisung direkt an den Gastgeber erwähnt'],
-    [/nur (?:heute|jetzt) (?:zum )?(?:buchen|reservieren)|book (?:now|today) (?:only|or lose)|last chance.*(?:pay|deposit)/i, 'starker Zeitdruck im Text'],
+    [/(?:außerhalb|ausserhalb) (?:von )?airbnb|outside (?:of )?airbnb|hors d'airbnb|fuera de airbnb/i, 'parse.scam.outside'],
+    [/western union|moneygram|bitcoin|krypto|crypto|gift ?card|geschenkkarte/i, 'parse.scam.payment'],
+    [/(?:iban|überweisung|bank transfer|virement)[^.\n]{0,40}(?:direkt|direct|vorab|upfront|im voraus)/i, 'parse.scam.upfront'],
+    [/nur (?:heute|jetzt) (?:zum )?(?:buchen|reservieren)|book (?:now|today) (?:only|or lose)|last chance.*(?:pay|deposit)/i, 'parse.scam.urgency'],
   ];
   // R8: Messenger (WhatsApp, Telegram, Signal) ist allein nur ein Hinweis (scamInfos), stark erst mit Zahlungswörtern
   const MESSENGER = /\bwhatsapp\b|\btelegram\b|\bsignal[- ]?(?:app|messenger)\b|\b(?:per|via|über|auf|on|by|through)\s+signal\b/i;
   const PAY_WORDS = /zahl\w*|bezahl\w*|überweis\w*|anzahlung|vorkasse|\biban\b|paypal|\bpay(?:ment|ing)?\b|deposit|transfer|bitcoin|krypto|crypto|western union|moneygram|gift ?card|geschenkkarte|virement|pago|pagamento|bonifico/i;
   function scamSignals(text) {
     const t = String(text || '');
-    const out = SCAM.filter(([re]) => re.test(t)).map(([, msg]) => msg);
-    if (MESSENGER.test(t) && PAY_WORDS.test(t)) out.unshift('Kontakt außerhalb der Plattform (Messenger) zusammen mit Zahlung erwähnt');
+    const out = SCAM.filter(([re]) => re.test(t)).map(([, key]) => tx(key));
+    if (MESSENGER.test(t) && PAY_WORDS.test(t)) out.unshift(tx('parse.scam.messenger'));
     return out;
   }
   function scamInfos(text) {
     const t = String(text || '');
-    return MESSENGER.test(t) && !PAY_WORDS.test(t) ? ['Messenger (z. B. WhatsApp) erwähnt: meist harmlos, Zahlung trotzdem nur über Airbnb'] : [];
+    return MESSENGER.test(t) && !PAY_WORDS.test(t) ? [tx('parse.scam.messengerInfo')] : [];
   }
 
   // Nr. 293 Touristensteuer

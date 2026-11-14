@@ -1,9 +1,11 @@
 // StayMatch – kleiner Service Worker: (1) Zahl am Toolbar-Symbol, (2) Erinnerung vor Ablauf der kostenlosen Stornierung (Opt-in).
 // Lokal, keine Anfragen. Benachrichtigungen nur mit der optionalen Berechtigung „notifications“, die du in den Optionen erteilst.
-importScripts('badge.js', 'reminders.js');
+importScripts('i18n.js', 'strings.js', 'badge.js', 'reminders.js');
+const I18n = self.StayMatchI18n;
 async function refresh() {
   try {
     const st = await chrome.storage.local.get(['lastSearch', 'settings']);
+    I18n.setLang(st.settings?.lang); // Sprache aus den Optionen, sonst Browsersprache
     const b = self.StayMatchBadge.badgeState(st);
     await chrome.action.setBadgeText({ text: b.text });
     await chrome.action.setBadgeBackgroundColor({ color: '#e0475b' });
@@ -34,14 +36,15 @@ async function onAlarm(al) {
     const R = self.StayMatchReminders, id = R.idOfAlarm(al.name);
     if (!id) return;
     if (!(await chrome.permissions.contains({ permissions: ['notifications'] }))) return;
-    const st = await chrome.storage.local.get(['l:' + id, 'remindDone']);
+    const st = await chrome.storage.local.get(['l:' + id, 'remindDone', 'settings']);
+    I18n.setLang(st.settings?.lang);
     const p = st['l:' + id] && R.plan({ [id]: st['l:' + id] }, Date.now(), st.remindDone)[0];
     if (!p) return;
     // Merken, damit der Wecker für diese Frist nicht neu angelegt wird (Chrome löscht ihn nach dem Klingeln, die Frist läuft aber noch)
     const today = new Date().toISOString().slice(0, 10);
     const done = Object.fromEntries(Object.entries(st.remindDone || {}).filter(([, d]) => d >= today));
     await chrome.storage.local.set({ remindDone: { ...done, [id]: p.day } });
-    chrome.notifications.create('sm-cancel-' + id, { type: 'basic', iconUrl: 'icons/128.png', title: 'Kostenlose Stornierung endet bald', message: `${p.title}: bis ${p.day.split('-').reverse().join('.')} kostenlos stornierbar.` });
+    chrome.notifications.create('sm-cancel-' + id, { type: 'basic', iconUrl: 'icons/128.png', title: I18n.t('rem.title'), message: I18n.t('rem.body', { title: p.title, date: R.fmtDay(p.day) }) });
   } catch {}
 }
 hookAlarms();

@@ -5,7 +5,9 @@ const path = require('node:path');
 let JSDOM = null;
 try { ({ JSDOM } = require('jsdom')); } catch {}
 const EXT = path.join(__dirname, '..', '..', 'extension');
-const src = f => fs.readFileSync(path.join(EXT, f), 'utf8');
+const read = f => fs.readFileSync(path.join(EXT, f), 'utf8');
+// Tests laden die Erweiterungsdateien einzeln per eval; core.js kommt immer zuerst und bringt deshalb Motor und Wörterbücher mit (wie die Skriptlisten im Manifest und in den HTML-Seiten).
+const src = f => f === 'print.js' ? read('i18n.js') + '\n' + read('strings.js') + '\n' + read('print.js') : f === 'core.js' ? read('core.js') + '\n' + read('i18n.js') + '\n' + read('strings.js') : read(f);
 
 const b64 = s => Buffer.from(s).toString('base64');
 // Reihenfolge der Content-Scripts wie im Browser: direkt aus manifest.json (ohne bridge.js)
@@ -55,6 +57,7 @@ function chromeMock(initial = {}) {
       },
       onChanged: { addListener: f => listeners.push(f) },
     },
+    i18n: { getUILanguage: () => 'de' }, // Erweiterungsseiten bleiben in Tests deutsch, der Englisch-Test überschreibt das
     runtime: { getManifest: () => ({ version: JSON.parse(src('manifest.json')).version }) },
   };
 }
@@ -71,8 +74,8 @@ function polyfillInnerText(win) {
 const open = [];
 function closeAll() { for (const w of open.splice(0)) try { w.close(); } catch {} } // content-common.js startet einen Intervall-Timer
 
-function makePage({ body = '', url = 'https://www.airbnb.de/s/Barcelona/homes?checkin=2026-05-01&checkout=2026-05-05&adults=4', chrome = chromeMock(), scripts = CONTENT_SCRIPTS, test = {} } = {}) {
-  const dom = new JSDOM(`<!doctype html><html><head></head><body>${body}</body></html>`, { url, runScripts: 'outside-only', pretendToBeVisual: true });
+function makePage({ body = '', url = 'https://www.airbnb.de/s/Barcelona/homes?checkin=2026-05-01&checkout=2026-05-05&adults=4', chrome = chromeMock(), scripts = CONTENT_SCRIPTS, test = {}, lang = 'de' } = {}) {
+  const dom = new JSDOM(`<!doctype html><html lang="${lang}"><head></head><body>${body}</body></html>`, { url, runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
   open.push(w);
   polyfillInnerText(w);

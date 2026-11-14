@@ -24,7 +24,7 @@ test('Service Worker setzt Badge-Text aus dem Speicher und hört auf Änderungen
     runtime: { onStartup: { addListener() {} }, onInstalled: { addListener() {} } },
     action: { setBadgeText: async o => calls.push(o.text), setBadgeBackgroundColor: async () => {}, setTitle: async () => {} },
   };
-  const ctx = vm.createContext({ chrome, importScripts: () => vm.runInContext(fs.readFileSync(path.join(EXT, 'badge.js'), 'utf8'), ctx) });
+  const ctx = vm.createContext({ chrome, importScripts: (...names) => names.forEach(n => vm.runInContext(fs.readFileSync(path.join(EXT, n), 'utf8'), ctx)) });
   ctx.self = ctx;
   vm.runInContext(fs.readFileSync(path.join(EXT, 'background.js'), 'utf8'), ctx);
   await new Promise(r => setTimeout(r, 20));

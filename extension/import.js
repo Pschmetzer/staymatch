@@ -1,6 +1,8 @@
 // StayMatch – Import, Merge, Teilen-Export und Schema-Migration (reine Funktionen, kein chrome.*).
 // Genutzt von popup.js und options.js. Die Schemaversion steht auch in content-common.js (dort als Kopie, weil Content-Skripte diese Datei nicht laden).
 (function (root) {
+  const I18n = root.StayMatchI18n || (typeof require === 'function' ? require('./i18n.js') : null);
+  const t = (k, v) => I18n.t(k, v);
   const SCHEMA = 2;
   const FORMAT = 'staymatch-merkliste', EXPORT_VERSION = 1;
   const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -23,15 +25,15 @@
   }
   // Datei vor dem Lesen auf Größe prüfen (File.size), dann Text liefern
   async function readFileText(file) {
-    if (!file) throw new Error('Keine Datei gewählt.');
-    if (file.size > MAX_FILE_BYTES) throw new Error(`Datei ist zu groß (über ${MAX_FILE_BYTES / 1048576} MB). Eine StayMatch-Sicherung ist deutlich kleiner.`);
+    if (!file) throw new Error(t('imp.noFile'));
+    if (file.size > MAX_FILE_BYTES) throw new Error(t('imp.tooBig', { mb: MAX_FILE_BYTES / 1048576 }));
     return file.text();
   }
   // Speicher voll? Chrome meldet „QUOTA_BYTES quota exceeded“ bzw. QuotaExceededError
   const isQuotaError = e => /quota/i.test(String(e?.message || '') + ' ' + String(e?.name || '') + ' ' + (typeof e === 'string' ? e : ''));
-  const QUOTA_MSG = 'Der Speicher der Erweiterung ist voll. Lösche im Popup alte Einträge („Löschen…“) und versuche es erneut.';
+  const quotaMsg = () => t('imp.quota');
   async function safeSet(local, obj) {
-    try { await local.set(obj); } catch (e) { throw new Error(isQuotaError(e) ? QUOTA_MSG : 'Speichern fehlgeschlagen: ' + String(e?.message || e).slice(0, 120)); }
+    try { await local.set(obj); } catch (e) { throw new Error(isQuotaError(e) ? quotaMsg() : t('imp.saveFailed', { msg: String(e?.message || e).slice(0, 120) })); }
   }
 
   // Alte Einträge (ohne schema) auf den aktuellen Stand heben. Idempotent, verändert das Original nicht.
@@ -58,16 +60,16 @@
   // Datei lesen und prüfen: Kennung und Version, nur gültige Einträge. Wirft Error mit deutscher Meldung.
   function parseImport(text, { isRoomUrl = () => true, isCdnImage = () => true } = {}) {
     let j;
-    if (typeof text !== 'string' || text.length > MAX_FILE_BYTES) throw new Error('Datei ist zu groß oder kein Text.');
-    try { j = JSON.parse(text); } catch { throw new Error('Datei ist kein gültiges JSON.'); }
-    if (!isObj(j)) throw new Error('Datei hat nicht das StayMatch-Format.');
-    if (j.format !== undefined && j.format !== FORMAT) throw new Error('Das ist keine StayMatch-Merkliste (Kennung „' + String(j.format).slice(0, 30) + '“).');
-    if (j.version !== undefined && !(Number.isInteger(j.version) && j.version >= 1)) throw new Error('Ungültige Versionsnummer in der Datei.');
-    if (j.version > EXPORT_VERSION) throw new Error(`Die Datei stammt aus einer neueren StayMatch-Version (${j.version}). Bitte das Plugin aktualisieren.`);
+    if (typeof text !== 'string' || text.length > MAX_FILE_BYTES) throw new Error(t('imp.notText'));
+    try { j = JSON.parse(text); } catch { throw new Error(t('imp.badJson')); }
+    if (!isObj(j)) throw new Error(t('imp.badFormat'));
+    if (j.format !== undefined && j.format !== FORMAT) throw new Error(t('imp.wrongKind', { id: String(j.format).slice(0, 30) }));
+    if (j.version !== undefined && !(Number.isInteger(j.version) && j.version >= 1)) throw new Error(t('imp.badVersion'));
+    if (j.version > EXPORT_VERSION) throw new Error(t('imp.newer', { v: j.version }));
     const src = j.format ? j.listings : (j.listings || j); // ältere Dateien ohne Kennung: Objekt direkt mit Einträgen
-    if (!isObj(src)) throw new Error('In der Datei fehlt die Liste der Unterkünfte.');
+    if (!isObj(src)) throw new Error(t('imp.noList'));
     const all = Object.values(src);
-    if (all.length > MAX_ENTRIES) throw new Error(`Die Datei enthält zu viele Einträge (über ${MAX_ENTRIES}).`);
+    if (all.length > MAX_ENTRIES) throw new Error(t('imp.tooMany', { max: MAX_ENTRIES }));
     const entries = all.filter(v => isObj(v) && /^\d{1,20}$/.test(String(v.id ?? '')))
       .map(v => migrateListing({ ...sanitizeDeep(v), id: String(v.id), image: isCdnImage(v.image) ? v.image : undefined, url: isRoomUrl(v.url) ? v.url : undefined }));
     return { entries, skipped: all.length - entries.length, friendLikes: isObj(j.friendLikes) ? sanitizeDeep(j.friendLikes) : null, trip: isObj(j.trip) ? sanitizeDeep(j.trip) : null };
@@ -143,5 +145,5 @@
     reise: x => x === 'trip',
   };
 
-  root.StayMatchImport = { MAX_FILE_BYTES, MAX_ENTRIES, sanitizeDeep, readFileText, isQuotaError, QUOTA_MSG, safeSet, cleanTags, SCHEMA, FORMAT, EXPORT_VERSION, migrateListing, migrateSettings, parseImport, mergeListing, applyImport, applyExtras, sanitizeListings, sanitizeTrip, localDay, WIPE, PRIVATE_FIELDS };
+  root.StayMatchImport = { MAX_FILE_BYTES, MAX_ENTRIES, sanitizeDeep, readFileText, isQuotaError, get QUOTA_MSG() { return quotaMsg(); }, safeSet, cleanTags, SCHEMA, FORMAT, EXPORT_VERSION, migrateListing, migrateSettings, parseImport, mergeListing, applyImport, applyExtras, sanitizeListings, sanitizeTrip, localDay, WIPE, PRIVATE_FIELDS };
 })(typeof window !== 'undefined' ? window : globalThis);

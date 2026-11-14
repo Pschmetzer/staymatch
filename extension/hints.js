@@ -1,6 +1,8 @@
 // StayMatch – Stichworte aus Bewertungstexten, die DU auf der Unterkunftsseite geöffnet hast.
 // Reine Funktion ohne chrome.* und ohne DOM, damit sie sich testen lässt.
 (function (root) {
+  const I18n = root.StayMatchI18n || (typeof require === 'function' ? require('./i18n.js') : null);
+  const t = (k, v) => I18n.t(k, v);
   // R7: \b ist in JS nur ASCII („zu heiß“, „Überteuert“ fielen durch). Daher echte Unicode-Wortgrenze.
   // R9: \p{L} ist in V8 sehr teuer zu kompilieren (jedes \b wird sechsfach ausgeschrieben: ~2,5 s beim ersten Aufruf).
   // Darum ein ausgeschriebener Buchstabenbereich (Latein inkl. Erweiterungen, Griechisch, Kyrillisch) statt \p{L}.
@@ -18,7 +20,7 @@
       String.raw`schoon|brandschoon|smetteloos|spic en span|keurig schoon`,
       String.raw`czyst[aeoyi]|czyściutk\p{L}*|czystość|czystości`,
     ],
-    'Lage': [
+    'location': [
       String.raw`emplacement\s+(?:idéal|parfait|excellent|top|central|super|génial)|(?:excellent|parfait|super|idéal|bel)\s+emplacement|(?:idéalement|très bien|parfaitement)\s+situé\p{L}*|situation\s+(?:idéale|parfaite|excellente|centrale)`,
       String.raw`(?:excelente|perfecta|magnífica|fantástica|ideal|inmejorable)\s+(?:ubicaci[oó]n|localizaci[oó]n)|ubicaci[oó]n\s+(?:excelente|perfecta|ideal|inmejorable|céntrica|genial|estupenda)|muy bien ubicad[oa]s?`,
       String.raw`(?:posizione|ubicazione)\s+(?:ottima|perfetta|eccellente|ideale|centrale|strategica|fantastica)|(?:ottima|perfetta|eccellente|splendida|fantastica)\s+(?:posizione|ubicazione)`,
@@ -39,7 +41,7 @@
       String.raw`lawaai\p{L}*|luidruchtig\p{L}*|rumoerig`,
       String.raw`głośn\p{L}*|hałaś\p{L}*|hałas\p{L}*`,
     ],
-    'hellhörig': [
+    'thinwalls': [
       String.raw`murs (?:très )?(?:fins|minces)|cloisons (?:fines|minces)|on entend (?:tout|les voisins)`,
       String.raw`paredes (?:muy )?(?:finas|delgadas)|se (?:oye|escucha|oía|escuchaba) todo`,
       String.raw`(?:pareti|muri) sottili|si sent(?:e|iva) tutto`,
@@ -88,21 +90,21 @@
       String.raw`(?:veel|\d+)\s+trappen|steile\s+trapp?en?|smalle\s+trapp?en?`,
       String.raw`(?:dużo|wiele|\d+)\s+(?:schodów|stopni)|strome schody|wąskie schody|schody\s+(?:strome|wąskie)`,
     ],
-    'kein Aufzug': [
+    'noelevator': [
       String.raw`sans ascenseur|pas d'ascenseur|aucun ascenseur`,
       String.raw`sin ascensor|no (?:hay|tiene|había) (?:ascensor|elevador)`,
       String.raw`senza ascensore|niente ascensore|non c'(?:è|era) (?:l')?ascensore`,
       String.raw`geen lift|zonder lift|geen liften`,
       String.raw`bez windy|brak windy|nie (?:ma|było) windy`,
     ],
-    'Reinigungsgebühr hoch': [
+    'cleaningfee': [
       String.raw`frais de ménage (?:élevés|excessifs|exorbitants)|ménage (?:hors de prix|trop cher)`,
       String.raw`(?:tasa|gastos) de limpieza (?:alt[oa]s?|elevad[oa]s?|excesiv[oa]s?|abusiv[oa]s?)`,
       String.raw`(?:costi|spese) di pulizia (?:alt[ie]|elevat[ie]|eccessiv[ie])`,
       String.raw`schoonmaakkosten (?:hoog|te hoog|erg hoog|buitensporig)|hoge schoonmaakkosten`,
       String.raw`opłata za sprzątanie (?:wysoka|zawyżona|duża)|wysoka opłata za sprzątanie`,
     ],
-    'ohne Klimaanlage': [
+    'noac': [
       String.raw`(?:pas de|sans|aucune?)\s+(?:climatisation|clim)|trop chaud|chaleur étouffante`,
       String.raw`(?:sin|no hay|no tiene|no había)\s+(?:aire acondicionado|climatizaci[oó]n)|demasiado calor`,
       String.raw`(?:senza|niente|non c'(?:è|era))\s+(?:l')?(?:aria condizionata|condizionatore|climatizzazione)|troppo caldo`,
@@ -130,7 +132,7 @@
       String.raw`schimmel\p{L}*|vochtig\p{L}*|muf\p{L}*|rookgeur|sigarettenlucht|stank|stinkt\p{L}*`,
       String.raw`pleśń|pleśni|wilgoć\p{L}*|wilgotn\p{L}*|stęchli\p{L}*|zapach (?:stęchlizny|wilgoci|dymu|papierosów)|śmierdzi\p{L}*|smród`,
     ],
-    'Gäste kamen wieder': [
+    'returning': [
       String.raw`(?:deuxième|troisième|\d+(?:e|ème))\s+(?:fois|séjour)|nous reviendrons|on reviendra|reviendrai|reviendrons`,
       String.raw`(?:segunda|tercera|cuarta)\s+vez|volveremos|volveré|volver[eé] seguro|repetiremos`,
       String.raw`(?:seconda|terza|quarta)\s+volta|torneremo|ritorneremo|tornerei`,
@@ -148,42 +150,42 @@
       String.raw`bardzo cich[oay]|cicha okolica|cich[ae]\s+(?:okolica|ulica|dzielnica|lokalizacja)|wyciszon\p{L}*|bardzo spokojn\p{L}*|cisza`,
     ],
   };
-  // [Label, Muster, positiv?, Verneinung umdrehen?, Label bei Verneinung (sonst „nicht <Label>“)]
+  // [Kennung, Muster, positiv?, Verneinung umdrehen?]. Anzeigetext: t('hints.l.<Kennung>'); bei Verneinung t('hints.neg.<Kennung>') (sonst „nicht <Text>“)
   // Negative Muster, die selbst schon "kein/ohne" enthalten, werden nicht umgedreht.
   const HINTS = [
     ['sauber', /\b(sauber|blitzsauber|spotless|very clean|super clean|so clean)\b/, true, true],
-    ['Lage', /\b(tolle|super|perfekte|zentrale) lage\b|\b(great|perfect|excellent) location\b/, true, true, 'Lage enttäuschend'],
-    ['Gastgeber', /\bgastgeber\w*\b[^.]{0,40}\b(nett|freundlich|hilfsbereit)\b|\bhost was (great|helpful|friendly|amazing)\b/, true, true, 'Gastgeber unfreundlich'],
+    ['location', /\b(tolle|super|perfekte|zentrale) lage\b|\b(great|perfect|excellent) location\b/, true, true],
+    ['Gastgeber', /\bgastgeber\w*\b[^.]{0,40}\b(nett|freundlich|hilfsbereit)\b|\bhost was (great|helpful|friendly|amazing)\b/, true, true],
     // R7: „laut“ als Präposition („Laut Beschreibung …“) ist kein Lärm
     ['laut', /\b((?<!klimaanlage\s+(?:war\s+)?(?:sehr\s+)?)laut(?!\s+(?:der|dem|den|des|einer?|eigenen?|beschreibung|inserat|anzeige|gastgeber\w*|airbnb|bewertung\w*|website|foto\w*))|lärm|lärmig|noisy|noise)\b/, false, true],
-    ['hellhörig', /\b(hellhörig|dünne wände|thin walls|paper[- ]thin)\b/, false, false],
-    ['Baustelle', /\b(baustelle|baulärm|construction (site|work|noise))\b/, false, true, 'keine Baustelle'],
+    ['thinwalls', /\b(hellhörig|dünne wände|thin walls|paper[- ]thin)\b/, false, false],
+    ['Baustelle', /\b(baustelle|baulärm|construction (site|work|noise))\b/, false, true],
     ['schmutzig', /\b(schmutzig|dreckig|dirty|unclean)\b/, false, true],
-    ['Ungeziefer', /\b(kakerlake\w*|ungeziefer|bettwanzen|cockroach\w*|bed ?bugs?|ameisen|mäuse|mice)\b/, false, true, 'kein Ungeziefer'],
-    ['Bett unbequem', /\b(unbequem\w*|uncomfortable)\b/, false, true, 'Bett bequem'],
-    ['WLAN', /\b(wlan|wifi|wi-fi)\b[^.]{0,30}\b(schlecht|langsam|bad|slow|poor)\b/, false, true, 'WLAN ok'],
-    ['Treppen', /\b(viele|steile|steilen|enge|engen|\d+)\s+(treppen|stufen|stockwerke|stairs|flights)\b|\b(steile|steilen)\s+treppe\w*|\b(steep|narrow|many|lots of) stairs\b|\bwalk[- ]?up\b|\bohne aufzug\b/, false, true, 'wenig Treppen'],
-    ['kein Aufzug', /\b(kein|keinen|ohne)\s+(aufzug|fahrstuhl|lift)\b|\bno (elevator|lift)\b/, false, false],
-    ['Reinigungsgebühr hoch', /\b(hohe|hohen|teure|teuren|überteuerte|high|expensive|steep)\s+(reinigungsgebühr\w*|endreinigung|putzgebühr\w*|cleaning fee)|\b(reinigungsgebühr\w*|endreinigung|putzgebühr\w*|cleaning fee)\b[^.]{0,40}\b(hoch|teuer|überteuert|zu viel|high|expensive|steep)\b/, false, false],
-    ['ohne Klimaanlage', /\b(kein\w*|ohne)\s+klima\w*|\bno (air ?conditioning|a\/c)\b|\b(zu heiß|too hot)\b/, false, false],
+    ['Ungeziefer', /\b(kakerlake\w*|ungeziefer|bettwanzen|cockroach\w*|bed ?bugs?|ameisen|mäuse|mice)\b/, false, true],
+    ['Bett unbequem', /\b(unbequem\w*|uncomfortable)\b/, false, true],
+    ['WLAN', /\b(wlan|wifi|wi-fi)\b[^.]{0,30}\b(schlecht|langsam|bad|slow|poor)\b/, false, true],
+    ['Treppen', /\b(viele|steile|steilen|enge|engen|\d+)\s+(treppen|stufen|stockwerke|stairs|flights)\b|\b(steile|steilen)\s+treppe\w*|\b(steep|narrow|many|lots of) stairs\b|\bwalk[- ]?up\b|\bohne aufzug\b/, false, true],
+    ['noelevator', /\b(kein|keinen|ohne)\s+(aufzug|fahrstuhl|lift)\b|\bno (elevator|lift)\b/, false, false],
+    ['cleaningfee', /\b(hohe|hohen|teure|teuren|überteuerte|high|expensive|steep)\s+(reinigungsgebühr\w*|endreinigung|putzgebühr\w*|cleaning fee)|\b(reinigungsgebühr\w*|endreinigung|putzgebühr\w*|cleaning fee)\b[^.]{0,40}\b(hoch|teuer|überteuert|zu viel|high|expensive|steep)\b/, false, false],
+    ['noac', /\b(kein\w*|ohne)\s+klima\w*|\bno (air ?conditioning|a\/c)\b|\b(zu heiß|too hot)\b/, false, false],
     ['anders als im Inserat', /\b(anders als (auf )?(den )?(fotos|bildern)|nicht wie (auf )?(den )?(fotos|bildern)|not as (pictured|described)|misleading (photos|pictures))\b/, false, false],
     // R7 E: weitere Kategorien (Runde 7 E, Bewertungs-Analyse)
     ['Matratze schlecht', /\b(matratze\w*\s+(war\s+)?(durchgelegen|alt|weich|hart|kaputt)|durchgelegen\w*|schlafsofa\s+(war\s+)?(hart|unbequem)|(saggy|old|worn|lumpy|hard)\s+mattress\w*|mattress\s+(was\s+)?(saggy|old|worn|lumpy|hard))\b/, false, false],
     ['Warmwasser', /\b(kein\w*\s+warm(es)?\s*wasser|warmwasser\s+(war\s+)?(knapp|kalt|aus)|boiler\s+(zu\s+)?klein|wenig\s+wasserdruck|wasserdruck\s+(war\s+)?(schwach|gering)|no hot water|(low|poor|weak) water pressure|hot water ran out)\b/, false, false],
-    ['Geruch/Feuchtigkeit', /\b(schimmel\w*|muffig\w*|modrig\w*|feucht\w*|rauchgeruch|roch nach (rauch|zigaretten)|mou?ld\w*|musty|damp|mildew|smelled of smoke|smell of smoke)\b/, false, true, 'kein Geruch'],
-    ['Nachbarn-Ärger', /\b(nachbarn?\s+(haben\s+sich\s+)?beschwer\w*|hausverwaltung\s+kam|neighbou?rs?\s+complained|building manager came)\b/, false, false],
-    ['sichere Gegend', /\b(nachts\s+sicher|sichere\w*\s+(gegend|viertel|nachbarschaft)|felt (very )?safe|safe (area|neighbou?rhood))\b/, true, true, 'Gegend unsicher'],
+    ['Geruch/Feuchtigkeit', /\b(schimmel\w*|muffig\w*|modrig\w*|feucht\w*|rauchgeruch|roch nach (rauch|zigaretten)|mou?ld\w*|musty|damp|mildew|smelled of smoke|smell of smoke)\b/, false, true],
+    ['neighbours', /\b(nachbarn?\s+(haben\s+sich\s+)?beschwer\w*|hausverwaltung\s+kam|neighbou?rs?\s+complained|building manager came)\b/, false, false],
+    ['sichere Gegend', /\b(nachts\s+sicher|sichere\w*\s+(gegend|viertel|nachbarschaft)|felt (very )?safe|safe (area|neighbou?rhood))\b/, true, true],
     ['unsicher', /\b(unsichere\w*\s+(gegend|viertel|straße)|(fühlte\w*)\s+(mich|uns)\s+(nachts\s+)?unsicher|dunkle\w*\s+hinterhof|dunkle\w*\s+gasse|felt unsafe|unsafe (area|neighbou?rhood)|sketchy)\b/, false, false],
-    ['Gastgeber löst Probleme', /\b(sofort\s+(reagiert|repariert|gekümmert)|schnell\s+(repariert|behoben|gelöst)|innerhalb\s+(einer|1)\s+stunde\s+(repariert|behoben|da)|fixed (it )?(right away|immediately|quickly)|responded immediately|resolved (it )?quickly)\b/, true, false],
-    ['Gäste kamen wieder', /\b(zum\s+(zweiten|dritten|vierten|\d+\.)\s+mal|kommen\s+(gerne\s+)?wieder|wiederkommen|stayed here (again|before)|(second|third|fourth) (time|stay)|will (definitely )?(be back|come back|return))\b/, true, true, 'würden nicht wiederkommen'],
+    ['hostfixes', /\b(sofort\s+(reagiert|repariert|gekümmert)|schnell\s+(repariert|behoben|gelöst)|innerhalb\s+(einer|1)\s+stunde\s+(repariert|behoben|da)|fixed (it )?(right away|immediately|quickly)|responded immediately|resolved (it )?quickly)\b/, true, false],
+    ['returning', /\b(zum\s+(zweiten|dritten|vierten|\d+\.)\s+mal|kommen\s+(gerne\s+)?wieder|wiederkommen|stayed here (again|before)|(second|third|fourth) (time|stay)|will (definitely )?(be back|come back|return))\b/, true, true],
     ['Gastgeber hat storniert', /\b(gastgeber\w*\s+hat\s+[^.]{0,40}storniert|host canceled|host cancelled|l'hôte a annulé|el anfitrión canceló)\b/, false, false],
-    ['Ohrstöpsel nötig', /\b((ohrstöpsel|oropax)\s+(waren\s+|sind\s+)?(nötig|notwendig|gebraucht|benötigt|empfehlenswert|ein muss|mitnehmen)|brauchten\s+(\w+\s+)?(ohrstöpsel|oropax)|(needed|bring|recommend)\s+earplugs|earplugs\s+(are\s+|were\s+)?(a must|needed|necessary|recommended))\b/, false, true, 'keine Ohrstöpsel nötig'],
+    ['earplugs', /\b((ohrstöpsel|oropax)\s+(waren\s+|sind\s+)?(nötig|notwendig|gebraucht|benötigt|empfehlenswert|ein muss|mitnehmen)|brauchten\s+(\w+\s+)?(ohrstöpsel|oropax)|(needed|bring|recommend)\s+earplugs|earplugs\s+(are\s+|were\s+)?(a must|needed|necessary|recommended))\b/, false, true],
     ['Klimaanlage laut', /\b(klimaanlage\s+(war\s+)?(sehr\s+)?laut|laute\s+klimaanlage|(ac|air conditioning|air conditioner)\s+(was\s+)?(very\s+)?(loud|noisy)|noisy (ac|air conditioning))\b/, false, false],
     ['hell', /\b(lichtdurchflutet\w*|sehr\s+hell(?!hörig)\w*|viel\s+(tages)?licht|bright and|so bright|lots of (natural )?light|flooded with light)\b/, true, false],
     ['dunkel', /\b((wohnung|zimmer|apartment|room)\s+(war\s+|was\s+)?(sehr\s+|very\s+)?dunkel|wenig\s+(tages)?licht|kaum\s+licht|(dark|gloomy) (apartment|room|flat)|not much (natural )?light)\b/, false, false],
-    ['mit Rollstuhl/Rollator', /\b(mit\s+(dem\s+|meinem\s+|unserem\s+)?(rollstuhl|rollator)|(in|with) a wheelchair|wheelchair user|with (my |our )?walker)\b/, true, false],
-    ['mit Hund da', /\b(mit\s+(unserem|meinem|dem)\s+hund|with (our|my) dog|hundefreundlich|dog[- ]friendly)\b/, true, false],
-    ['ruhig', /\b(schlafzimmer\s+zum\s+hof|schallisoliert\w*|sehr\s+ruhig|absolut\s+ruhig|very quiet|super quiet|soundproof\w*)\b/, true, true, 'nicht ruhig'],
+    ['wheelchair', /\b(mit\s+(dem\s+|meinem\s+|unserem\s+)?(rollstuhl|rollator)|(in|with) a wheelchair|wheelchair user|with (my |our )?walker)\b/, true, false],
+    ['dog', /\b(mit\s+(unserem|meinem|dem)\s+hund|with (our|my) dog|hundefreundlich|dog[- ]friendly)\b/, true, false],
+    ['ruhig', /\b(schlafzimmer\s+zum\s+hof|schallisoliert\w*|sehr\s+ruhig|absolut\s+ruhig|very quiet|super quiet|soundproof\w*)\b/, true, true],
     // R9: Heizung/WLAN-Ausfall in allen Sprachen (eigene Verneinung im Muster, nicht umdrehen)
     ['Heizung defekt', new RegExp([
       String.raw`heizung\s+(?:war\s+|ging\s+)?(?:kaputt|defekt|aus|kalt)|(?:keine|ohne)\s+heizung|zu kalt|eiskalt`,
@@ -197,7 +199,7 @@
     ['WLAN defekt', new RegExp([
       String.raw`(?:wlan|wifi|wi-fi|internet)\b[^.]{0,20}\b(?:funktionierte nicht|ging nicht|did(?:n't| not) work|not working|ne marchait pas|ne fonctionnait pas|no funcionaba|non funzionava|werkte niet|nie działał\p{L}*)`,
     ].map(w).join('|')), false, false],
-  ].map(([label, re, pos, flip, negLabel]) => [label, U(EXTRA[label] ? new RegExp(re.source + '|' + EXTRA[label].map(w).join('|')) : re), pos, flip, negLabel]);
+  ].map(([label, re, pos, flip]) => [label, U(EXTRA[label] ? new RegExp(re.source + '|' + EXTRA[label].map(w).join('|')) : re), pos, flip]);
   const NEG = U(/\b(nicht|kein|keine|keinen|nie|not|never|no|wasn't|isn't|pas|jamais|aucun\p{L}*|sans|nunca|sin|nada|tampoco|non|mai|senza|niente|niet|geen|nooit|zonder|bez|brak|nigdy|żadn\p{L}*)\b/);
   // R9: „sans doute“, „sin duda“ … sind keine Verneinung; Verneinung gilt nur im selben Teilsatz
   const NO_DOUBT = new RegExp(U(/\b(sans (aucun )?doute|sin (ninguna )?duda|senza dubbio|zonder twijfel|bez wątpienia|ohne frage|without a doubt)\b/).source, 'giu');
@@ -207,25 +209,31 @@
   const NOT_ONLY = U(/\b(nicht nur|not only|not just|non solo|pas seulement|no solo)\b/g);
   const NOT_ONLY_G = new RegExp(NOT_ONLY.source, 'giu'); // R8: einmal bauen, nicht je Satz
 
-  // → ["👍 sauber", "⚠️ laut (2×)", …], häufigste zuerst
-  function reviewHints(text) {
+  // Treffer je Kennung zählen: { pos, id, negated, n } (Reihenfolge: häufigste zuerst). Anzeigetexte entstehen erst in reviewHints (Sprache zur Aufrufzeit).
+  function hintCounts(text) {
     const sentences = String(text || '').split(/(?<=[.!?\n])\s+/);
-    const counts = {};
+    const counts = new Map();
     for (const raw of sentences) {
       NOT_ONLY_G.lastIndex = 0;
       const s = raw.replace(/[’‘]/g, "'").replace(NOT_ONLY_G, ' ').replace(NO_DOUBT, ' ');
-      for (const [label, re, pos, flip, negLabel] of HINTS) {
+      for (const [label, re, pos, flip] of HINTS) {
         const m = s.match(re);
         if (!m) continue;
         const before = s.slice(Math.max(0, m.index - 30), m.index).split(CLAUSE_G).pop();
         // R7: Verneinung auch im Treffer selbst („Gastgeber war nicht freundlich“, „WLAN war nicht schlecht“)
         const negated = flip && (NEG.test(before) || NEG.test(m[0]));
         const isPos = negated ? !pos : pos;
-        const key = (isPos ? '👍 ' : '⚠️ ') + (negated ? negLabel || 'nicht ' + label : label);
-        counts[key] = (counts[key] || 0) + 1;
+        const key = (isPos ? '+' : '-') + (negated ? 'n' : 'p') + label;
+        const e = counts.get(key) || { pos: isPos, id: label, negated: !!negated, n: 0 };
+        e.n++; counts.set(key, e);
       }
     }
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, n]) => n > 1 ? `${k} (${n}×)` : k);
+    return [...counts.values()].sort((a, b) => b.n - a.n);
+  }
+  const hintText = e => e.negated && I18n.has('hints.neg.' + e.id) ? t('hints.neg.' + e.id) : e.negated ? t('hints.not', { label: t('hints.l.' + e.id) }) : t('hints.l.' + e.id);
+  // → ["👍 sauber", "⚠️ laut (2×)", …], häufigste zuerst
+  function reviewHints(text) {
+    return hintCounts(text).map(e => { const k = (e.pos ? '👍 ' : '⚠️ ') + hintText(e); return e.n > 1 ? `${k} (${e.n}×)` : k; });
   }
 
   const warnings = hints => (hints || []).filter(x => String(x).startsWith('⚠️'));
@@ -266,7 +274,7 @@
       if (/morgens|früh am morgen|in the morning|early morning|le matin|por la mañana|di mattina|al mattino|'s ochtends|vroeg in de ochtend|rano\b|wcześnie rano/i.test(s)) morning++;
     }
     if (!night && !morning) return null;
-    return night >= morning ? 'meist nachts' : 'meist morgens';
+    return night >= morning ? t('hints.noise.night') : t('hints.noise.morning');
   }
   // Gästemix: wer war dort?
   const MIX = [['Paare', /\b(mein(e|em|er)? (freund|freundin|partner\w*|mann|frau)|wir (beide|zwei)|romantisch\w*|my (husband|wife|partner|boyfriend|girlfriend)|couple|honeymoon)\b/], ['Familien', /\b(kinder|kids|familie|family|baby|tochter|sohn|daughter|son)\b/], ['Dienstreisen', /\b(dienstreise|geschäftsreise|business trip|work trip|arbeiten|homeoffice|remote work)\b/], ['Freunde', /\b(freunde\w*|freundesgruppe|mädelstrip|jungs|friends|group of)\b/]].map(([l, re]) => [l, U(re)]);
@@ -274,7 +282,7 @@
     const c = {}; let n = 0;
     for (const t of texts || []) { const hit = MIX.filter(([, re]) => re.test(t)); if (hit.length) n++; for (const [l] of hit) c[l] = (c[l] || 0) + 1; }
     const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
-    return top && n >= 4 && top[1] / n >= 0.5 ? { top: top[0], share: top[1] / n, n } : null;
+    return top && n >= 4 && top[1] / n >= 0.5 ? { top: top[0], label: t('hints.mix.' + top[0]), share: top[1] / n, n } : null;
   }
   // Sprachen der Bewertungen über häufige Füllwörter (grob, nur Hinweis)
   const LANGS = { de: /\b(und|nicht|sehr|wir|war)\b/i, en: /\b(the|and|was|very|we)\b/i, fr: /\b(et|très|nous|était|le|la)\b/i, es: /\b(muy|y|el|la|nosotros|fue)\b/i, it: /\b(molto|e|era|abbiamo|il)\b/i, nl: /\b(het|en|zeer|was|wij|erg)\b/i, pt: /\b(muito|e|foi|nós|o)\b/i, pl: /\b(nie|bardzo|jest|oraz|dla|ale|tylko)\b/i };
@@ -299,9 +307,9 @@
   function keywordTrend(texts, label = 'sauber', opts = {}) {
     if (!opts?.newestFirst) return null; // R8: Reihenfolge unbekannt (Relevanz-Sortierung) → kein Trend behaupten
     const list = texts || []; if (list.length < 16) return null;
-    const rate = a => a.filter(t => reviewHints(t).some(x => x.startsWith('👍 ' + label))).length / a.length;
+    const rate = a => a.filter(x => hintCounts(x).some(e => e.pos && e.id === label)).length / a.length;
     const neu = rate(list.slice(0, 10)), alt = rate(list.slice(10));
-    if (alt >= 0.3 && neu <= alt / 2) return `„${label}“ früher oft gelobt, zuletzt selten`;
+    if (alt >= 0.3 && neu <= alt / 2) return t('hints.trend', { label: t('hints.l.' + label) });
     return null;
   }
   // Gastgeber antwortet auf Kritik? Kritische Bewertungen mit Antwort, lösungsorientiert („behoben“, „ersetzt“)

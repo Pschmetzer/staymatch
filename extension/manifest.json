@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "StayMatch – Unterkunfts-Merkzettel",
+  "default_locale": "de",
+  "name": "__MSG_extName__",
   "version": "0.5.0",
-  "description": "Bewertet jede Unterkunft auf der Suchseite nach Budget, Sternen und Wünschen und zeigt die Top 3. Alles lokal.",
+  "description": "__MSG_extDesc__",
   "minimum_chrome_version": "110",
   "incognito": "not_allowed",
   "permissions": [
@@ -74,6 +75,8 @@
       ],
       "js": [
         "core.js",
+        "i18n.js",
+        "strings.js",
         "parse.js",
         "rank.js",
         "hints.js",

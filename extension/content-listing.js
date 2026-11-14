@@ -2,8 +2,10 @@
 (() => {
   const P = window.StayMatchParse, R = window.StayMatchRank, C = window.StayMatchCore;
   const SMC = window.StayMatchContent, H = window.StayMatchHints, X = window.StayMatchExtras;
+  const I18n = window.StayMatchI18n;
+  const t = (k, v) => I18n.t(k, v);
   const { getListing, saveListing, getTrip, h, panel, keys, T, copyText, SCAM_HELP_URL } = SMC;
-  const scamHelp = () => h('a', { href: SCAM_HELP_URL, target: '_blank', rel: 'noopener' }, 'Verdacht auf Betrug? So reagierst du');
+  const scamHelp = () => h('a', { href: SCAM_HELP_URL, target: '_blank', rel: 'noopener' }, t('room.scamHelp'));
 
   const reviewHints = window.StayMatchHints.reviewHints; // einzige Quelle: hints.js
 
@@ -132,40 +134,40 @@
     const others = all.filter(o => o.id !== item.id);
     if (item.hostId) {
       const same = others.filter(o => o.hostId === item.hostId);
-      if (same.some(o => o.vote === -1)) out.warn.push('Andere Unterkunft dieses Gastgebers hast du mit 👎 markiert');
-      else if (same.some(o => o.vote === 1)) out.plus.push('Andere Unterkunft dieses Gastgebers hast du mit 👍 markiert');
+      if (same.some(o => o.vote === -1)) out.warn.push(t('room.mem.hostDown'));
+      else if (same.some(o => o.vote === 1)) out.plus.push(t('room.mem.hostUp'));
     }
-    if (old?.hostInfo?.superhost && item.hostInfo && !item.hostInfo.superhost) out.info.push(`Superhost-Status ist weg (zuletzt gesehen am ${new Date(old.lastSeen).toLocaleDateString('de-DE')})`);
+    if (old?.hostInfo?.superhost && item.hostInfo && !item.hostInfo.superhost) out.info.push(t('room.mem.superhostGone', { date: I18n.date(old.lastSeen) }));
     const nt = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
     if (!item.reviewCount && item.rating == null && nt(item.title).length >= 8) {
       const twin = others.find(o => nt(o.title) === nt(item.title) && o.rating != null && o.rating < 4.6);
-      if (twin) out.warn.push(`Gleicher Titel wie eine früher gesehene Unterkunft mit ${String(twin.rating).replace('.', ',')} Sternen: neu eingestellt?`);
+      if (twin) out.warn.push(t('room.mem.twin', { r: I18n.dec(String(twin.rating)) }));
     }
     const recent = all.filter(o => o.lastSeen && now - o.lastSeen < 3 * 3600e3).length;
-    if (recent >= 40) out.info.push(`Du hast in den letzten Stunden ${recent} Unterkünfte angesehen. Deine Top 3 stehen vermutlich fest – Zeit zu entscheiden?`);
+    if (recent >= 40) out.info.push(t('room.mem.many', { k: recent }));
     return out;
   }
   T.memoryOf = memoryOf;
 
   // R7 E: Bewertungen als Ganzes (Kritik-Quote, Lärmzeit, Gästemix, Sprachen, Zahlen, Trend)
   function reviewNotes(item, people) {
-    const t = item.reviewTexts || [], out = { warn: [], info: [] };
-    const cs = H.criticalShare?.(t);
-    if (cs) out.info.push(cs.single ? `Nur 1 kritische unter ${cs.total} gelesenen Bewertungen: eher ein Einzelfall` : `${cs.critical} von ${cs.total} gelesenen Bewertungen kritisch`);
-    const nz = H.noiseTimes?.(t);
-    if (nz) out.info.push(`Lärm laut Bewertungen ${nz}`);
-    const mix = H.guestMix?.(t);
-    if (mix) out.info.push(`Gäste meist ${mix.top}${people >= 4 && mix.top === 'Paare' ? `, ihr seid ${people}` : ''}`);
-    const lang = H.languages?.(t);
-    if (lang >= 3) out.info.push(`Bewertungen in ${lang} Sprachen (spricht für echte, verschiedene Gäste)`);
-    else if (lang === 1 && t.length >= 8 && t.every(x => String(x).length < 80)) out.info.push('Alle Bewertungen kurz und in einer Sprache (nur ein Hinweis)');
-    const nf = H.numberFacts?.(t) || [];
-    if (nf.length) out.info.push(`Gäste nennen: ${nf.map(x => `„${x}“`).join(', ')}`);
-    if (H.renovated?.(t)) out.info.push('Neuere Bewertungen erwähnen Renovierung oder neue Matratzen: ältere Kritik ist evtl. überholt');
+    const rt = item.reviewTexts || [], out = { warn: [], info: [] };
+    const cs = H.criticalShare?.(rt);
+    if (cs) out.info.push(cs.single ? t('room.rv.single', { total: cs.total }) : t('room.rv.critical', { critical: cs.critical, total: cs.total }));
+    const nz = H.noiseTimes?.(rt);
+    if (nz) out.info.push(t('room.rv.noise', { when: nz }));
+    const mix = H.guestMix?.(rt);
+    if (mix) out.info.push(t('room.rv.mix', { top: mix.label || mix.top }) + (people >= 4 && mix.top === 'Paare' ? t('room.rv.mixPeople', { people }) : ''));
+    const lang = H.languages?.(rt);
+    if (lang >= 3) out.info.push(t('room.rv.langs', { k: lang }));
+    else if (lang === 1 && rt.length >= 8 && rt.every(x => String(x).length < 80)) out.info.push(t('room.rv.short'));
+    const nf = H.numberFacts?.(rt) || [];
+    if (nf.length) out.info.push(t('room.rv.facts', { list: nf.map(x => t('room.rv.quote', { x })).join(', ') }));
+    if (H.renovated?.(rt)) out.info.push(t('room.rv.renovated'));
     for (const c of X?.claimConflicts(item.extra?.claims, item.hints) || []) out.warn.push(c);
-    const hr = H.hostReplies?.(t);
-    if (hr) out.info.push(hr.replied ? `Gastgeber hat auf ${hr.replied} von ${hr.critical} kritischen Bewertungen geantwortet${hr.fixing ? `, ${hr.fixing}× mit Lösung („behoben“, „ersetzt“)` : ''}` : `Keine Antwort des Gastgebers auf ${hr.critical} kritische Bewertungen gelesen`);
-    const tr = H.keywordTrend?.(t);
+    const hr = H.hostReplies?.(rt);
+    if (hr) out.info.push(hr.replied ? t('room.rv.replied', { replied: hr.replied, critical: hr.critical }) + (hr.fixing ? t('room.rv.fixing', { fixing: hr.fixing }) : '') : t('room.rv.noReply', { critical: hr.critical }));
+    const tr = H.keywordTrend?.(rt);
     if (tr) out.warn.push(tr);
     return out;
   }
@@ -175,14 +177,14 @@
   function factsLine(item) {
     const r = item.houseRules || {}, c = item.cancellation || {}, hi = item.hostInfo || {}, tx = item.touristTax || {};
     return [
-      c.kind === 'free' ? `Kostenlos stornierbar${c.until ? ' bis ' + c.until : ''}` : c.kind === 'nonrefundable' ? 'Nicht erstattungsfähig' : c.kind === 'strict' ? 'Strenge Stornierung' : null,
-      r.noParties && 'Keine Partys',
-      r.quietHours && typeof r.quietHours === 'object' ? `Ruhe ${r.quietHours.from}–${r.quietHours.to} Uhr` : r.quietHours === true ? 'Ruhezeiten' : null,
-      r.noSmoking && 'Nichtraucher',
-      r.noPets ? 'Keine Haustiere' : r.petsAllowed ? 'Haustiere erlaubt' : null,
+      c.kind === 'free' ? (c.until ? t('room.fact.freeUntil', { until: c.until }) : t('room.fact.free')) : c.kind === 'nonrefundable' ? t('room.fact.nonrefundable') : c.kind === 'strict' ? t('room.fact.strict') : null,
+      r.noParties && t('room.fact.noParties'),
+      r.quietHours && typeof r.quietHours === 'object' ? t('room.fact.quiet', { from: r.quietHours.from, to: r.quietHours.to }) : r.quietHours === true ? t('room.fact.quietHours') : null,
+      r.noSmoking && t('room.fact.noSmoking'),
+      r.noPets ? t('room.fact.noPets') : r.petsAllowed ? t('room.fact.pets') : null,
       hi.superhost && 'Superhost',
-      hi.responseTime === 'hour' ? 'antwortet meist binnen 1 Std.' : null,
-      tx.extraOnSite && 'Kurtaxe vor Ort',
+      hi.responseTime === 'hour' ? t('room.fact.replyHour') : null,
+      tx.extraOnSite && t('room.fact.tax'),
     ].filter(Boolean);
   }
 
@@ -193,19 +195,20 @@
     // Warnungen, die schon als Konflikt mit deinen Wünschen genannt sind, nicht doppelt zeigen
     const warns = H.warnings(item.hints).filter(w => !conflicts.some(c => c.endsWith(w.replace(/^⚠️\s*/, ''))));
     const ppn = item.pricePerNight && ctx.people > 1 ? Math.round(item.pricePerNight / ctx.people) : null;
-    const note = h('textarea', { placeholder: 'Notiz: was gefällt / stört?', 'aria-label': 'Notiz' });
+    const note = h('textarea', { placeholder: t('room.note.placeholder'), 'aria-label': t('room.note.aria') });
     note.value = item.note || ''; // value statt innerHTML → kein Code-Einschleusen
     note.oninput = () => { clearTimeout(roomTimers.get(item.id)); roomTimers.set(item.id, setTimeout(() => { roomTimers.delete(item.id); saveListing(item.id, { note: note.value }); }, T.noteDelay ?? 400)); };
     // Etiketten („Plan A/B“): Schnellwahl plus eigene, bis zu 5; sichtbar und filterbar im Popup
     const tags = item.tags || [];
     const setTags = async next => roomPanel(await saveListing(item.id, { tags: next.slice(0, 5), note: note.value }), area, ctx);
-    const tagInput = h('input', { type: 'text', maxlength: '20', placeholder: 'eigenes Etikett', 'aria-label': 'Eigenes Etikett hinzufügen', style: 'width:110px;font:inherit' });
+    const tagInput = h('input', { type: 'text', maxlength: '20', placeholder: t('room.tag.placeholder'), 'aria-label': t('room.tag.aria'), style: 'width:110px;font:inherit' });
     tagInput.onkeydown = e => { if (e.key === 'Enter') { const t = tagInput.value.replace(/[<>]/g, '').trim().slice(0, 20); if (t && !tags.includes(t)) setTags([...tags, t]); } };
     const ph = item.priceHistory || [];
     const lastP = ph.at(-1), firstSame = lastP && ph.find(e => priceKey(e) === priceKey(lastP));
     const change = firstSame && firstSame !== lastP ? Math.round((lastP.p / firstSame.p - 1) * 100) : 0;
     const facts = factsLine(item), fs = ctx.fromSearch;
-    const short = String(item.title || 'Unterkunft').slice(0, 60);
+    const short = String(item.title || t('search.place')).slice(0, 60);
+    const visitsText = item.visits > 1 ? t('room.visits.many', { n: item.visits }) : t('room.visits.first');
     // R7 E: Zusatz-Hinweise. Wichtiges sichtbar (warn), der Rest gesammelt in „Mehr Hinweise“
     const sp = ctx.sp || {};
     const nights = sp.nights || null;
@@ -214,7 +217,7 @@
       total, currency: item.currency, responseTime: item.hostInfo?.responseTime, hostSince: item.hostInfo?.since, noParties: item.houseRules?.noParties, noPets: item.houseRules?.noPets, noSmoking: item.houseRules?.noSmoking, smoker: ctx.smoker,
       text: `${item.title || ''}` }) : { warn: [], info: [], plus: [] };
     const xw = X ? (ctx.wishes || []).filter(k => X.EXTRA_WISHES[k]).map(k => [X.EXTRA_WISHES[k], X.EXTRA_WISHES[k].check(item.extra, item)]) : [];
-    const wishMiss = xw.filter(([w, r]) => r === false && w.no).map(([w]) => `passt nicht zu deinem Wunsch „${w.ok}“: ${w.no}`);
+    const wishMiss = xw.filter(([w, r]) => r === false && w.no).map(([w]) => t('room.wishMiss', { ok: w.ok, no: w.no }));
     const wishHit = xw.filter(([, r]) => r === true).map(([w]) => `✓ ${w.ok}`);
     const mem = ctx.memory || { warn: [], info: [], plus: [] };
     const topWarnExtra = [];
@@ -222,13 +225,13 @@
     // R7 E: Teilnoten, Rabatt, Last-Minute, Gastgeber-Bilanz, Videocall-Ruhe, Kontaktdaten kopiert
     const sr = X ? X.subRatingNotes(item.subRatings, ctx.wishes) : { warn: [], info: [] };
     rv.warn.push(...sr.warn); rv.info.push(...sr.info);
-    if (item.lastMinute) rv.info.push('Last-Minute- oder Frühbucher-Rabatt: gilt nur für diese Daten und kann bei Datumsänderung wegfallen');
+    if (item.lastMinute) rv.info.push(t('room.lastMinute'));
     const hist = (item.priceHistory || []).slice(0, -1), cur0 = (item.priceHistory || []).at(-1);
     const dh = X && cur0 ? X.discountHonesty(item.wasPrice, item.pricePerNight, hist, e => priceKey(e) === priceKey(cur0)) : null;
     if (dh) rv.warn.push(dh);
-    if (!item.reviewCount && item.hostReviews >= 50) rv.info.push(`Neues Inserat, aber Gastgeber mit ${item.hostReviews} Bewertungen insgesamt: eher erfahren als riskant`);
-    if ((ctx.wishes || []).includes('workspace') && (item.hints || []).some(x => /⚠️ (Baustelle|laut)/.test(x))) rv.warn.push('Tagsüber Lärm (Baustelle/Straße) in Bewertungen: schlecht für Videocalls');
-    if (ctx.copiedContact) topWarnExtra.push('Du hast Kontaktdaten kopiert: buche und zahle nur über Airbnb, nie per Überweisung oder Messenger');
+    if (!item.reviewCount && item.hostReviews >= 50) rv.info.push(t('room.newListing', { k: item.hostReviews }));
+    if ((ctx.wishes || []).includes('workspace') && (item.hints || []).some(x => /⚠️ (Baustelle|laut|construction|loud|noisy|noise)/i.test(x))) rv.warn.push(t('room.workspaceNoise'));
+    if (ctx.copiedContact) topWarnExtra.push(t('room.copiedContact'));
     const topWarn = [...topWarnExtra, ...wishMiss, ...notes.warn, ...mem.warn, ...rv.warn];
     const more = [...wishHit, ...notes.plus.map(x => '👍 ' + x), ...mem.plus.map(x => '👍 ' + x), ...notes.info, ...mem.info, ...rv.info];
     const booked = item.booked;
@@ -238,35 +241,35 @@
       roomPanel(await saveListing(item.id, { booked: b }), area, ctx);
     };
     const advanceText = () => X?.advanceText?.(total, ctx.people, item.currency, item.cancellation);
-    panel('sm-room', item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier', [
+    panel('sm-room', visitsText, [
       // R7: Betrugshinweise dort, wo gebucht wird, ganz oben
-      item.scamSignals?.length ? h('div', { class: 'err', role: 'alert' }, h('b', {}, '⚠️ Vorsicht (Hinweis, kein Beweis): '), item.scamSignals.join(' · '), '. Nur über Airbnb zahlen und schreiben. ', scamHelp()) : null,
-      ctx.place ? h('div', {}, h('b', {}, `Platz ${ctx.place.rank} von ${ctx.place.of}`), ' in deiner letzten Suche') : null,
+      item.scamSignals?.length ? h('div', { class: 'err', role: 'alert' }, h('b', {}, t('room.scam.head')), item.scamSignals.join(' · '), t('room.scam.tail'), scamHelp()) : null,
+      ctx.place ? h('div', {}, h('b', {}, t('room.place', { rank: ctx.place.rank, of: ctx.place.of })), t('room.place.tail')) : null,
       // R7: Passt-Wert aus deiner letzten Suche, wenn du von dort kommst
-      fs?.score != null ? h('div', {}, h('b', {}, `Passt-Wert ${fs.score}/100`), ' aus deiner Suche', (fs.why || []).length ? ` · ${fs.why.slice(0, 2).join(' · ')}` : '') : null,
-      ctx.paused ? h('div', { class: 'muted', role: 'status' }, '⏸ Pause aktiv, nichts wird gespeichert (außer 👍/👎, Notiz und Gebucht, die du selbst klickst).') : null,
-      h('div', {}, item.rating ? `⭐ ${item.rating}${item.reviewCount ? ` (${item.reviewCount})` : ''}` : 'Noch keine Sterne gefunden'),
-      area ? h('div', {}, `Viertel ${area.name}: ${area.total}/100 ${ctx.solo ? 'für dich' : 'für eure Gruppe'}`) : null,
-      ppn ? h('div', {}, h('b', {}, R.money(ppn, item.currency)), ' pro Person und Nacht') : null,
+      fs?.score != null ? h('div', {}, h('b', {}, t('room.score', { score: fs.score })), t('room.score.tail'), (fs.why || []).length ? ` · ${fs.why.slice(0, 2).join(' · ')}` : '') : null,
+      ctx.paused ? h('div', { class: 'muted', role: 'status' }, t('room.paused')) : null,
+      h('div', {}, item.rating ? `⭐ ${item.rating}${item.reviewCount ? ` (${item.reviewCount})` : ''}` : t('room.noStars')),
+      area ? h('div', {}, t(ctx.solo ? 'room.area.solo' : 'room.area.group', { name: area.name, total: area.total })) : null,
+      ppn ? h('div', {}, h('b', {}, R.money(ppn, item.currency)), t('room.perPersonNight')) : null,
       facts.length ? h('div', { class: 'muted' }, facts.join(' · ')) : null,
-      booked ? h('div', {}, h('b', {}, '✅ Gebucht'), booked.checkin ? ` · ${booked.checkin}${booked.checkout ? ' bis ' + booked.checkout : ''}` : '', booked.why?.length ? h('div', { class: 'muted' }, 'Warum: ' + booked.why.join(' · ')) : null) : null,
+      booked ? h('div', {}, h('b', {}, t('room.booked')), booked.checkin ? ` · ${booked.checkin}${booked.checkout ? t('room.booked.to') + booked.checkout : ''}` : '', booked.why?.length ? h('div', { class: 'muted' }, t('room.booked.why') + booked.why.join(' · ')) : null) : null,
       ...conflicts.map(c => h('div', { class: 'warn' }, '⚠️ ' + c)),
       ...topWarn.map(c => h('div', { class: 'warn' }, '⚠️ ' + c)),
       ctx.copiedContact && !item.scamSignals?.length ? h('div', { class: 'muted' }, scamHelp()) : null,
-      warns.length ? h('div', { class: 'err' }, h('b', {}, 'Achtung aus den Bewertungen: '), warns.map(x => x.replace(/^⚠️\s*/, '')).join(' · ')) : null,
-      item.hints?.length ? h('div', { class: 'muted' }, `Aus den Bewertungen${item.reviewsRead ? ` (${item.reviewsRead} gelesen${item.reviewCount ? ` von ${item.reviewCount}` : ''})` : ''}: ` + item.hints.join(' · ')) : null,
-      change ? h('div', { class: 'muted' }, `Preis seit dem ersten Besuch ${change > 0 ? '+' : ''}${change} %`) : null,
-      more.length ? h('details', {}, h('summary', {}, `Mehr Hinweise (${more.length})`), h('ul', {}, more.map(x => h('li', {}, x)))) : null,
+      warns.length ? h('div', { class: 'err' }, h('b', {}, t('room.watchOut')), warns.map(x => x.replace(/^⚠️\s*/, '')).join(' · ')) : null,
+      item.hints?.length ? h('div', { class: 'muted' }, (item.reviewsRead ? item.reviewCount ? t('room.fromReviewsReadOf', { read: item.reviewsRead, total: item.reviewCount }) : t('room.fromReviewsRead', { read: item.reviewsRead }) : t('room.fromReviews')) + item.hints.join(' · ')) : null,
+      change ? h('div', { class: 'muted' }, t('room.priceChange', { v: (change > 0 ? '+' : '') + change })) : null,
+      more.length ? h('details', {}, h('summary', {}, t('room.moreHints', { c: more.length })), h('ul', {}, more.map(x => h('li', {}, x)))) : null,
       h('div', { class: 'row' },
-        h('button', { class: item.vote === 1 ? 'on' : '', 'aria-pressed': String(item.vote === 1), 'aria-keyshortcuts': 'Alt+Shift+L', title: 'Alt+Shift+L', onclick: () => setVote(1) }, '👍 Gefällt mir'),
-        h('button', { class: item.vote === -1 ? 'on' : '', 'aria-pressed': String(item.vote === -1), 'aria-keyshortcuts': 'Alt+Shift+N', title: 'Alt+Shift+N', onclick: () => setVote(-1) }, '👎 Nein')),
+        h('button', { class: item.vote === 1 ? 'on' : '', 'aria-pressed': String(item.vote === 1), 'aria-keyshortcuts': 'Alt+Shift+L', title: 'Alt+Shift+L', onclick: () => setVote(1) }, t('room.like')),
+        h('button', { class: item.vote === -1 ? 'on' : '', 'aria-pressed': String(item.vote === -1), 'aria-keyshortcuts': 'Alt+Shift+N', title: 'Alt+Shift+N', onclick: () => setVote(-1) }, t('room.dislike'))),
       h('div', { class: 'row' },
-        h('button', { class: booked ? 'on' : '', 'aria-pressed': String(!!booked), onclick: setBooked }, booked ? '✅ Gebucht' : 'Als gebucht markieren'),
-        booked && ctx.people > 1 && total ? h('button', { onclick: async e => { e.target.textContent = (await copyText(advanceText())) ? 'Kopiert ✓' : 'Nicht möglich'; } }, '💸 Vorkasse-Text') : null),
-      h('div', { class: 'chips', role: 'group', 'aria-label': 'Etiketten' }, ...['Plan A', 'Plan B', 'Plan C', ...tags.filter(t => !['Plan A', 'Plan B', 'Plan C'].includes(t))].map(t => h('button', { class: tags.includes(t) ? 'on' : '', 'aria-pressed': String(tags.includes(t)), onclick: () => setTags(tags.includes(t) ? tags.filter(x => x !== t) : [...tags, t]) }, '🏷 ' + t)), tagInput),
+        h('button', { class: booked ? 'on' : '', 'aria-pressed': String(!!booked), onclick: setBooked }, booked ? t('room.booked') : t('room.markBooked')),
+        booked && ctx.people > 1 && total ? h('button', { onclick: async e => { e.target.textContent = (await copyText(advanceText())) ? t('panel.copied') : t('panel.notPossible'); } }, t('room.advance')) : null),
+      h('div', { class: 'chips', role: 'group', 'aria-label': t('room.labels.aria') }, ...['Plan A', 'Plan B', 'Plan C', ...tags.filter(t => !['Plan A', 'Plan B', 'Plan C'].includes(t))].map(t => h('button', { class: tags.includes(t) ? 'on' : '', 'aria-pressed': String(tags.includes(t)), onclick: () => setTags(tags.includes(t) ? tags.filter(x => x !== t) : [...tags, t]) }, '🏷 ' + t)), tagInput),
       note,
-      h('div', { class: 'muted' }, 'Tasten: Alt+Shift+L 👍 · N 👎 · M ein-/ausklappen'),
-    ], { label: `StayMatch: ${short}, ${item.visits > 1 ? `schon ${item.visits}× angesehen` : 'zum ersten Mal hier'}` }); // R7: Screenreader erfahren, worum es geht
+      h('div', { class: 'muted' }, t('room.keys')),
+    ], { label: `StayMatch: ${short}, ${visitsText}` }); // R7: Screenreader erfahren, worum es geht
   }
 
   // R7 E: Kopier-Warnung, wenn auf der Unterkunftsseite Telefonnummer oder Mailadresse markiert und kopiert wird
@@ -275,8 +278,8 @@
     const sel = String(document.getSelection?.() || '');
     if (X.contactLike(sel)) currentRoom.warnContact();
   }, true);
-  keys.KeyL = () => { if (P.ROOM_RE.test(location.pathname) && currentRoom) { SMC.say(currentRoom.item.vote === 1 ? 'Gefällt mir entfernt' : 'Gefällt mir gesetzt'); currentRoom.setVote(1); } };
-  keys.KeyN = () => { if (P.ROOM_RE.test(location.pathname) && currentRoom) { SMC.say(currentRoom.item.vote === -1 ? 'Nein entfernt' : 'Nein gesetzt'); currentRoom.setVote(-1); } };
+  keys.KeyL = () => { if (P.ROOM_RE.test(location.pathname) && currentRoom) { SMC.say(currentRoom.item.vote === 1 ? t('room.say.likeRemoved') : t('room.say.likeSet')); currentRoom.setVote(1); } };
+  keys.KeyN = () => { if (P.ROOM_RE.test(location.pathname) && currentRoom) { SMC.say(currentRoom.item.vote === -1 ? t('room.say.dislikeRemoved') : t('room.say.dislikeSet')); currentRoom.setVote(-1); } };
   window.StayMatchContent.room = { handle: handleRoom };
   window.StayMatchContent.start(); // letzte content-*.js-Datei: jetzt sind alle Module da
 })();

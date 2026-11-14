@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "StayMatch – Stay Shortlist",
+    "description": "Extension name"
+  },
+  "extDesc": {
+    "message": "Scores every listing on the search page by budget, stars and your wishes and shows the top 3. Everything stays local.",
+    "description": "Short description (max 132 characters)"
+  }
+}

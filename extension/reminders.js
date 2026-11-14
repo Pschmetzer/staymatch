@@ -1,6 +1,8 @@
 // StayMatch – Erinnerung vor Ablauf der kostenlosen Stornierung und Kalender-Export (.ics). Reine Funktionen, kein chrome.*.
 // Genutzt vom Service Worker (background.js), der Optionen-Seite und dem Popup. Alles lokal.
 (function (root) {
+  const I18n = root.StayMatchI18n || (typeof require === 'function' ? require('./i18n.js') : null);
+  const t = (k, v) => I18n.t(k, v);
   const MONTHS = {
     jan: 1, januar: 1, january: 1, janvier: 1, enero: 1, gennaio: 1, feb: 2, februar: 2, february: 2, février: 2, fevrier: 2, febrero: 2, febbraio: 2,
     mär: 3, mar: 3, märz: 3, maerz: 3, march: 3, mars: 3, marzo: 3, apr: 4, april: 4, avril: 4, abril: 4, aprile: 4,
@@ -48,10 +50,12 @@
       if (deadlineEnd < now) continue; // schon vorbei
       if (done && done[String(i.id)] === day) continue; // für diese Frist schon erinnert
       const eve9 = new Date(y, m - 1, d - 1, 9, 0).getTime();
-      out.push({ id: String(i.id), title: i.title || 'Unterkunft', day, when: eve9 > now ? eve9 : now + 60e3 });
+      out.push({ id: String(i.id), title: i.title || t('rem.fallbackTitle'), day, when: eve9 > now ? eve9 : now + 60e3 });
     }
     return out.sort((a, b) => a.when - b.when);
   }
+  // „2026-12-05“ → de: „05.12.2026“ (wie bisher), en: „5 Dec 2026“
+  const fmtDay = day => { if (I18n.lang() === 'de') return day.split('-').reverse().join('.'); const [y, m, d] = day.split('-').map(Number); return I18n.date(new Date(y, m - 1, d), { day: 'numeric', month: 'short', year: 'numeric' }); };
   const alarmName = id => 'sm-cancel:' + id;
   const idOfAlarm = n => String(n || '').startsWith('sm-cancel:') ? String(n).slice(10) : null;
 
@@ -76,16 +80,16 @@
       const b = i?.booked;
       if (!b || !DAY.test(b.checkin || '')) continue;
       const out = DAY.test(b.checkout || '') && b.checkout > b.checkin ? compact(b.checkout) : plusDay(b.checkin);
-      const desc = [i.url, b.people && `${b.people} Personen`, b.total && `${Math.round(b.total)} ${b.currency || ''}`.trim()].filter(Boolean).join('\n');
+      const desc = [i.url, b.people && t('rem.people', { n: +b.people }), b.total && `${Math.round(b.total)} ${b.currency || ''}`.trim()].filter(Boolean).join('\n');
       ev.push(['BEGIN:VEVENT', `UID:staymatch-${i.id}@staymatch.pro`, `DTSTAMP:${stamp(now)}`, `DTSTART;VALUE=DATE:${compact(b.checkin)}`, `DTEND;VALUE=DATE:${out}`,
-        `SUMMARY:${esc(i.title || 'Unterkunft')}`, ...(i.locality ? [`LOCATION:${esc(i.locality)}`] : []), ...(desc ? [`DESCRIPTION:${esc(desc)}`] : []), 'END:VEVENT']);
+        `SUMMARY:${esc(i.title || t('rem.fallbackTitle'))}`, ...(i.locality ? [`LOCATION:${esc(i.locality)}`] : []), ...(desc ? [`DESCRIPTION:${esc(desc)}`] : []), 'END:VEVENT']);
       const cd = b.cancel ? parseCancelDate(b.cancel, { checkin: b.checkin, at: b.at }) : null;
       if (cd) ev.push(['BEGIN:VEVENT', `UID:staymatch-${i.id}-storno@staymatch.pro`, `DTSTAMP:${stamp(now)}`, `DTSTART;VALUE=DATE:${compact(cd)}`, `DTEND;VALUE=DATE:${plusDay(cd)}`,
-        `SUMMARY:${esc('Kostenlos stornieren bis heute: ' + (i.title || 'Unterkunft'))}`, 'END:VEVENT']);
+        `SUMMARY:${esc(t('rem.cancelToday', { title: i.title || t('rem.fallbackTitle') }))}`, 'END:VEVENT']);
     }
     if (!ev.length) return '';
     return [...['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//StayMatch//Etappen//DE', 'CALSCALE:GREGORIAN'], ...ev.flat(), 'END:VCALENDAR'].map(fold).join('\r\n') + '\r\n';
   }
 
-  root.StayMatchReminders = { parseCancelDate, plan, alarmName, idOfAlarm, ics };
+  root.StayMatchReminders = { parseCancelDate, plan, fmtDay, alarmName, idOfAlarm, ics };
 })(typeof window !== 'undefined' ? window : globalThis);

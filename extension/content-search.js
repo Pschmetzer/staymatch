@@ -3,8 +3,11 @@
   const P = window.StayMatchParse, R = window.StayMatchRank, POOL = window.StayMatchPool, X = window.StayMatchExtras;
   const SMC = window.StayMatchContent;
   const { getTrip, allListings, h, panel, copyText, settings, keys, REPORT_URL } = SMC;
+  const I18n = window.StayMatchI18n;
+  const t = (k, v) => I18n.t(k, v);
 
-  const FILTERS = [['rating', '⭐ ab 4,7'], ['budget', '💶 im Budget'], ['beds', '🛏️ genug Betten'], ['fav', '🏅 Favorit/Superhost'], ['lux', '✨ nur Luxus'], ['lowFees', '💸 niedrige Gebühren']];
+  const FILTER_KEYS = ['rating', 'budget', 'beds', 'fav', 'lux', 'lowFees'];
+  const filterLabel = k => ({ rating: t('search.filter.rating'), budget: t('search.filter.budget'), beds: t('search.filter.beds'), fav: t('search.filter.fav'), lux: t('search.filter.lux'), lowFees: t('search.filter.lowFees') })[k]; // Labels erst zur Anzeigezeit übersetzen
   let lastPoolJson = '';
   let lastSig = '', lastView = null, filters = {}, quick = { budgetNight: null, wishes: [] };
   let compareMode = false, flash = '';
@@ -12,8 +15,8 @@
   // R7: eine Filterfunktion für Panel und Tests (rank.js); ohne bekanntes Budget sortiert „im Budget“ nichts aus
   const passes = l => R.filterListings([l], { minRating: !!filters.rating, inBudget: !!filters.budget, enoughBeds: !!filters.beds, favorite: !!filters.fav, lux: !!filters.lux, lowFees: !!filters.lowFees }).length === 1;
   // R7 E: woran StayMatch einen Wunsch erkennt (Tooltip an den Chips)
-  const WISH_SRC = { whole: 'Quelle: Art der Unterkunft auf der Karte', trusted: 'Quelle: Plakette auf der Karte', reviews: 'Quelle: Anzahl der Bewertungen auf der Karte', luxury: 'Quelle: Stichwörter im Titel, Preislage, Bäder', private: 'Quelle: „gewerblicher Gastgeber“ auf der Karte' };
-  const activeFilters = () => FILTERS.filter(([k]) => filters[k]);
+  const WISH_SRC = k => ({ whole: () => t('search.wishSrc.whole'), trusted: () => t('search.wishSrc.trusted'), reviews: () => t('search.wishSrc.reviews'), luxury: () => t('search.wishSrc.luxury'), private: () => t('search.wishSrc.private') })[k]?.() || '';
+  const activeFilters = () => FILTER_KEYS.filter(k => filters[k]);
 
   // Vergleich: eigene Auswahl (2 bis 4, auch aus dem Verlauf) oder die Top 3
   const MAX_CMP = 4;
@@ -33,8 +36,8 @@
   }
   function compareCandidates() {
     const seen = new Set(), out = [];
-    for (const l of lastView.ranked.filter(x => !x.rank.disliked).slice(0, 12)) { seen.add(l.id); out.push({ id: l.id, title: l.title || l.kind || 'Unterkunft' }); }
-    for (const i of (lastView.items || []).filter(x => (x.visits || 0) > 0 && x.vote !== -1 && !seen.has(x.id)).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0)).slice(0, 12)) out.push({ id: i.id, title: i.title || 'Unterkunft', history: true });
+    for (const l of lastView.ranked.filter(x => !x.rank.disliked).slice(0, 12)) { seen.add(l.id); out.push({ id: l.id, title: l.title || l.kind || t('search.place') }); }
+    for (const i of (lastView.items || []).filter(x => (x.visits || 0) > 0 && x.vote !== -1 && !seen.has(x.id)).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0)).slice(0, 12)) out.push({ id: i.id, title: i.title || t('search.place'), history: true });
     return out;
   }
 
@@ -43,10 +46,10 @@
     const top = currentTop(), v = lastView;
     if (!top.length) return;
     const items = top.map((l, i) => ({ rank: i + 1, title: l.title || l.kind, kind: l.kind || null, locality: l.locality || null, rating: l.rating ?? null, reviewCount: l.reviewCount ?? null, score: l.rank.score,
-      price: l.rank.stay != null ? `${l.rank.stayEstimated ? '≈ ' : ''}${R.money(l.rank.stay, l.currency)} gesamt` : l.totalPrice != null ? `${R.money(l.totalPrice, l.currency)} ${l.isTotal ? 'gesamt' : 'pro Nacht'}` : null,
+      price: l.rank.stay != null ? `${l.rank.stayEstimated ? '≈ ' : ''}${R.money(l.rank.stay, l.currency)} ${t('search.unit.total')}` : l.totalPrice != null ? `${R.money(l.totalPrice, l.currency)} ${l.isTotal ? t('search.unit.total') : t('search.unit.night')}` : null,
       why: l.rank.why.slice(0, 4), warn: l.rank.warn.slice(0, 3), url: `${location.origin}/rooms/${l.id}` }));
     await chrome.storage.local.set({ printTop: { at: Date.now(), people: v.ctx.people || null, nights: v.ctx.nights || null, count: v.count, items } });
-    try { await chrome.runtime.sendMessage({ type: 'sm-print' }); flash = ''; } catch { flash = 'Druckseite konnte nicht geöffnet werden. Öffne StayMatch über das Symbol in der Leiste.'; renderSearch(); }
+    try { await chrome.runtime.sendMessage({ type: 'sm-print' }); flash = ''; } catch { flash = t('search.printFailed'); renderSearch(); }
   }
   function currentTop() {
     if (!lastView) return [];
@@ -61,11 +64,11 @@
     // R7 E: Kopier-Optionen aus dem Popup (ohne Preise, ohne Emojis, Markdown), Preisstand und Entscheidungsfragen
     const so = settings.share || {};
     const text = R.shareText(top.map(l => ({ ...l, score: l.rank.score, url: url(l) })), {
-      title: ctx.people > 1 ? 'Unsere Top 3 (StayMatch)' : 'Meine Top 3 (StayMatch)',
-      sub: [ctx.people && `${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}`, ctx.nights && `${ctx.nights} Nächte`, !so.noPrices && ctx.budget && `Budget ${Math.round(R.effectiveBudget(ctx))}${ctx.budgetCurrency ? ' ' + ctx.budgetCurrency : ''}`].filter(Boolean).join(' · '),
+      title: ctx.people > 1 ? t('search.share.titleGroup') : t('search.share.titleSolo'),
+      sub: [ctx.people && t('search.people', { n: ctx.people }), ctx.nights && t('search.nights', { n: ctx.nights }), !so.noPrices && ctx.budget && t('search.budgetN', { v: `${Math.round(R.effectiveBudget(ctx))}${ctx.budgetCurrency ? ' ' + ctx.budgetCurrency : ''}` })].filter(Boolean).join(' · '),
       noPrices: !!so.noPrices, noEmoji: !!so.noEmoji, markdown: !!so.markdown, stamp: Date.now(), questions: so.noQuestions ? [] : R.decisionQuestions(top),
     });
-    flash = (await copyText(text)) ? 'Kopiert ✓ – jetzt einfügen, wo du willst' : 'Kopieren ging nicht (Seite blockiert die Zwischenablage)';
+    flash = (await copyText(text)) ? t('search.flash.copied') : t('search.flash.copyFailed');
     renderSearch();
     setTimeout(() => { flash = ''; if (lastView) renderSearch(); }, 3500);
   }
@@ -126,7 +129,7 @@
     const ranked = R.rankListings(listings, ctx);
     // R7 E: Merklisten von Freunden („Lena mag das“), nur aus dem, was du im Popup eingefügt hast
     const fl = stored.friendLikes || {};
-    for (const l of ranked) if (fl[l.id]?.length) l.rank.info.push(`${fl[l.id].join(', ')} ${fl[l.id].length === 1 ? 'mag' : 'mögen'} das`);
+    for (const l of ranked) if (fl[l.id]?.length) l.rank.info.push(t('search.friendLikes', { names: fl[l.id].join(', '), n: fl[l.id].length }));
     // R7 E: Zähler „heute bewertet“ fürs Popup (nur Zahlen, nie gesendet)
     if (!(settings.pauseUntil > Date.now())) {
       const day = new Date().toISOString().slice(0, 10), st = stored.stats?.day === day ? stored.stats : { day, rated: 0, opened: 0, ids: [] };
@@ -168,8 +171,8 @@
   // GitHub füllt bei Issue-Formularen nur Textfelder über ihre ID, „body“ würde ignoriert. Keine Adresse, keine Seiteninhalte;
   // die Domain trägt die Person selbst ein, die Bestätigung (keine persönlichen Daten) setzt sie auch selbst.
   const reportUrl = (ver, report) => `${REPORT_URL}?` + Object.entries({
-    template: 'plugin-erkennt-seite-nicht.yml', title: 'Plugin versteht Suchseite nicht', domain: 'Suchseite',
-    version: `StayMatch ${ver}`, what: 'Panel „Seite nicht verstanden“ statt Wertung', console: report,
+    template: 'plugin-erkennt-seite-nicht.yml', title: t('search.report.title'), domain: t('search.report.domain'),
+    version: `StayMatch ${ver}`, what: t('search.report.what'), console: report,
   }).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
 
   // Nach einer Wartezeit noch keine Unterkünfte gelesen → klare Meldung statt leerem Panel
@@ -181,16 +184,16 @@
     SMC.reportStatus(P.pageStatus(wish ? 'wishlist' : 'search', 0, d));
     if (wish) return; // Wunschliste (Aufbau ungeprüft): still bleiben statt Fehlerseite, nur im Popup als „nicht erkannt“ vermerkt
     const ver = chrome.runtime?.getManifest?.().version || '?';
-    const report = `StayMatch ${ver}\nSeitendaten: ${d.stateNote} (${d.stateCount})\nKarten: ${d.cards}\nLinks: ${d.roomLinks}`; // ohne URL und ohne Seiteninhalt
-    panel('sm-error', 'Seite nicht verstanden', [
-      h('div', { class: 'err' }, h('b', {}, 'Ich verstehe diese Seite nicht (mehr).'), h('div', {}, P.diagnosisText(d))),
-      h('div', { class: 'muted' }, `Daten im Seitenquelltext: ${d.stateNote} · Karten: ${d.cards} · Links zu Unterkünften: ${d.roomLinks}`),
+    const report = t('search.report.text', { ver, note: d.stateCode || d.stateNote, count: d.stateCount, cards: d.cards, links: d.roomLinks }); // ohne URL und ohne Seiteninhalt
+    panel('sm-error', t('search.error.title'), [
+      h('div', { class: 'err' }, h('b', {}, t('search.error.head')), h('div', {}, P.diagnosisText(d))),
+      h('div', { class: 'muted' }, t('search.error.stats', { note: d.stateNote, cards: d.cards, links: d.roomLinks })),
       h('div', { class: 'row' },
         // R7: lädt die Seite nur langsam, hilft ein neuer Versuch ohne auf die nächste DOM-Änderung zu warten
-        h('button', { onclick: () => { document.getElementById('sm-error')?.remove(); lastSig = ''; if (P.parseSearch(document).length) handleSearch().catch(() => {}); else checkEmpty(); } }, 'Erneut versuchen'),
-        h('button', { onclick: async e => { e.target.textContent = (await copyText(report)) ? 'Kopiert ✓' : 'Nicht möglich'; } }, 'Diagnose kopieren'),
-        h('a', { class: 'btn', href: reportUrl(ver, report), target: '_blank', rel: 'noopener' }, 'Fehler melden')),
-      h('div', { class: 'muted' }, 'Die Diagnose enthält nur Zahlen, keine Adresse und keine Inhalte der Seite. Deine Unterkünfte bleiben unbewertet, bis das Plugin angepasst ist.'),
+        h('button', { onclick: () => { document.getElementById('sm-error')?.remove(); lastSig = ''; if (P.parseSearch(document).length) handleSearch().catch(() => {}); else checkEmpty(); } }, t('search.error.retry')),
+        h('button', { onclick: async e => { e.target.textContent = (await copyText(report)) ? t('panel.copied') : t('panel.notPossible'); } }, t('search.error.copy')),
+        h('a', { class: 'btn', href: reportUrl(ver, report), target: '_blank', rel: 'noopener' }, t('search.error.report'))),
+      h('div', { class: 'muted' }, t('search.error.note')),
     ]);
   }
 
@@ -201,30 +204,30 @@
     const top = currentTop();
     const M = (v, l) => R.money(v, l.currency); // R7: keine erfundene „€“-Angabe
     // Teilweise erkannt? Dann ehrlich sagen, was fehlt.
-    const lacking = q && q.n >= 3 ? [q.noPrice > q.n / 2 && 'Preise', q.noRating > q.n / 2 && 'Sterne', q.noBeds > q.n / 2 && 'Betten', q.noTitle > q.n / 2 && 'Titel'].filter(Boolean) : [];
+    const lacking = q && q.n >= 3 ? [q.noPrice > q.n / 2 && t('search.lack.price'), q.noRating > q.n / 2 && t('search.lack.rating'), q.noBeds > q.n / 2 && t('search.lack.beds'), q.noTitle > q.n / 2 && t('search.lack.title')].filter(Boolean) : [];
     const af = activeFilters();
-    const weightWord = (name, f) => f === 1 ? 'Standard' : f > 1 ? `wichtiger (×${String(f).replace('.', ',')})` : `weniger wichtig (×${String(f).replace('.', ',')})`;
+    const weightWord = (name, f) => f === 1 ? t('search.w.default') : t(f > 1 ? 'search.w.more' : 'search.w.less', { f: I18n.dec(String(f)) });
     const resetFilters = async () => { filters = {}; await chrome.storage.local.set({ filters }); applyBadges(); renderSearch(); };
     const cut = (s, n) => { const a = Array.from(String(s || '')); return a.length > n ? a.slice(0, n).join('') + '…' : a.join(''); }; // R7: Emoji nicht zerschneiden
     const chip = label => { const m = String(label).match(/^(\S+)\s(.+)$/); return m && /\p{Extended_Pictographic}/u.test(m[1]) ? [h('span', { 'aria-hidden': 'true' }, m[1]), ' ', m[2]] : label; }; // R7: Emoji nicht vorlesen
     // R7: Punkte aus breakdown (summieren sich zum Grundwert) plus Abzüge, statt Rohwerte der Teile
-    const PART_NAMES = { area: 'Viertel', rating: 'Sterne', price: 'Preis', wishes: 'Wünsche', beds: 'Betten', taste: 'Geschmack' };
-    const bd = l => [...(l.rank.breakdown || []).map(b => `${PART_NAMES[b.key] || b.key} ${Math.round(b.points)}`),
-      l.rank.adjust ? `Abzüge ${l.rank.adjust}` : null].filter(Boolean).join(' · ');
+    const partName = k => ({ area: t('search.part.area'), rating: t('search.part.rating'), price: t('search.part.price'), wishes: t('search.part.wishes'), beds: t('search.part.beds'), taste: t('search.part.taste') })[k] || k;
+    const bd = l => [...(l.rank.breakdown || []).map(b => `${partName(b.key)} ${Math.round(b.points)}`),
+      l.rank.adjust ? t('search.deductions', { v: l.rank.adjust }) : null].filter(Boolean).join(' · ');
     // Datenlage: nur sagen, wenn Teile fehlen (dann ist der Passt-Wert weniger belastbar)
-    const coverageText = l => { const c = l.rank.coverage; return c && c.have < c.of ? `Passt-Wert beruht auf ${c.have} von ${c.of} Teilen` : ''; };
+    const coverageText = l => { const c = l.rank.coverage; return c && c.have < c.of ? t('search.coverage', { have: c.have, of: c.of }) : ''; };
     const eb = R.effectiveBudget(ctx);
     const budgetKnown = !!(R.effectiveBudget(ctx) || ctx.budgetPerNight);
     const setQuick = async patch => { quick = { ...quick, ...patch }; await chrome.storage.local.set({ quick }); lastSig = ''; handleSearch().catch(e => console.debug('StayMatch:', e)); };
     const pageCur = ctx.budgetCurrency || (X ? X.pageCurrency(lastView.listings) : null); // Währung aus der Seite statt festem „€“
-    const budgetInput = h('input', { type: 'number', min: '0', step: '1', inputmode: 'numeric', placeholder: 'z. B. 120', 'aria-label': `Budget pro Nacht${pageCur ? ' in ' + pageCur : ''}`,
+    const budgetInput = h('input', { type: 'number', min: '0', step: '1', inputmode: 'numeric', placeholder: t('search.budget.placeholder'), 'aria-label': pageCur ? t('search.budget.ariaCur', { cur: pageCur }) : t('search.budget.aria'),
       style: 'width:90px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--bg);color:var(--fg);font:12px system-ui' });
     budgetInput.value = quick.budgetNight || '';
     budgetInput.onchange = () => { const v = Math.round(Number(budgetInput.value)); setQuick({ budgetNight: v > 0 ? v : null }); };
     // R7 E: Zusatz-Bereiche (eingeklappt, damit das Panel übersichtlich bleibt)
     const toggleWish = k => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] });
     const XW = X?.EXTRA_WISHES || {};
-    const sentence = h('input', { type: 'text', placeholder: 'z. B. ruhige ganze Wohnung mit WLAN unter 120', 'aria-label': 'Wünsche als Satz', style: 'width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--bg);color:var(--fg);font:12px system-ui' });
+    const sentence = h('input', { type: 'text', placeholder: t('search.sentence.placeholder'), 'aria-label': t('search.sentence.aria'), style: 'width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--bg);color:var(--fg);font:12px system-ui' });
     sentence.onchange = () => { const r = X.wishesFromSentence(sentence.value); setQuick({ wishes: [...new Set([...quick.wishes, ...r.wishes])], ...(r.budgetNight && !trip?.budget ? { budgetNight: r.budgetNight } : {}) }); };
     const xwOn = quick.wishes.filter(k => XW[k]).length;
     // R7 E: Kamin und Sauna nur Oktober bis März (Monat der Anreise, sonst heute)
@@ -234,131 +237,131 @@
     const hostLat = /\.(?:com\.au|co\.nz|com\.br|co\.za|com\.ar|cl|com\.pe|com\.py|co\.id)$/.test(location.hostname) ? -35 : null;
     const winter = X ? X.isColdSeason(latOf ?? hostLat, mon) : [10, 11, 12, 1, 2, 3].includes(mon);
     // Eigene Gewichte: Regler 0,5 bis 2 (1 = Standard), gespeichert in quick.weights, wirken auf alle Wertungen
-    const WLABEL = { price: 'Preis', rating: 'Sterne', area: 'Viertel', wishes: 'Wünsche', beds: 'Betten' };
-    const weightsUi = h('div', { role: 'group', 'aria-label': 'Eigene Gewichte' }, h('div', { class: 'muted' }, 'Was zählt für dich mehr? Mitte = Standard.'),
+    const WLABEL = { price: t('search.part.price'), rating: t('search.part.rating'), area: t('search.part.area'), wishes: t('search.part.wishes'), beds: t('search.part.beds') };
+    const weightsUi = h('div', { role: 'group', 'aria-label': t('search.weights.aria') }, h('div', { class: 'muted' }, t('search.weights.hint')),
       Object.entries(WLABEL).map(([k, name]) => {
         const cur = Number(quick.weights?.[k]) || 1;
-        const inp = h('input', { type: 'range', min: '0.5', max: '2', step: '0.25', value: String(cur), 'aria-label': `${name} wichtiger oder weniger wichtig`, 'aria-valuetext': weightWord(name, cur), style: 'width:100%' });
+        const inp = h('input', { type: 'range', min: '0.5', max: '2', step: '0.25', value: String(cur), 'aria-label': t('search.weights.slider', { name }), 'aria-valuetext': weightWord(name, cur), style: 'width:100%' });
         inp.onchange = () => { const v = Number(inp.value); const w = { ...(quick.weights || {}) }; if (v === 1) delete w[k]; else w[k] = v; setQuick({ weights: w }); };
         return h('label', { style: 'display:block' }, h('span', { class: 'muted' }, `${name}: ${weightWord(name, cur)}`), inp);
       }),
-      quick.weights && Object.keys(quick.weights).length ? h('button', { onclick: () => setQuick({ weights: {} }) }, 'Gewichte zurücksetzen') : null);
-    const moreWishes = X ? h('details', { open: lastView.openWishes ? '' : null, ontoggle: e => { lastView.openWishes = e.target.open; } }, h('summary', {}, `Mehr Wünsche und Gruppe${xwOn || Object.keys(quick.weights || {}).length ? ` (${xwOn + Object.keys(quick.weights || {}).length} aktiv)` : ''}`),
-      h('div', { class: 'muted' }, 'Ausstattung prüft StayMatch nur bei Unterkünften, deren Seite du geöffnet hast.'),
-      h('div', { class: 'chips', role: 'group', 'aria-label': 'Wunsch-Profile' }, Object.entries(X.PROFILES).map(([k, p]) => h('button', { title: p.wishes.join(', '), onclick: () => setQuick({ wishes: p.wishes.filter(w => R.WISHES[w] || R.REVIEW_WISHES[w] || XW[w]), profile: k }) }, chip(p.label)))),
-      h('div', { class: 'chips', role: 'group', 'aria-label': 'Ausstattungs-Wünsche' }, Object.entries(XW).filter(([k, w]) => w.season !== 'winter' || winter || quick.wishes.includes(k)).map(([k, w]) => h('button', { class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)), title: `Quelle: ${w.src}`, onclick: () => toggleWish(k) }, chip(w.label)))),
+      quick.weights && Object.keys(quick.weights).length ? h('button', { onclick: () => setQuick({ weights: {} }) }, t('search.weights.reset')) : null);
+    const moreWishes = X ? h('details', { open: lastView.openWishes ? '' : null, ontoggle: e => { lastView.openWishes = e.target.open; } }, h('summary', {}, xwOn || Object.keys(quick.weights || {}).length ? t('search.moreWishesActive', { k: xwOn + Object.keys(quick.weights || {}).length }) : t('search.moreWishes')),
+      h('div', { class: 'muted' }, t('search.amenityHint')),
+      h('div', { class: 'chips', role: 'group', 'aria-label': t('search.profiles.aria') }, Object.entries(X.PROFILES).map(([k, p]) => h('button', { title: p.wishes.join(', '), onclick: () => setQuick({ wishes: p.wishes.filter(w => R.WISHES[w] || R.REVIEW_WISHES[w] || XW[w]), profile: k }) }, chip(p.label)))),
+      h('div', { class: 'chips', role: 'group', 'aria-label': t('search.amenities.aria') }, Object.entries(XW).filter(([k, w]) => w.season !== 'winter' || winter || quick.wishes.includes(k)).map(([k, w]) => h('button', { class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)), title: t('search.source', { src: w.src }), onclick: () => toggleWish(k) }, chip(w.label)))),
       sentence,
       weightsUi,
       ctx.people ? h('div', { class: 'row', style: 'align-items:center;gap:6px' },
-        h('span', { class: 'muted' }, `Personen: ${ctx.people}${lastView.delta ? ` (Airbnb: ${lastView.basePeople})` : ''}`),
-        h('button', { 'aria-label': 'Eine Person weniger', onclick: () => setQuick({ deltaKey: lastView.deltaKey, peopleDelta: Math.max(1 - (lastView.basePeople || 1), lastView.delta - 1) }) }, '−1'),
-        h('button', { 'aria-label': 'Eine Person mehr', onclick: () => setQuick({ deltaKey: lastView.deltaKey, peopleDelta: lastView.delta + 1 }) }, '+1')) : null,
+        h('span', { class: 'muted' }, lastView.delta ? t('search.guestsAdj', { p: ctx.people, base: lastView.basePeople }) : t('search.guests', { p: ctx.people })),
+        h('button', { 'aria-label': t('search.fewer'), onclick: () => setQuick({ deltaKey: lastView.deltaKey, peopleDelta: Math.max(1 - (lastView.basePeople || 1), lastView.delta - 1) }) }, '−1'),
+        h('button', { 'aria-label': t('search.more'), onclick: () => setQuick({ deltaKey: lastView.deltaKey, peopleDelta: lastView.delta + 1 }) }, '+1')) : null,
       h('div', { class: 'chips' },
-        h('button', { class: quick.ownBed ? 'on' : '', 'aria-pressed': String(!!quick.ownBed), title: 'Doppelbett zählt dann als ein Bett', onclick: () => setQuick({ ownBed: !quick.ownBed }) }, chip('🛏️ jede Person eigenes Bett')),
-        h('button', { class: quick.smoker ? 'on' : '', 'aria-pressed': String(!!quick.smoker), title: 'Prüft auf der Unterkunftsseite Rauchverbot und Außenfläche', onclick: () => setQuick({ smoker: !quick.smoker }) }, chip('🚬 Raucher dabei')))) : null;
+        h('button', { class: quick.ownBed ? 'on' : '', 'aria-pressed': String(!!quick.ownBed), title: t('search.ownBed.title'), onclick: () => setQuick({ ownBed: !quick.ownBed }) }, chip(t('search.ownBed'))),
+        h('button', { class: quick.smoker ? 'on' : '', 'aria-pressed': String(!!quick.smoker), title: t('search.smoker.title'), onclick: () => setQuick({ smoker: !quick.smoker }) }, chip(t('search.smoker'))))) : null;
     // Preis von Hand korrigieren (Nachtpreis) oder ausschließen; gespeichert in quick.priceFix, höchstens 200 Einträge
     const setFix = (id, fix) => { const k = `${id}|${lastView.fixScope}`; const f = { ...(quick.priceFix || {}) }; delete f[k]; if (fix) f[k] = fix; setQuick({ priceFix: Object.fromEntries(Object.entries(f).slice(-200)) }); };
     const priceFixUi = l => {
       const fx = (quick.priceFix || {})[`${l.id}|${lastView.fixScope}`];
-      const inp = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': `Nachtpreis in ${l.currency || 'deiner Währung'} für ${cut(l.title || l.kind, 30)}`, style: 'width:80px;font:inherit' });
+      const inp = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': t('search.fix.aria', { cur: l.currency || t('search.fix.yourCur'), title: cut(l.title || l.kind, 30) }), style: 'width:80px;font:inherit' });
       inp.value = fx?.price || (l.priceFixed ? l.totalPrice : '');
       const ok = () => { const v = Math.round(Number(inp.value)); if (v > 0) setFix(l.id, { price: v }); };
       inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
-      return h('details', { open: l.priceImplausible && !l.priceExcluded ? '' : null }, h('summary', {}, fx ? (fx.exclude ? 'Preis ausgeschlossen' : 'Preis korrigiert') : 'Preis stimmt nicht?'),
-        h('div', { class: 'row', style: 'align-items:center' }, h('span', { class: 'muted' }, 'Nachtpreis:'), inp, h('button', { onclick: ok }, 'Übernehmen')),
-        h('div', { class: 'row' }, h('button', { onclick: () => setFix(l.id, { exclude: true }) }, 'Preis nicht werten'), fx ? h('button', { onclick: () => setFix(l.id, null) }, 'Zurücksetzen') : null));
+      return h('details', { open: l.priceImplausible && !l.priceExcluded ? '' : null }, h('summary', {}, fx ? (fx.exclude ? t('search.fix.excluded') : t('search.fix.corrected')) : t('search.fix.wrong')),
+        h('div', { class: 'row', style: 'align-items:center' }, h('span', { class: 'muted' }, t('search.fix.label')), inp, h('button', { onclick: ok }, t('search.fix.apply'))),
+        h('div', { class: 'row' }, h('button', { onclick: () => setFix(l.id, { exclude: true }) }, t('search.fix.exclude')), fx ? h('button', { onclick: () => setFix(l.id, null) }, t('search.fix.reset')) : null));
     };
     const cmp = compareMode ? compareList() : top;
     const picked = new Set(quick.compare || []);
     const setCompare = ids => setQuick({ compare: ids });
-    const cmpPick = h('details', { open: '' }, h('summary', {}, `Auswahl: ${cmp.length} Unterkünfte${picked.size >= 2 ? ' (eigene Wahl)' : ' (Top 3)'}`),
-      h('div', { class: 'muted' }, `Wähle 2 bis ${MAX_CMP} Unterkünfte, auch aus dem Verlauf (👁 = schon angesehen).`),
-      compareCandidates().map(c => { const on = picked.has(c.id); const cb = h('input', { type: 'checkbox', checked: on ? '' : null, disabled: !on && picked.size >= MAX_CMP ? '' : null, 'aria-label': `${c.title} vergleichen` });
+    const cmpPick = h('details', { open: '' }, h('summary', {}, t(picked.size >= 2 ? 'search.pick.own' : 'search.pick.top', { c: cmp.length })),
+      h('div', { class: 'muted' }, t('search.pick.hint', { max: MAX_CMP })),
+      compareCandidates().map(c => { const on = picked.has(c.id); const cb = h('input', { type: 'checkbox', checked: on ? '' : null, disabled: !on && picked.size >= MAX_CMP ? '' : null, 'aria-label': t('search.pick.aria', { title: c.title }) });
         cb.onchange = () => { const cur = quick.compare || []; setCompare(cur.includes(c.id) ? cur.filter(x => x !== c.id) : cur.length >= MAX_CMP ? cur : [...cur, c.id]); }; return h('label', { style: 'display:block' }, cb, ` ${c.history ? '👁 ' : ''}${cut(c.title, 40)}`); }),
-      picked.size ? h('button', { onclick: () => setCompare([]) }, 'Zurück zu den Top 3') : null);
+      picked.size ? h('button', { onclick: () => setCompare([]) }, t('search.pick.back')) : null);
     const first = top[0];
     // „Warum nicht Platz 1?“: nach Klick auf die Plakette einer Karte
     const whyL = lastView.whyId && lastView.ranked.find(x => x.id === lastView.whyId);
     const whyOrder = lastView.ranked.filter(x => !x.rank.disliked && passes(x)).map(x => x.id);
-    const whyBox = whyL && X ? h('div', { class: 'item', role: 'status' }, h('b', {}, `Warum nicht Platz 1? ${cut(whyL.title || whyL.kind, 34)}`),
+    const whyBox = whyL && X ? h('div', { class: 'item', role: 'status' }, h('b', {}, t('search.why.title', { title: cut(whyL.title || whyL.kind, 34) })),
       h('ul', {}, X.whyNotFirst(whyL, whyOrder[0] && lastView.ranked.find(x => x.id === whyOrder[0]), { rank: whyOrder.indexOf(whyL.id) + 1 || null, of: whyOrder.length }).map(t => h('li', {}, t))),
-      h('button', { onclick: () => { lastView.whyId = null; renderSearch(); } }, 'Schließen')) : null;
+      h('button', { onclick: () => { lastView.whyId = null; renderSearch(); } }, t('search.close'))) : null;
     const insights = lastView.insights || [];
     const shifts = X ? X.shiftLinks(location.href) : [];
     const fsug = X ? X.filterSuggestion(location.href, lastView.ranked, ctx.people) : null;
-    let speaking = false; // Text ist deutsch, daher de-DE
+    let speaking = false; // Sprache der Ansage = Sprache des Panels
     const stopSpeak = () => { try { speechSynthesis.cancel(); speaking = false; } catch {} };
-    const speak = () => { try { const u = new SpeechSynthesisUtterance(top.map((l, i) => `Platz ${i + 1}: ${l.title || l.kind}. ${l.rank.score} Punkte. ${l.rank.why.slice(0, 2).join('. ')}`).join(' ')); u.lang = 'de-DE'; u.onend = () => { speaking = false; }; speechSynthesis.cancel(); speaking = true; speechSynthesis.speak(u); } catch {} };
-    const morePage = X && (insights.length || shifts.length || fsug) ? h('details', {}, h('summary', {}, `Mehr zu dieser Seite (${insights.length})`),
+    const speak = () => { try { const u = new SpeechSynthesisUtterance(top.map((l, i) => t('search.speak.item', { rank: i + 1, title: l.title || l.kind, score: l.rank.score, why: l.rank.why.slice(0, 2).join('. ') })).join(' ')); u.lang = I18n.locale(); u.onend = () => { speaking = false; }; speechSynthesis.cancel(); speaking = true; speechSynthesis.speak(u); } catch {} };
+    const morePage = X && (insights.length || shifts.length || fsug) ? h('details', {}, h('summary', {}, t('search.more.summary', { c: insights.length })),
       h('ul', {}, insights.map(x => h('li', {}, x))),
-      shifts.length || fsug ? h('div', { class: 'muted' }, 'Selbst öffnen (StayMatch lädt nichts): ', ...shifts.flatMap(x => [h('a', { href: x.url, target: '_blank', rel: 'noopener' }, x.label), ' · ']), fsug ? h('a', { href: fsug.url, target: '_blank', rel: 'noopener' }, fsug.text) : null) : null,
-      typeof speechSynthesis !== 'undefined' && top.length ? h('span', {}, h('button', { onclick: speak }, '🔊 Top 3 vorlesen'), ' ', h('button', { onclick: stopSpeak, 'aria-label': 'Vorlesen stoppen' }, '⏹ Stopp')) : null) : null;
+      shifts.length || fsug ? h('div', { class: 'muted' }, t('search.more.open'), ...shifts.flatMap(x => [h('a', { href: x.url, target: '_blank', rel: 'noopener' }, x.label), ' · ']), fsug ? h('a', { href: fsug.url, target: '_blank', rel: 'noopener' }, fsug.text) : null) : null,
+      typeof speechSynthesis !== 'undefined' && top.length ? h('span', {}, h('button', { onclick: speak }, t('search.speak.start')), ' ', h('button', { onclick: stopSpeak, 'aria-label': t('search.speak.stop.aria') }, t('search.speak.stop'))) : null) : null;
     const inBudget = lastView.ranked.filter(l => l.rank.parts.price != null && l.rank.parts.price >= 0.75).length;
-    panel('sm-search', trip && ctx.people > 1 ? 'Top 3 für euch' : ctx.people === 1 ? 'Top 3 für dich' : (/^\/wishlists\//.test(location.pathname) ? 'Top 3 deiner Wunschliste' : 'Top 3 auf dieser Seite'), [
-      h('div', { class: 'muted' }, `${count} Unterkünfte${pages > 1 ? ` von ${pages} Seiten, die du geöffnet hast,` : ' auf dieser Seite'} bewertet${ctx.people ? ` · ${ctx.people} ${ctx.people === 1 ? 'Person' : 'Personen'}${lastView.delta ? ' (angepasst)' : ''}` : ''}${ctx.nights ? ` · ${ctx.nights} Nächte` : ''}${ctx.budget && eb ? ` · Budget ${Math.round(eb)}${ctx.budgetCurrency ? ' ' + ctx.budgetCurrency : ''}${ctx.nights ? ` für ${ctx.nights} Nächte` : ''}` : ''}`),
-      quick.wishes.includes('luxury') ? h('div', { class: 'muted' }, `✨ ${lastView.ranked.filter(l => l.rank.luxury?.state === true).length} von ${count} als Luxus erkannt (Stichwörter im Titel, Preislage, Bäder).${lastView.ranked.some(l => l.rank.luxury?.state === true) ? '' : ' Keine Treffer: Suche nach „Villa“ oder „Penthouse“ verfeinern.'}`) : null,
+    panel('sm-search', trip && ctx.people > 1 ? t('search.title.group') : ctx.people === 1 ? t('search.title.solo') : (/^\/wishlists\//.test(location.pathname) ? t('search.title.wishlist') : t('search.title.page')), [
+      h('div', { class: 'muted' }, `${pages > 1 ? t('search.status.pages', { count, pages }) : t('search.status.page', { count })}${ctx.people ? ` · ${t('search.people', { n: ctx.people })}${lastView.delta ? t('search.status.adjusted') : ''}` : ''}${ctx.nights ? ` · ${t('search.nights', { n: ctx.nights })}` : ''}${ctx.budget && eb ? ` · ${t('search.budgetN', { v: `${Math.round(eb)}${ctx.budgetCurrency ? ' ' + ctx.budgetCurrency : ''}` })}${ctx.nights ? t('search.forNights', { n: ctx.nights }) : ''}` : ''}`),
+      quick.wishes.includes('luxury') ? h('div', { class: 'muted' }, t('search.lux.found', { k: lastView.ranked.filter(l => l.rank.luxury?.state === true).length, count }) + (lastView.ranked.some(l => l.rank.luxury?.state === true) ? '' : t('search.lux.none'))) : null,
       X?.visitText(lastView.since) ? h('div', { class: 'muted', role: 'status' }, X.visitText(lastView.since), (lastView.since.cheaper || []).slice(0, 3).map(c => { const l = lastView.ranked.find(x => x.id === c.id); return l ? h('div', {}, '↓ ', cut(l.title || l.kind, 34), ` ${M(c.from, l)} → ${M(c.to, l)}`) : null; })) : null,
-      lastView.booked?.length ? h('div', { class: 'err', role: 'status' }, h('b', {}, '✅ Für diese Daten hast du schon gebucht: '), lastView.booked.map(b => b.title || 'Unterkunft').join(', '), '. Suchst du aus Versehen weiter?') : null,
-      lacking.length ? h('div', { class: 'err muted' }, `⚠️ ${lacking.join(', ')} bei den meisten Karten nicht gelesen. Airbnb hat vermutlich etwas geändert, die Wertung ist ungenauer.`) : null,
-      !trip?.budget ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, `Budget pro Nacht${pageCur ? ` (${pageCur})` : ''}:`), budgetInput) : null,
-      h('div', { class: 'chips', role: 'group', 'aria-label': 'Deine Wünsche' }, Object.entries(R.WISHES).map(([k, w]) => h('button', {
+      lastView.booked?.length ? h('div', { class: 'err', role: 'status' }, h('b', {}, t('search.booked.head')), lastView.booked.map(b => b.title || t('search.place')).join(', '), t('search.booked.tail')) : null,
+      lacking.length ? h('div', { class: 'err muted' }, t('search.lacking', { list: lacking.join(', ') })) : null,
+      !trip?.budget ? h('div', { class: 'row', style: 'align-items:center;gap:8px' }, h('span', { class: 'muted' }, pageCur ? t('search.budget.labelCur', { cur: pageCur }) : t('search.budget.label')), budgetInput) : null,
+      h('div', { class: 'chips', role: 'group', 'aria-label': t('search.wishes.aria') }, Object.entries(R.WISHES).map(([k, w]) => h('button', {
         class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
         onclick: () => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] }),
-        title: WISH_SRC[k] || '',
+        title: WISH_SRC(k),
       }, chip(w.label))), Object.entries(R.REVIEW_WISHES).map(([k, w]) => h('button', {
         class: quick.wishes.includes(k) ? 'on' : '', 'aria-pressed': String(quick.wishes.includes(k)),
-        title: 'Prüft StayMatch auf der Unterkunftsseite anhand der Bewertungen',
+        title: t('search.reviewWish.title'),
         onclick: () => setQuick({ wishes: quick.wishes.includes(k) ? quick.wishes.filter(x => x !== k) : [...quick.wishes, k] }),
       }, chip(`${{ quiet: '🤫', clean: '🧽', wifi: '📶' }[k]} ${w[0]}`)))),
       moreWishes,
-      h('div', { class: 'chips', role: 'group', 'aria-label': 'Filter' }, FILTERS.map(([k, label]) => h('button', {
+      h('div', { class: 'chips', role: 'group', 'aria-label': t('search.filters.aria') }, FILTER_KEYS.map(k => h('button', {
         class: filters[k] ? 'on' : '', 'aria-pressed': String(!!filters[k]),
         // R7: aria-disabled statt disabled: bleibt fokussierbar, die Erklärung ist per aria-describedby erreichbar
-        ...(k === 'budget' && !budgetKnown ? { 'aria-disabled': 'true', 'aria-describedby': 'sm-budget-hint', title: 'Kein Budget bekannt. Oben ein Budget pro Nacht eintragen.', style: 'opacity:.5;cursor:not-allowed' } : {}),
+        ...(k === 'budget' && !budgetKnown ? { 'aria-disabled': 'true', 'aria-describedby': 'sm-budget-hint', title: t('search.filter.noBudget'), style: 'opacity:.5;cursor:not-allowed' } : {}),
         onclick: async () => { if (k === 'budget' && !budgetKnown) return; filters[k] = !filters[k]; await chrome.storage.local.set({ filters }); applyBadges(); renderSearch(); },
-      }, chip(label)))),
-      !budgetKnown ? h('div', { class: 'muted', id: 'sm-budget-hint' }, 'Filter „im Budget“: erst ein Budget pro Nacht eintragen.') : null,
+      }, chip(filterLabel(k))))),
+      !budgetKnown ? h('div', { class: 'muted', id: 'sm-budget-hint' }, t('search.filter.noBudgetHint')) : null,
       // R7: Filter gelten für jede Suche: sichtbar machen und mit einem Klick zurücksetzen
-      af.length ? h('div', { class: 'muted' }, `Filter aktiv (gelten auch für neue Suchen): ${af.map(([, x]) => x.replace(/^\S+\s/, '')).join(', ')} `, h('button', { onclick: resetFilters }, 'Filter zurücksetzen')) : null,
+      af.length ? h('div', { class: 'muted' }, t('search.filter.active', { list: af.map(k => filterLabel(k).replace(/^\S+\s/, '')).join(', ') }), h('button', { onclick: resetFilters }, t('search.filter.reset'))) : null,
       top.length ? h('div', { class: 'row' },
-        h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', 'aria-keyshortcuts': 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, '⚖️ Vergleich'),
-        h('button', { title: 'Alt+Shift+K', 'aria-keyshortcuts': 'Alt+Shift+K', onclick: copyTop }, '📋 Top 3 kopieren'),
-        h('button', { onclick: printTop }, '🖨️ Top 3 drucken')) : null,
+        h('button', { class: compareMode ? 'on' : '', 'aria-pressed': String(compareMode), title: 'Alt+Shift+V', 'aria-keyshortcuts': 'Alt+Shift+V', onclick: () => { compareMode = !compareMode; renderSearch(); } }, t('search.compare')),
+        h('button', { title: 'Alt+Shift+K', 'aria-keyshortcuts': 'Alt+Shift+K', onclick: copyTop }, t('search.copyTop')),
+        h('button', { onclick: printTop }, t('search.printTop'))) : null,
       flash ? h('div', { class: 'muted', role: 'status' }, flash) : null,
       whyBox,
       top.length && compareMode ? cmpPick : null,
       top.length && compareMode
         // scrollbar und per Tastatur fokussierbar: bei 150 % Textgröße läuft die Tabelle sonst aus dem Panel
-        ? h('div', { class: 'cmp-scroll', role: 'region', tabindex: '0', 'aria-label': 'Vergleichstabelle (waagerecht scrollbar)' }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, ''), cmp.map((l, i) => h('th', {}, h('a', { href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener', style: 'color:inherit' }, `${i + 1}. ${cut(l.title || l.kind, 28)}`))))),
+        ? h('div', { class: 'cmp-scroll', role: 'region', tabindex: '0', 'aria-label': t('search.cmpTable.aria') }, h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, ''), cmp.map((l, i) => h('th', {}, h('a', { href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener', style: 'color:inherit' }, `${i + 1}. ${cut(l.title || l.kind, 28)}`))))),
           h('tbody', {}, R.compareRows(cmp, ctx).map(r => h('tr', {}, h('th', { scope: 'row' }, r.label), r.cells.map(c => h('td', {}, c)))))))
         : null,
       top.length && !compareMode ? top.map((l, i) => h('div', { class: 'item hotel' },
         h('div', { class: 'ph' },
           l.image && !settings.blind ? h('img', { src: l.image, alt: l.title || l.kind || '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : null,
           h('span', { class: 'rank' }, `${i + 1}`),
-          h('span', { class: 'score', title: coverageText(l) ? `Passt-Wert 0–100, ${coverageText(l)}` : 'Passt-Wert 0–100' }, l.rank.score),
-          l.rank.luxury?.state === true ? h('span', { class: 'lux', title: l.rank.luxury.words.join(', ') }, `✨ Luxus${l.rank.luxury.words[0] ? ' · ' + l.rank.luxury.words[0] : ''}`) : null),
+          h('span', { class: 'score', title: coverageText(l) ? t('search.scoreTitleCov', { cov: coverageText(l) }) : t('search.scoreTitle') }, l.rank.score),
+          l.rank.luxury?.state === true ? h('span', { class: 'lux', title: l.rank.luxury.words.join(', ') }, t('search.lux.badge') + (l.rank.luxury.words[0] ? ' · ' + l.rank.luxury.words[0] : '')) : null),
         h('div', { class: 'meta' },
           h('a', { class: 'name', href: `${location.origin}/rooms/${l.id}${location.search}`, target: '_blank', rel: 'noopener' }, l.title || l.kind),
-          h('button', { 'aria-label': `${l.title || l.kind} auf der Seite zeigen`, title: 'Karte auf der Airbnb-Seite zeigen', onclick: () => showOnPage(l.id) }, '📍'),
-          l.rating != null ? h('span', { class: 'stars' }, `★ ${String(l.rating).replace('.', ',')}${l.reviewCount ? ` (${l.reviewCount})` : ''}`) : null),
-        h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · '), l.wishlisted === true ? ' · ♥ in deiner Wunschliste' : ''),
-        l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, M(l.totalPrice, l)), l.isTotal ? ' gesamt' : ' pro Nacht', l.rank.ppn?.person ? ` · ${M(l.rank.ppn.person, l)} p. P./Nacht` : '', l.discounted ? ' · Rabatt' : '') : null,
+          h('button', { 'aria-label': t('search.showOnPage.aria', { title: l.title || l.kind }), title: t('search.showOnPage.title'), onclick: () => showOnPage(l.id) }, '📍'),
+          l.rating != null ? h('span', { class: 'stars' }, `★ ${I18n.dec(String(l.rating))}${l.reviewCount ? ` (${l.reviewCount})` : ''}`) : null),
+        h('div', { class: 'muted' }, [l.kind, l.locality].filter(Boolean).join(' · '), l.wishlisted === true ? t('search.wishlisted') : ''),
+        l.totalPrice != null ? h('div', { class: 'price' }, h('b', {}, M(l.totalPrice, l)), ' ' + (l.isTotal ? t('search.unit.total') : t('search.unit.night')), l.rank.ppn?.person ? ` · ${t('search.perPerson', { p: M(l.rank.ppn.person, l) })}` : '', l.discounted ? t('search.discount') : '') : null,
         h('ul', {}, l.rank.why.map(w => h('li', {}, w)), l.rank.warn.map(w => h('li', { class: 'warn' }, '⚠️ ' + w)), (l.rank.info || []).map(w => h('li', { class: 'muted' }, w)),
           i > 0 && X ? [X.gapToFirst(l, first)].filter(Boolean).map(w => h('li', { class: 'muted' }, w)) : null),
         priceFixUi(l),
-        h('div', { class: 'muted' }, 'Zusammensetzung (Punkte): ' + bd(l)),
-        coverageText(l) ? h('div', { class: 'muted' }, `Datenlage: ${coverageText(l)}`) : null))
-        : !top.length ? h('div', { class: 'muted' }, 'Keine Unterkunft erfüllt alle Filter. Filter lockern oder weiterblättern. ', af.length ? h('button', { onclick: resetFilters }, 'Filter zurücksetzen') : null) : null,
+        h('div', { class: 'muted' }, t('search.breakdown', { bd: bd(l) })),
+        coverageText(l) ? h('div', { class: 'muted' }, t('search.dataCoverage', { cov: coverageText(l) })) : null))
+        : !top.length ? h('div', { class: 'muted' }, t('search.noMatch'), af.length ? h('button', { onclick: resetFilters }, t('search.filter.reset')) : null) : null,
       morePage,
-      h('div', { class: 'muted' }, 'Blättern oder Karte verschieben → die Seiten, die du öffnest, werden zusammen bewertet. Es wird nichts von selbst nachgeladen.'),
-      pages > 1 ? h('div', { class: 'row' }, h('button', { onclick: async () => { await chrome.storage.local.remove('pool'); lastPoolJson = ''; lastSig = ''; lastView = null; SMC.route?.(); } }, 'Sammlung leeren')) : null,
-      h('div', { class: 'muted' }, 'Tasten: Alt+Shift+V Vergleich · K kopieren · M ein-/ausklappen'),
+      h('div', { class: 'muted' }, t('search.paging')),
+      pages > 1 ? h('div', { class: 'row' }, h('button', { onclick: async () => { await chrome.storage.local.remove('pool'); lastPoolJson = ''; lastSig = ''; lastView = null; SMC.route?.(); } }, t('search.clearPool'))) : null,
+      h('div', { class: 'muted' }, t('search.keys')),
       // R7 E: Kennenlernen beim ersten Panel, danach nie wieder
-      !settings.onboarded ? h('div', { class: 'err muted', role: 'note' }, h('b', {}, 'Kurz erklärt: '), 'Die Zahl rechts ist der Passt-Wert (0–100). Chips oben sind deine Wünsche, darunter die Filter. Auf der Unterkunftsseite merkst du mit 👍/👎. ',
-        h('button', { onclick: async () => { const { settings: st = {} } = await chrome.storage.local.get('settings'); await chrome.storage.local.set({ settings: { ...st, onboarded: true } }); } }, 'Verstanden')) : null,
-      !trip ? h('div', { class: 'muted' }, 'Tipp: Im ', h('a', { href: window.StayMatchCore.APP_URL, target: '_blank', rel: 'noopener' }, 'Viertel-Finder'), ' findest du vorher das Viertel, das zu dir passt, auch mit Mitreisenden.') : null,
-    ], { minimized, wide: compareMode, announce: top[0] ? `Neu bewertet, Platz 1: ${cut(top[0].title || top[0].kind, 60)}. ${count} Unterkünfte${budgetKnown ? `, ${inBudget} im Budget` : ''}, beste ${top[0].rank.score} Punkte` : 'Neu bewertet, keine Unterkunft erfüllt alle Filter' }); // R7: Ansage für Screenreader
+      !settings.onboarded ? h('div', { class: 'err muted', role: 'note' }, h('b', {}, t('search.onboard.head')), t('search.onboard.text'),
+        h('button', { onclick: async () => { const { settings: st = {} } = await chrome.storage.local.get('settings'); await chrome.storage.local.set({ settings: { ...st, onboarded: true } }); } }, t('search.onboard.ok'))) : null,
+      !trip ? h('div', { class: 'muted' }, t('search.tip.a'), h('a', { href: window.StayMatchCore.APP_URL, target: '_blank', rel: 'noopener' }, t('search.tip.b')), t('search.tip.c')) : null,
+    ], { minimized, wide: compareMode, announce: top[0] ? t('search.announce', { title: cut(top[0].title || top[0].kind, 60), count }) + (budgetKnown ? t('search.announce.budget', { k: inBudget }) : '') + t('search.announce.best', { score: top[0].rank.score }) : t('search.announce.none') }); // R7: Ansage für Screenreader
   }
 
   // Punkte direkt an den Karten (abschaltbar im Popup). Markiert, damit der MutationObserver sie ignoriert.
@@ -376,9 +379,9 @@
   function applyBadges() {
     if (!lastView) return;
     const byId = new Map(lastView.ranked.map(l => [l.id, l]));
-    const t = lastView.trip || {};
+    const tr = lastView.trip || {};
     const topIds = new Set(currentTop().map(l => l.id)), seenIds = lastView.seenIds || new Set();
-    const privateNames = [...(t.people || []).map(p => p?.name), ...(t.areas || []).map(a => a?.minName)].filter(n => typeof n === 'string' && n.trim().length >= 2).map(n => n.trim());
+    const privateNames = [...(tr.people || []).map(p => p?.name), ...(tr.areas || []).map(a => a?.minName)].filter(n => typeof n === 'string' && n.trim().length >= 2).map(n => n.trim());
     for (const card of document.querySelectorAll('[data-testid="card-container"]')) {
       const id = card.querySelector('a[href*="/rooms/"]')?.getAttribute('href')?.match(P.ROOM_RE)?.[1];
       const l = id && byId.get(id);
@@ -395,15 +398,15 @@
       if (!settings.scoreOnly) b.onclick = e => { e.preventDefault(); e.stopPropagation(); lastView.whyId = l.id; SMC.rootOf('sm-search')?.querySelector('.box')?.classList.remove('min'); chrome.storage.local.set({ 'min:sm-search': false }); renderSearch(); }; // nur Maus-Abkürzung: das Panel zeigt dieselben Infos
       const pp = l.rank.ppn?.person;
       // R7 E: Screenshot-Modus: nur die Punkte, ohne Preis und ohne Tooltip
-      b.textContent = settings.scoreOnly ? String(s) : `StayMatch ${s}${pp ? ` · ${R.money(pp, l.currency)} p. P./Nacht` : ''}`;
+      b.textContent = settings.scoreOnly ? String(s) : `StayMatch ${s}${pp ? ` · ${t('search.perPerson', { p: R.money(pp, l.currency) })}` : ''}`;
       // R7: Airbnbs Skripte können das title-Attribut lesen: keine Namen der Mitreisenden hinein
-      b.title = settings.scoreOnly ? '' : ['Klicken: warum dieser Platz?', ...(l.rank.coverage && l.rank.coverage.have < l.rank.coverage.of ? [`Auf ${l.rank.coverage.have} von ${l.rank.coverage.of} Teilen`] : []), ...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das/.test(x))).join(' · ');
+      b.title = settings.scoreOnly ? '' : [t('search.badge.click'), ...(l.rank.coverage && l.rank.coverage.have < l.rank.coverage.of ? [t('search.badge.parts', { have: l.rank.coverage.have, of: l.rank.coverage.of })] : []), ...l.rank.why, ...l.rank.warn].filter(x => !privateNames.some(n => x.includes(n) || /mag das|mögen das|likes this|like this/.test(x))).join(' · ');
       // Top-3 hervorgehoben, „schon angesehen“ (du hast die Unterkunftsseite geöffnet) als Zusatz an der Plakette
       const rank = [...topIds].indexOf(l.id);
       card.style.outline = rank >= 0 && !settings.scoreOnly ? '3px solid #e0475b' : '';
       card.style.outlineOffset = rank >= 0 ? '-3px' : '';
       if (rank >= 0) b.dataset.top = String(rank + 1); else delete b.dataset.top;
-      if (seenIds.has(l.id) && !settings.scoreOnly) b.textContent += ' · 👁 schon angesehen';
+      if (seenIds.has(l.id) && !settings.scoreOnly) b.textContent += t('search.badge.seen');
       card.style.opacity = l.rank.disliked ? '0.45' : !passes(l) ? '0.35' : '';
     }
     // R7 E: Blindverkostung: Fotos aller Karten ausblenden (rückgängig, wenn abgeschaltet)
@@ -412,8 +415,8 @@
   SMC.settingsListeners.push(() => { applyBadges(); if (lastView && SMC.rootOf("sm-search")) renderSearch(); });
   // R7: nach ✕ (Panel weg) bauen die Tasten es nicht wieder auf
   const open = () => !P.ROOM_RE.test(location.pathname) && lastView && !!SMC.rootOf('sm-search');
-  keys.KeyV = () => { if (open()) { compareMode = !compareMode; renderSearch(); SMC.say(compareMode ? 'Vergleich eingeschaltet' : 'Vergleich ausgeschaltet'); } };
-  keys.KeyK = () => { if (open()) copyTop().then(() => SMC.say(flash || 'Top 3 kopiert')).catch(() => {}); };
+  keys.KeyV = () => { if (open()) { compareMode = !compareMode; renderSearch(); SMC.say(compareMode ? t('search.say.compareOn') : t('search.say.compareOff')); } };
+  keys.KeyK = () => { if (open()) copyTop().then(() => SMC.say(flash || t('search.say.copied'))).catch(() => {}); };
   // R7: abgelaufene Sammlung (älter als 2 h) beim Start löschen, statt sie dauerhaft liegen zu lassen
   chrome.storage.local.get('pool').then(r => { if (r.pool && !(Date.now() - r.pool.at < POOL.TTL)) chrome.storage.local.remove('pool'); }).catch(() => {});
 
