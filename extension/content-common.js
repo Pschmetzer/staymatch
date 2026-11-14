@@ -156,7 +156,7 @@
   // R7 E: Textgröße 100–150 % (Popup)
   const scale = () => Math.min(1.5, Math.max(1, +settings.fontScale || 1));
   const settingsListeners = [];
-  function setSettings(v) { for (const k of Object.keys(settings)) delete settings[k]; Object.assign(settings, { showBadges: true, theme: 'auto' }, v || {}); applyTheme(); settingsListeners.forEach(f => f(settings)); }
+  function setSettings(v) { for (const k of Object.keys(settings)) delete settings[k]; Object.assign(settings, { showBadges: true, theme: 'auto' }, v || {}); window.StayMatchI18n?.setLang(settings.lang); applyTheme(); settingsListeners.forEach(f => f(settings)); }
   chrome.storage.onChanged?.addListener(ch => {
     if (ch.settings) setSettings(ch.settings.newValue);
     // Neue Reise aus dem Viertel-Finder wirkt sofort, ohne die Airbnb-Seite neu zu laden
@@ -254,7 +254,7 @@
     const live = root.querySelector('.sr-live') || h('div', { class: 'sr-live', role: 'status', 'aria-live': 'polite', style: 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap' });
     root.replaceChildren(live);
     if (opts.announce != null && live.textContent !== opts.announce) setTimeout(() => { live.textContent = opts.announce; }, 50);
-    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
+    const box = h('div', { class: 'box' + (minimized ? ' min' : '') + themeClass() + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-label': opts.label || title, lang: window.StayMatchI18n?.lang() || 'de' }); // R7: Panel ist deutsch, auch auf airbnb.com
     box.style.setProperty('--sm-scale', String(scale()));
     placeBox(box);
     const toggle = h('button', { 'aria-label': 'Ein- oder ausklappen', onclick: () => { box.classList.toggle('min'); chrome.storage.local.set({ ['min:' + id]: box.classList.contains('min') }); } }, '–');

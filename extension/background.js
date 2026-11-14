@@ -1,6 +1,6 @@
 // StayMatch – kleiner Service Worker: (1) Zahl am Toolbar-Symbol, (2) Erinnerung vor Ablauf der kostenlosen Stornierung (Opt-in).
 // Lokal, keine Anfragen. Benachrichtigungen nur mit der optionalen Berechtigung „notifications“, die du in den Optionen erteilst.
-importScripts('badge.js', 'reminders.js');
+importScripts('i18n.js', 'strings.js', 'badge.js', 'reminders.js');
 async function refresh() {
   try {
     const st = await chrome.storage.local.get(['lastSearch', 'settings']);
