@@ -74,7 +74,7 @@ function idsOf(f) {
 }
 function pageFile(p) { // cleanUrls: /x → web/x.html, / → web/index.html
   const q = p.replace(/^\//, '').replace(/\/$/, '') || 'index';
-  return [`web/${q}`, `web/${q}.html`].find((x) => existsSync(x) && !x.endsWith('/'));
+  return [`web/${q}`, `web/${q}.html`].find((x) => existsSync(x) && statSync(x).isFile()); // web/en/ (Ordner) darf web/en.html nicht verdecken
 }
 function links(file, src, ids, err) {
   const bare = src.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, (m) => m.replace(/[^\n]/g, ' '));

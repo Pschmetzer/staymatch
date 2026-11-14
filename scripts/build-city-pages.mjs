@@ -80,6 +80,14 @@ const LEVEL_NOTES = {
   budapest: 'Ein großer Teil der Einträge sind Wohnsiedlungen (Lakótelep) und Stadtteile am Rand, die kaum Orte für Reisende haben.',
   lissabon: 'Lissabon ist in OpenStreetMap sehr fein in kleine Freguesias unterteilt; eine Gegend kann daher mehrfach auftauchen.',
 };
+// Englische Seiten: Name und Adresse je Stadt (die Daten selbst sind sprachneutral). Schlüssel = Dateiname in web/data.
+export const EN = {
+  lissabon: ['Lisbon', 'lisbon'], prag: ['Prague', 'prague'], rom: ['Rome', 'rome'], wien: ['Vienna', 'vienna'],
+  warschau: ['Warsaw', 'warsaw'], brussel: ['Brussels', 'brussels'], zurich: ['Zurich', 'zurich'], antwerpen: ['Antwerp', 'antwerp'], malaga: ['Málaga', 'malaga'],
+};
+export const enName = (key, d) => (EN[key] ? EN[key][0] : d.city);
+export const enSlug = key => (EN[key] ? EN[key][1] : key);
+const enUrl = key => `${BASE}/en/cities/${enSlug(key)}`;
 // Stadtbild für Vorschauen (og:image), falls vorhanden
 const hasImage = key => existsSync(path.join(web, 'media', 'staedte', `${key}.webp`));
 
@@ -119,6 +127,7 @@ ${r.top[k].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} v
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${url}">
 <link rel="alternate" hreflang="de" href="${url}">
+<link rel="alternate" hreflang="en" href="${enUrl(key)}">
 <link rel="alternate" hreflang="x-default" href="${url}">
 <meta property="og:type" content="article"><meta property="og:site_name" content="StayMatch"><meta property="og:locale" content="de_DE">
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${url}">
@@ -156,25 +165,120 @@ ${sections}
 `;
 }
 
+// Englische Stadtseite web/en/cities/<slug>.html (gleiche Daten und Rangfolge wie die deutsche Seite)
+const TYPES_EN = [
+  ['party', 'Party and nightlife', 'Lots of bars and clubs nearby, good transport links.'],
+  ['family', 'Families', 'Quiet, plenty for kids, parks and shopping within reach.'],
+  ['chill', 'Quiet and relaxation', 'Little partying, but cafés, green space and short distances.'],
+  ['sights', 'Sightseeing', 'Close to sights, rail and restaurants.'],
+  ['foodie', 'Food and drink', 'The densest choice of restaurants and takeaways (cafés do not count here).'],
+];
+const fmtKmEn = m => (m / 1000).toFixed(1);
+export function renderPageEn(file, d, ctx = {}) {
+  const key = slug(file), name = enName(key, d), url = enUrl(key), deUrl = `${BASE}/staedte/${key}`;
+  const r = rankCity(d);
+  const date = fmtDate(d.t);
+  const title = `Where to stay in ${name}? Best neighborhoods (data from ${date}) · StayMatch`;
+  const picks = [['party', 'Party'], ['family', 'Families'], ['chill', 'Quiet']].filter(([k]) => r.top[k][0]).map(([k, l]) => `${l}: ${r.top[k][0].a.name}`);
+  const desc = `Where to stay in ${name}? ${picks.join(', ')}. ${r.eligible} neighborhoods compared from OpenStreetMap data, as of ${date}.`;
+  const appUrl = `/app?c=${encodeURIComponent(name)}`;
+  const img = hasImage(key) ? `${BASE}/media/staedte/${key}.webp` : `${BASE}/og.png`;
+  const others = (ctx.cities || []).filter(c => c.slug !== key);
+  const sections = TYPES_EN.map(([k, label, text]) => `<section id="${k}">
+<h2>${esc(label)}</h2>
+<p>${esc(text)}</p>
+<ol>
+${r.top[k].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} of 100 · ${fmtKmEn(a.centerDist)} km to the center</span> <a class="bnb" href="${esc(airbnb(a, name))}" target="_blank" rel="noopener">Stays on Airbnb <span aria-hidden="true">↗</span></a></li>`).join('\n')}
+</ol>
+</section>`).join('\n');
+  const simple = TYPES_EN.map(([k, label]) => r.top[k][0] ? `<li>For ${esc(label.toLowerCase())}: <b>${esc(r.top[k][0].a.name)}</b>.</li>` : '').filter(Boolean).join('\n');
+  const jsonLd = { '@context': 'https://schema.org', '@graph': [
+    { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'StayMatch', item: `${BASE}/en` },
+      { '@type': 'ListItem', position: 2, name: 'Cities', item: `${BASE}/en#staedte` },
+      { '@type': 'ListItem', position: 3, name, item: url }] },
+    { '@type': 'WebPage', '@id': url, url, name: title, inLanguage: 'en', dateModified: date },
+    ...TYPES_EN.map(([k, label]) => ({ '@type': 'ItemList', name: `Best neighborhoods in ${name} for ${label.toLowerCase()}`, itemListOrder: 'https://schema.org/ItemListOrderDescending', numberOfItems: r.top[k].length,
+      itemListElement: r.top[k].map(({ a }, i) => ({ '@type': 'ListItem', position: i + 1, name: a.name })) })),
+  ] };
+  const ld = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+  const cta = `<p class="ctas"><a class="cta" href="${esc(appUrl)}" hreflang="de">Compare your own group in ${esc(name)}</a></p>`;
+  const reduced = d.reduced && d.reduced.includes('unnamedGarden') ? ' Unnamed gardens (mostly private ones) are not part of this city’s data.' : '';
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
+<link rel="canonical" href="${url}">
+<link rel="alternate" hreflang="en" href="${url}">
+<link rel="alternate" hreflang="de" href="${deUrl}">
+<link rel="alternate" hreflang="x-default" href="${deUrl}">
+<meta property="og:type" content="article"><meta property="og:site_name" content="StayMatch"><meta property="og:locale" content="en_US">
+<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${url}">
+<meta property="og:image" content="${img}"><meta property="og:image:alt" content="${esc(name)}">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#fbfaf8">
+<link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/legal.css?v=${CSS_V}">
+<style>.pts{color:var(--muted);font-size:14px;margin-left:6px}ol{padding-left:22px}.bnb{display:block;width:fit-content;font-size:14px;color:var(--muted)}.ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.cta{display:inline-block;padding:10px 18px;border-radius:999px;background:var(--accent);color:#fff;text-decoration:none}.cta.alt{background:none;color:var(--text);border:1px solid var(--muted)}.simple{border:1px solid var(--muted);border-radius:12px;padding:4px 16px;margin:20px 0}.jump{display:flex;flex-wrap:wrap;gap:6px 16px;list-style:none;padding:0;margin:16px 0}.jump li{margin:0}.sticky{display:none}@media(max-width:700px){main{padding-bottom:96px}.sticky{display:block;position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);text-align:center;z-index:5}.sticky .cta{display:block}}</style>
+<script type="application/ld+json">${ld}</script>
+</head><body><main>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="/en">StayMatch</a> › <a href="/en#staedte">Cities</a> › <span aria-current="page">${esc(name)}</span></nav>
+<h1>Where to stay in ${esc(name)}? Best neighborhoods</h1>
+<p class="stand">Data from ${date}. We score bars, restaurants, sights, stations, parks and more within ${r.radius} m of each neighborhood (${r.areas} neighborhoods in the data, ${r.eligible} of them with enough places and at most ${MAX_CENTER_M / 1000} km from the center; ${r.pois} places).</p>
+<p class="stand">Points from 0 to 100: 100 would mean a neighborhood has the densest choice in the city in every category that matters for this kind of trip. <a href="/en#rechnen">How StayMatch calculates</a></p>
+${cta}
+<ul class="jump" aria-label="Jump to"><li><a href="#kurz">In short</a></li>${TYPES_EN.map(([k, label]) => `<li><a href="#${k}">${esc(label)}</a></li>`).join('')}<li><a href="#daten">Data source</a></li><li><a href="#staedte">More cities</a></li></ul>
+<section class="simple" aria-labelledby="kurz"><h2 id="kurz">In short</h2>
+<p>We compared ${r.areas} neighborhoods in ${esc(name)}. By our calculation these fit best:</p>
+<ul>
+${simple}
+</ul>
+<p>The points come from map data. They say nothing about prices or listings.</p>
+</section>
+${sections}
+<p class="ctas"><a class="cta" href="${esc(appUrl)}" hreflang="de">Compare your own group in ${esc(name)}</a><a class="cta alt" href="/en#plugin">Rate listings there: get the plugin</a></p>
+<section id="daten"><h2>Data source and limits</h2>
+<p>Source: © OpenStreetMap contributors (ODbL 1.0), retrieved on ${date}${d.source ? ` via the Overpass API (${esc(d.source)})` : ''}. A neighborhood is whatever OpenStreetMap lists as a suburb, quarter or neighbourhood; how finely that is split differs from city to city.${reduced} <a href="${deUrl}" hreflang="de">Diese Seite auf Deutsch</a>.</p></section>
+<nav id="staedte" aria-label="More cities"><h2>More cities</h2>
+<ul class="jump">${others.map(c => `<li><a href="/en/cities/${c.enSlug}">${esc(c.enName)}</a></li>`).join('')}</ul></nav>
+<footer>
+<p>Data: © OpenStreetMap contributors, <a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener">Open Database License (ODbL) 1.0</a>, <a href="https://www.openstreetmap.org/copyright" rel="noopener">source</a>.</p>
+<p>The values are an estimate from map data, not prices and not reviews. Not affiliated with Airbnb; Airbnb is a trademark of Airbnb, Inc.</p>
+<ul class="nav"><li><a href="/en">Home</a></li><li><a href="/datenschutz" hreflang="de">Datenschutz</a></li><li><a href="/impressum" hreflang="de">Impressum</a></li></ul>
+</footer>
+</main>
+<div class="sticky"><a class="cta" href="${esc(appUrl)}" hreflang="de">Compare a group in ${esc(name)}</a></div>
+</body></html>
+`;
+}
+
 // Sitemap mit lastmod der Stadtseiten (= Datenstand der Stadt)
 export function renderSitemap(cities) {
   const fixed = ['', 'en', 'app'].map(p => `  <url><loc>${BASE}/${p}</loc></url>`);
-  const pages = cities.map(c => `  <url><loc>${BASE}/staedte/${c.slug}</loc><lastmod>${c.date}</lastmod></url>`);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...fixed, ...pages].join('\n')}\n</urlset>\n`;
+  // Je Stadt deutsche und englische Seite, gegenseitig per hreflang verbunden (Sitemap-Form der Alternativen)
+  const alt = c => `\n    <xhtml:link rel="alternate" hreflang="de" href="${BASE}/staedte/${c.slug}"/>\n    <xhtml:link rel="alternate" hreflang="en" href="${BASE}/en/cities/${c.enSlug}"/>\n    <xhtml:link rel="alternate" hreflang="x-default" href="${BASE}/staedte/${c.slug}"/>\n  `;
+  const pages = cities.flatMap(c => [
+    `  <url><loc>${BASE}/staedte/${c.slug}</loc><lastmod>${c.date}</lastmod>${alt(c)}</url>`,
+    `  <url><loc>${BASE}/en/cities/${c.enSlug}</loc><lastmod>${c.date}</lastmod>${alt(c)}</url>`]);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${[...fixed, ...pages].join('\n')}\n</urlset>\n`;
 }
 
 export function build({ check = false } = {}) {
   const dir = path.join(web, 'data'), outDir = path.join(web, 'staedte');
   const files = readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'index.json').sort();
   const data = files.map(f => [f, JSON.parse(readFileSync(path.join(dir, f), 'utf8'))]);
-  const cities = data.map(([f, d]) => ({ slug: slug(f), name: d.city, date: fmtDate(d.t) }));
+  const cities = data.map(([f, d]) => ({ slug: slug(f), name: d.city, enName: enName(slug(f), d), enSlug: enSlug(slug(f)), date: fmtDate(d.t) }));
   const stale = [];
   const put = (target, text, label) => {
     if (check) { if (!existsSync(target) || readFileSync(target, 'utf8') !== text) stale.push(label); }
     else writeFileSync(target, text);
   };
-  if (!check) mkdirSync(outDir, { recursive: true });
+  const enDir = path.join(web, 'en', 'cities');
+  if (!check) { mkdirSync(outDir, { recursive: true }); mkdirSync(enDir, { recursive: true }); }
   for (const [f, d] of data) put(path.join(outDir, slug(f) + '.html'), renderPage(f, d, { cities }), slug(f));
+  for (const [f, d] of data) put(path.join(enDir, enSlug(slug(f)) + '.html'), renderPageEn(f, d, { cities }), 'en/' + slug(f));
   put(path.join(web, 'sitemap.xml'), renderSitemap(cities), 'sitemap.xml');
   return { files: files.length, stale };
 }

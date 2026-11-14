@@ -22,5 +22,7 @@ test('dev-server: %-Fehler in der Adresse gibt 400, Server läuft weiter', async
   assert.match(out, /localhost/);
   assert.equal(await get(port, '/%E0%A4%A'), 400);
   assert.equal(await get(port, '/'), 200, 'Server läuft nach der kaputten Adresse weiter');
+  assert.equal(await get(port, '/en'), 200, '/en: web/en/ (Ordner) darf web/en.html nicht verdecken');
+  assert.equal(await get(port, '/en/cities/berlin'), 200);
   assert.equal(srv.exitCode, null);
 });

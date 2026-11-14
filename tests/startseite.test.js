@@ -28,5 +28,9 @@ test('index.html und en.html haben dieselben Abschnitte und Ziele', () => {
   const anchors = (h) => [...h.matchAll(/href="(#[^"]+|\/staedte\/[^"]+|staymatch-plugin\.zip|\/app)"/g)].map((m) => m[1]);
   const de = read(pages.de), en = read(pages.en);
   assert.deepEqual(ids(en), ids(de));
-  assert.deepEqual(anchors(en), anchors(de));
+  // Städtekacheln: deutsche Startseite → /staedte/<stadt>, englische → /en/cities/<stadt> (gleiche Städte, gleiche Reihenfolge)
+  const cities = (h, re) => [...h.matchAll(re)].length;
+  assert.equal(cities(en, /href="\/en\/cities\/[a-z-]+"/g), cities(de, /href="\/staedte\/[a-z-]+"/g));
+  const rest = (h) => anchors(h).filter((a) => !a.startsWith('/staedte/'));
+  assert.deepEqual(rest(en), rest(de));
 });

@@ -30,7 +30,8 @@ createServer(async (req, res) => {
   }
   let file = join(ROOT, path);
   try {
-    if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
+    // Ordner ohne index.html (web/en/ neben web/en.html): wie cleanUrls auf <name>.html ausweichen
+    if ((await stat(file)).isDirectory()) file = await stat(join(file, 'index.html')).then(() => join(file, 'index.html'), () => file.replace(/[\\/]$/, '') + '.html');
   } catch {
     file = extname(file) ? file : file + '.html'; // cleanUrls
   }

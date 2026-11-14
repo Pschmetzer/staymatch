@@ -1,16 +1,186 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url><loc>https://staymatch.pro/</loc></url>
   <url><loc>https://staymatch.pro/en</loc></url>
   <url><loc>https://staymatch.pro/app</loc></url>
-  <url><loc>https://staymatch.pro/staedte/amsterdam</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/barcelona</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/berlin</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/budapest</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/lissabon</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/madrid</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/paris</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/prag</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/rom</loc><lastmod>2026-11-13</lastmod></url>
-  <url><loc>https://staymatch.pro/staedte/wien</loc><lastmod>2026-11-13</lastmod></url>
+  <url><loc>https://staymatch.pro/staedte/amsterdam</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/amsterdam"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/amsterdam"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/amsterdam"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/amsterdam</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/amsterdam"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/amsterdam"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/amsterdam"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/antwerpen</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/antwerpen"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/antwerp"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/antwerpen"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/antwerp</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/antwerpen"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/antwerp"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/antwerpen"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/barcelona</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/barcelona"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/barcelona"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/barcelona"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/barcelona</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/barcelona"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/barcelona"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/barcelona"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/berlin</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/berlin"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/berlin"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/berlin"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/berlin</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/berlin"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/berlin"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/berlin"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/bologna</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/bologna"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/bologna"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/bologna"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/bologna</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/bologna"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/bologna"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/bologna"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/brussel</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/brussel"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/brussels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/brussel"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/brussels</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/brussel"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/brussels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/brussel"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/budapest</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/budapest"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/budapest"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/budapest"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/budapest</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/budapest"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/budapest"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/budapest"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/lissabon</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/lissabon"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/lisbon"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/lissabon"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/lisbon</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/lissabon"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/lisbon"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/lissabon"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/madrid</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/madrid"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/madrid"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/madrid"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/madrid</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/madrid"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/madrid"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/madrid"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/malaga</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/malaga"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/malaga"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/malaga"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/malaga</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/malaga"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/malaga"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/malaga"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/palma</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/palma"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/palma"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/palma"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/palma</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/palma"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/palma"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/palma"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/paris</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/paris"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/paris"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/paris"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/paris</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/paris"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/paris"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/paris"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/prag</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/prag"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/prague"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/prag"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/prague</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/prag"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/prague"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/prag"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/rom</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/rom"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/rome"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/rom"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/rome</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/rom"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/rome"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/rom"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/salzburg</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/salzburg"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/salzburg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/salzburg"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/salzburg</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/salzburg"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/salzburg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/salzburg"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/warschau</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/warschau"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/warsaw"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/warschau"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/warsaw</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/warschau"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/warsaw"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/warschau"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/wien</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/wien"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/vienna"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/wien"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/vienna</loc><lastmod>2026-11-13</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/wien"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/vienna"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/wien"/>
+  </url>
+  <url><loc>https://staymatch.pro/staedte/zurich</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/zurich"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/zurich"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/zurich"/>
+  </url>
+  <url><loc>https://staymatch.pro/en/cities/zurich</loc><lastmod>2026-11-14</lastmod>
+    <xhtml:link rel="alternate" hreflang="de" href="https://staymatch.pro/staedte/zurich"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://staymatch.pro/en/cities/zurich"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://staymatch.pro/staedte/zurich"/>
+  </url>
 </urlset>
