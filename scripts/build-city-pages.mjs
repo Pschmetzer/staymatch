@@ -282,7 +282,7 @@ export function renderPageEn(file, d, ctx = {}) {
   const title = `Where to stay in ${name}? Best neighborhoods (data from ${date}) · StayMatch`;
   const picks = [['party', 'Party'], ['family', 'Families'], ['chill', 'Quiet']].filter(([k]) => r.top[k][0]).map(([k, l]) => `${l}: ${r.top[k][0].a.name}`);
   const desc = `Where to stay in ${name}? ${picks.join(', ')}. ${r.eligible} neighborhoods compared from OpenStreetMap data, as of ${date}.`;
-  const appUrl = `/app?c=${encodeURIComponent(name)}`;
+  const appUrl = `/en/app?c=${encodeURIComponent(name)}`;
   const img = hasImage(key) ? `${BASE}/media/staedte/${key}.webp` : `${BASE}/og.png`;
   const others = (ctx.cities || []).filter(c => c.slug !== key);
   const sections = TYPES_EN.map(([k, label, text]) => `<section id="${k}">
@@ -305,7 +305,7 @@ ${r.top[k].map(({ a, s }) => `<li><b>${esc(a.name)}</b> <span class="pts">${s} o
       itemListElement: r.top[k].map(({ a }, i) => ({ '@type': 'ListItem', position: i + 1, name: a.name })) })),
   ] };
   const ld = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
-  const cta = `<p class="ctas"><a class="cta" href="${esc(appUrl)}" hreflang="de">Compare your own group in ${esc(name)}</a></p>`;
+  const cta = `<p class="ctas"><a class="cta" href="${esc(appUrl)}">Compare your own group in ${esc(name)}</a></p>`;
   const reduced = d.reduced && d.reduced.includes('unnamedGarden') ? ' Unnamed gardens (mostly private ones) are not part of this city’s data.' : '';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -344,7 +344,7 @@ ${simple}
 <p>The points come from map data. They say nothing about prices or listings.</p>
 </section>
 ${sections}
-<p class="ctas"><a class="cta" href="${esc(appUrl)}" hreflang="de">Compare your own group in ${esc(name)}</a><a class="cta alt" href="/en#plugin">Rate listings there: get the plugin</a></p>
+<p class="ctas"><a class="cta" href="${esc(appUrl)}">Compare your own group in ${esc(name)}</a><a class="cta alt" href="/en#plugin">Rate listings there: get the plugin</a></p>
 <section id="gerechnet"><h2>How this was calculated</h2>
 <ol>
 <li>Data: OpenStreetMap, retrieved on ${date}${d.source ? ` via the Overpass API (${esc(d.source)})` : ''}; ${nf(r.pois, 'en')} places after removing duplicates.</li>
@@ -354,7 +354,7 @@ ${sections}
 <li>Filtering: neighborhoods with too few places and those further than ${MAX_CENTER_M / 1000} km from the center drop out (${r.eligible} remain). Two recommendations are at least ${fmtKmEn(MIN_DIST)} km apart.</li>
 </ol>
 ${weightsTable('en')}
-<p>The same calculation powers the <a href="/app?c=${encodeURIComponent(name)}" hreflang="de">neighborhood finder</a>, with a group and your own wishes. To weigh several cities side by side: <a href="/en/compare">compare cities</a>.</p></section>
+<p>The same calculation powers the <a href="/en/app?c=${encodeURIComponent(name)}">neighborhood finder</a>, with a group and your own wishes. To weigh several cities side by side: <a href="/en/compare">compare cities</a>.</p></section>
 <section id="daten"><h2>Data source and limits</h2>
 <p>Source: © OpenStreetMap contributors (ODbL 1.0), retrieved on ${date}${d.source ? ` via the Overpass API (${esc(d.source)})` : ''}. A neighborhood is whatever OpenStreetMap lists as a suburb, quarter or neighbourhood; how finely that is split differs from city to city.${reduced} <a href="${deUrl}" hreflang="de">Diese Seite auf Deutsch</a>.</p></section>
 ${nbHtml(key, ctx, 'en')}
@@ -367,7 +367,7 @@ ${nbHtml(key, ctx, 'en')}
 <ul class="nav"><li><a href="/en">Home</a></li><li><a href="/datenschutz" hreflang="de">Datenschutz</a></li><li><a href="/impressum" hreflang="de">Impressum</a></li></ul>
 </footer>
 </main>
-<div class="sticky"><a class="cta" href="${esc(appUrl)}" hreflang="de">Compare a group in ${esc(name)}</a></div>
+<div class="sticky"><a class="cta" href="${esc(appUrl)}">Compare a group in ${esc(name)}</a></div>
 </body></html>
 `;
 }
@@ -433,7 +433,10 @@ ${cards}
 
 // Sitemap mit lastmod der Stadtseiten (= Datenstand der Stadt)
 export function renderSitemap(cities) {
-  const fixed = ['', 'en', 'app', 'staedte', 'en/cities'].map(p => `  <url><loc>${BASE}/${p}</loc></url>`);
+  const fixed = ['', 'en', 'staedte', 'en/cities'].map(p => `  <url><loc>${BASE}/${p}</loc></url>`);
+  // Viertel-Finder DE/EN, gegenseitig per hreflang verbunden
+  const appAlt = `\n    <xhtml:link rel="alternate" hreflang="de" href="${BASE}/app"/>\n    <xhtml:link rel="alternate" hreflang="en" href="${BASE}/en/app"/>\n    <xhtml:link rel="alternate" hreflang="x-default" href="${BASE}/app"/>\n  `;
+  for (const p of ['app', 'en/app']) fixed.push(`  <url><loc>${BASE}/${p}</loc>${appAlt}</url>`);
   // Städtevergleich (von Hand gepflegte Seiten DE/EN), gegenseitig per hreflang verbunden
   const cmpAlt = `\n    <xhtml:link rel="alternate" hreflang="de" href="${BASE}/vergleich"/>\n    <xhtml:link rel="alternate" hreflang="en" href="${BASE}/en/compare"/>\n    <xhtml:link rel="alternate" hreflang="x-default" href="${BASE}/vergleich"/>\n  `;
   for (const p of ['vergleich', 'en/compare']) fixed.push(`  <url><loc>${BASE}/${p}</loc>${cmpAlt}</url>`);

@@ -153,7 +153,7 @@ test('„Barcelona, Spanien“ nutzt die Vorab-Datei; ein Index-Fehler wird nich
   assert.match(w.document.getElementById('status').textContent, /Fehler/);
   await search(w, 'Barcelona, Spanien');
   assert.ok(w.document.getElementById('results').children.length > 0, w.document.getElementById('status').textContent);
-  assert.ok(w.requests.includes('data/barcelona.json'));
+  assert.ok(w.requests.includes('/data/barcelona.json'));
 });
 
 test('Person löschen: Sortierung „Beste für …“ und Karten-Person bleiben bei derselben Person', dom, async () => {

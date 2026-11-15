@@ -15,7 +15,7 @@ const problems = [];
 const axeSrc = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'); // per evaluate eingespielt (umgeht die CSP der Seite nur für die Prüfung)
 const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
 try {
-  for (const path of ['/', '/en', '/staedte/rom', '/en/cities/rome', '/datenschutz', '/app']) {
+  for (const path of ['/', '/en', '/staedte/rom', '/en/cities/rome', '/datenschutz', '/app', '/en/app']) {
     const page = await browser.newPage();
     // Overpass/Nominatim/Kacheln nicht wirklich ansprechen: CSP prüft schon vor dem Netz, wir wollen nur Verstöße sehen
     await page.route(/^https:\/\/(?!staymatch)/, (r) => r.fulfill({ status: 200, body: '{}', contentType: 'application/json' }));

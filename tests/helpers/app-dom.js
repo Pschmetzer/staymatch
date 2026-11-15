@@ -17,8 +17,8 @@ function bootApp({ storage = {}, url = 'http://localhost/app', fetch: own, befor
   w.scrollTo = () => {};
   w.requests = [];
   const local = async u => {
-    const p = path.join(web, String(u).replace(/^https?:\/\/localhost\//, ''));
-    if (!/^(https?:\/\/localhost\/)?data\//.test(String(u)) || !fs.existsSync(p)) return { ok: false, status: 404, json: async () => ({}), text: async () => '' };
+    const p = path.join(web, String(u).replace(/^(https?:\/\/localhost)?\//, ''));
+    if (!/^((https?:\/\/localhost)?\/)?data\//.test(String(u)) || !fs.existsSync(p)) return { ok: false, status: 404, json: async () => ({}), text: async () => '' };
     const body = fs.readFileSync(p, 'utf8');
     return { ok: true, status: 200, json: async () => JSON.parse(body), text: async () => body };
   };
@@ -33,7 +33,7 @@ function bootApp({ storage = {}, url = 'http://localhost/app', fetch: own, befor
   w.errors = [];
   w.addEventListener('error', e => w.errors.push(e.error || e.message));
   if (beforeScripts) beforeScripts(w);
-  for (const f of ['core.js', 'scoring.js', 'app.js']) w.eval(fs.readFileSync(path.join(web, f), 'utf8') + `\n//# sourceURL=${f}`);
+  for (const f of ['core.js', 'i18n.js', 'scoring.js', 'app.js']) w.eval(fs.readFileSync(path.join(web, f), 'utf8') + `\n//# sourceURL=${f}`);
   return w;
 }
 

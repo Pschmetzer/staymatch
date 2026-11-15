@@ -17,10 +17,10 @@ test('Manifest: Start und Geltungsbereich /app, Symbole vorhanden, in app.html v
   assert.ok(read('app.html').includes('<link rel="manifest" href="manifest.webmanifest">'));
 });
 
-test('CSP: worker-src und manifest-src nur auf /app, sonst weiter zu', () => {
+test('CSP: worker-src und manifest-src nur auf /app und /en/app, sonst weiter zu', () => {
   assert.match(csp('/app'), /worker-src 'self'; manifest-src 'self'/);
-  assert.match(csp('/((?!app$).*)'), /worker-src 'none'/);
-  assert.ok(!csp('/((?!app$).*)').includes('manifest-src'));
+  assert.match(csp('/((?!(?:en/)?app$).*)'), /worker-src 'none'/);
+  assert.ok(!csp('/((?!(?:en/)?app$).*)').includes('manifest-src'));
 });
 
 test('Service Worker: fasst nur gleiche Herkunft und GET an, nie Fremddienste', () => {
@@ -32,9 +32,9 @@ test('Service Worker: fasst nur gleiche Herkunft und GET an, nie Fremddienste', 
   assert.match(h('sw\\.js'), /must-revalidate/);
 });
 
-test('app.html: Service Worker nur für /app registriert, Leaflet nicht mehr fest eingebunden', () => {
+test('app.html: Service Worker nur für /app und /en/app registriert, Leaflet nicht mehr fest eingebunden', () => {
   const html = read('app.html');
-  assert.ok(html.includes("register('/sw.js', { scope: '/app' })") && html.includes("'serviceWorker' in navigator"));
+  assert.ok(html.includes("register('/sw.js', { scope: /^\\/en\\//.test(location.pathname) ? '/en/app' : '/app' })") && html.includes("'serviceWorker' in navigator"));
   assert.ok(!/<script src="vendor\/leaflet/.test(html) && !/<link rel="stylesheet" href="vendor\/leaflet/.test(html));
   assert.ok(html.includes("vendor/leaflet/leaflet.js") && html.includes("vendor/leaflet/leaflet.css"));
 });

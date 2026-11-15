@@ -48,7 +48,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
   const p = url.pathname;
-  if (req.mode === 'navigate' && (p === '/app' || p === '/app.html')) { e.respondWith(networkFirst(req, SHELL_CACHE, '/app').catch(() => caches.match('/app'))); return; }
+  if (req.mode === 'navigate' && (p === '/app' || p === '/app.html' || p === '/en/app' || p === '/en/app.html')) { const key = p.startsWith('/en/') ? '/en/app' : '/app'; e.respondWith(networkFirst(req, SHELL_CACHE, key).catch(() => caches.match(key))); return; }
   if (p === INDEX) { e.respondWith(networkFirst(req, DATA_CACHE, INDEX)); return; }
   if (p.startsWith('/data/') && p.endsWith('.json')) { e.respondWith(cacheFirst(req, DATA_CACHE)); return; }
   if (/\.(js|css|woff2|svg|png|webmanifest)$/.test(p) && p !== '/sw.js') e.respondWith(cacheFirst(req, SHELL_CACHE));

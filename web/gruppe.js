@@ -3,6 +3,7 @@
 // die Wünsche stehen im URL-Fragment (nach dem #), das der Browser nie an einen Server schickt.
 (function (root) {
   if (!root.StayMatch && typeof require === 'function') require('./scoring.js');
+  const { t } = root.StayMatchI18n || require('./i18n.js');
   const SM = root.StayMatch, KEYS = Object.keys(SM.CATEGORIES);
   const MAX_PEOPLE = 30, MAX_TOKEN = 3000;
   const b64 = {
@@ -59,9 +60,11 @@
   function giveUpText(rows) {
     if (!rows.length) return '';
     const top = rows[0];
-    if (top.loss <= SMALL) return 'Niemand muss hier groß zurückstecken: Jede Person liegt nah an ihrem besten Wert.';
+    if (top.loss <= SMALL) return t('Niemand muss hier groß zurückstecken: Jede Person liegt nah an ihrem besten Wert.');
     const more = rows.filter(r => r.loss > SMALL && r !== top).length;
-    return `${top.name} steckt am meisten zurück: ${top.at} statt ${top.best} Punkte (−${top.loss}).${more ? ` Auch ${more === 1 ? 'eine weitere Person' : more + ' weitere Personen'} verzichten spürbar.` : ''}`;
+    const main = t('{name} steckt am meisten zurück: {at} statt {best} Punkte (−{loss}).', { name: top.name, at: top.at, best: top.best, loss: top.loss });
+    const also = !more ? '' : more === 1 ? t('Auch eine weitere Person verzichten spürbar.') : t('Auch {n} weitere Personen verzichten spürbar.', { n: more });
+    return also ? main + ' ' + also : main;
   }
 
   root.StayMatchGroup = { encodePerson, decodePerson, tokensFrom, mergePeople, giveUp, giveUpText, MAX_PEOPLE };
@@ -72,14 +75,18 @@
   const A = root.SMApp, $ = id => document.getElementById(id), esc = SM.escapeHtml;
   const grp = document.createElement('details');
   grp.id = 'grp';
-  grp.innerHTML = `<summary>Gruppe per Link abstimmen</summary><div class="body">
-    <p class="hint">Jede Person öffnet die App, wählt ihre Wünsche und schickt dir ihren Wunsch-Link. Die Wünsche stehen im Link hinter dem „#“, sie verlassen deinen Browser nicht. So geht es: Link kopieren, im Chat verteilen, die Links der anderen unten einfügen.</p>
-    <label for="grpWho">Wessen Wünsche teilen?</label> <select id="grpWho"></select>
-    <button type="button" class="link" id="grpCopy">Wunsch-Link kopieren</button>
-    <input id="grpUrl" readonly hidden aria-label="Wunsch-Link zum Kopieren">
-    <label for="grpIn">Links der anderen einfügen</label>
+  const L = {
+    sum: t('Gruppe per Link abstimmen'), hint: t('Jede Person öffnet die App, wählt ihre Wünsche und schickt dir ihren Wunsch-Link. Die Wünsche stehen im Link hinter dem „#“, sie verlassen deinen Browser nicht. So geht es: Link kopieren, im Chat verteilen, die Links der anderen unten einfügen.'),
+    whoLbl: t('Wessen Wünsche teilen?'), copy: t('Wunsch-Link kopieren'), urlAria: esc(t('Wunsch-Link zum Kopieren')), inLbl: t('Links der anderen einfügen'), go: t('Gruppe importieren'),
+  };
+  grp.innerHTML = `<summary>${L.sum}</summary><div class="body">
+    <p class="hint">${L.hint}</p>
+    <label for="grpWho">${L.whoLbl}</label> <select id="grpWho"></select>
+    <button type="button" class="link" id="grpCopy">${L.copy}</button>
+    <input id="grpUrl" readonly hidden aria-label="${L.urlAria}">
+    <label for="grpIn">${L.inLbl}</label>
     <textarea id="grpIn" placeholder="https://staymatch.pro/app#p=…"></textarea>
-    <button type="button" class="link" id="grpGo">Gruppe importieren</button>
+    <button type="button" class="link" id="grpGo">${L.go}</button>
     <p class="hint" id="grpMsg" role="status" aria-live="polite"></p></div>`;
   $('paste').closest('details').before(grp);
   const who = $('grpWho'), msg = $('grpMsg');
@@ -89,17 +96,21 @@
   $('grpCopy').onclick = async () => {
     const p = A.people()[+who.value] || A.people()[0], url = location.origin + location.pathname + '#p=' + encodePerson(p);
     const box = $('grpUrl'); box.hidden = false; box.value = url;
-    try { await navigator.clipboard.writeText(url); msg.textContent = `✅ Link von ${p.name} kopiert. Schick ihn an die Person, die die Gruppe zusammenführt.`; }
-    catch { box.select(); msg.textContent = 'Kopieren nicht möglich. Kopiere den Link aus dem Feld.'; }
+    try { await navigator.clipboard.writeText(url); msg.textContent = '✅ ' + t('Link von {name} kopiert. Schick ihn an die Person, die die Gruppe zusammenführt.', { name: p.name }); }
+    catch { box.select(); msg.textContent = t('Kopieren nicht möglich. Kopiere den Link aus dem Feld.'); }
   };
   function importTokens(tokens) {
-    if (!tokens.length) { msg.textContent = 'Kein Wunsch-Link gefunden. Er enthält „#p=“ und danach Buchstaben und Zahlen.'; return false; }
+    if (!tokens.length) { msg.textContent = t('Kein Wunsch-Link gefunden. Er enthält „#p=“ und danach Buchstaben und Zahlen.'); return false; }
     const r = mergePeople(A.people(), tokens);
-    if (!r.added.length && !r.updated.length) { msg.textContent = r.bad ? 'Dieser Link ist kaputt oder unvollständig und wurde nicht übernommen.' : 'Die Gruppe ist schon voll.'; return false; }
-    A.offerUndo(`${r.added.length + r.updated.length} Wunsch-Link${r.added.length + r.updated.length === 1 ? '' : 's'} übernommen`);
+    if (!r.added.length && !r.updated.length) { msg.textContent = r.bad ? t('Dieser Link ist kaputt oder unvollständig und wurde nicht übernommen.') : t('Die Gruppe ist schon voll.'); return false; }
+    const nTaken = r.added.length + r.updated.length;
+    A.offerUndo(nTaken === 1 ? t('1 Wunsch-Link übernommen') : t('{n} Wunsch-Links übernommen', { n: nTaken }));
     A.setPeople(r.people);
     fillWho();
-    msg.textContent = `✅ ${[r.added.length && `Neu: ${r.added.join(', ')}`, r.updated.length && `Aktualisiert: ${r.updated.join(', ')}`].filter(Boolean).join('. ')}.${r.bad ? ` ${r.bad} kaputte${r.bad === 1 ? 'r Link' : ' Links'} übersprungen.` : ''}${r.full ? ` ${r.full} passten nicht mehr in die Gruppe (höchstens ${MAX_PEOPLE}).` : ''}`;
+    const parts = [r.added.length && t('Neu: {names}', { names: r.added.join(', ') }), r.updated.length && t('Aktualisiert: {names}', { names: r.updated.join(', ') })].filter(Boolean).join('. ');
+    const bad = !r.bad ? '' : ' ' + (r.bad === 1 ? t('1 kaputter Link übersprungen.') : t('{n} kaputte Links übersprungen.', { n: r.bad }));
+    const full = !r.full ? '' : ' ' + t('{n} passten nicht mehr in die Gruppe (höchstens {max}).', { n: r.full, max: MAX_PEOPLE });
+    msg.textContent = `✅ ${parts}.${bad}${full}`;
     return true;
   }
   $('grpGo').onclick = () => { if (importTokens(tokensFrom($('grpIn').value))) $('grpIn').value = ''; };
@@ -121,9 +132,13 @@
     const rows = v ? giveUp(v.okAreas, v.ppl, v.ranked[0]) : [];
     box.hidden = !rows.length;
     if (!rows.length) { box.innerHTML = ''; return; }
-    box.innerHTML = `<h3>Wer steckt zurück?</h3><p>${esc(giveUpText(rows))}</p><ul>${rows.map(r =>
-      `<li>${esc(r.name)}: <b>${r.at}</b> von ${r.best} möglichen Punkten${r.loss > SMALL ? ` <span class="muted">(−${r.loss})</span>` : ''}</li>`).join('')}</ul>
-      <p class="hint">Verglichen wird Platz 1 mit dem besten Viertel dieser Stadt für die jeweilige Person. Der Schieber „Fairness“ verschiebt, wie stark die Unzufriedensten zählen.</p>`;
+    const head = t('Wer steckt zurück?'), note = t('Verglichen wird Platz 1 mit dem besten Viertel dieser Stadt für die jeweilige Person. Der Schieber „Fairness“ verschiebt, wie stark die Unzufriedensten zählen.');
+    const items = rows.map(r => {
+      const line = t('{name}: <b>{at}</b> von {best} möglichen Punkten', { name: esc(r.name), at: r.at, best: r.best });
+      return `<li>${line}${r.loss > SMALL ? ` <span class="muted">(−${r.loss})</span>` : ''}</li>`;
+    }).join('');
+    box.innerHTML = `<h3>${head}</h3><p>${esc(giveUpText(rows))}</p><ul>${items}</ul>
+      <p class="hint">${note}</p>`;
   }
   addEventListener('staymatch:render', () => { try { render(); } catch (e) { console.debug(e); } });
   render();

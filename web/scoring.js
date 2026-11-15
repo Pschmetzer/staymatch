@@ -3,6 +3,10 @@
   // Kern (Kategorien, Typen, Entfernung) aus core.js: im Browser vorher geladen, in Node per require
   const C = root.StayMatchCore || (typeof require === 'function' ? require('./core.js') : null);
   const { CATEGORIES, PRESETS, RADIUS, distM } = C;
+  // Sprache: t() mit deutschem Text als Schlüssel (i18n.js); ohne i18n.js bleibt alles deutsch
+  const I = root.StayMatchI18n || (typeof require === 'function' ? require('./i18n.js') : { t: (s, p) => s.replace(/\{(\w+)\}/g, (m, k) => p && k in p ? p[k] : m), lang: () => 'de', locale: () => 'de' }), { t } = I;
+  const cl = k => t(CATEGORIES[k].label), ll = k => I.lang() === 'en' ? cl(k).toLowerCase() : cl(k); // Kategorie: Anzeigename / mitten im Satz
+  const dc = v => String(v).replace('.', I.lang() === 'en' ? '.' : ','); // Dezimalzeichen
 
   // Gewichte einer Person: eigene Schieberegler (custom) gehen vor dem Typ. Unbekanntes wird verworfen, Werte auf -1..1 begrenzt.
   function cleanWeights(raw) {
@@ -26,7 +30,7 @@
   // Eine Person aus gespeicherten oder per Link gelieferten Rohdaten (nie dem Wert trauen)
   function cleanPerson(raw) {
     if (!raw || typeof raw.name !== 'string') return null;
-    const p = { name: raw.name.trim().slice(0, 40) || 'Person', type: Object.hasOwn(PRESETS, raw.type) ? raw.type : 'chill' }; // hasOwn: „__proto__“ aus einem Link ist kein Typ
+    const p = { name: raw.name.trim().slice(0, 40) || t('Person'), type: Object.hasOwn(PRESETS, raw.type) ? raw.type : 'chill' }; // hasOwn: „__proto__“ aus einem Link ist kein Typ
     if (Object.hasOwn(PRESETS, raw.type2) && raw.type2 !== p.type) p.type2 = raw.type2;
     const c = cleanWeights(raw.custom); if (c) p.custom = c;
     const v = Array.isArray(raw.veto) ? [...new Set(raw.veto.filter(k => CATEGORIES[k]))] : [];
@@ -43,7 +47,7 @@
   const VETO_MIN = 30; // absolute Untergrenze: erst ab 30 Orten der Kategorie im Umkreis gilt „zu viel“ (sonst entscheidet nur der Vergleich mit dem Stadtmaximum, und das trifft in Berlin jedes zweite Viertel)
   function vetoes(norm, people, counts) {
     const out = [];
-    for (const p of people) for (const k of (p.veto || [])) if ((norm[k] || 0) >= VETO_LIMIT && (!counts || (counts[k] || 0) >= VETO_MIN)) out.push({ name: p.name, cat: k, label: CATEGORIES[k].label });
+    for (const p of people) for (const k of (p.veto || [])) if ((norm[k] || 0) >= VETO_LIMIT && (!counts || (counts[k] || 0) >= VETO_MIN)) out.push({ name: p.name, cat: k, label: ll(k) });
     return out;
   }
   // Viertel mit sehr wenigen OSM-Orten: Wertung wackelig
@@ -54,7 +58,7 @@
   function compareAreas(a, b, people) {
     // Wer insgesamt etwas nicht will (Summe der Gewichte < 0), für den ist weniger davon der Sieg
     const sign = k => people.reduce((x, p) => x + ((p.w || weightsOf(p))[k] || 0), 0) < 0 ? -1 : 1;
-    const cats = Object.keys(CATEGORIES).filter(k => people.some(p => (p.w || weightsOf(p))[k])).map(k => { const d = ((a.counts[k] || 0) - (b.counts[k] || 0)) * sign(k); return { key: k, label: CATEGORIES[k].label, a: a.counts[k], b: b.counts[k], win: d === 0 ? 0 : d > 0 ? 1 : 2 }; });
+    const cats = Object.keys(CATEGORIES).filter(k => people.some(p => (p.w || weightsOf(p))[k])).map(k => { const d = ((a.counts[k] || 0) - (b.counts[k] || 0)) * sign(k); return { key: k, label: cl(k), a: a.counts[k], b: b.counts[k], win: d === 0 ? 0 : d > 0 ? 1 : 2 }; });
     const persons = people.map((p, i) => { const x = a.group.scores[i], y = b.group.scores[i]; return { name: p.name, a: x, b: y, win: x === y ? 0 : x > y ? 1 : 2 }; });
     const t = a.group.total === b.group.total ? 0 : a.group.total > b.group.total ? 1 : 2;
     return { cats, persons, total: { a: a.group.total, b: b.group.total, win: t } };
@@ -195,7 +199,7 @@
     let best = null;
     for (const [k, w] of Object.entries(weights)) {
       const gap = w > 0 ? w * (1 - (norm[k] || 0)) : -w * (norm[k] || 0);
-      if (gap > 0 && (!best || gap > best.gap)) best = { gap, kind: w > 0 ? 'missing' : 'toomuch', label: CATEGORIES[k].label, count: counts[k] };
+      if (gap > 0 && (!best || gap > best.gap)) best = { gap, kind: w > 0 ? 'missing' : 'toomuch', label: ll(k), count: counts[k] };
     }
     return best;
   }
@@ -224,25 +228,25 @@
   }
 
   // Wort zur Zahl
-  function verdict(total) { return total >= 80 ? 'sehr gut' : total >= 65 ? 'gut' : total >= 50 ? 'okay' : total >= 35 ? 'schwach' : 'passt kaum'; }
+  function verdict(total) { return total >= 80 ? t('sehr gut') : total >= 65 ? t('gut') : total >= 50 ? t('okay') : total >= 35 ? t('schwach') : t('passt kaum'); }
 
   // Ein Satz, was dieses Viertel für die Gruppe bedeutet
   function summary(a, people) {
     const { scores, min } = a.group;
     if (!people.length) return '';
-    if (people.every(p => !Object.values(p.w || weightsOf(p)).some(Boolean))) return 'Nichts gewählt: Wähle Wünsche, damit die Wertung etwas aussagt.';
+    if (people.every(p => !Object.values(p.w || weightsOf(p)).some(Boolean))) return t('Nichts gewählt: Wähle Wünsche, damit die Wertung etwas aussagt.');
     if (people.length === 1) { // eine Person: direkt ansprechen
-      if (min >= 70) return 'Passt gut zu dir.';
+      if (min >= 70) return t('Passt gut zu dir.');
       const w = min < 60 ? weakness(a.norm, a.counts, people[0].w || weightsOf(people[0])) : null;
-      return !w ? 'Solide für dich.' : w.kind === 'missing' ? `Dir fehlt hier etwas ${w.label}.` : `Hier gibt es dir zu viel ${w.label}.`;
+      return !w ? t('Solide für dich.') : w.kind === 'missing' ? t('Dir fehlt hier etwas {label}.', { label: w.label }) : t('Hier gibt es dir zu viel {label}.', { label: w.label });
     }
-    if (scores.every(x => x >= 70)) return 'Passt für alle gut.';
+    if (scores.every(x => x >= 70)) return t('Passt für alle gut.');
     const lowIdx = scores.indexOf(min), low = people[lowIdx];
     const weak = low && min < 60 ? weakness(a.norm, a.counts, low.w || weightsOf(low)) : null;
-    if (!weak) return 'Solide für die ganze Gruppe.';
+    if (!weak) return t('Solide für die ganze Gruppe.');
     const who = people.filter((_, i) => scores[i] < 60).length;
-    const lead = who > 1 ? `Für ${who} Personen knapp` : people.length > 2 ? 'Gut für die meisten' : 'Nicht für beide ideal';
-    return `${lead}: ${low.name} (${min}) ${weak.kind === 'missing' ? `vermisst ${weak.label}` : `stört sich an viel ${weak.label}`}.`;
+    const lead = who > 1 ? t('Für {n} Personen knapp', { n: who }) : people.length > 2 ? t('Gut für die meisten') : t('Nicht für beide ideal'), o = { lead, name: low.name, min, label: weak.label };
+    return weak.kind === 'missing' ? t('{lead}: {name} ({min}) vermisst {label}.', o) : t('{lead}: {name} ({min}) stört sich an viel {label}.', o);
   }
 
   // Wie setzt sich der Wert einer Person zusammen? Punkte je Kategorie (positiv hilft, negativ stört). Summe ≈ personScore (ohne Begrenzung auf 0..100).
@@ -253,7 +257,7 @@
     return Object.entries(weights).filter(([, w]) => w).map(([k, w]) => {
       const x = norm[k] || 0;
       const pts = w > 0 ? (w * x) / t : t ? -f * (-w * x) / Math.max(t, neg) : -(-w * x) / neg; // nur Abneigungen: 0 bis −100
-      return { key: k, label: CATEGORIES[k].label, pts: Math.round(pts * 100) };
+      return { key: k, label: cl(k), pts: Math.round(pts * 100) };
     }).filter(x => x.pts).sort((x, y) => Math.abs(y.pts) - Math.abs(x.pts));
   }
 
@@ -275,17 +279,17 @@
     const out = ranked.map(() => []);
     if (!ranked.length) return out;
     let b0 = 0; ranked.forEach((a, i) => { if (a.group.total > ranked[b0].group.total) b0 = i; });
-    out[b0].push(people.length === 1 ? 'Beste Wahl für dich' : 'Bester Kompromiss');
+    out[b0].push(people.length === 1 ? t('Beste Wahl für dich') : t('Bester Kompromiss'));
     const types = [...new Set(people.map(p => p.type))];
-    if (types.length > 1) for (const t of types) {
-      const idx = people.map((p, i) => p.type === t ? i : -1).filter(i => i >= 0);
+    if (types.length > 1) for (const ty of types) {
+      const idx = people.map((p, i) => p.type === ty ? i : -1).filter(i => i >= 0);
       let bi = 0, bv = -1;
       ranked.forEach((a, i) => { const v = idx.reduce((x, j) => x + a.group.scores[j], 0) / idx.length; if (v > bv) { bv = v; bi = i; } });
-      if (bi !== b0 && out[bi].length < 2) out[bi].push(`Beste Wahl für ${(PRESETS[t] || {}).label || t}`);
+      if (bi !== b0 && out[bi].length < 2) out[bi].push(t('Beste Wahl für {type}', { type: t((PRESETS[ty] || {}).label || ty) }));
     }
     let ti = -1, tv = Infinity;
     ranked.forEach((a, i) => { const d = a.nearest && a.nearest.transit; if (d != null && d < tv) { tv = d; ti = i; } });
-    if (ti >= 0 && tv <= 300 && out[ti].length < 2) out[ti].push('Kürzester Weg zur Bahn');
+    if (ti >= 0 && tv <= 300 && out[ti].length < 2) out[ti].push(t('Kürzester Weg zur Bahn'));
     return out;
   }
 
@@ -310,10 +314,10 @@
   // Gruppe aus Text: „Lena Party, Mia Chill“ oder eine Person pro Zeile („Tom: Sightseeing“)
   // Ganze Wörter (Deutsch und Englisch), keine Präfixe: „Kindergarten“ ist kein Familientyp, „Lauf“ kein Sportler, „Kindra“ kein Kind
   const TYPE_WORDS = [
-    ['party', /^(party|partys|parties|feier|feiern|club|clubs|clubbing|nacht|nachtleben|nightlife|nightclub|bars)$/], ['chill', /^(chill|chillen|chilling|ruhe|ruhig|entspannt|entspannen|entspannung|relax|relaxed|relaxing|quiet|calm)$/],
-    ['sights', /^(sightseeing|sights|sight|besichtigung|besichtigen|sehenswuerdigkeiten|sehenswürdigkeiten|tourist|touristisch)$/], ['foodie', /^(food|foodie|foodies|essen|kulinarik|kulinarisch|restaurants|gourmet|dining)$/],
-    ['family', /^(familie|family|kinder|kids|children)$/], ['nature', /^(natur|nature|wandern|hiking|outdoor|outdoors)$/], ['shopping', /^(shopping|shoppen|einkaufen|einkauf)$/],
-    ['sport', /^(sport|sports|fitness|laufen|running|jogging|gym)$/], ['culture', /^(kultur|culture|museum|museen|museums|theater|theatre|art|kunst)$/],
+    ['party', /^(party|partys|parties|feier|feiern|club|clubs|clubbing|nacht|nachtleben|nightlife|nightclub|bars|partying)$/], ['chill', /^(chill|chillen|chilling|ruhe|ruhig|entspannt|entspannen|entspannung|relax|relaxed|relaxing|quiet|peaceful|calm)$/],
+    ['sights', /^(sightseeing|sights|sight|besichtigung|besichtigen|sehenswuerdigkeiten|sehenswürdigkeiten|tourist|touristisch|sightseer|sightseers)$/], ['foodie', /^(food|foodie|foodies|essen|kulinarik|kulinarisch|restaurants|gourmet|dining|eating)$/],
+    ['family', /^(familie|family|kinder|kids|children)$/], ['nature', /^(natur|nature|wandern|hiking|hiker|hikers|outdoor|outdoors)$/], ['shopping', /^(shopping|shoppen|einkaufen|einkauf|shopper|shoppers|shop)$/],
+    ['sport', /^(sport|sports|fitness|laufen|running|jogging|gym|sporty)$/], ['culture', /^(kultur|culture|museum|museen|museums|theater|theatre|art|kunst|cultural)$/],
   ];
   const typeOfWord = w => { const x = w.toLowerCase().replace(/[.!?]+$/, ''); const h = TYPE_WORDS.find(([, re]) => re.test(x)); return h ? h[0] : null; };
   function parseGroup(text) {
@@ -329,7 +333,7 @@
       const words = part.replace(/[:()–]|\s-\s/g, ' ').split(/\s+/).filter(Boolean); // Bindestrich im Namen bleibt („Hans-Peter“)
       const at = words.findIndex(w => typeOfWord(w)); // nur das erste Typwort ist der Typ; ein zweites bleibt Teil des Namens
       const name = words.filter((_, i) => i !== at).join(' ').trim().slice(0, 40);
-      out.push({ name: name || `Person ${out.length + 1}`, type: at >= 0 ? typeOfWord(words[at]) : 'chill' });
+      out.push({ name: name || t('Person {n}', { n: out.length + 1 }), type: at >= 0 ? typeOfWord(words[at]) : 'chill' });
     }
     return out;
   }
@@ -342,7 +346,7 @@
 
   // Airbnb-Domain: Sprache der Seite entscheidet (de → .de, in AT/CH deren Seite, en → .com, in GB .co.uk)
   function airbnbHost(lang, cc) {
-    const l = String(lang || 'de').slice(0, 2).toLowerCase(), c = String(cc || '').toLowerCase();
+    const l = String(lang || I.lang()).slice(0, 2).toLowerCase(), c = String(cc || '').toLowerCase();
     if (l === 'en') return c === 'gb' || c === 'uk' ? 'www.airbnb.co.uk' : 'www.airbnb.com';
     return c === 'at' ? 'www.airbnb.at' : c === 'ch' ? 'www.airbnb.ch' : c === 'gb' || c === 'uk' ? 'www.airbnb.co.uk' : 'www.airbnb.de';
   }
@@ -424,8 +428,8 @@
   // Kurzbeschreibung der Typen aus den Gewichten (weicht so nie von der Wertung ab): [[Label, Text], …]
   function typeSummary() {
     return Object.values(PRESETS).map(v => {
-      const pos = Object.entries(v.w).filter(([, x]) => x >= 0.5).map(([k]) => CATEGORIES[k].label), neg = Object.entries(v.w).filter(([, x]) => x <= -0.3).map(([k]) => CATEGORIES[k].label);
-      return [v.label, `wichtig ${pos.join(', ')}${neg.length ? `; stört ${neg.join(', ')}` : ''}`];
+      const pos = Object.entries(v.w).filter(([, x]) => x >= 0.5).map(([k]) => ll(k)).join(', '), neg = Object.entries(v.w).filter(([, x]) => x <= -0.3).map(([k]) => ll(k)).join(', ');
+      return [t(v.label), neg ? t('wichtig {pos}; stört {neg}', { pos, neg }) : t('wichtig {pos}', { pos })];
     });
   }
   // Budget beim Umstellen des Modus umrechnen (gleiche Gesamtsumme, andere Bedeutung der Zahl)
@@ -442,7 +446,7 @@
   function shareEncode(st) {
     const { c, i, o, b, bm, r, mc, k, y, bd, m, mw } = st;
     return b64.enc({ c, i, o, b, bm, r, mc, k, y, bd, m, mw, f: Math.round(st.fairness * 100),
-      p: st.people.map((p, i) => [st.anon ? `Person ${i + 1}` : p.name, p.type, p.custom ? Object.keys(CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: st.wishes,
+      p: st.people.map((p, i) => [st.anon ? t('Person {n}', { n: i + 1 }) : p.name, p.type, p.custom ? Object.keys(CATEGORIES).map(k => Math.round(p.custom[k] * 10)) : 0, p.veto || 0, p.type2 || 0]), w: st.wishes,
       v: !st.anon && st.votes && Object.keys(st.votes).length ? st.votes : undefined }); // v: Stimmen der Gruppen-Abstimmung
   }
   // Nie dem Link trauen: alles prüfen und begrenzen. null = kaputt.
@@ -454,8 +458,8 @@
       const shortVal = v => (typeof v === 'string' || typeof v === 'number') && String(v).length <= 8 ? String(v) : ''; // Auswahlwerte: kurz, nur Text/Zahl
       if (!s || !Array.isArray(s.p) || !s.p.length || s.p.length > 30) return null;
       const keys = Object.keys(CATEGORIES);
-      const people = s.p.filter(Array.isArray).map(([n, t, c, v, t2]) => cleanPerson({
-        name: str(n, 40) || 'Person', type: t, type2: t2 || undefined,
+      const people = s.p.filter(Array.isArray).map(([n, ty, c, v, t2]) => cleanPerson({
+        name: str(n, 40) || t('Person'), type: ty, type2: t2 || undefined,
         custom: Array.isArray(c) ? Object.fromEntries(keys.map((k, i) => [k, (+c[i] || 0) / 10])) : undefined,
         veto: v || undefined,
       })).filter(Boolean);
@@ -501,9 +505,9 @@
       if (outer && outer.aborted) throw new DOMException('Abgebrochen', 'AbortError');
       const codes = (e.errors || []).map(x => String(x.message).split(': ').pop());
       const busy = codes.some(c => c === '429' || c === '504' || c === '503'), bad = codes.find(c => /^4\d\d$/.test(c) && c !== '429');
-      throw new Error(busy ? 'Die kostenlosen OpenStreetMap-Server sind gerade überlastet (Fehler 429/504). Das passiert zu Stoßzeiten. Meist klappt es nach 1–2 Minuten.'
-        : bad ? `Die OpenStreetMap-Server haben die Abfrage abgelehnt (Fehler ${bad}). Bitte später nochmal versuchen oder eine andere Stadt wählen.`
-        : 'Die OpenStreetMap-Server haben nicht rechtzeitig geantwortet (Zeitüberschreitung nach ca. 2 Minuten). Bitte nochmal versuchen. Große Städte brauchen länger.');
+      throw new Error(busy ? t('Die kostenlosen OpenStreetMap-Server sind gerade überlastet (Fehler 429/504). Das passiert zu Stoßzeiten. Meist klappt es nach 1–2 Minuten.')
+        : bad ? t('Die OpenStreetMap-Server haben die Abfrage abgelehnt (Fehler {code}). Bitte später nochmal versuchen oder eine andere Stadt wählen.', { code: bad })
+        : t('Die OpenStreetMap-Server haben nicht rechtzeitig geantwortet (Zeitüberschreitung nach ca. 2 Minuten). Bitte nochmal versuchen. Große Städte brauchen länger.'));
     } finally {
       clearTimeout(timeout); ctrl.abort();
       if (outer) outer.removeEventListener('abort', stop); // sonst hängt der Listener nach Erfolg weiter am Signal
@@ -520,11 +524,14 @@
 
   // ---- Ergebnis-Karte (HTML aus Vorlagen; jeder Text aus Daten geht durch escapeHtml) ----
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-  const LABELS = { party: ['🍸', 'Bars/Clubs'], chill: ['🌿', 'Parks/Cafés'], sights: ['🏛️', 'Sehenswürdigkeiten'], food: ['🍝', 'Restaurants'], transit: ['🚇', 'Stationen'], shop: ['🛍️', 'Einkaufen'], sport: ['🏃', 'Sport'], kids: ['🧸', 'Kinderorte'] };
+  // Text je Aufruf übersetzt (Getter), damit die Sprache zur Laufzeit gilt
+  const LABEL_TXT = { party: ['🍸', () => t('Bars/Clubs')], chill: ['🌿', () => t('Parks/Cafés')], sights: ['🏛️', () => t('Sehenswürdigkeiten')], food: ['🍝', () => t('Restaurants')], transit: ['🚇', () => t('Stationen')], shop: ['🛍️', () => t('Einkaufen')], sport: ['🏃', () => t('Sport')], kids: ['🧸', () => t('Kinderorte')] };
+  const LABELS = Object.fromEntries(Object.entries(LABEL_TXT).map(([k, [e, f]]) => [k, Object.defineProperty([e], 1, { get: f, enumerable: true })]));
   const CORE_CATS = ['party', 'chill', 'sights', 'food', 'transit'], TIERS = ['', '€', '€€', '€€€'];
   const ico = e => `<span aria-hidden="true">${e}</span>`; // Emoji nicht vorlesen
-  const dec = (v, d = 1) => v.toLocaleString((typeof document !== 'undefined' && document.documentElement.lang) || 'de', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const dec = (v, d = 1) => v.toLocaleString(I.locale(), { minimumFractionDigits: d, maximumFractionDigits: d });
   // Wert, nach dem gerade sortiert wird (für „fast gleichauf“); null = Sortierung ohne Wert
+  const mu = h => `<div class="muted">${h}</div>`;
   const sortValue = (a, mode) => mode === 'fair' ? a.group.total : mode === 'avg' ? a.group.avg : /^p:\d+$/.test(mode) ? a.group.scores[+mode.slice(2)] : null;
   // v: Ansicht (ranked, pois, ppl, r, pool, stats, medCentre, awards, minDist, relevant, byTotal); o: { url, key, fav, cmp, sortMode }
   function cardHtml(a, i, v, o) {
@@ -541,46 +548,49 @@
       const s = a.group.scores[j];
       return `<button type="button" class="chip btn2 ${s < 40 ? 'low' : s >= 70 ? 'high' : ''}" data-i="${i}" data-p="${j}" aria-expanded="false" aria-controls="bd-${i}">${s < 40 ? '⚠ ' : s >= 70 ? '✓ ' : ''}${escapeHtml(p.name)}: ${s}</button>`;
     }).join('');
+    const abnbT = t('Unterkünfte hier auf Airbnb ansehen: {name} (neuer Tab)', { name: escapeHtml(a.name) }), chipsT = t('Zufriedenheit je Person. Anklicken zeigt die Zusammensetzung.');
     const parts = solo ? breakdown(a.norm, ppl[0].w) : [];
-    const solobd = solo && parts.length ? `<div class="muted">So setzt sich der Wert zusammen: ${parts.map(x => `${escapeHtml(x.label)} <b class="${x.pts > 0 ? 'pos' : 'neg'}">${x.pts > 0 ? '+' : ''}${x.pts}</b>`).join(' · ')}</div>` : '';
+    const solobd = solo && parts.length ? mu(t('So setzt sich der Wert zusammen: {parts}', { parts: parts.map(x => `${escapeHtml(x.label)} <b class="${x.pts > 0 ? 'pos' : 'neg'}">${x.pts > 0 ? '+' : ''}${x.pts}</b>`).join(' · ') })) : '';
     const c = a.counts;
     // Alle Personen unter 60 erklären, nicht nur die schwächste
     const whys = ppl.map((p, j) => ({ p, s: a.group.scores[j] })).filter(x => x.s < 60).sort((x, y) => x.s - y.s).slice(0, 3).map(({ p, s }) => {
       const weak = weakness(a.norm, a.counts, p.w);
-      return weak ? `<div class="muted">${ico('⚠️')} ${escapeHtml(p.name)} (${s}) ${weak.kind === 'missing' ? `vermisst hier: ${weak.label} (nur ${weak.count} im Umkreis)` : `stört: viel ${weak.label} (${weak.count} im Umkreis)`}</div>` : '';
+      const wt = !weak ? '' : weak.kind === 'missing' ? t('vermisst hier: {label} (nur {count} im Umkreis)', weak) : t('stört: viel {label} ({count} im Umkreis)', weak);
+      return weak ? mu(`${ico('⚠️')} ${escapeHtml(p.name)} (${s}) ${wt}`) : '';
     }).join('');
-    const thin = thinData(c) ? `<div class="muted">${ico('ℹ️')} Wenig Daten in OpenStreetMap für dieses Viertel (${Object.values(c).reduce((x, y) => x + y, 0)} Orte im Umkreis). Die Wertung ist hier unsicher.</div>` : '';
+    const thin = thinData(c) ? mu(ico('ℹ️') + ' ' + t('Wenig Daten in OpenStreetMap für dieses Viertel ({n} Orte im Umkreis). Die Wertung ist hier unsicher.', { n: Object.values(c).reduce((x, y) => x + y, 0) })) : '';
     const k = escapeHtml(o.key), name = escapeHtml(a.name);
     const tip = i > 0 && isSecretTip(a, best, medCentre);
-    const badges = [...awards[i].map(t => `<span class="badge">${escapeHtml(t)}</span>`), tip ? '<span class="badge tip">Geheimtipp</span>' : ''].join('');
-    const delta = a.delta ? `<span class="delta ${a.delta > 0 ? 'up' : 'down'}"><span aria-hidden="true">${a.delta > 0 ? '▲' : '▼'}${Math.abs(a.delta)}</span><span class="sr">${Math.abs(a.delta)} ${Math.abs(a.delta) === 1 ? 'Platz' : 'Plätze'} ${a.delta > 0 ? 'besser' : 'schlechter'} als vorher</span></span>` : '';
+    const badges = [...awards[i].map(t => `<span class="badge">${escapeHtml(t)}</span>`), tip ? `<span class="badge tip">${t('Geheimtipp')}</span>` : ''].join('');
+    const dn = Math.abs(a.delta), dsr = d => d > 0 ? (dn === 1 ? t('{n} Platz besser als vorher', { n: dn }) : t('{n} Plätze besser als vorher', { n: dn })) : (dn === 1 ? t('{n} Platz schlechter als vorher', { n: dn }) : t('{n} Plätze schlechter als vorher', { n: dn }));
+    const delta = a.delta ? `<span class="delta ${a.delta > 0 ? 'up' : 'down'}"><span aria-hidden="true">${a.delta > 0 ? '▲' : '▼'}${Math.abs(a.delta)}</span><span class="sr">${dsr(a.delta)}</span></span>` : '';
     const next = ranked[i + 1], sv = sortValue(a, o.sortMode);
-    const tie = sv != null && next && sv - sortValue(next, o.sortMode) <= 1 ? `<div class="muted">≈ Fast gleichauf mit Platz ${i + 2} (${escapeHtml(next.name)}). Der Unterschied ist kleiner als die Genauigkeit der Daten.</div>` : '';
-    const mini = usedCats.map(kk => `<div><span>${LABELS[kk][1]}<span class="sr">: ${Math.round(a.norm[kk] * 100)} %</span></span><span class="bar" aria-hidden="true"><i style="width:${Math.round(a.norm[kk] * 100)}%"></i></span></div>`).join('');
+    const tie = sv != null && next && sv - sortValue(next, o.sortMode) <= 1 ? mu(t('≈ Fast gleichauf mit Platz {n} ({name}). Der Unterschied ist kleiner als die Genauigkeit der Daten.', { n: i + 2, name: escapeHtml(next.name) })) : '';
+    const mini = usedCats.map(kk => `<div><span>${LABELS[kk][1]}<span class="sr">: ${t('{n} %', { n: Math.round(a.norm[kk] * 100) })}</span></span><span class="bar" aria-hidden="true"><i style="width:${Math.round(a.norm[kk] * 100)}%"></i></span></div>`).join('');
     const countsLine = Object.keys(CATEGORIES).filter(kk => CORE_CATS.includes(kk) || usedCats.includes(kk))
-      .map(kk => `${ico(LABELS[kk][0])} ${c[kk]} ${LABELS[kk][1]}${stats[kk] ? ` (Ø ${stats[kk]})` : ''}`).join(' · ');
+      .map(kk => `${ico(LABELS[kk][0])} ${c[kk]} ${LABELS[kk][1]}${stats[kk] ? ` ${t('(Ø {n})', { n: stats[kk] })}` : ''}`).join(' · ');
     const tr = a.nearest.transit;
-    const where = `${ico('🚇')} ${tr != null ? `Bahn ${tr} m` : 'keine Bahn im Umkreis von 1,5 km'} · ${ico('📍')} ${dec(a.centerDist / 1000)} km zum Zentrum · Preislage ${TIERS[a.tier]} (grobe Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise)`;
+    const where = [ico('🚇') + ' ' + (tr != null ? t('Bahn {m} m', { m: tr }) : t('keine Bahn im Umkreis von 1,5 km')), ico('📍') + ' ' + t('{km} km zum Zentrum', { km: dec(a.centerDist / 1000) }), t('Preislage {tier} (grobe Schätzung aus Lage und Sehenswürdigkeiten, keine echten Preise)', { tier: TIERS[a.tier] })].join(' · ');
     const neigh = pool.filter(x => x !== a && !ranked.includes(x) && distM(a, x) < minDist).slice(0, 3)
-      .map(x => `<button type="button" class="link" data-ll="${x.lat},${x.lon}" aria-label="${escapeHtml(x.name)} (${x.group.total}) auf der Karte zeigen">${escapeHtml(x.name)} (${x.group.total})</button>`);
+      .map(x => { const lab = t('{name} ({n}) auf der Karte zeigen', { name: escapeHtml(x.name), n: x.group.total }); return `<button type="button" class="link" data-ll="${x.lat},${x.lon}" aria-label="${lab}">${escapeHtml(x.name)} (${x.group.total})</button>`; });
     const osm = `https://www.openstreetmap.org/?mlat=${a.lat.toFixed(5)}&mlon=${a.lon.toFixed(5)}#map=16/${a.lat.toFixed(5)}/${a.lon.toFixed(5)}`;
     return `<article class="card result" id="area-${i}" data-i="${i}" tabindex="-1" aria-labelledby="areah-${i}">
-      <div class="rh"><span class="rank-num"><h3 id="areah-${i}">${i + 1}. ${name}</h3> <button type="button" class="fav" data-fav="${k}" aria-pressed="${o.fav}" aria-label="${name} als Favorit ${o.fav ? 'entfernen' : 'merken'}">${o.fav ? '♥' : '♡'}</button>${delta}</span>
-        <span><span class="sr">Gesamtwert ${a.group.total} von 100, ${verdict(a.group.total)}</span><span class="score" aria-hidden="true">${a.group.total}</span><span class="verdict" aria-hidden="true">/100 · ${verdict(a.group.total)}</span></span></div>
-      ${badges ? `<div class="badges">${badges}</div>` : ''}${tip ? '<div class="muted">Geheimtipp: fast so gut wie die Spitze, mit weniger Bars und Sehenswürdigkeiten, weiter vom Zentrum.</div>' : ''}
+      <div class="rh"><span class="rank-num"><h3 id="areah-${i}">${i + 1}. ${name}</h3> <button type="button" class="fav" data-fav="${k}" aria-pressed="${o.fav}" aria-label="${o.fav ? t('{name} als Favorit entfernen', { name }) : t('{name} als Favorit merken', { name })}">${o.fav ? '♥' : '♡'}</button>${delta}</span>
+        <span><span class="sr">${t('Gesamtwert {n} von 100, {v}', { n: a.group.total, v: verdict(a.group.total) })}</span><span class="score" aria-hidden="true">${a.group.total}</span><span class="verdict" aria-hidden="true">/100 · ${verdict(a.group.total)}</span></span></div>
+      ${badges ? `<div class="badges">${badges}</div>` : ''}${tip ? mu(t('Geheimtipp: fast so gut wie die Spitze, mit weniger Bars und Sehenswürdigkeiten, weiter vom Zentrum.')) : ''}
       <div class="bar" aria-hidden="true"><i style="width:${a.group.total}%"></i></div>
       <div>${escapeHtml(summary(a, ppl))}</div>${tie}
-      ${chips ? `<div class="chips" role="group" aria-label="Zufriedenheit je Person. Anklicken zeigt die Zusammensetzung.">${chips}</div>` : ''}${solobd}
+      ${chips ? `<div class="chips" role="group" aria-label="${chipsT}">${chips}</div>` : ''}${solobd}
       <div class="breakdown" id="bd-${i}" hidden></div>
       ${whys}${thin}
-      <div class="mini"><span class="sr">Stärke je Kategorie:</span>${mini}</div>
-      <div class="muted">${countsLine}</div>
-      <div class="muted">${where}</div>
-      ${hl.length ? `<div class="muted">In der Nähe: ${hl.map(p => `<a class="sub2" href="https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=18/${p.lat}/${p.lon}" target="_blank" rel="noopener">${escapeHtml(p.name)}<span class="sr"> (neuer Tab)</span></a>`).join(', ')}</div>` : ''}
-      ${neigh.length ? `<div class="muted">Gehört zur selben Gegend: ${neigh.join(', ')}</div>` : ''}
-      <div class="actions"><a class="btn" href="${o.url}" target="_blank" rel="noopener" aria-label="Unterkünfte hier auf Airbnb ansehen: ${name} (neuer Tab)">Unterkünfte hier auf Airbnb ansehen →</a>
-      <a class="sub2" href="${osm}" target="_blank" rel="noopener" aria-label="Auf Karte ansehen: ${name} (neuer Tab)">Auf Karte ansehen</a>
-      <label class="cmp"><input type="checkbox" data-k="${k}" ${o.cmp ? 'checked' : ''}> Vergleichen</label></div>
+      <div class="mini"><span class="sr">${t('Stärke je Kategorie:')}</span>${mini}</div>
+      ${mu(countsLine)}
+      ${mu(where)}
+      ${hl.length ? mu(t('In der Nähe: {list}', { list: hl.map(p => `<a class="sub2" href="https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=18/${p.lat}/${p.lon}" target="_blank" rel="noopener">${escapeHtml(p.name)}<span class="sr"> ${t('(neuer Tab)')}</span></a>`).join(', ') })) : ''}
+      ${neigh.length ? mu(t('Gehört zur selben Gegend: {list}', { list: neigh.join(', ') })) : ''}
+      <div class="actions"><a class="btn" href="${o.url}" target="_blank" rel="noopener" aria-label="${abnbT}">${t('Unterkünfte hier auf Airbnb ansehen →')}</a>
+      <a class="sub2" href="${osm}" target="_blank" rel="noopener" aria-label="${t('Auf Karte ansehen: {name} (neuer Tab)', { name })}">${t('Auf Karte ansehen')}</a>
+      <label class="cmp"><input type="checkbox" data-k="${k}" ${o.cmp ? 'checked' : ''}> ${t('Vergleichen')}</label></div>
     </article>`;
   }
 
@@ -589,7 +599,7 @@
   const KEYS = Object.keys(CATEGORIES);
   const wOf = p => p.w || weightsOf(p);
   const meanW = (ppl, k) => ppl.length ? ppl.reduce((x, p) => x + (wOf(p)[k] || 0), 0) / ppl.length : 0;
-  const lbl = k => CATEGORIES[k].label;
+  const lbl = ll;
 
   // Tageslänge in Stunden aus Breitengrad und Datum (Näherung ohne Netz, ±10 Minuten). 0 = Polarnacht, 24 = Mitternachtssonne.
   function dayLength(lat, day) {
@@ -603,13 +613,13 @@
   function daylightText(lat, checkin) {
     const h = dayLength(lat, checkin);
     if (h == null) return '';
-    const hm = `${Math.floor(h)} Std. ${String(Math.round((h % 1) * 60) % 60).padStart(2, '0')} Min.`;
-    return `Tageslicht am Anreisetag: etwa ${hm}` + (h < 9 ? ' Früh dunkel: Ankunft und Schlüsselübergabe möglichst im Hellen planen.'
-      : h > 16 ? ' Lange hell: Verdunkelung im Schlafzimmer hilft beim Schlafen.' : '');
+    const hm = t('{h} Std. {m} Min.', { h: Math.floor(h), m: String(Math.round((h % 1) * 60) % 60).padStart(2, '0') });
+    return t('Tageslicht am Anreisetag: etwa {hm}', { hm }) + (h < 9 ? ' ' + t('Früh dunkel: Ankunft und Schlüsselübergabe möglichst im Hellen planen.')
+      : h > 16 ? ' ' + t('Lange hell: Verdunkelung im Schlafzimmer hilft beim Schlafen.') : '');
   }
 
   // Anreise am Sonntag: in vielen Ländern (etwa Deutschland, Österreich, Schweiz) sind Läden dann zu
-  const sundayNote = day => new Date(String(day) + 'T12:00:00Z').getUTCDay() === 0 ? 'Anreise am Sonntag: In manchen Ländern, etwa Deutschland, Österreich und der Schweiz, haben Läden dann zu. Vorher einkaufen.' : '';
+  const sundayNote = day => new Date(String(day) + 'T12:00:00Z').getUTCDay() === 0 ? t('Anreise am Sonntag: In manchen Ländern, etwa Deutschland, Österreich und der Schweiz, haben Läden dann zu. Vorher einkaufen.') : '';
   // Was fehlt diesem Viertel bis Platz 1? Punkte und die zwei Kategorien mit dem größten Rückstand (gewichtet nach der Gruppe).
   function gapToFirst(a, first, ppl) {
     if (!a || !first || a === first) return null;
@@ -620,8 +630,8 @@
   }
   function gapText(g) {
     if (!g) return '';
-    const why = g.cats.map(c => c.more ? `weniger ${c.label}` : `mehr ${c.label}`);
-    return `Bis Platz 1 fehlen ${g.pts} ${g.pts === 1 ? 'Punkt' : 'Punkte'}${why.length ? `, vor allem ${why.join(' und ')}` : ''}.`;
+    const why = g.cats.map(c => c.more ? t('weniger {label}', c) : t('mehr {label}', c));
+    return (g.pts === 1 ? t('Bis Platz 1 fehlen {n} Punkt', { n: 1 }) : t('Bis Platz 1 fehlen {n} Punkte', { n: g.pts })) + (why.length ? t(', vor allem {why}', { why: why.length > 1 ? t('{a} und {b}', { a: why[0], b: why[1] }) : why[0] }) : '') + '.';
   }
 
   // Diese Viertel passen nicht: die schwächsten mit Grund (für wen, was fehlt oder stört)
@@ -629,8 +639,8 @@
     return [...areas].sort((a, b) => a.group.total - b.group.total).slice(0, n).map(a => {
       const i = a.group.scores.indexOf(Math.min(...a.group.scores)), p = ppl[i] || ppl[0];
       const w = p ? weakness(a.norm, a.counts, wOf(p)) : null;
-      const who = ppl.length === 1 ? 'dich' : p.name;
-      return { name: a.name, total: a.group.total, reason: !w ? 'kaum etwas, was ihr sucht' : w.kind === 'missing' ? `wenig ${w.label} für ${who}` : `zu viel ${w.label} für ${who}` };
+      const o = { label: w && w.label, who: ppl.length === 1 ? t('dich') : p.name };
+      return { name: a.name, total: a.group.total, reason: !w ? t('kaum etwas, was ihr sucht') : w.kind === 'missing' ? t('wenig {label} für {who}', o) : t('zu viel {label} für {who}', o) };
     });
   }
 
@@ -641,8 +651,8 @@
     for (const k of KEYS) {
       const ws = ppl.map(p => wOf(p)[k] || 0);
       const hi = ws.indexOf(Math.max(...ws)), lo = ws.indexOf(Math.min(...ws));
-      if (ws[hi] >= 0.5 && ws[lo] <= -0.3) out.push({ key: k, gap: ws[hi] - ws[lo], text: `${ppl[hi].name} will ${lbl(k)}, ${ppl[lo].name} stört es.` });
-      else if (ws[hi] - ws[lo] >= 0.8) out.push({ key: k, gap: ws[hi] - ws[lo], text: `${ppl[hi].name} legt Wert auf ${lbl(k)}, ${ppl[lo].name} eher nicht.` });
+      if (ws[hi] >= 0.5 && ws[lo] <= -0.3) out.push({ key: k, gap: ws[hi] - ws[lo], text: t('{a} will {label}, {b} stört es.', { a: ppl[hi].name, b: ppl[lo].name, label: lbl(k) }) });
+      else if (ws[hi] - ws[lo] >= 0.8) out.push({ key: k, gap: ws[hi] - ws[lo], text: t('{a} legt Wert auf {label}, {b} eher nicht.', { a: ppl[hi].name, b: ppl[lo].name, label: lbl(k) }) });
     }
     return out.sort((a, b) => b.gap - a.gap).slice(0, max);
   }
@@ -653,16 +663,16 @@
     if (pool.length < 2 || !ppl.length) return null;
     const best = (people, f) => { let b = null, bt = -1; for (const a of pool) { const t = groupScore(a.norm, people, f).total; if (t > bt) { bt = t; b = a; } } return b; };
     const top = best(ppl, fairness), variants = [];
-    if (ppl.length > 1) for (const f of [fairness - 0.3, fairness + 0.3]) if (f >= 0 && f <= 1) variants.push({ why: f < fairness ? 'mehr auf den Schnitt' : 'mehr auf die Unzufriedenste', ppl, f });
-    for (const k of KEYS) if (ppl.some(p => wOf(p)[k])) for (const m of [0.7, 1.3]) variants.push({ why: `${lbl(k)} ${m > 1 ? 'etwas wichtiger' : 'etwas unwichtiger'}`, ppl: ppl.map(p => ({ ...p, w: Object.fromEntries(KEYS.map(j => [j, (wOf(p)[j] || 0) * (j === k ? m : 1)])) })), f: fairness });
+    if (ppl.length > 1) for (const f of [fairness - 0.3, fairness + 0.3]) if (f >= 0 && f <= 1) variants.push({ why: f < fairness ? t('mehr auf den Schnitt') : t('mehr auf die Unzufriedenste'), ppl, f });
+    for (const k of KEYS) if (ppl.some(p => wOf(p)[k])) for (const m of [0.7, 1.3]) variants.push({ why: m > 1 ? t('{label} etwas wichtiger', { label: lbl(k) }) : t('{label} etwas unwichtiger', { label: lbl(k) }), ppl: ppl.map(p => ({ ...p, w: Object.fromEntries(KEYS.map(j => [j, (wOf(p)[j] || 0) * (j === k ? m : 1)])) })), f: fairness });
     const flips = variants.map(v => ({ why: v.why, area: best(v.ppl, v.f) })).filter(v => v.area !== top);
     return { top: top.name, total: variants.length, kept: variants.length - flips.length, flips: flips.slice(0, 2).map(v => ({ why: v.why, name: v.area.name })) };
   }
   function robustText(r) {
     if (!r) return '';
-    if (!r.flips.length) return `Empfehlung stabil: ${r.top} bleibt vorn, auch wenn einzelne Wünsche etwas mehr oder weniger zählen.`;
+    if (!r.flips.length) return t('Empfehlung stabil: {top} bleibt vorn, auch wenn einzelne Wünsche etwas mehr oder weniger zählen.', r);
     const share = r.kept / r.total;
-    return `${share >= 0.75 ? 'Empfehlung recht stabil' : 'Knappe Empfehlung'}: ${r.top} bleibt in ${r.kept} von ${r.total} Varianten vorn. Zählt ${r.flips[0].why}, wäre ${r.flips[0].name} Platz 1.`;
+    return t('{lead}: {top} bleibt in {kept} von {total} Varianten vorn.', { ...r, lead: share >= 0.75 ? t('Empfehlung recht stabil') : t('Knappe Empfehlung') }) + ' ' + t('Zählt {why}, wäre {name} Platz 1.', r.flips[0]);
   }
 
   // Mal was anderes: gut bewertet, aber anders als Platz 1 (gegen die eigene Filterblase)
@@ -681,13 +691,13 @@
 
   // Einfache Sprache: kurze Sätze ohne Fachwörter
   function plainText(a, ppl) {
-    const t = a.group.total, s = [t >= 80 ? 'Sehr gut.' : t >= 65 ? 'Gut.' : t >= 50 ? 'Geht so.' : 'Passt eher nicht.'];
+    const tot = a.group.total, s = [tot >= 80 ? t('Sehr gut.') : tot >= 65 ? t('Gut.') : tot >= 50 ? t('Geht so.') : t('Passt eher nicht.')];
     const top = KEYS.filter(k => k !== 'transit' && (a.counts[k] || 0) >= 3).sort((x, y) => (a.norm[y] || 0) - (a.norm[x] || 0)).slice(0, 2);
-    for (const k of top) s.push(`Viel ${lbl(k)}.`);
+    for (const k of top) s.push(t('Viel {label}.', { label: lbl(k) }));
     const tr = a.nearest && a.nearest.transit;
-    s.push(tr == null ? 'Keine Bahn in der Nähe.' : tr <= 400 ? 'Bahn ganz nah.' : tr <= 900 ? 'Bahn zu Fuß gut erreichbar.' : 'Bahn etwas weiter weg.');
-    if (a.centerDist != null) s.push(a.centerDist <= 2000 ? 'Nah am Zentrum.' : a.centerDist <= 5000 ? 'Etwas außerhalb.' : 'Weit vom Zentrum.');
-    if (ppl.length > 1 && Math.min(...a.group.scores) < 50) s.push('Nicht für alle gut.');
+    s.push(tr == null ? t('Keine Bahn in der Nähe.') : tr <= 400 ? t('Bahn ganz nah.') : tr <= 900 ? t('Bahn zu Fuß gut erreichbar.') : t('Bahn etwas weiter weg.'));
+    if (a.centerDist != null) s.push(a.centerDist <= 2000 ? t('Nah am Zentrum.') : a.centerDist <= 5000 ? t('Etwas außerhalb.') : t('Weit vom Zentrum.'));
+    if (ppl.length > 1 && Math.min(...a.group.scores) < 50) s.push(t('Nicht für alle gut.'));
     return s.join(' ');
   }
 
@@ -705,43 +715,43 @@
   const WISH_RE = [
     ['whole', /ganze?[nrs]?\s+(wohnung|unterkunft|haus|apartment)|eigene\s+wohnung|kein\s+zimmer|entire|whole/],
     ['luxury', /luxus|luxuri|edel|suite|villa|penthouse|hotel-?stil|luxury/],
-    ['private', /privat(e[rn]?)?\s+(vermieter|gastgeber|anbieter)|kein(e[nr]?)?\s+(gewerblich|agentur|firma)|nicht\s+gewerblich/],
+    ['private', /privat(e[rn]?)?\s+(vermieter|gastgeber|anbieter)|kein(e[nr]?)?\s+(gewerblich|agentur|firma)|nicht\s+gewerblich|private\s+(host|landlord|owner)|no\s+(agenc|compan|professional)|not\s+(commercial|professional)/],
     ['trusted', /superhost|g[äa]ste-?favorit|guest\s*favou?rite/],
-    ['reviews', /(viele|genug|mindestens\s+\d+)\s+bewertungen|many\s+reviews/],
-    ['quiet', /ruhig|leise|quiet|kein\s+l[äa]rm/],
+    ['reviews', /(viele|genug|mindestens\s+\d+)\s+bewertungen|(many|enough|lots\s+of|at\s+least\s+\d+)\s+reviews/],
+    ['quiet', /ruhig|leise|quiet|peaceful|calm|no\s+noise|kein\s+l[äa]rm/],
     ['clean', /sauber|clean/],
     ['wifi', /wlan|wi-?fi|internet/],
   ];
   function parseWishes(text) {
     const t = String(text || '').toLowerCase().slice(0, 300);
     const wishes = WISH_RE.filter(([, re]) => re.test(t)).map(([k]) => k);
-    const m = /(?:unter|bis|max(?:imal)?\.?|höchstens|budget|<)\s*(\d{2,6})\s*(?:€|euro|eur)?\s*(pro\s+nacht|die\s+nacht|\/\s*nacht|nacht|pro\s+person|p\.?\s?p\.?|insgesamt|gesamt)?/.exec(t)
-      || /(\d{2,6})\s*(?:€|euro|eur)\s*(pro\s+nacht|\/\s*nacht|pro\s+person|insgesamt|gesamt)?/.exec(t);
-    const mode = !m ? null : /nacht/.test(m[2] || '') ? 'night' : /person|p\.?\s?p/.test(m[2] || '') ? 'pp' : /gesamt/.test(m[2] || '') ? 'total' : +m[1] <= 400 ? 'night' : 'total';
+    const m = /(?:unter|bis|under|up\s+to|below|less\s+than|max(?:imal|imum)?\.?|höchstens|at\s+most|budget|<)\s*(\d{2,6})\s*(?:€|euro|eur)?\s*(pro\s+nacht|die\s+nacht|\/\s*nacht|nacht|per\s+night|a\s+night|\/\s*night|night|pro\s+person|per\s+person|p\.?\s?p\.?|insgesamt|gesamt|in\s+total|total)?/.exec(t)
+      || /(\d{2,6})\s*(?:€|euro|eur)\s*(pro\s+nacht|\/\s*nacht|per\s+night|\/\s*night|pro\s+person|per\s+person|insgesamt|gesamt|in\s+total|total)?/.exec(t);
+    const mode = !m ? null : /nacht|night/.test(m[2] || '') ? 'night' : /person|p\.?\s?p/.test(m[2] || '') ? 'pp' : /gesamt|total/.test(m[2] || '') ? 'total' : +m[1] <= 400 ? 'night' : 'total';
     return { wishes, budget: m ? Math.min(1e6, +m[1]) : null, mode };
   }
 
   // Freitext-Interessen → eigene Gewichte (Wortliste, ohne KI). „keine Bars“ zählt negativ.
   const INTEREST_WORDS = {
-    party: /bars?|kneipe|club|party|nachtleben|jazz|cocktail|pubs?|bier|feiern|ausgehen/,
-    chill: /parks?|caf[eé]s?|kaffee|ruhe|ruhig|garten|strand|entspann|spa|grün/,
-    sights: /museum|museen|sehensw|kultur|galerie|kunst|geschichte|denkmal|aussicht|architektur|altstadt/,
-    food: /essen|restaurant|food|tapas|pizza|kulinar|imbiss|lokal/,
-    transit: /bahn|metro|öpnv|oepnv|tram|bus|anbindung/,
-    shop: /shopping|einkauf|flohmarkt|markt|mall|läden|laden|boutique/,
-    sport: /sport|fitness|gym|laufen|joggen|schwimm|kletter|yoga/,
-    kids: /kind|spielpl|zoo|familie|freizeitpark/,
+    party: /bars?|kneipe|club|party|nachtleben|nightlife|jazz|cocktail|pubs?|bier|beer|feiern|ausgehen|going\s+out/,
+    chill: /parks?|caf[eé]s?|kaffee|coffee|ruhe|ruhig|quiet|calm|relax|garden|garten|strand|beach|entspann|spa|grün|green/,
+    sights: /museum|museen|sehensw|sights?|kultur|culture|galler|kunst|\bart\b|geschichte|history|denkmal|monument|aussicht|\bviews?\b|architektur|architecture|altstadt|old\s+town/,
+    food: /essen|restaurant|food|tapas|pizza|kulinar|imbiss|lokal|dining/,
+    transit: /bahn|metro|subway|öpnv|oepnv|tram|bus|anbindung|transport|trains?\b/,
+    shop: /shopping|einkauf|flohmarkt|market|markt|mall|läden|laden|boutique/,
+    sport: /sport|fitness|gym|laufen|running|joggen|jogging|schwimm|swim|kletter|climbing|yoga/,
+    kids: /kind|kids?\b|children|spielpl|playground|zoo|familie|family|freizeitpark|theme\s+park/,
   };
   function interestsToWeights(text) {
-    const parts = String(text || '').toLowerCase().slice(0, 300).split(/[,;.\n]+|\s+(?:und|and|oder|sowie)\s+/).map(x => x.trim()).filter(Boolean);
+    const parts = String(text || '').toLowerCase().slice(0, 300).split(/[,;.\n]+|\s+(?:und|and|oder|or|sowie)\s+/).map(x => x.trim()).filter(Boolean);
     const w = Object.fromEntries(KEYS.map(k => [k, 0])), hits = [];
     for (const part of parts) {
-      const neg = /\b(kein\w*|ohne|nicht|wenig|hasse|mag\s+keine?)\b/.test(part);
-      for (const k of KEYS) if (INTEREST_WORDS[k].test(part) && !(neg && w[k] > 0)) { w[k] = neg ? -0.6 : 1; hits.push((neg ? 'kein ' : '') + lbl(k)); } // „Jazzbars, aber keine Clubs“: das Ja gewinnt
+      const neg = /\b(kein\w*|ohne|nicht|wenig|hasse|mag\s+keine?|no|not|without|hate|few|little|don'?t\s+like)\b/.test(part);
+      for (const k of KEYS) if (INTEREST_WORDS[k].test(part) && !(neg && w[k] > 0)) { w[k] = neg ? -0.6 : 1; hits.push({ k, neg }); } // „Jazzbars, aber keine Clubs“: das Ja gewinnt
     }
     if (!hits.length) return null;
     for (const k of ['food', 'transit']) if (!w[k]) w[k] = 0.3; // etwas Essen und Bahn will jeder
-    return { w, hits: [...new Set(hits)].filter(h => !h.startsWith('kein ') || w[KEYS.find(k => lbl(k) === h.slice(5))] < 0) };
+    return { w, hits: [...new Set(hits.filter(h => !h.neg || w[h.k] < 0).map(h => h.neg ? t('kein {label}', { label: lbl(h.k) }) : cl(h.k)))] };
   }
 
   // Paarweises Duell: Viertelpaare, die sich je Runde in einer Kategorie stark unterscheiden; aus den Antworten Gewichte schätzen
@@ -773,7 +783,7 @@
     return Object.fromEntries(Object.entries(w).map(([k, v]) => [k, v > 0 && f[k] ? Math.min(1, Math.round(v * f[k] * 100) / 100) : v]));
   }
   function stayNote(nights) {
-    return !nights ? '' : nights <= 2 ? 'Kurztrip: Bahn und Sehenswertes zählen etwas mehr.' : nights >= 10 ? 'Lange Reise: Einkaufen, Ruhe und Sport zählen etwas mehr.' : '';
+    return !nights ? '' : nights <= 2 ? t('Kurztrip: Bahn und Sehenswertes zählen etwas mehr.') : nights >= 10 ? t('Lange Reise: Einkaufen, Ruhe und Sport zählen etwas mehr.') : '';
   }
 
   // Eigene Ortsliste (GeoJSON oder KML, z. B. aus einer gespeicherten Kartenliste). Nur Punkte, höchstens 500.
@@ -818,7 +828,7 @@
   }
 
   // Etappen (mehrere Städte): Lücken und Überschneidungen finden, Kopiertext bauen
-  const fmtD = d => { const [y, m, t] = String(d).split('-'); return y && m && t ? `${t}.${m}.` : ''; };
+  const fmtD = d => { const [y, m, dd] = String(d).split('-'); return y && m && dd ? (I.lang() === 'en' ? `${dd}/${m}` : `${dd}.${m}.`) : ''; };
   function cleanLegs(legs) {
     return (Array.isArray(legs) ? legs : []).filter(l => l && typeof l.c === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(l.i) && /^\d{4}-\d{2}-\d{2}$/.test(l.o))
       .slice(0, 12).map(l => ({ c: l.c.slice(0, 80), i: l.i, o: l.o, a: String(l.a || '').slice(0, 80), t: Math.max(0, Math.min(100, +l.t || 0)) })).sort((x, y) => x.i.localeCompare(y.i));
@@ -827,15 +837,15 @@
     const L = cleanLegs(legs), out = [];
     for (let i = 1; i < L.length; i++) {
       const gap = nights(L[i - 1].o, L[i].i);
-      if (L[i].i < L[i - 1].o) out.push(`Etappe ${i + 1} (${L[i].c}) beginnt vor dem Ende von Etappe ${i} (${L[i - 1].c}).`);
-      else if (gap > 0) out.push(`Zwischen ${L[i - 1].c} und ${L[i].c} ${gap === 1 ? 'fehlt 1 Nacht' : `fehlen ${gap} Nächte`}.`);
+      if (L[i].i < L[i - 1].o) out.push(t('Etappe {n} ({c}) beginnt vor dem Ende von Etappe {m} ({d}).', { n: i + 1, c: L[i].c, m: i, d: L[i - 1].c }));
+      else if (gap > 0) out.push(gap === 1 ? t('Zwischen {a} und {b} fehlt 1 Nacht.', { a: L[i - 1].c, b: L[i].c }) : t('Zwischen {a} und {b} fehlen {n} Nächte.', { a: L[i - 1].c, b: L[i].c, n: gap }));
     }
     return out;
   }
   function legsText(legs, { emoji = true } = {}) {
     const L = cleanLegs(legs);
-    return L.map((l, i) => `${emoji ? '📍 ' : ''}Etappe ${i + 1}: ${l.c}, ${fmtD(l.i)}–${fmtD(l.o)} (${nights(l.i, l.o)} ${nights(l.i, l.o) === 1 ? 'Nacht' : 'Nächte'})${l.a ? `, Viertel ${l.a} (${l.t}/100)` : ''}`).join('\n')
-      + (L.length ? `\n${nights(L[0].i, L[L.length - 1].o)} Nächte insgesamt.` : '');
+    return L.map((l, i) => { const n = nights(l.i, l.o), nn = n === 1 ? t('1 Nacht') : t('{n} Nächte', { n }); return (emoji ? '📍 ' : '') + t('Etappe {n}: {c}, {from}–{to} ({nn})', { n: i + 1, c: l.c, from: fmtD(l.i), to: fmtD(l.o), nn }) + (l.a ? t(', Viertel {a} ({s}/100)', { a: l.a, s: l.t }) : ''); }).join('\n')
+      + (L.length ? '\n' + t('{n} Nächte insgesamt.', { n: nights(L[0].i, L[L.length - 1].o) }) : '');
   }
 
   // Kopiertext der besten Viertel: Liste oder Markdown-Tabelle, mit oder ohne Symbole, mit Datenstand und zwei Entscheidungsfragen
@@ -844,24 +854,24 @@
     const d = KEYS.filter(k => k !== 'transit').map(k => ({ k, d: (A.norm[k] || 0) - (B.norm[k] || 0) }));
     const a = d.filter(x => x.d > 0.1).sort((x, y) => y.d - x.d)[0], b = d.filter(x => x.d < -0.1).sort((x, y) => x.d - y.d)[0];
     const q = [];
-    if (a && b) q.push(`Lieber mehr ${lbl(a.k)} (${A.name}) oder mehr ${lbl(b.k)} (${B.name})?`);
-    else if (a) q.push(`Ist euch mehr ${lbl(a.k)} in ${A.name} wichtig, oder reicht ${B.name}?`);
+    if (a && b) q.push(t('Lieber mehr {a} ({an}) oder mehr {b} ({bn})?', { a: lbl(a.k), an: A.name, b: lbl(b.k), bn: B.name }));
+    else if (a) q.push(t('Ist euch mehr {a} in {an} wichtig, oder reicht {bn}?', { a: lbl(a.k), an: A.name, bn: B.name }));
     const ta = A.nearest && A.nearest.transit, tb = B.nearest && B.nearest.transit;
-    if (A.centerDist != null && B.centerDist != null && Math.abs(A.centerDist - B.centerDist) > 800) q.push(`Wie wichtig ist die Nähe zum Zentrum (${A.name} ${(A.centerDist / 1000).toFixed(1).replace('.', ',')} km, ${B.name} ${(B.centerDist / 1000).toFixed(1).replace('.', ',')} km)?`);
-    else if (ta != null && tb != null && Math.abs(ta - tb) > 250) q.push(`Wie wichtig ist der kurze Weg zur Bahn (${A.name} ${ta} m, ${B.name} ${tb} m)?`);
+    if (A.centerDist != null && B.centerDist != null && Math.abs(A.centerDist - B.centerDist) > 800) q.push(t('Wie wichtig ist die Nähe zum Zentrum ({an} {ak} km, {bn} {bk} km)?', { an: A.name, ak: dc((A.centerDist / 1000).toFixed(1)), bn: B.name, bk: dc((B.centerDist / 1000).toFixed(1)) }));
+    else if (ta != null && tb != null && Math.abs(ta - tb) > 250) q.push(t('Wie wichtig ist der kurze Weg zur Bahn ({an} {ta} m, {bn} {tb} m)?', { an: A.name, ta, bn: B.name, tb }));
     return q.slice(0, 2);
   }
   function areasText(list, { city = '', ppl = [], md = false, emoji = true, questions = true, stamp = '' } = {}) {
-    const km = a => a.centerDist != null ? `${(a.centerDist / 1000).toFixed(1).replace('.', ',')} km` : '?';
-    const tr = a => a.nearest && a.nearest.transit != null ? `${a.nearest.transit} m` : 'weit';
-    const head = `${emoji ? '🏘️ ' : ''}Passende Viertel${city ? ` in ${city}` : ''}${ppl.length > 1 ? ` für ${ppl.length} Personen` : ''}`;
+    const km = a => a.centerDist != null ? `${dc((a.centerDist / 1000).toFixed(1))} km` : '?';
+    const tr = a => a.nearest && a.nearest.transit != null ? `${a.nearest.transit} m` : t('weit');
+    const head = (emoji ? '🏘️ ' : '') + (city ? t('Passende Viertel in {city}', { city }) : t('Passende Viertel')) + (ppl.length > 1 ? ' ' + t('für {n} Personen', { n: ppl.length }) : '');
     const rows = list.slice(0, 5);
     const body = md
-      ? ['| Platz | Viertel | Wert | Bahn | Zentrum |', '| --- | --- | --- | --- | --- |', ...rows.map((a, i) => `| ${i + 1} | ${String(a.name).replace(/\|/g, '/')} | ${a.group.total}/100 | ${tr(a)} | ${km(a)} |`)].join('\n')
-      : rows.map((a, i) => `${i + 1}. ${a.name}: ${a.group.total}/100 (${verdict(a.group.total)}), Bahn ${tr(a)}, ${km(a)} zum Zentrum`).join('\n');
+      ? [t('| Platz | Viertel | Wert | Bahn | Zentrum |'), '| --- | --- | --- | --- | --- |', ...rows.map((a, i) => `| ${i + 1} | ${String(a.name).replace(/\|/g, '/')} | ${a.group.total}/100 | ${tr(a)} | ${km(a)} |`)].join('\n')
+      : rows.map((a, i) => t('{n}. {name}: {total}/100 ({v}), Bahn {tr}, {km} zum Zentrum', { n: i + 1, name: a.name, total: a.group.total, v: verdict(a.group.total), tr: tr(a), km: km(a) })).join('\n');
     const qs = questions ? decisionQuestions(rows[0], rows[1]) : [];
-    return [md ? `**${head}**` : head, body, qs.length ? (md ? '' : '') + `${emoji ? '🤔 ' : ''}Zum Entscheiden:\n${qs.map(q => `- ${q}`).join('\n')}` : '',
-      `Daten: OpenStreetMap${stamp ? `, Stand ${stamp}` : ''}. Werte sind Schätzungen, keine Preise.`].filter(Boolean).join('\n\n');
+    return [md ? `**${head}**` : head, body, qs.length ? `${emoji ? '🤔 ' : ''}${t('Zum Entscheiden:')}\n${qs.map(q => `- ${q}`).join('\n')}` : '',
+      stamp ? t('Daten: OpenStreetMap, Stand {stamp}. Werte sind Schätzungen, keine Preise.', { stamp }) : t('Daten: OpenStreetMap. Werte sind Schätzungen, keine Preise.')].filter(Boolean).join('\n\n');
   }
 
   // Fairness-Konto: wer war bei der letzten Reise derselben Gruppe am wenigsten zufrieden?
@@ -887,7 +897,7 @@
   // ?t= im Link: Typschlüssel (oder „quiet“) → Person-Felder; unbekannt = null
   const typePerson = t => t === 'quiet' ? { type: 'chill', custom: { ...QUIET_W } } : typeof t === 'string' && Object.hasOwn(PRESETS, t) ? { type: t } : null;
   const isQuiet = p => !!p && p.type === 'chill' && !!p.custom && KEYS.every(k => (p.custom[k] || 0) === QUIET_W[k]);
-  const deepLink = ({ c, t, i, o }) => `${C.APP_URL}?${[['c', c], ['t', t], ['i', i], ['o', o]].filter(x => x[1]).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')}`;
+  const deepLink = ({ c, t, i, o }) => `${I.lang() === 'en' ? C.APP_URL.replace('/app', '/en/app') : C.APP_URL}?${[['c', c], ['t', t], ['i', i], ['o', o]].filter(x => x[1]).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')}`;
   // Lärmproxy 0..100 (100 = ruhig): Bars/Clubs im Umkreis und Nähe zum Zentrum. Straßen- und Bahnlärm stehen nicht in den Daten.
   const quietScore = a => Math.round(100 * (1 - Math.min(1, 0.65 * a.norm.party + 0.35 * (1 - Math.min(1, a.centerDist / 3000)))));
   // Gehzeit: Luftlinie × 1,3 bei 80 m/min
@@ -904,19 +914,19 @@
     const cur = Math.round(meanW(ppl, k) * 10) / 10, min = Math.round(cur * lo * 10) / 10;
     return { top: top.name, key: k, label: lbl(k), cur, min, always: lo === 0, tight: lo === 1 };
   }
-  const num1 = n => String(n).replace('.', ',');
+  const num1 = dc;
   function sensitivityText(s) {
     if (!s) return '';
-    if (s.always) return `${s.top} bleibt vorn, auch wenn ${s.label} gar nicht zählt.`;
-    if (s.tight) return `${s.top} liegt knapp vorn: Zählt ${s.label} etwas weniger als ${num1(s.cur)}, wechselt Platz 1.`;
-    return `${s.top} bleibt vorn, solange ${s.label} ≥ ${num1(s.min)} (jetzt ${num1(s.cur)}).`;
+    if (s.always) return t('{top} bleibt vorn, auch wenn {label} gar nicht zählt.', s);
+    if (s.tight) return t('{top} liegt knapp vorn: Zählt {label} etwas weniger als {cur}, wechselt Platz 1.', { ...s, cur: num1(s.cur) });
+    return t('{top} bleibt vorn, solange {label} ≥ {min} (jetzt {cur}).', { ...s, min: num1(s.min), cur: num1(s.cur) });
   }
   // Konfidenz je Viertel: Datendichte im Umkreis und Anteil der Orte mit Namen
   function confidence(a, pois, r = RADIUS.area) {
     let n = 0, named = 0;
     for (const p of pois) if (distM(a, p) <= r) { n++; if (p.name) named++; }
     const share = n ? named / n : 0, level = n < 30 || share < 0.35 ? 'low' : n < 80 || share < 0.6 ? 'mid' : 'high';
-    return { n, named, share: Math.round(share * 100), level, text: `Datenlage ${{ low: 'dünn', mid: 'mittel', high: 'gut' }[level]}: ${n} Orte im Umkreis, ${Math.round(share * 100)} % mit Namen` };
+    return { n, named, share: Math.round(share * 100), level, text: t('Datenlage {level}: {n} Orte im Umkreis, {s} % mit Namen', { level: level === 'low' ? t('dünn') : level === 'mid' ? t('mittel') : t('gut'), n, s: Math.round(share * 100) }) };
   }
   // Stadt-Steckbrief als Absatz, nur aus den Zahlen (keine KI)
   function cityStory(name, areas, pois) {
@@ -926,17 +936,17 @@
     const quiet = [...ok].filter(a => a.nearest.transit != null && a.nearest.transit < 600).sort((a, b) => quietScore(b) - quietScore(a))[0];
     const st = cityStats(ok), named = pois.filter(p => p.name).length, tn = ok.filter(a => a.nearest.transit != null && a.nearest.transit <= 500).length;
     const dens = Math.round(100 * ok.filter(a => a.counts.party >= 20).length / ok.length);
-    return `${name}: ${ok.length} von ${areas.length} Viertel haben genug Daten für die Wertung, insgesamt ${pois.length.toLocaleString('de')} Orte, ${Math.round(100 * named / Math.max(1, pois.length))} % davon mit Namen. `
-      + `Im Schnitt liegen je Viertel ${st.food} Restaurants, ${st.chill} Parks und Cafés und ${st.sights} Sehenswürdigkeiten im Umkreis. `
-      + `Nachtleben bündelt sich rund um ${topOf('party')}${dens ? ` (in ${dens} % der Viertel gibt es mindestens 20 Bars)` : ''}, Sehenswürdigkeiten findest du am dichtesten in ${topOf('sights')}, Cafés und Grün in ${topOf('chill')}. `
-      + `${Math.round(100 * tn / ok.length)} % der Viertel haben eine Bahnstation in 500 m.${quiet ? ` Ruhig und trotzdem mit Bahn: ${quiet.name}.` : ''}`;
+    return t('{name}: {ok} von {all} Viertel haben genug Daten für die Wertung, insgesamt {n} Orte, {pct} % davon mit Namen. ', { name, ok: ok.length, all: areas.length, n: pois.length.toLocaleString(I.locale()), pct: Math.round(100 * named / Math.max(1, pois.length)) })
+      + t('Im Schnitt liegen je Viertel {food} Restaurants, {chill} Parks und Cafés und {sights} Sehenswürdigkeiten im Umkreis. ', st)
+      + t('Nachtleben bündelt sich rund um {a}{dens}, Sehenswürdigkeiten findest du am dichtesten in {b}, Cafés und Grün in {c}. ', { a: topOf('party'), dens: dens ? t(' (in {n} % der Viertel gibt es mindestens 20 Bars)', { n: dens }) : '', b: topOf('sights'), c: topOf('chill') })
+      + t('{n} % der Viertel haben eine Bahnstation in 500 m.', { n: Math.round(100 * tn / ok.length) }) + (quiet ? t(' Ruhig und trotzdem mit Bahn: {name}.', quiet) : '');
   }
   // „Fehlt ein Viertel?“: OSM-Editor (iD) an der Stelle, Vorlage place=neighbourhood
   const osmEditUrl = (lat, lon) => `https://www.openstreetmap.org/edit?editor=id#map=17/${(+lat).toFixed(5)}/${(+lon).toFixed(5)}&presets=place/neighbourhood`;
   // Zeilen der Bildkarte (Canvas-Zeichnung in app-extra.js)
   function shareCardData(a, i, city, ppl) {
     const keys = KEYS.filter(k => ppl.some(p => wOf(p)[k] > 0)).slice(0, 5);
-    return { title: `${i + 1}. ${a.name}`, sub: `${city} · ${a.group.total}/100 · ${verdict(a.group.total)}`, bars: keys.map(k => [lbl(k), Math.round(a.norm[k] * 100)]), line: summary(a, ppl).slice(0, 70), foot: 'staymatch.pro' };
+    return { title: `${i + 1}. ${a.name}`, sub: `${city} · ${a.group.total}/100 · ${verdict(a.group.total)}`, bars: keys.map(k => [cl(k), Math.round(a.norm[k] * 100)]), line: summary(a, ppl).slice(0, 70), foot: 'staymatch.pro' };
   }
   Object.assign(root.StayMatch, { QUIET_W, typePerson, isQuiet, deepLink, quietScore, walkMin, sensitivity, sensitivityText, confidence, cityStory, osmEditUrl, shareCardData });
 })(typeof window !== 'undefined' ? window : globalThis);
